@@ -5,18 +5,11 @@
 # This program uses awk arithmetic.  POSIX requires awk to support
 # exact integer arithmetic only through 10**10, which means for NTP
 # timestamps this program works only to the year 2216, which is the
-# year 1900 plus 10**10 seconds.  However, in practice
-# POSIX-conforming awk implementations invariably use IEEE-754 double
-# and so support exact integers through 2**53.  By the year 2216,
-# POSIX will almost surely require at least 2**53 for awk, so for NTP
-# timestamps this program should be good until the year 285,428,681
-# (the year 1900 plus 2**53 seconds).  By then leap seconds will be
-# long obsolete, as the Earth will likely slow down so much that
-# there will be more than 25 hours per day and so some other scheme
-# will be needed.
+# year 1900 plus 10**10 seconds.  However, this is not a practical problem
+# as the last leap second was in 2016 and there will be no more.
 
 BEGIN {
-  print "# Allowance for leap seconds added to each time zone file."
+  print "# Leap seconds (1972-2016) optionally added to TZif files."
   print ""
   print "# This file is in the public domain."
   print ""
@@ -24,7 +17,7 @@ BEGIN {
   print "# NIST/IERS format leap-seconds.list file, which can be copied from"
   print "# <https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list>"
   print "# or via a less-secure protocol and with different comments and"
-  print "# less volatile last-modified and expiration timestamps, from"
+  print "# less volatile timestamp metadata, from"
   print "# <ftp://ftp.boulder.nist.gov/pub/time/leap-seconds.list>."
   print "# For more about leap-seconds.list, please see"
   print "# The NTP Timescale and Leap Seconds"
@@ -36,10 +29,8 @@ BEGIN {
   print "# (ITU-R) Recommendation TF.460-6 (02/2002)"
   print "# <https://www.itu.int/rec/R-REC-TF.460-6-200202-I/>."
   print "# The International Earth Rotation and Reference Systems Service (IERS)"
-  print "# periodically uses leap seconds to keep UTC to within 0.9 s of UT1"
-  print "# (a proxy for Earth's angle in space as measured by astronomers)"
-  print "# and publishes leap second data in a copyrighted file"
-  print "# <https://hpiers.obspm.fr/iers/bul/bulc/Leap_Second.dat>."
+  print "# periodically used leap seconds to keep UTC to within 0.9 s of UT1"
+  print "# (a proxy for Earth's angle in space as measured by astronomers)."
   print "# See: Levine J. Coordinated Universal Time and the leap second."
   print "# URSI Radio Sci Bull. 2016;89(4):30-6. doi:10.23919/URSIRSB.2016.7909995"
   print "# <https://ieeexplore.ieee.org/document/7909995>."
@@ -51,8 +42,8 @@ BEGIN {
   print "# of UTC."
   print ""
   print "# All leap-seconds are Stationary (S) at the given UTC time."
-  print "# The correction (+ or -) is made at the given time, so in the unlikely"
-  print "# event of a negative leap second, a line would look like this:"
+  print "# The correction (+ or -) is made at the given time, so if a negative"
+  print "# leap second had ever occurred, a line would have looked like this:"
   print "# Leap	YEAR	MON	DAY	23:59:59	-	S"
   print "# Typical lines look like this:"
   print "# Leap	YEAR	MON	DAY	23:59:60	+	S"
@@ -108,16 +99,15 @@ END {
       sstamp_to_ymdhMs(expires, ss_NTP)
 
       print "# UTC timestamp when this leap second list expires."
-      print "# Any additional leap seconds will come after this."
+      print "# The idea was that any additional leap seconds would come after this."
+      print "# This timestamp is obsolete as there will be no more leap seconds."
       if (! EXPIRES_LINE) {
-	print "# This Expires line is commented out for now,"
+	print "# This Expires line is commented out, to avoid confusion, and"
 	print "# so that pre-2020a zic implementations do not reject this file."
       }
       printf "%sExpires %.4d\t%s\t%.2d\t%.2d:%.2d:%.2d\n", \
 	EXPIRES_LINE ? "" : "#", \
 	ss_year, monthabbr[ss_month], ss_mday, ss_hour, ss_min, ss_sec
-    } else {
-      print "# (No Expires line, since the expires time is unknown.)"
     }
 
     # The difference between the NTP and POSIX epochs is 70 years
@@ -130,9 +120,6 @@ END {
     print "# \"#updated\" gives the last time the leap seconds data changed"
     print "# or, if this file was derived from the IERS leap-seconds.list,"
     print "# the last time that file changed in any way."
-    print "# \"#expires\" gives the first time this file might be wrong;"
-    print "# if this file was derived from the IERS leap-seconds.list,"
-    print "# this is typically a bit less than one year after \"updated\"."
     if (updated) {
       sstamp_to_ymdhMs(updated, ss_NTP)
       printf "#updated %d (%.4d-%.2d-%.2d %.2d:%.2d:%.2d UTC)\n", \
@@ -142,12 +129,12 @@ END {
       print "#(updated time unknown)"
     }
     if (expires) {
+      print "# \"#expires\" gives the first time this file might be wrong."
+      print "# This timestamp is obsolete as there will be no more leap seconds."
       sstamp_to_ymdhMs(expires, ss_NTP)
       printf "#expires %d (%.4d-%.2d-%.2d %.2d:%.2d:%.2d UTC)\n", \
 	expires - epoch_minus_NTP, \
 	ss_year, ss_month, ss_mday, ss_hour, ss_min, ss_sec
-    } else {
-      print "#(expires time unknown)"
     }
     printf "\n%s", last_lines
 }

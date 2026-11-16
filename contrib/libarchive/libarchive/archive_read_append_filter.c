@@ -33,14 +33,47 @@
 #include "archive_private.h"
 #include "archive_read_private.h"
 
+static struct archive_read_filter_bidder *
+get_last_bidder(struct archive_read *a)
+{
+  size_t i;
+
+  for (i = 0; i < sizeof(a->bidders) / sizeof(a->bidders[0]); i++)
+  {
+    if (a->bidders[i].vtable == NULL)
+      break;
+  }
+
+  return a->bidders + (i - 1);
+}
+
+static int
+archive_read_append_filter_last_bidder(struct archive *_a)
+{
+  struct archive_read *a = (struct archive_read *)_a;
+  struct archive_read_filter_bidder *b;
+  struct archive_read_filter *f;
+
+  f = calloc(1, sizeof(*f));
+  if (f == NULL)
+  {
+    archive_set_error(&a->archive, ENOMEM, "Out of memory");
+    return (ARCHIVE_FATAL);
+  }
+  b = get_last_bidder(a);
+  f->bidder = b;
+  f->archive = a;
+  f->upstream = a->filter;
+  a->filter = f;
+  a->bypass_filter_bidding = 1;
+  return (ARCHIVE_OK);
+}
+
 int
 archive_read_append_filter(struct archive *_a, int code)
 {
-  int r1, r2, number_bidders, i;
-  const char *str;
-  struct archive_read_filter_bidder *b;
-  struct archive_read_filter *f;
   struct archive_read *a = (struct archive_read *)_a;
+  int r1, r2;
 
   r2 = (ARCHIVE_OK);
   switch (code)
@@ -53,15 +86,12 @@ archive_read_append_filter(struct archive *_a, int code)
       r1 = (ARCHIVE_OK);
       break;
     case ARCHIVE_FILTER_GZIP:
-      str = "gzip";
       r1 = archive_read_support_filter_gzip(_a);
       break;
     case ARCHIVE_FILTER_BZIP2:
-      str = "bzip2";
       r1 = archive_read_support_filter_bzip2(_a);
       break;
     case ARCHIVE_FILTER_COMPRESS:
-      str = "compress (.Z)";
       r1 = archive_read_support_filter_compress(_a);
       break;
     case ARCHIVE_FILTER_PROGRAM:
@@ -69,43 +99,34 @@ archive_read_append_filter(struct archive *_a, int code)
           "Cannot append program filter using archive_read_append_filter");
       return (ARCHIVE_FATAL);
     case ARCHIVE_FILTER_LZMA:
-      str = "lzma";
       r1 = archive_read_support_filter_lzma(_a);
       break;
     case ARCHIVE_FILTER_XZ:
-      str = "xz";
       r1 = archive_read_support_filter_xz(_a);
       break;
+    case ARCHIVE_FILTER_B64:
     case ARCHIVE_FILTER_UU:
-      str = "uu";
       r1 = archive_read_support_filter_uu(_a);
       break;
     case ARCHIVE_FILTER_RPM:
-      str = "rpm";
       r1 = archive_read_support_filter_rpm(_a);
       break;
     case ARCHIVE_FILTER_LZ4:
-      str = "lz4";
       r1 = archive_read_support_filter_lz4(_a);
       break;
     case ARCHIVE_FILTER_ZSTD:
-      str = "zstd";
       r1 = archive_read_support_filter_zstd(_a);
       break;
     case ARCHIVE_FILTER_LZIP:
-      str = "lzip";
       r1 = archive_read_support_filter_lzip(_a);
       break;
     case ARCHIVE_FILTER_LZOP:
-      str = "lzop";
       r1 = archive_read_support_filter_lzop(_a);
       break;
     case ARCHIVE_FILTER_LRZIP:
-      str = "lrzip";
       r1 = archive_read_support_filter_lrzip(_a);
       break;
     case ARCHIVE_FILTER_GRZIP:
-      str = "grzip";
       r1 = archive_read_support_filter_grzip(_a);
       break;
     default:
@@ -114,41 +135,11 @@ archive_read_append_filter(struct archive *_a, int code)
       return (ARCHIVE_FATAL);
   }
 
-  if (code != ARCHIVE_FILTER_NONE)
+  if (r1 > ARCHIVE_FATAL && code != ARCHIVE_FILTER_NONE)
   {
-    number_bidders = sizeof(a->bidders) / sizeof(a->bidders[0]);
-
-    b = a->bidders;
-    for (i = 1; i < number_bidders; i++, b++)
-    {
-      if (!b->name || !strcmp(b->name, str))
-        break;
-    }
-    if (!b->name || strcmp(b->name, str))
-    {
-      archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
-          "Internal error: Unable to append filter");
-      return (ARCHIVE_FATAL);
-    }
-
-    f = calloc(1, sizeof(*f));
-    if (f == NULL)
-    {
-      archive_set_error(&a->archive, ENOMEM, "Out of memory");
-      return (ARCHIVE_FATAL);
-    }
-    f->bidder = b;
-    f->archive = a;
-    f->upstream = a->filter;
-    a->filter = f;
-    r2 = (b->vtable->init)(a->filter);
-    if (r2 != ARCHIVE_OK) {
-      __archive_read_free_filters(a);
-      return (ARCHIVE_FATAL);
-    }
+    r2 = archive_read_append_filter_last_bidder(_a);
   }
 
-  a->bypass_filter_bidding = 1;
   return (r1 < r2) ? r1 : r2;
 }
 
@@ -162,48 +153,9 @@ int
 archive_read_append_filter_program_signature(struct archive *_a,
   const char *cmd, const void *signature, size_t signature_len)
 {
-  int r, number_bidders, i;
-  struct archive_read_filter_bidder *b;
-  struct archive_read_filter *f;
-  struct archive_read *a = (struct archive_read *)_a;
-
   if (archive_read_support_filter_program_signature(_a, cmd, signature,
     signature_len) != (ARCHIVE_OK))
     return (ARCHIVE_FATAL);
 
-  number_bidders = sizeof(a->bidders) / sizeof(a->bidders[0]);
-
-  b = a->bidders;
-  for (i = 0; i < number_bidders; i++, b++)
-  {
-    /* Program bidder name set to filter name after initialization */
-    if (b->data && !b->name)
-      break;
-  }
-  if (!b->data)
-  {
-    archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
-        "Internal error: Unable to append program filter");
-    return (ARCHIVE_FATAL);
-  }
-
-  f = calloc(1, sizeof(*f));
-  if (f == NULL)
-  {
-    archive_set_error(&a->archive, ENOMEM, "Out of memory");
-    return (ARCHIVE_FATAL);
-  }
-  f->bidder = b;
-  f->archive = a;
-  f->upstream = a->filter;
-  a->filter = f;
-  r = (b->vtable->init)(a->filter);
-  if (r != ARCHIVE_OK) {
-    __archive_read_free_filters(a);
-    return (ARCHIVE_FATAL);
-  }
-  b->name = a->filter->name;
-
-  a->bypass_filter_bidding = 1;
-  return r;
+  return (archive_read_append_filter_last_bidder(_a));
 }

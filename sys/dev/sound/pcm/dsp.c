@@ -160,7 +160,14 @@ dsp_destroy_dev(device_t dev)
 	struct snddev_info *d;
 
 	d = device_get_softc(dev);
-	destroy_dev(d->dsp_dev);
+	/*
+	 * The cdev may not exist if the driver failed before or during
+	 * pcm_register().
+	 */
+	if (d->dsp_dev != NULL) {
+		destroy_dev(d->dsp_dev);
+		d->dsp_dev = NULL;
+	}
 }
 
 static int
@@ -558,7 +565,7 @@ dsp_ioctl_channel(struct dsp_cdevpriv *priv, struct pcm_channel *ch,
 
 	PCM_UNLOCKASSERT(d);
 
-	j = cmd & 0xff;
+	j = IOCNUM(cmd);
 
 	rdch = priv->rdch;
 	wrch = priv->wrch;

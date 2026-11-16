@@ -78,8 +78,10 @@ static bool foreground;
 static void
 usage(void)
 {
-
-	errx(EX_USAGE, "[-dFh] [-c config] [-P pidfile]");
+	fprintf(stderr,
+	    "usage: %s [-dFh] [-c config] [-n nodename] [-P pidfile]\n",
+	    getprogname());
+	exit(1);
 }
 
 static void
@@ -1173,6 +1175,7 @@ main_loop(void)
 	}
 	terminate_workers();
 	proto_close(cfg->hc_controlconn);
+	(void)pidfile_remove(pfh);
 	exit(EX_OK);
 }
 
@@ -1196,7 +1199,7 @@ main(int argc, char *argv[])
 	for (;;) {
 		int ch;
 
-		ch = getopt(argc, argv, "c:dFhP:");
+		ch = getopt(argc, argv, "c:dFhn:P:");
 		if (ch == -1)
 			break;
 		switch (ch) {
@@ -1205,6 +1208,9 @@ main(int argc, char *argv[])
 			break;
 		case 'd':
 			debuglevel++;
+			break;
+		case 'n':
+			nodename = optarg;
 			break;
 		case 'F':
 			foreground = true;

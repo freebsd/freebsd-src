@@ -789,6 +789,8 @@ file_loadraw(const char *fname, const char *type, int insert)
 		TSEXIT();
 		return (NULL);
 	}
+	if (archsw.arch_file_measure != NULL)
+		archsw.arch_file_measure(fp, fp->f_addr, fp->f_size);
 	/* recognise space consumption */
 	loadaddr = laddr;
 

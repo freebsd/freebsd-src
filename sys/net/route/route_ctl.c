@@ -657,7 +657,6 @@ rib_copy_route(struct rtentry *rt, const struct route_nhop_data *rnd_src,
 			FIB_RH_LOG(LOG_DEBUG, rh_dst,
 			    "Unable to add route %s: error %d", buf, error);
 		}
-		nhop_free(nh);
 	}
 	return (error);
 }

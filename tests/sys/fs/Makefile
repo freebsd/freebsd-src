@@ -7,6 +7,7 @@ TESTSDIR=		${TESTSBASE}/sys/fs
 
 TESTSRC=		${SRCTOP}/contrib/netbsd-tests/fs
 
+TESTS_SUBDIRS+=		cd9660
 TESTS_SUBDIRS+=		fdescfs
 #TESTS_SUBDIRS+=	nullfs	# XXX: needs rump
 # fusefs tests cannot be compiled/used without the googletest infrastructure.
@@ -16,6 +17,7 @@ TESTS_SUBDIRS+=		fusefs
 TESTS_SUBDIRS+=		pjdfstest
 TESTS_SUBDIRS+=		tarfs
 TESTS_SUBDIRS+=		tmpfs
+TESTS_SUBDIRS+=		ufs
 TESTS_SUBDIRS+=		unionfs
 
 ${PACKAGE}FILES+=	h_funcs.subr

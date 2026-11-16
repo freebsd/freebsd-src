@@ -149,6 +149,7 @@ struct mlx5_esw_vport_info {
 	__u32 linkstate;
 	__u32 min_tx_rate;
 	__u32 max_tx_rate;
+	bool cvlan_enabled;
 };
 
 /* E-Switch API */

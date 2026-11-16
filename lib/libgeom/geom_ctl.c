@@ -207,15 +207,17 @@ gctl_issue(struct gctl_req *req)
 		return (req->error);
 	}
 	req->lerror--;
-	fd = open(_PATH_DEV PATH_GEOM_CTL, O_RDONLY);
+	fd = open(_PATH_DEV PATH_GEOM_CTL, O_RDWR);
+	if (fd < 0 && errno == EACCES)
+		fd = open(_PATH_DEV PATH_GEOM_CTL, O_RDONLY);
 	if (fd < 0)
-		return(strerror(errno));
+		return (strerror(errno));
 	req->nerror = ioctl(fd, GEOM_CTL, req);
 	close(fd);
 	if (req->error[0] != '\0')
 		return (req->error);
 	if (req->nerror == -1)
-		return(strerror(errno));
+		return (strerror(errno));
 	return (NULL);
 }
 

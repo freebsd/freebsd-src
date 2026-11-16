@@ -1183,7 +1183,7 @@ pf_normalize_ip(u_short *reason, struct pf_pdesc *pd)
 	 */
 	scrub_compat = (r != NULL);
 	while (r != NULL) {
-		pf_counter_u64_add(&r->evaluations, 1);
+		counter_u64_add(r->evaluations, 1);
 		if (pfi_kkif_match(r->kif, pd->kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP];
 		else if (r->direction && r->direction != pd->dir)
@@ -1213,10 +1213,8 @@ pf_normalize_ip(u_short *reason, struct pf_pdesc *pd)
 		if (r == NULL || r->action == PF_NOSCRUB)
 			return (PF_PASS);
 
-		pf_counter_u64_critical_enter();
-		pf_counter_u64_add_protected(&r->packets[pd->dir == PF_OUT], 1);
-		pf_counter_u64_add_protected(&r->bytes[pd->dir == PF_OUT], pd->tot_len);
-		pf_counter_u64_critical_exit();
+		counter_u64_add(r->packets[pd->dir == PF_OUT], 1);
+		counter_u64_add(r->bytes[pd->dir == PF_OUT], pd->tot_len);
 		pf_rule_to_actions(r, &pd->act);
 	}
 
@@ -1337,7 +1335,7 @@ pf_normalize_ip6(int off, u_short *reason,
 	 */
 	scrub_compat = (r != NULL);
 	while (r != NULL) {
-		pf_counter_u64_add(&r->evaluations, 1);
+		counter_u64_add(r->evaluations, 1);
 		if (pfi_kkif_match(r->kif, pd->kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP];
 		else if (r->direction && r->direction != pd->dir)
@@ -1364,10 +1362,8 @@ pf_normalize_ip6(int off, u_short *reason,
 		if (r == NULL || r->action == PF_NOSCRUB)
 			return (PF_PASS);
 
-		pf_counter_u64_critical_enter();
-		pf_counter_u64_add_protected(&r->packets[pd->dir == PF_OUT], 1);
-		pf_counter_u64_add_protected(&r->bytes[pd->dir == PF_OUT], pd->tot_len);
-		pf_counter_u64_critical_exit();
+		counter_u64_add(r->packets[pd->dir == PF_OUT], 1);
+		counter_u64_add(r->bytes[pd->dir == PF_OUT], pd->tot_len);
 		pf_rule_to_actions(r, &pd->act);
 	}
 
@@ -1411,7 +1407,7 @@ pf_normalize_tcp(struct pf_pdesc *pd)
 	 * packet normalization operation just like in OpenBSD. */
 	srs = (r != NULL);
 	while (r != NULL) {
-		pf_counter_u64_add(&r->evaluations, 1);
+		counter_u64_add(r->evaluations, 1);
 		if (pfi_kkif_match(r->kif, pd->kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP];
 		else if (r->direction && r->direction != pd->dir)
@@ -1448,10 +1444,8 @@ pf_normalize_tcp(struct pf_pdesc *pd)
 		if (rm == NULL || rm->action == PF_NOSCRUB)
 			return (PF_PASS);
 
-		pf_counter_u64_critical_enter();
-		pf_counter_u64_add_protected(&r->packets[pd->dir == PF_OUT], 1);
-		pf_counter_u64_add_protected(&r->bytes[pd->dir == PF_OUT], pd->tot_len);
-		pf_counter_u64_critical_exit();
+		counter_u64_add(r->packets[pd->dir == PF_OUT], 1);
+		counter_u64_add(r->bytes[pd->dir == PF_OUT], pd->tot_len);
 		pf_rule_to_actions(rm, &pd->act);
 	}
 
@@ -2166,7 +2160,7 @@ pf_normalize_sctp(struct pf_pdesc *pd)
 	 * packet normalization operation just like in OpenBSD. */
 	srs = (r != NULL);
 	while (r != NULL) {
-		pf_counter_u64_add(&r->evaluations, 1);
+		counter_u64_add(r->evaluations, 1);
 		if (pfi_kkif_match(r->kif, pd->kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP];
 		else if (r->direction && r->direction != pd->dir)
@@ -2199,10 +2193,8 @@ pf_normalize_sctp(struct pf_pdesc *pd)
 		if (rm == NULL || rm->action == PF_NOSCRUB)
 			return (PF_PASS);
 
-		pf_counter_u64_critical_enter();
-		pf_counter_u64_add_protected(&r->packets[pd->dir == PF_OUT], 1);
-		pf_counter_u64_add_protected(&r->bytes[pd->dir == PF_OUT], pd->tot_len);
-		pf_counter_u64_critical_exit();
+		counter_u64_add(r->packets[pd->dir == PF_OUT], 1);
+		counter_u64_add(r->bytes[pd->dir == PF_OUT], pd->tot_len);
 	}
 
 	/* Verify we're a multiple of 4 bytes long */

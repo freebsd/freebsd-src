@@ -1136,6 +1136,10 @@ void doq_send_pkt(struct comm_point* c, struct doq_pkt_addr* paddr,
 /** doq timer callback function. */
 void doq_timer_cb(void* arg);
 
+/** Find and lock doq connection and remove mesh state from the stream
+ * (found by id).*/
+void doq_find_stream_remove_mesh_state(struct comm_reply* repinfo);
+
 /** tcp read again callback function. For tcp req info listen. */
 void tcp_read_again_cb(void* arg);
 

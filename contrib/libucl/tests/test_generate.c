@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <assert.h>
+#include <string.h>
 #include "ucl.h"
 
 static void
@@ -236,6 +237,18 @@ main (int argc, char **argv)
 	/* No such key */
 	found = ucl_object_lookup_path (obj, "key9..key1");
 	assert (found == NULL);
+	/* A NUL separator must not skip past the end of the path */
+	{
+		char *empty = calloc (1, 1);
+
+		assert (empty != NULL);
+		found = ucl_object_lookup_path_char (obj, empty, '\0');
+		assert (found == NULL);
+		free (empty);
+		/* With a NUL separator the whole path is a single key */
+		found = ucl_object_lookup_path_char (obj, "key4", '\0');
+		assert (found != NULL && ucl_object_type (found) == UCL_ARRAY);
+	}
 
 	/* Test iteration */
 	it = ucl_object_iterate_new (obj);
@@ -312,6 +325,27 @@ main (int argc, char **argv)
 	/* Ref should still be accessible */
 	ref->value.iv = 100500;
 	ucl_object_unref (ref);
+
+	/*
+	 * Copying a string with an embedded NUL used to truncate the copy's
+	 * backing allocation at the first NUL byte (via strdup), while the
+	 * copied object's length still pointed past the truncated buffer,
+	 * which OOB-read in ucl_object_emit(). See GH-385.
+	 */
+	{
+		const char nulstr[] = {'A', '\0', 'B', 'C'};
+		ucl_object_t *withnul, *withnul_copy;
+		const char *copied_sv;
+		size_t copied_len;
+
+		withnul = ucl_object_fromlstring (nulstr, sizeof (nulstr));
+		withnul_copy = ucl_object_copy (withnul);
+		copied_sv = ucl_object_tolstring (withnul_copy, &copied_len);
+		assert (copied_len == sizeof (nulstr));
+		assert (memcmp (copied_sv, nulstr, sizeof (nulstr)) == 0);
+		ucl_object_unref (withnul_copy);
+		ucl_object_unref (withnul);
+	}
 
 	return ret;
 }

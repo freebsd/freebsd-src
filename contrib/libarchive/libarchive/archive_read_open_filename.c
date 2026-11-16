@@ -583,7 +583,6 @@ file_seek(struct archive *a, void *client_data, int64_t request, int whence)
 	if (r >= 0)
 		return r;
 
-	/* If the input is corrupted or truncated, fail. */
 err:
 	if (mine->filename_type == FNT_STDIN)
 		archive_set_error(a, errno, "Error seeking in stdin");
@@ -593,7 +592,7 @@ err:
 	else
 		archive_set_error(a, errno, "Error seeking in '%ls'",
 		    mine->filename.w);
-	return (ARCHIVE_FATAL);
+	return (ARCHIVE_FAILED);
 }
 
 static int

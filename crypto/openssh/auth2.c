@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2.c,v 1.174 2026/07/06 07:44:48 djm Exp $ */
+/* $OpenBSD: auth2.c,v 1.176 2026/09/16 00:37:07 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -336,6 +336,7 @@ input_userauth_request(int type, uint32_t seq, struct ssh *ssh)
 	auth2_challenge_stop(ssh);
 
 #ifdef GSSAPI
+	ssh_gssapi_cleanup_global_client();
 	/* XXX move to auth2_gssapi_stop() */
 	ssh_dispatch_set(ssh, SSH2_MSG_USERAUTH_GSSAPI_TOKEN, NULL);
 	ssh_dispatch_set(ssh, SSH2_MSG_USERAUTH_GSSAPI_EXCHANGE_COMPLETE, NULL);
@@ -344,6 +345,7 @@ input_userauth_request(int type, uint32_t seq, struct ssh *ssh)
 	auth2_authctxt_reset_info(authctxt);
 	authctxt->postponed = 0;
 	authctxt->server_caused_failure = 0;
+	authctxt->auth_failure_already_counted = 0;
 
 	/* try to authenticate user */
 	m = authmethod_lookup(authctxt, method);
@@ -448,6 +450,7 @@ userauth_finish(struct ssh *ssh, int authenticated, const char *packet_method,
 	} else {
 		/* Allow initial try of "none" auth without failure penalty */
 		if (!partial && !authctxt->server_caused_failure &&
+		    !authctxt->auth_failure_already_counted &&
 		    (authctxt->attempt > 1 || strcmp(method, "none") != 0))
 			authctxt->failures++;
 		if (authctxt->failures >= options.max_authtries) {

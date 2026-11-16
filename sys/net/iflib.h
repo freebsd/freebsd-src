@@ -239,7 +239,7 @@ typedef struct if_softc_ctx {
 	uint32_t __spare6__;
 	uint32_t __spare7__;
 	uint32_t __spare8__;
-	caddr_t __spare9__;
+	void *__spare9__;
 	int isc_disable_msix;
 	if_txrx_t isc_txrx;
 	struct ifmedia *isc_media;
@@ -360,7 +360,10 @@ typedef enum {
  * Driver understands page/bank i2c reads
  */
 #define	IFLIB_I2C_PAGE_BANK	0x200
-#define	IFLIB_SPARE6		0x400
+/*
+ * Non-TSO packets must not exceed isc_tx_nsegments DMA segments.
+ */
+#define	IFLIB_SPARSE_TX		0x400
 #define	IFLIB_SPARE5		0x800
 #define	IFLIB_SPARE4		0x1000
 #define	IFLIB_SPARE3		0x2000

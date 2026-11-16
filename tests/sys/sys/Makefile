@@ -6,6 +6,7 @@ ATF_TESTS_C=	arb_test \
 		bitset_test \
 		bitstring_test \
 		buf_ring_test \
+		mbuf_test \
 		qmath_test \
 		queue_test \
 		rb_test \

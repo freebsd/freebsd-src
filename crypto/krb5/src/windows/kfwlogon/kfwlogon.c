@@ -195,7 +195,7 @@ DWORD APIENTRY NPLogonNotify(
 
     DWORD code = 0;
 
-    char *reason;
+    char *reason = "(unknown reason)";
     char *ctemp;
 
     BOOLEAN interactive = TRUE;
@@ -307,7 +307,9 @@ DWORD APIENTRY NPLogonNotify(
 	    goto cleanup;
 	}
 
-	KFW_copy_cache_to_system_file(uname, filename);
+	code = KFW_copy_cache_to_system_file(uname, filename, &reason);
+	if (code)
+	    goto cleanup;
 
 	/* Need to determine the SID */
 

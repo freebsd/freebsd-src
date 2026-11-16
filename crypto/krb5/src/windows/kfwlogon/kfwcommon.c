@@ -950,8 +950,9 @@ int KFW_obtain_user_temp_directory(HANDLE hUserToken, char *newfilename, int siz
     return 0;
 }
 
-void
-KFW_copy_cache_to_system_file(const char * user, const char * filename)
+int
+KFW_copy_cache_to_system_file(const char * user, const char * filename,
+			      char **reason_out)
 {
     char cachename[MAX_PATH + 8] = "FILE:";
     krb5_context		ctx = 0;
@@ -962,7 +963,7 @@ KFW_copy_cache_to_system_file(const char * user, const char * filename)
     PSECURITY_ATTRIBUTES        pSA = NULL;
 
     if (!pkrb5_init_context || !user || !filename)
-        return;
+        return EINVAL;
 
     strncat(cachename, filename, sizeof(cachename));
     cachename[sizeof(cachename)-1] = '\0';
@@ -1007,6 +1008,11 @@ KFW_copy_cache_to_system_file(const char * user, const char * filename)
 
     if (ctx)
         pkrb5_free_context(ctx);
+
+    if (code && reason_out != NULL)
+        *reason_out = (char *)perror_message(code);
+
+    return code;
 }
 
 int

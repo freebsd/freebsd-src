@@ -16,6 +16,9 @@
 #	run_hooks HOOKS [LIFO] ["args"]
 #	run_hooks_all HOOKS [LIFO] ["args"]
 #
+#	add_list LIST [options] item [...]
+#	add_list_once LIST [options] item [...]
+#
 # DESCRIPTION:
 #	The functions add_hooks and run_hooks are retained for
 #	backwards compatibility.  They are aliases for hooks_add and
@@ -46,11 +49,14 @@
 #	calls to hooks_add.
 #	Any "args" specified are passed to each hook function.
 #
+#	add_list is just another alias for hooks_add, same for
+#	add_list_once.
+#
 
 # RCSid:
-#	$Id: hooks.sh,v 1.26 2025/08/07 21:59:54 sjg Exp $
+#	$Id: hooks.sh,v 1.31 2026/10/13 23:52:51 sjg Exp $
 #
-#	@(#)Copyright (c) 2000-2024 Simon J. Gerraty
+#	@(#)Copyright (c) 2000-2026 Simon J. Gerraty
 #
 #	SPDX-License-Identifier: BSD-2-Clause
 #      
@@ -74,6 +80,11 @@ fi
 # for backwards compatibility
 local=$_local
 
+if test -z "$_DEBUG_SH"; then
+    DEBUG_DO=:
+    DebugOn() { return 0; }
+    DebugOff() { return 0; }
+fi
 
 ##
 # hooks_add_all list func ...
@@ -179,7 +190,7 @@ hooks_has() {
     eval $_local __h
     eval "__h=\$$1"
     case " $__h " in
-    *" $1 "*) return 0;;
+    *" $2 "*) return 0;;
     esac
     return 1
 }
@@ -197,6 +208,7 @@ hooks_run() {
 
     while :
     do
+        : "1=$1"
         case "$1" in
         --all) __a=:; shift;;
         --lifo) __l=$1; shift;;
@@ -204,14 +216,23 @@ hooks_run() {
         esac
     done
     __hl=$1; shift
+    case "$__hl" in
+    *_debugOn_hooks|*_debugOff_hooks) ;;
+    *) DebugOn hooks_run hooks_run:$__hl;;
+    esac
     case "$1" in
     LIFO) __l=--lifo; shift;;
     esac
     __h=`hooks_get $__l $__hl`
     for e in $__h
     do
+        $DEBUG_DO echo hooks_run:$__hl:$e >&2
         $e "$@" || $__a $?
     done
+    case "$__hl" in
+    *_debugOn_hooks|*_debugOff_hooks) ;;
+    *) DebugOff hooks_run hooks_run:$__hl;;
+    esac
 }
 
 ##
@@ -238,6 +259,14 @@ run_hooks_all() {
     hooks_run --all "$@"
 }
 
+# hook lists are just lists
+add_list() {
+    hooks_add "$@"
+}
+
+add_list_once() {
+    hooks_add_once "$@"
+}
 
 case /$0 in
 */hooks.sh)

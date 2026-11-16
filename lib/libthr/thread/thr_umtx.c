@@ -108,7 +108,7 @@ __thr_umutex_lock_spin(struct umutex *mtx, uint32_t id)
 
 int
 __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
-	const struct timespec *abstime)
+    const struct timespec *abstime, clockid_t clockid)
 {
 	struct _umtx_time *tm_p, timeout;
 	size_t tm_size;
@@ -119,7 +119,7 @@ __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 		tm_p = NULL;
 		tm_size = 0;
 	} else {
-		timeout._clockid = CLOCK_REALTIME;
+		timeout._clockid = clockid;
 		timeout._flags = UMTX_ABSTIME;
 		timeout._timeout = *abstime;
 		tm_p = &timeout;
@@ -151,7 +151,7 @@ __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 			    ret == ENOTRECOVERABLE)
 				break;
 		}
-		if (ret == ETIMEDOUT)
+		if (ret == ETIMEDOUT || ret == EINVAL)
 			break;
 	}
 	return (ret);
@@ -292,7 +292,7 @@ _thr_ucond_broadcast(struct ucond *cv)
 
 int
 __thr_rwlock_rdlock(struct urwlock *rwlock, int flags,
-	const struct timespec *tsp)
+    const struct timespec *tsp, clockid_t clockid)
 {
 	struct _umtx_time timeout, *tm_p;
 	size_t tm_size;
@@ -303,7 +303,7 @@ __thr_rwlock_rdlock(struct urwlock *rwlock, int flags,
 	} else {
 		timeout._timeout = *tsp;
 		timeout._flags = UMTX_ABSTIME;
-		timeout._clockid = CLOCK_REALTIME;
+		timeout._clockid = clockid;
 		tm_p = &timeout;
 		tm_size = sizeof(timeout);
 	}
@@ -312,7 +312,8 @@ __thr_rwlock_rdlock(struct urwlock *rwlock, int flags,
 }
 
 int
-__thr_rwlock_wrlock(struct urwlock *rwlock, const struct timespec *tsp)
+__thr_rwlock_wrlock(struct urwlock *rwlock, const struct timespec *tsp,
+    clockid_t clockid)
 {
 	struct _umtx_time timeout, *tm_p;
 	size_t tm_size;
@@ -323,7 +324,7 @@ __thr_rwlock_wrlock(struct urwlock *rwlock, const struct timespec *tsp)
 	} else {
 		timeout._timeout = *tsp;
 		timeout._flags = UMTX_ABSTIME;
-		timeout._clockid = CLOCK_REALTIME;
+		timeout._clockid = clockid;
 		tm_p = &timeout;
 		tm_size = sizeof(timeout);
 	}
@@ -346,7 +347,8 @@ _thr_rwl_rdlock(struct urwlock *rwlock)
 	for (;;) {
 		if (_thr_rwlock_tryrdlock(rwlock, URWLOCK_PREFER_READER) == 0)
 			return;
-		ret = __thr_rwlock_rdlock(rwlock, URWLOCK_PREFER_READER, NULL);
+		ret = __thr_rwlock_rdlock(rwlock, URWLOCK_PREFER_READER, NULL,
+		    CLOCK_REALTIME);
 		if (ret == 0)
 			return;
 		if (ret != EINTR)
@@ -362,7 +364,7 @@ _thr_rwl_wrlock(struct urwlock *rwlock)
 	for (;;) {
 		if (_thr_rwlock_trywrlock(rwlock) == 0)
 			return;
-		ret = __thr_rwlock_wrlock(rwlock, NULL);
+		ret = __thr_rwlock_wrlock(rwlock, NULL, CLOCK_REALTIME);
 		if (ret == 0)
 			return;
 		if (ret != EINTR)

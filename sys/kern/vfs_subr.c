@@ -5152,7 +5152,7 @@ vfs_unmountall(void)
 			continue;
 
 		if (bootverbose) {
-			printf("\tUnmounting %d/%d %s\n", ++n, nmountpoints,
+			printf("Unmounting %d/%d %s\n", ++n, nmountpoints,
 				mp->mnt_stat.f_mntonname);
 		}
 		unmount_or_warn(mp);
@@ -5160,7 +5160,7 @@ vfs_unmountall(void)
 
 	if (rootdevmp != NULL) {
 		if (bootverbose) {
-			printf("\tUnmounting %d/%d %s\n", ++n, nmountpoints,
+			printf("Unmounting %d/%d %s\n", ++n, nmountpoints,
 				rootdevmp->mnt_stat.f_mntonname);
 		}
 		unmount_or_warn(rootdevmp);
@@ -5374,7 +5374,7 @@ vn_pollrecord(struct vnode *vp, struct thread *td, int events)
 /*
  * Routine to create and manage a filesystem syncer vnode.
  */
-#define sync_close ((int (*)(struct  vop_close_args *))nullop)
+static int	sync_close(struct vop_close_args *);
 static int	sync_fsync(struct  vop_fsync_args *);
 static int	sync_inactive(struct  vop_inactive_args *);
 static int	sync_reclaim(struct  vop_reclaim_args *);
@@ -5466,6 +5466,12 @@ vfs_deallocate_syncvnode(struct mount *mp)
 	mtx_unlock(&sync_mtx);
 	if (vp != NULL)
 		vrele(vp);
+}
+
+static int
+sync_close(struct vop_close_args *ap __unused)
+{
+	return (0);
 }
 
 /*

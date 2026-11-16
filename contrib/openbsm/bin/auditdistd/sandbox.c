@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2012 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
  * the FreeBSD Foundation.
@@ -45,6 +44,14 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>
+
+/*
+ * This header is conditionally included in Linux because getgrouplist() and
+ * setgroups() isn't defined in unistd.h.
+ */
+#if defined(__linux__)
+#include <grp.h>
+#endif
 
 #include "pjdlog.h"
 #include "sandbox.h"

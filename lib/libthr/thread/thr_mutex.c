@@ -67,6 +67,8 @@ _Static_assert(offsetof(struct pthread_mutex, m_qe) >= CACHE_LINE_SIZE,
  */
 int	__pthread_mutex_timedlock(pthread_mutex_t * __restrict mutex,
 		const struct timespec * __restrict abstime);
+int	__pthread_mutex_clocklock(pthread_mutex_t * __restrict mutex,
+		clockid_t clock, const struct timespec * __restrict abstime);
 int	_pthread_mutex_getspinloops_np(pthread_mutex_t *mutex, int *count);
 int	_pthread_mutex_setspinloops_np(pthread_mutex_t *mutex, int count);
 int	__pthread_mutex_setspinloops_np(pthread_mutex_t *mutex, int count);
@@ -76,10 +78,10 @@ int	__pthread_mutex_setyieldloops_np(pthread_mutex_t *mutex, int count);
 
 static int	mutex_self_trylock(pthread_mutex_t);
 static int	mutex_self_lock(pthread_mutex_t,
-				const struct timespec *abstime);
+		    const struct timespec *abstime, clockid_t clockid);
 static int	mutex_unlock_common(struct pthread_mutex *, bool, int *);
 static int	mutex_lock_sleep(struct pthread *, pthread_mutex_t,
-				const struct timespec *);
+		    const struct timespec *, clockid_t clockid);
 static void	mutex_init_robust(struct pthread *curthread);
 static int	mutex_qidx(struct pthread_mutex *m);
 static bool	is_robust_mutex(struct pthread_mutex *m);
@@ -93,6 +95,7 @@ __weak_reference(__Tthr_mutex_lock, __pthread_mutex_lock);
 __strong_reference(__Tthr_mutex_lock, _pthread_mutex_lock);
 __weak_reference(__pthread_mutex_timedlock, pthread_mutex_timedlock);
 __strong_reference(__pthread_mutex_timedlock, _pthread_mutex_timedlock);
+__weak_reference(__pthread_mutex_clocklock, pthread_mutex_clocklock);
 __weak_reference(__Tthr_mutex_trylock, pthread_mutex_trylock);
 __weak_reference(__Tthr_mutex_trylock, __pthread_mutex_trylock);
 __strong_reference(__Tthr_mutex_trylock, _pthread_mutex_trylock);
@@ -131,40 +134,49 @@ mutex_init_link(struct pthread_mutex *m __unused)
 #endif
 }
 
-static void
-mutex_assert_is_owned(struct pthread_mutex *m __unused)
-{
-
 #if defined(_PTHREADS_INVARIANTS)
-	if (__predict_false(m->m_qe.tqe_prev == NULL))
-		PANIC("mutex %p own %#x is not on list %p %p",
+static void
+mutex_assert_is_owned(struct pthread_mutex *m, int line)
+{
+	if (__predict_false(m->m_qe.tqe_prev == NULL)) {
+		_thread_exitf(__FILE__, line,
+		    "mutex %p own %#x is not on list %p %p",
 		    m, m->m_lock.m_owner, m->m_qe.tqe_prev, m->m_qe.tqe_next);
-#endif
+	}
 }
 
 static void
-mutex_assert_not_owned(struct pthread *curthread __unused,
-    struct pthread_mutex *m __unused)
+mutex_assert_not_owned(struct pthread_mutex *m, int line)
 {
+	struct pthread *curthread;
 
-#if defined(_PTHREADS_INVARIANTS)
+	curthread = _get_curthread();
 	if (__predict_false(m->m_qe.tqe_prev != NULL ||
-	    m->m_qe.tqe_next != NULL))
-		PANIC("mutex %p own %#x is on list %p %p",
+	    m->m_qe.tqe_next != NULL)) {
+		_thread_exitf(__FILE__, line,
+		    "mutex %p own %#x is on list %p %p",
 		    m, m->m_lock.m_owner, m->m_qe.tqe_prev, m->m_qe.tqe_next);
+	}
 	if (__predict_false(is_robust_mutex(m) &&
 	    (m->m_lock.m_rb_lnk != 0 || m->m_rb_prev != NULL ||
 	    (is_pshared_mutex(m) && curthread->robust_list ==
 	    (uintptr_t)&m->m_lock) ||
 	    (!is_pshared_mutex(m) && curthread->priv_robust_list ==
-	    (uintptr_t)&m->m_lock))))
-		PANIC(
-    "mutex %p own %#x is on robust linkage %p %p head %p phead %p",
+	    (uintptr_t)&m->m_lock)))) {
+		_thread_exitf(__FILE__, line,
+	    "mutex %p own %#x is on robust linkage %p %p head %p phead %p",
 		    m, m->m_lock.m_owner, (void *)m->m_lock.m_rb_lnk,
 		    m->m_rb_prev, (void *)curthread->robust_list,
 		    (void *)curthread->priv_robust_list);
-#endif
+	}
 }
+
+#define	MUTEX_ASSERT_IS_OWNED(m)	mutex_assert_is_owned(m, __LINE__)
+#define	MUTEX_ASSERT_NOT_OWNED(m)	mutex_assert_not_owned(m, __LINE__)
+#else
+#define	MUTEX_ASSERT_IS_OWNED(m)	do {} while (0)
+#define	MUTEX_ASSERT_NOT_OWNED(m)	do {} while (0)
+#endif
 
 static bool
 is_pshared_mutex(struct pthread_mutex *m)
@@ -477,8 +489,7 @@ _thr_mutex_destroy(pthread_mutex_t *mutex)
 			if (m1 != NULL) {
 				if ((uint32_t)m1->m_lock.m_owner !=
 				    UMUTEX_RB_OWNERDEAD) {
-					mutex_assert_not_owned(
-					    _get_curthread(), m1);
+					MUTEX_ASSERT_NOT_OWNED(m1);
 				}
 				__thr_pshared_destroy(mutex);
 			}
@@ -490,7 +501,7 @@ _thr_mutex_destroy(pthread_mutex_t *mutex)
 			ret = EBUSY;
 		} else {
 			*mutex = THR_MUTEX_DESTROYED;
-			mutex_assert_not_owned(_get_curthread(), m);
+			MUTEX_ASSERT_NOT_OWNED(m);
 			__thr_free(m);
 			ret = 0;
 		}
@@ -530,7 +541,7 @@ enqueue_mutex(struct pthread *curthread, struct pthread_mutex *m,
 
 	/* Add to the list of owned mutexes: */
 	if (error != EOWNERDEAD)
-		mutex_assert_not_owned(curthread, m);
+		MUTEX_ASSERT_NOT_OWNED(m);
 	qidx = mutex_qidx(m);
 	TAILQ_INSERT_TAIL(&curthread->mq[qidx], m, m_qe);
 	if (!is_pshared_mutex(m))
@@ -558,7 +569,7 @@ dequeue_mutex(struct pthread *curthread, struct pthread_mutex *m)
 	struct pthread_mutex *mp, *mn;
 	int qidx;
 
-	mutex_assert_is_owned(m);
+	MUTEX_ASSERT_IS_OWNED(m);
 	qidx = mutex_qidx(m);
 	if (is_robust_mutex(m)) {
 		mp = m->m_rb_prev;
@@ -648,14 +659,14 @@ __Tthr_mutex_trylock(pthread_mutex_t *mutex)
 
 static int
 mutex_lock_sleep(struct pthread *curthread, struct pthread_mutex *m,
-    const struct timespec *abstime)
+    const struct timespec *abstime, clockid_t clockid)
 {
 	uint32_t id, owner;
 	int count, ret;
 
 	id = TID(curthread);
 	if (PMUTEX_OWNER_ID(m) == id)
-		return (mutex_self_lock(m, abstime));
+		return (mutex_self_lock(m, abstime, clockid));
 
 	/*
 	 * For adaptive mutexes, spin for a bit in the expectation
@@ -701,10 +712,11 @@ sleep_in_kernel:
 	if (abstime == NULL)
 		ret = __thr_umutex_lock(&m->m_lock, id);
 	else if (__predict_false(abstime->tv_nsec < 0 ||
-	    abstime->tv_nsec >= 1000000000))
+	    abstime->tv_nsec >= 1000000000) ||
+	    _thr_check_clockid(clockid) != 0)
 		ret = EINVAL;
 	else
-		ret = __thr_umutex_timedlock(&m->m_lock, id, abstime);
+		ret = __thr_umutex_timedlock(&m->m_lock, id, abstime, clockid);
 done:
 	if (ret == 0 || ret == EOWNERDEAD) {
 		enqueue_mutex(curthread, m, ret);
@@ -716,7 +728,7 @@ done:
 
 static __always_inline int
 mutex_lock_common(struct pthread_mutex *m, const struct timespec *abstime,
-    bool cvattach, bool rb_onlist)
+    clockid_t clockid, bool cvattach, bool rb_onlist)
 {
 	struct pthread *curthread;
 	int ret, robust;
@@ -733,7 +745,7 @@ mutex_lock_common(struct pthread_mutex *m, const struct timespec *abstime,
 		if (ret == EOWNERDEAD)
 			m->m_lock.m_flags |= UMUTEX_NONCONSISTENT;
 	} else {
-		ret = mutex_lock_sleep(curthread, m, abstime);
+		ret = mutex_lock_sleep(curthread, m, abstime, clockid);
 	}
 	if (!rb_onlist && robust)
 		_mutex_leave_robust(curthread, m);
@@ -752,12 +764,12 @@ __Tthr_mutex_lock(pthread_mutex_t *mutex)
 	_thr_check_init();
 	ret = check_and_init_mutex(mutex, &m);
 	if (ret == 0)
-		ret = mutex_lock_common(m, NULL, false, false);
+		ret = mutex_lock_common(m, NULL, CLOCK_REALTIME, false, false);
 	return (ret);
 }
 
 int
-__pthread_mutex_timedlock(pthread_mutex_t * __restrict mutex,
+__pthread_mutex_clocklock(pthread_mutex_t * __restrict mutex, clockid_t clockid,
     const struct timespec * __restrict abstime)
 {
 	struct pthread_mutex *m;
@@ -766,8 +778,15 @@ __pthread_mutex_timedlock(pthread_mutex_t * __restrict mutex,
 	_thr_check_init();
 	ret = check_and_init_mutex(mutex, &m);
 	if (ret == 0)
-		ret = mutex_lock_common(m, abstime, false, false);
+		ret = mutex_lock_common(m, abstime, clockid, false, false);
 	return (ret);
+}
+
+int
+__pthread_mutex_timedlock(pthread_mutex_t * __restrict mutex,
+    const struct timespec * __restrict abstime)
+{
+	return (__pthread_mutex_clocklock(mutex, CLOCK_REALTIME, abstime));
 }
 
 int
@@ -791,7 +810,7 @@ _mutex_cv_lock(struct pthread_mutex *m, int count, bool rb_onlist)
 {
 	int error;
 
-	error = mutex_lock_common(m, NULL, true, rb_onlist);
+	error = mutex_lock_common(m, NULL, CLOCK_REALTIME, true, rb_onlist);
 	if (error == 0 || error == EOWNERDEAD)
 		m->m_count = count;
 	return (error);
@@ -883,31 +902,21 @@ mutex_self_trylock(struct pthread_mutex *m)
 }
 
 static int
-mutex_self_lock(struct pthread_mutex *m, const struct timespec *abstime)
+mutex_self_lock(struct pthread_mutex *m, const struct timespec *abstime,
+    clockid_t clockid)
 {
-	struct timespec	ts1, ts2;
+	struct timespec	ts1;
 	int ret;
+	u_int dummy;
 
 	switch (PMUTEX_TYPE(m->m_flags)) {
 	case PTHREAD_MUTEX_ERRORCHECK:
 	case PTHREAD_MUTEX_ADAPTIVE_NP:
-		if (abstime) {
-			if (abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
-			    abstime->tv_nsec >= 1000000000) {
-				ret = EINVAL;
-			} else {
-				clock_gettime(CLOCK_REALTIME, &ts1);
-				TIMESPEC_SUB(&ts2, abstime, &ts1);
-				__sys_nanosleep(&ts2, NULL);
-				ret = ETIMEDOUT;
-			}
-		} else {
-			/*
-			 * POSIX specifies that mutexes should return
-			 * EDEADLK if a recursive lock is detected.
-			 */
-			ret = EDEADLK; 
-		}
+		/*
+		 * POSIX specifies that mutexes should return EDEADLK
+		 * if a recursive lock is detected.
+		 */
+		ret = EDEADLK;
 		break;
 
 	case PTHREAD_MUTEX_NORMAL:
@@ -920,10 +929,15 @@ mutex_self_lock(struct pthread_mutex *m, const struct timespec *abstime)
 			if (abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
 			    abstime->tv_nsec >= 1000000000) {
 				ret = EINVAL;
+			} else if (_thr_check_clockid(clockid) != 0 ||
+			    clock_gettime(clockid, &ts1) == -1) {
+				ret = EINVAL;
 			} else {
-				clock_gettime(CLOCK_REALTIME, &ts1);
-				TIMESPEC_SUB(&ts2, abstime, &ts1);
-				__sys_nanosleep(&ts2, NULL);
+				dummy = 0;
+				do {
+					ret = _thr_umtx_timedwait_uint(&dummy,
+					    0, clockid, abstime, 0);
+				} while (ret == 0 || ret == EINTR);
 				ret = ETIMEDOUT;
 			}
 		} else {
@@ -1054,7 +1068,7 @@ _pthread_mutex_setprioceiling(pthread_mutex_t * __restrict mutex,
 
 	curthread = _get_curthread();
 	if (PMUTEX_OWNER_ID(m) == TID(curthread)) {
-		mutex_assert_is_owned(m);
+		MUTEX_ASSERT_IS_OWNED(m);
 		m1 = TAILQ_PREV(m, mutex_queue, m_qe);
 		m2 = TAILQ_NEXT(m, m_qe);
 		if ((m1 != NULL && m1->m_lock.m_ceilings[0] > (u_int)ceiling) ||

@@ -333,6 +333,7 @@ struct igc_rx_queue {
 	u32                    eitr_setting;
 	struct rx_ring         rxr;
 	u64                    irqs;
+	u64                    rx_drops;
 	struct if_irq          que_irq;
 };
 

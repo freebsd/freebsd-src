@@ -819,6 +819,8 @@
         ..
         compat32
         ..
+        cpuctl
+        ..
         devrandom
         ..
         dtrace
@@ -828,6 +830,8 @@
         file
         ..
         fs
+            cd9660
+            ..
             fdescfs
             ..
             fusefs
@@ -837,6 +841,8 @@
             tarfs
             ..
             tmpfs
+            ..
+            ufs
             ..
             unionfs
             ..
@@ -982,6 +988,8 @@
             ..
         ..
         pmc
+            amd
+            ..
         ..
         posixshm
         ..
@@ -1317,6 +1325,8 @@
         ..
         pw
         ..
+	pwd_mkdb
+	..
         quot
         ..
         rpcbind

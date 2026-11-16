@@ -1301,7 +1301,9 @@ vga_init(struct vt_device *vd)
 		vd->vd_softc = (void *)&vga_conssoftc;
 	sc = vd->vd_softc;
 
-	if (vd->vd_flags & VDF_DOWNGRADE && vd->vd_video_dev != NULL)
+	/* vga_pci_repost() takes a vgapci(4) device. */
+	if (vd->vd_flags & VDF_DOWNGRADE && vd->vd_video_dev != NULL &&
+	    device_get_devclass(vd->vd_video_dev) == devclass_find("vgapci"))
 		vga_pci_repost(vd->vd_video_dev);
 
 #if defined(__amd64__) || defined(__i386__)

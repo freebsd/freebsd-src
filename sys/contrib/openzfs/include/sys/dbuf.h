@@ -75,6 +75,7 @@ typedef enum dbuf_cached_state {
 
 struct dnode;
 struct dmu_tx;
+struct dmu_sync_arg;
 
 /*
  * level = 0 means the user data
@@ -149,6 +150,11 @@ typedef struct dbuf_dirty_record {
 			 */
 			arc_buf_t *dr_data;
 			override_states_t dr_override_state;
+			/*
+			 * The dmu_sync() or Direct I/O write in progress, if
+			 * dr_override_state is DR_IN_DMU_SYNC.
+			 */
+			struct dmu_sync_arg *dr_sync_arg;
 			uint8_t dr_copies;
 			uint8_t dr_gang_copies;
 			boolean_t dr_nopwrite;
@@ -337,7 +343,8 @@ uint64_t dbuf_whichblock(const struct dnode *di, const int64_t level,
     const uint64_t offset);
 
 void dbuf_create_bonus(struct dnode *dn);
-int dbuf_spill_set_blksz(dmu_buf_t *db, uint64_t blksz, dmu_tx_t *tx);
+int dbuf_spill_set_blksz(dmu_buf_t *db, uint64_t blksz, boolean_t copy,
+    dmu_tx_t *tx);
 
 void dbuf_rm_spill(struct dnode *dn, dmu_tx_t *tx);
 
@@ -379,6 +386,7 @@ dbuf_dirty_record_t *dbuf_dirty(dmu_buf_impl_t *db, dmu_tx_t *tx);
 dbuf_dirty_record_t *dbuf_dirty_lightweight(dnode_t *dn, uint64_t blkid,
     dmu_tx_t *tx);
 boolean_t dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx);
+boolean_t dbuf_is_hole(dmu_buf_impl_t *db, dnode_t *dn, blkptr_t *bp);
 int dmu_buf_get_bp_from_dbuf(dmu_buf_impl_t *db, blkptr_t **bp);
 int dmu_buf_untransform_direct(dmu_buf_impl_t *db, spa_t *spa);
 void dmu_buf_write_embedded(dmu_buf_t *dbuf, void *data,
@@ -404,7 +412,7 @@ void dbuf_free_range(struct dnode *dn, uint64_t start, uint64_t end,
 void dbuf_evict_range(struct dnode *dn, uint64_t start_blkid,
     uint64_t end_blkid);
 
-void dbuf_new_size(dmu_buf_impl_t *db, int size, dmu_tx_t *tx);
+void dbuf_new_size(dmu_buf_impl_t *db, int size, boolean_t copy, dmu_tx_t *tx);
 
 void dbuf_stats_init(dbuf_hash_table_t *hash);
 void dbuf_stats_destroy(void);
@@ -437,6 +445,8 @@ dbuf_find_dirty_lte(dmu_buf_impl_t *db, uint64_t txg)
 {
 	dbuf_dirty_record_t *dr;
 
+	/* Open context can add and remove records: walk under db_mtx. */
+	ASSERT(MUTEX_HELD(&db->db_mtx));
 	for (dr = list_head(&db->db_dirty_records);
 	    dr != NULL && dr->dr_txg > txg;
 	    dr = list_next(&db->db_dirty_records, dr))

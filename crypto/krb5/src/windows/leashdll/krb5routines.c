@@ -556,6 +556,19 @@ lpwAlign( LPWORD lpIn )
  * dialog height are measured in 1/8 character heights
  */
 
+#define TEMPLATE_SIZE 4096
+#define CHECK_SPACE(p, base, req)					\
+    if (TEMPLATE_SIZE - ((BYTE *)(p) - (BYTE *)(base)) < (ptrdiff_t)(req)) \
+	goto error
+#define CHECK_SPACE_WORDS(p, base, n) \
+    CHECK_SPACE((p), (base), (n) * sizeof(WORD))
+/* Require an extra DWORD to account for alignment. */
+#define CHECK_SPACE_STRUCT(p, base, t) \
+    CHECK_SPACE((p), (base), sizeof(t) + sizeof(DWORD))
+#define CHECK_SPACE_STRING(p, base, s) \
+    CHECK_SPACE_WORDS((p), (base), \
+		      MultiByteToWideChar(CP_ACP, 0, (s), -1, NULL, 0))
+
 static LRESULT
 MultiInputDialog( HINSTANCE hinst, HWND hwndOwner,
                   char * ptext[], int numlines, int width,
@@ -564,23 +577,30 @@ MultiInputDialog( HINSTANCE hinst, HWND hwndOwner,
     HGLOBAL hgbl;
     LPDLGTEMPLATE lpdt;
     LPDLGITEMTEMPLATE lpdit;
+    LPVOID base;
     LPWORD lpw;
     LPWSTR lpwsz;
     LRESULT ret;
     int nchar, i;
     size_t pwid;
 
-    hgbl = GlobalAlloc(GMEM_ZEROINIT, 4096);
+    hgbl = GlobalAlloc(GMEM_ZEROINIT, TEMPLATE_SIZE);
     if (!hgbl)
         return -1;
 
     mid_cnt = tb_cnt;
     mid_tb = tb;
 
-    lpdt = (LPDLGTEMPLATE)GlobalLock(hgbl);
+    base = GlobalLock(hgbl);
+    if (base == NULL) {
+        GlobalFree(hgbl);
+        return -1;
+    }
+    lpdt = (LPDLGTEMPLATE)base;
 
     // Define a dialog box.
 
+    CHECK_SPACE_STRUCT(lpdt, base, DLGTEMPLATE);
     lpdt->style = WS_POPUP | WS_BORDER | WS_SYSMENU
                    | DS_MODALFRAME | WS_CAPTION | DS_CENTER
                    | DS_SETFOREGROUND | DS_3DLOOK
@@ -592,13 +612,17 @@ MultiInputDialog( HINSTANCE hinst, HWND hwndOwner,
     lpdt->cy = 20 + (numlines + tb_cnt + 4) * 14;
 
     lpw = (LPWORD) (lpdt + 1);
+    CHECK_SPACE_WORDS(lpw, base, 2);
     *lpw++ = 0;   // no menu
     *lpw++ = 0;   // predefined dialog box class (by default)
 
+    CHECK_SPACE_STRING(lpw, base, "");
     lpwsz = (LPWSTR) lpw;
     nchar = MultiByteToWideChar (CP_ACP, 0, "", -1, lpwsz, 128);
     lpw   += nchar;
+    CHECK_SPACE_WORDS(lpw, base, 1);
     *lpw++ = 8;                        // font size (points)
+    CHECK_SPACE_STRING(lpw, base, "MS Shell Dlg");
     lpwsz = (LPWSTR) lpw;
     nchar = MultiByteToWideChar (CP_ACP, 0, "MS Shell Dlg",
                                     -1, lpwsz, 128);
@@ -607,6 +631,7 @@ MultiInputDialog( HINSTANCE hinst, HWND hwndOwner,
     //-----------------------
     // Define an OK button.
     //-----------------------
+    CHECK_SPACE_STRUCT(lpw, base, DLGITEMTEMPLATE);
     lpw = lpwAlign (lpw); // align DLGITEMTEMPLATE on DWORD boundary
     lpdit = (LPDLGITEMTEMPLATE) lpw;
     lpdit->style = WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON | WS_TABSTOP | WS_BORDER;
@@ -618,17 +643,21 @@ MultiInputDialog( HINSTANCE hinst, HWND hwndOwner,
     lpdit->id = IDOK;  // OK button identifier
 
     lpw = (LPWORD) (lpdit + 1);
+    CHECK_SPACE_WORDS(lpw, base, 2);
     *lpw++ = 0xFFFF;
     *lpw++ = 0x0080;    // button class
 
+    CHECK_SPACE_STRING(lpw, base, "OK");
     lpwsz = (LPWSTR) lpw;
     nchar = MultiByteToWideChar (CP_ACP, 0, "OK", -1, lpwsz, 50);
     lpw   += nchar;
+    CHECK_SPACE_WORDS(lpw, base, 1);
     *lpw++ = 0;           // no creation data
 
     //-----------------------
     // Define an Cancel button.
     //-----------------------
+    CHECK_SPACE_STRUCT(lpw, base, DLGITEMTEMPLATE);
     lpw = lpwAlign (lpw); // align DLGITEMTEMPLATE on DWORD boundary
     lpdit = (LPDLGITEMTEMPLATE) lpw;
     lpdit->style = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | WS_TABSTOP | WS_BORDER;
@@ -640,12 +669,15 @@ MultiInputDialog( HINSTANCE hinst, HWND hwndOwner,
     lpdit->id = IDCANCEL;  // CANCEL button identifier
 
     lpw = (LPWORD) (lpdit + 1);
+    CHECK_SPACE_WORDS(lpw, base, 2);
     *lpw++ = 0xFFFF;
     *lpw++ = 0x0080;    // button class
 
+    CHECK_SPACE_STRING(lpw, base, "Cancel");
     lpwsz = (LPWSTR) lpw;
     nchar = MultiByteToWideChar (CP_ACP, 0, "Cancel", -1, lpwsz, 50);
     lpw   += nchar;
+    CHECK_SPACE_WORDS(lpw, base, 1);
     *lpw++ = 0;           // no creation data
 
     /* Add controls for preface data */
@@ -653,6 +685,7 @@ MultiInputDialog( HINSTANCE hinst, HWND hwndOwner,
         /*-----------------------
          * Define a static text control.
          *-----------------------*/
+        CHECK_SPACE_STRUCT(lpw, base, DLGITEMTEMPLATE);
         lpw = lpwAlign (lpw); /* align DLGITEMTEMPLATE on DWORD boundary */
         lpdit = (LPDLGITEMTEMPLATE) lpw;
         lpdit->style = WS_CHILD | WS_VISIBLE | SS_LEFT;
@@ -664,13 +697,16 @@ MultiInputDialog( HINSTANCE hinst, HWND hwndOwner,
         lpdit->id = ID_TEXT + i;  // text identifier
 
         lpw = (LPWORD) (lpdit + 1);
+        CHECK_SPACE_WORDS(lpw, base, 2);
         *lpw++ = 0xFFFF;
         *lpw++ = 0x0082;                         // static class
 
+        CHECK_SPACE_STRING(lpw, base, ptext[i]);
         lpwsz = (LPWSTR) lpw;
         nchar = MultiByteToWideChar (CP_ACP, 0, ptext[i],
                                          -1, lpwsz, 2*width);
         lpw   += nchar;
+        CHECK_SPACE_WORDS(lpw, base, 1);
         *lpw++ = 0;           // no creation data
     }
 
@@ -684,6 +720,7 @@ MultiInputDialog( HINSTANCE hinst, HWND hwndOwner,
         /*-----------------------
          * Define a static text control.
          *-----------------------*/
+        CHECK_SPACE_STRUCT(lpw, base, DLGITEMTEMPLATE);
         lpw = lpwAlign (lpw); /* align DLGITEMTEMPLATE on DWORD boundary */
         lpdit = (LPDLGITEMTEMPLATE) lpw;
         lpdit->style = WS_CHILD | WS_VISIBLE | SS_LEFT;
@@ -695,18 +732,22 @@ MultiInputDialog( HINSTANCE hinst, HWND hwndOwner,
         lpdit->id = ID_TEXT + numlines + i;  // text identifier
 
         lpw = (LPWORD) (lpdit + 1);
+        CHECK_SPACE_WORDS(lpw, base, 2);
         *lpw++ = 0xFFFF;
         *lpw++ = 0x0082;                         // static class
 
+        CHECK_SPACE_STRING(lpw, base, tb[i].label ? tb[i].label : "");
         lpwsz = (LPWSTR) lpw;
         nchar = MultiByteToWideChar (CP_ACP, 0, tb[i].label ? tb[i].label : "",
                                      -1, lpwsz, 128);
         lpw   += nchar;
+        CHECK_SPACE_WORDS(lpw, base, 1);
         *lpw++ = 0;           // no creation data
 
         /*-----------------------
          * Define an edit control.
          *-----------------------*/
+        CHECK_SPACE_STRUCT(lpw, base, DLGITEMTEMPLATE);
         lpw = lpwAlign (lpw); /* align DLGITEMTEMPLATE on DWORD boundary */
         lpdit = (LPDLGITEMTEMPLATE) lpw;
         lpdit->style = WS_CHILD | WS_VISIBLE | ES_LEFT | WS_TABSTOP | WS_BORDER | (tb[i].echo == 1 ? 0L : ES_PASSWORD);
@@ -718,13 +759,16 @@ MultiInputDialog( HINSTANCE hinst, HWND hwndOwner,
         lpdit->id = ID_MID_TEXT + i;             // identifier
 
         lpw = (LPWORD) (lpdit + 1);
+        CHECK_SPACE_WORDS(lpw, base, 2);
         *lpw++ = 0xFFFF;
         *lpw++ = 0x0081;                         // edit class
 
+        CHECK_SPACE_STRING(lpw, base, tb[i].def ? tb[i].def : "");
         lpwsz = (LPWSTR) lpw;
         nchar = MultiByteToWideChar (CP_ACP, 0, tb[i].def ? tb[i].def : "",
                                      -1, lpwsz, 128);
         lpw   += nchar;
+        CHECK_SPACE_WORDS(lpw, base, 1);
         *lpw++ = 0;           // no creation data
     }
 
@@ -750,6 +794,11 @@ MultiInputDialog( HINSTANCE hinst, HWND hwndOwner,
         return -1;
     }
     }
+
+error:
+    GlobalUnlock(hgbl);
+    GlobalFree(hgbl);
+    return -1;
 }
 
 static int

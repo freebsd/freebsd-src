@@ -30,9 +30,23 @@
 
 HEADER {
 	struct tpm_priv;
+	struct tpm_irq_config;
 };
 
 INTERFACE tpm;
+
+#
+# Describe an exclusive interrupt route without touching hardware when
+# program is false.  With program true, configure it while locality zero
+# is owned and a handler is installed.  Return a separate, optional LPC
+# SIRQ selector and TPM trigger/polarity bits.  Unsupported routes poll.
+#
+METHOD int configure_irq {
+	device_t dev;
+	struct resource *irq;
+	struct tpm_irq_config *config;
+	bool program;
+};
 
 #
 # Transfer data to the TPM data buffer

@@ -2094,9 +2094,9 @@ inetd_setproctitle(const char *a, int s)
 	if (getpeername(s, (struct sockaddr *)&ss, &size) == 0) {
 		getnameinfo((struct sockaddr *)&ss, size, pbuf, sizeof(pbuf),
 			    NULL, 0, NI_NUMERICHOST);
-		(void) sprintf(buf, "%s [%s]", a, pbuf);
+		(void) snprintf(buf, sizeof(buf), "%s [%s]", a, pbuf);
 	} else
-		(void) sprintf(buf, "%s", a);
+		(void) snprintf(buf, sizeof(buf), "%s", a);
 	setproctitle("%s", buf);
 }
 

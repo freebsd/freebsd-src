@@ -346,6 +346,9 @@ static const struct sock_filter preauth_insns[] = {
 # ifdef MADV_DONTNEED
 	SC_ALLOW_ARG(__NR_madvise, 2, MADV_DONTNEED),
 # endif
+# ifdef MADV_DONTNEED_LOCKED
+	SC_ALLOW_ARG(__NR_madvise, 2, MADV_DONTNEED_LOCKED),
+# endif
 # ifdef MADV_DONTFORK
 	SC_ALLOW_ARG(__NR_madvise, 2, MADV_DONTFORK),
 # endif
@@ -367,7 +370,7 @@ static const struct sock_filter preauth_insns[] = {
 	SC_ALLOW_ARG_MASK(__NR_mprotect, 2, PROT_READ|PROT_WRITE|PROT_NONE),
 #endif
 #ifdef __NR_mremap
-	SC_ALLOW(__NR_mremap),
+	SC_ALLOW_ARG_MASK(__NR_mremap, 3, MREMAP_MAYMOVE),
 #endif
 #ifdef __NR_munmap
 	SC_ALLOW(__NR_munmap),
@@ -437,6 +440,9 @@ static const struct sock_filter preauth_insns[] = {
 #endif
 #ifdef __NR_uname
 	SC_ALLOW(__NR_uname),
+#endif
+#ifdef __NR_restart_syscall
+	SC_ALLOW(__NR_restart_syscall),
 #endif
 #ifdef __NR_setsockopt
 	SC_ALLOW_SETSOCKOPT(IPPROTO_IPV6, IPV6_TCLASS),

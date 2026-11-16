@@ -1,4 +1,4 @@
-/* $OpenBSD: authfile.c,v 1.151 2026/06/29 09:14:25 djm Exp $ */
+/* $OpenBSD: authfile.c,v 1.152 2026/07/07 04:04:16 djm Exp $ */
 /*
  * Copyright (c) 2000, 2013 Markus Friedl.  All rights reserved.
  *
@@ -207,7 +207,7 @@ sshkey_try_load_public(struct sshkey **kp, const char *filename,
 		*commentp = NULL;
 	if ((f = fopen(filename, "r")) == NULL)
 		return SSH_ERR_SYSTEM_ERROR;
-	if (stat(filename, &st) == 0 && S_ISREG(st.st_mode) &&
+	if (fstat(fileno(f), &st) == 0 && S_ISREG(st.st_mode) &&
 	    st.st_size > SSHBUF_SIZE_MAX) {
 		fclose(f);
 		return SSH_ERR_INVALID_FORMAT;

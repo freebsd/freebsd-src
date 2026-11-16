@@ -7,7 +7,16 @@ GIT_CMD=   ${_P}/git
 . endif
 .endfor
 
-.if !empty(GIT_CMD) && exists(${GIT_CMD})
+# Figure out where the got binary is.
+.for _P in /usr/bin /usr/local/bin
+. if !defined(GOT_CMD) || empty(GOT_CMD)
+.  if exists(${_P}/got)
+GOT_CMD=   ${_P}/got
+.  endif
+. endif
+.endfor
+
+.if !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${.CURDIR}/../.git)
 # Set the git branch and hash to export where needed.
 . if !defined(GITBRANCH) || empty(GITBRANCH)
 GITBRANCH!=	${GIT_CMD} -C ${.CURDIR} rev-parse --abbrev-ref HEAD 2>/dev/null | sed -e 's/\^\///'
@@ -23,6 +32,23 @@ GITCOUNT!=	${GIT_CMD} -C ${.CURDIR} rev-list --first-parent --count HEAD 2>/dev/
 . endif
 . if !defined(GITEPOCH) || empty(GITEPOCH)
 GITEPOCH!=	${GIT_CMD} -C ${.CURDIR} show -s --format=%ct HEAD 2>/dev/null || true
+. export GITEPOCH
+. endif
+.elif !empty(GOT_CMD) && exists(${GOT_CMD}) && exists(${.CURDIR}/../.got)
+. if !defined(GITBRANCH) || empty(GITBRANCH)
+GITBRANCH!=	( cd ${.CURDIR} && ${GOT_CMD} branch )
+. export GITBRANCH
+. endif
+. if !defined(GITREV) || empty(GITREV)
+GITREV!=	( cd ${.CURDIR} && ${GOT_CMD} info | awk '/^work tree base commit:/ { print $$NF; exit }' | cut -c 1-12 )
+. export GITREV
+. endif
+. if !defined(GITCOUNT) || empty(GITCOUNT)
+GITCOUNT!=	( cd ${.CURDIR} && ${GOT_CMD} log -s | wc -l | tr -d ' ' )
+. export GITCOUNT
+. endif
+. if !defined(GITEPOCH) || empty(GITEPOCH)
+GITEPOCH!=	( cd ${.CURDIR} && ${GOT_CMD} cat HEAD | awk '$$1 == "committer" { print $$(NF-1); exit }' )
 . export GITEPOCH
 . endif
 .else

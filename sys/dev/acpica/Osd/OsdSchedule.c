@@ -94,6 +94,11 @@ static int			acpi_taskq_started;
 static void
 acpi_task_init(void *arg)
 {
+    if (acpi_max_tasks < 0) {
+	acpi_max_tasks = ACPI_MAX_TASKS;
+	printf("ACPI: Negative number of tasks, defaulting to %d.\n",
+	       acpi_max_tasks);
+    }
 
     acpi_tasks = malloc(sizeof(*acpi_tasks) * acpi_max_tasks, M_ACPITASK,
 	M_WAITOK | M_ZERO);
@@ -109,9 +114,14 @@ acpi_taskq_init(void *arg)
 {
     int i;
 
-    acpi_taskq = taskqueue_create_fast("acpi_task", M_NOWAIT,
+    acpi_taskq = taskqueue_create_fast("acpi_task", M_WAITOK,
 	&taskqueue_thread_enqueue, &acpi_taskq);
+
+    if (acpi_max_threads < 1)
+	acpi_max_threads = 1;
+
     taskqueue_start_threads(&acpi_taskq, acpi_max_threads, PWAIT, "acpi_task");
+
     if (acpi_task_count > 0) {
 	if (bootverbose)
 	    printf("AcpiOsExecute: enqueue %d pending tasks\n",
@@ -145,7 +155,7 @@ static ACPI_STATUS
 acpi_task_enqueue(int priority, ACPI_OSD_EXEC_CALLBACK Function, void *Context)
 {
     struct acpi_task_ctx *at;
-    int i;
+    int hiwater, i;
 
     for (at = NULL, i = 0; i < acpi_max_tasks; i++)
 	if (atomic_cmpset_int(&acpi_tasks[i].at_flag, ACPI_TASK_FREE,
@@ -155,8 +165,11 @@ acpi_task_enqueue(int priority, ACPI_OSD_EXEC_CALLBACK Function, void *Context)
 	    break;
 	}
 
-    if (i > acpi_tasks_hiwater)
-	atomic_cmpset_int(&acpi_tasks_hiwater, acpi_tasks_hiwater, i);
+    while (hiwater = atomic_load_int(&acpi_tasks_hiwater), i + 1 > hiwater) {
+	if (atomic_cmpset_int(&acpi_tasks_hiwater, hiwater, i + 1))
+	    break;
+	cpu_spinwait();
+    }
 
     if (at == NULL) {
 	printf("AcpiOsExecute: failed to enqueue task, consider increasing "

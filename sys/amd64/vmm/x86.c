@@ -137,8 +137,7 @@ x86_emulate_cpuid(struct vcpu *vcpu, uint64_t *rax, uint64_t *rbx,
 				 * unsupported or unsafe AMD extended features
 				 * (8000_0008 EBX).
 				 */
-				regs[1] &= (AMDFEID_CLZERO | AMDFEID_IRPERF |
-				    AMDFEID_XSAVEERPTR);
+				regs[1] &= AMDFEID_CLZERO | AMDFEID_XSAVEERPTR;
 
 				vm_get_topology(vm, &sockets, &cores, &threads,
 				    &maxcpus);
@@ -296,6 +295,17 @@ x86_emulate_cpuid(struct vcpu *vcpu, uint64_t *rax, uint64_t *rbx,
 			 * XXX Bhyve topology cannot yet represent >1 node per
 			 * processor.
 			 */
+			regs[2] = 0;
+			regs[3] = 0;
+			break;
+
+		case CPUID_8000_0022:
+			/*
+			 * AMD uses this leaf to advertise performance
+			 * counters and PerfMonV2. vmm implements neither.
+			 */
+			regs[0] = 0;
+			regs[1] = 0;
 			regs[2] = 0;
 			regs[3] = 0;
 			break;

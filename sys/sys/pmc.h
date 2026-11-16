@@ -167,7 +167,7 @@ enum pmc_class {
 };
 
 #define	PMC_CLASS_FIRST	PMC_CLASS_TSC
-#define	PMC_CLASS_LAST	PMC_CLASS_RAPL
+#define	PMC_CLASS_LAST	PMC_CLASS_PERF
 
 /*
  * A PMC can be in the following states:

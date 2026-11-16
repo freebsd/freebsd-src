@@ -125,6 +125,7 @@ extern	int iwm_send_lq_cmd(struct iwm_softc *sc, struct iwm_lq_cmd *lq,
 extern	boolean_t iwm_rx_diversity_allowed(struct iwm_softc *sc);
 
 extern	uint8_t iwm_ridx2rate(struct ieee80211_rateset *rs, int ridx);
+extern	int iwm_enable_ac_txq(struct iwm_softc *sc, int qid, int fifo);
 extern	int iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo);
 extern	int iwm_flush_tx_path(struct iwm_softc *sc, uint32_t tfd_msk,
 				  uint32_t flags);
@@ -157,6 +158,24 @@ iwm_get_phy_config(struct iwm_softc *sc)
 		      valid_rx_ant << IWM_FW_PHY_CFG_RX_CHAIN_POS;
 
 	return sc->sc_fw.phy_config & phy_config;
+}
+
+/**
+ * @brief Return the HT above/below field for the given channel width
+ *
+ * @param sc driver softc
+ * @param c channel
+ * @return IEEE80211_HTINFO_2NDCHAN_* value
+ */
+static inline uint8_t
+iwm_get_phy_sco(struct iwm_softc *sc, const struct ieee80211_channel *c)
+{
+	if (IEEE80211_IS_CHAN_HT40U(c))
+		return (IEEE80211_HTINFO_2NDCHAN_ABOVE);
+	else if (IEEE80211_IS_CHAN_HT40D(c))
+		return (IEEE80211_HTINFO_2NDCHAN_BELOW);
+	else
+		return (IEEE80211_HTINFO_2NDCHAN_NONE);
 }
 
 #endif	/* __IF_IWM_UTIL_H__ */

@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd March 21, 2025
+.Dd September 11, 2026
 .Dt NETWORKING 7
 .Os
 .Sh NAME
@@ -57,9 +57,9 @@ Enter the details of the Wi-Fi network:
 .Ic # wpa_passphrase \(dqmyssid\(dq \(dqmypassphrase\(dq >> wpa_supplicant.conf
 .Ed
 .Pp
-Restart the network interface daemon:
+Restart the Wi-Fi interface:
 .Bd -literal -offset 2n
-.Ic # service netif restart
+.Ic # service netif restart wlan0
 .Ed
 .It Sy Example 4: Scanning for Wi-Fi networks
 .Bd -literal -offset 2n
@@ -67,7 +67,7 @@ Restart the network interface daemon:
 .Ed
 .It Sy Example 5: Airplane mode
 .Bd -literal -offset 2n
-.Ic # service netif stop
+.Ic # service netif stop wlan0
 .Ed
 .El
 .Sh SEE ALSO
@@ -87,7 +87,7 @@ or
 will need to be escaped for
 .Xr wpa_passphrase 8 ,
 commonly using
-.Ql \e ,
-see the manual page for your shell for more details.
+.Ql \e .
+See the manual page for your shell for more details.
 .Pp
 Stopping the network interface service also stops internal networking.

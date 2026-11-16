@@ -897,7 +897,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 			return(0);
 		/* Two mappings: one for cmd->data and one for cmd->data->data */
 		data_ptrs[0] = (unsigned char **)&ccb->mmcio.cmd.data;
-		lengths[0] = sizeof(struct mmc_data *);
+		lengths[0] = sizeof(struct mmc_data);
 		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
 		data_ptrs[1] = (unsigned char **)&ccb->mmcio.cmd.data->data;
 		lengths[1] = ccb->mmcio.cmd.data->len;
@@ -1076,7 +1076,7 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		break;
 	case XPT_MMC_IO:
 		data_ptrs[0] = (uint8_t **)&ccb->mmcio.cmd.data;
-		lengths[0] = sizeof(struct mmc_data *);
+		lengths[0] = sizeof(struct mmc_data);
 		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
 		data_ptrs[1] = (uint8_t **)&ccb->mmcio.cmd.data->data;
 		lengths[1] = ccb->mmcio.cmd.data->len;
@@ -1111,7 +1111,13 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	}
 
 	error = 0;
-	for (i = 0; i < numbufs; i++) {
+	/*
+	 * Unmap in reverse order.  XPT_MMC_IO maps cmd.data and then
+	 * cmd.data->data; the second pointer lives inside the first
+	 * mapping, so it must be processed before the first mapping is
+	 * removed.
+	 */
+	for (i = numbufs - 1; i >= 0; i--) {
 		if (mapinfo->bp[i]) {
 			/* unmap the buffer */
 			vunmapbuf(mapinfo->bp[i]);

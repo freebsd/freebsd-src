@@ -22,6 +22,7 @@ SRCS=	delay.c \
 	errno.c \
 	handles.c \
 	libefi.c \
+	tpm.c \
 	wchar.c
 
 .PATH:  ${SYSDIR}/teken
@@ -55,6 +56,7 @@ CFLAGS+= -I${EFIINCMD}
 CFLAGS.efi_console.c+= -I${SRCTOP}/sys/teken -I${SRCTOP}/contrib/pnglite
 CFLAGS.efi_console.c+= -I${.CURDIR}/../loader
 CFLAGS.teken.c+= -I${SRCTOP}/sys/teken
+CFLAGS.tpm.c+= -I${.CURDIR}/../loader
 .if ${MK_LOADER_ZFS} != "no"
 CFLAGS+=	-I${SAZFSSRC}
 CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs

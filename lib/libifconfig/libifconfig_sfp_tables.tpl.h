@@ -41,7 +41,7 @@ for _, ent in ipairs(enums) do
     else
         local enum = ent
         local name = "sfp_"..enum.name
-        local num, sym, desc, disp
+        local val, sym, desc, disp
 %}
 /** {*enum.description*} */
 enum {*name*} {

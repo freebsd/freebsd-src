@@ -1271,7 +1271,8 @@ axp2xx_start(void *pdev)
 		    sc->sensors[i].desc);
 	}
 
-	if ((bus_setup_intr(dev, sc->res[0], INTR_TYPE_MISC | INTR_MPSAFE,
+	if ((bus_setup_intr(dev, sc->res[0],
+	      INTR_TYPE_MISC | INTR_MPSAFE | INTR_EXCL | INTR_SLEEPABLE,
 	      NULL, axp2xx_intr, sc, &sc->intrcookie)))
 		device_printf(dev, "unable to register interrupt handler\n");
 

@@ -215,6 +215,36 @@ test_fgetline_crlf_split_across_fgets_buffer(void)
 	pkgconf_buffer_finalize(&buf);
 }
 
+#ifndef _WIN32
+static void
+test_fgetline_nonseekable_stream(void)
+{
+	static const char contents[] = "hello\rworld\r\n";
+	pkgconf_buffer_t buf = PKGCONF_BUFFER_INITIALIZER;
+	int fds[2];
+
+	TEST_ASSERT_EQ(pipe(fds), 0);
+	TEST_ASSERT_EQ(write(fds[1], contents, sizeof contents - 1), (ssize_t) (sizeof contents - 1));
+	close(fds[1]);
+
+	FILE *f = fdopen(fds[0], "r");
+	TEST_ASSERT_NONNULL(f);
+
+	TEST_ASSERT_TRUE(pkgconf_fgetline(&buf, f));
+	TEST_ASSERT_STRCMP_EQ(pkgconf_buffer_str(&buf), "hello");
+
+	pkgconf_buffer_reset(&buf);
+	TEST_ASSERT_TRUE(pkgconf_fgetline(&buf, f));
+	TEST_ASSERT_STRCMP_EQ(pkgconf_buffer_str(&buf), "world");
+
+	pkgconf_buffer_reset(&buf);
+	TEST_ASSERT_FALSE(pkgconf_fgetline(&buf, f));
+
+	fclose(f);
+	pkgconf_buffer_finalize(&buf);
+}
+#endif
+
 int
 main(int argc, const char **argv)
 {
@@ -231,6 +261,9 @@ main(int argc, const char **argv)
 	TEST_RUN(basename, test_fgetline_backslash_continuation_lone_cr);
 	TEST_RUN(basename, test_fgetline_backslash_not_continuation);
 	TEST_RUN(basename, test_fgetline_crlf_split_across_fgets_buffer);
+#ifndef _WIN32
+	TEST_RUN(basename, test_fgetline_nonseekable_stream);
+#endif
 
 	return EXIT_SUCCESS;
 }

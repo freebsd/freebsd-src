@@ -3,6 +3,10 @@
  *
  * Copyright (c) 2003 Mathew Kanner
  * All rights reserved.
+ * Copyright (c) 2026 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Christos Margiolis
+ * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,13 +33,20 @@
 #ifndef MPU401_H
 #define MPU401_H
 
+#define MPU_DATAPORT   0
+#define MPU_CMDPORT    1
+#define MPU_STATPORT   1
+#define MPU_RESET      0xff
+#define MPU_UART       0x3f
+#define MPU_OUTPUTBUSY 0x40
+#define MPU_INPUTBUSY  0x80
+
 struct mpu401;
 
 typedef int mpu401_intr_t(struct mpu401 *_obj);
 
-extern struct mpu401 *
-mpu401_init(kobj_class_t _cls, void *cookie, driver_intr_t *_softintr,
-    mpu401_intr_t ** _cb);
-extern int mpu401_uninit(struct mpu401 *_obj);
+struct mpu401 *mpu401_init(kobj_class_t _cls, void *cookie,
+    driver_intr_t *_softintr, mpu401_intr_t ** _cb);
+int mpu401_uninit(struct mpu401 *_obj);
 
 #endif

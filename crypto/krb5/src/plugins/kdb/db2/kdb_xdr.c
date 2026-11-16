@@ -313,10 +313,15 @@ krb5_decode_princ_entry(krb5_context context, krb5_data *content,
     /* Check for extra data */
     if (entry->len > KRB5_KDB_V1_BASE_LENGTH) {
         entry->e_length = entry->len - KRB5_KDB_V1_BASE_LENGTH;
+        if (entry->e_length > (size_t)sizeleft) {
+            retval = KRB5_KDB_TRUNCATED_RECORD;
+            goto error_out;
+        }
         entry->e_data = k5memdup(nextloc, entry->e_length, &retval);
         if (entry->e_data == NULL)
             goto error_out;
         nextloc += entry->e_length;
+        sizeleft -= entry->e_length;
     }
 
     /*

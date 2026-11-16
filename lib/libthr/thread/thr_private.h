@@ -249,7 +249,9 @@ struct pthread_cleanup {
 };
 
 #define	THR_CLEANUP_PUSH(td, func, arg) {		\
-	struct pthread_cleanup __cup;			\
+	struct pthread_cleanup __cup			\
+	    __attribute__((__cleanup__(			\
+	    _thr_cleanup_unwind)));			\
 							\
 	__cup.routine = func;				\
 	__cup.routine_arg = arg;			\
@@ -521,6 +523,10 @@ struct pthread {
 
 	/* Number rwlocks rdlocks held. */
 	int			rdlock_count;
+
+	void			*pshared_key;
+	void			*pshared_val;
+	unsigned long		pshared_gen;
 
 	/*
 	 * Current locks bitmap for rtld. */
@@ -941,8 +947,20 @@ _thr_is_inited(void)
 static inline void
 _thr_check_init(void)
 {
-	if (_thr_initial == NULL)
+	if (__predict_false(_thr_initial == NULL))
 		_libpthread_init(NULL);
+}
+
+static inline void
+_thr_cleanup_unwind(struct pthread_cleanup *cup)
+{
+	struct pthread *curthread;
+
+	curthread = _get_curthread();
+	if (curthread->cleanup == cup) {
+		curthread->cleanup = cup->prev;
+		cup->routine(cup->routine_arg);
+	}
 }
 
 struct wake_addr *_thr_alloc_wake_addr(void);
@@ -976,6 +994,34 @@ static inline struct pthread *
 _sleepq_first(struct sleepqueue *sq)
 {
 	return TAILQ_FIRST(&sq->sq_blocked);
+}
+
+/*
+ * Must accept the same clocks as umtx_check_clockid() in
+ * sys/kern/kern_umtx.c.
+ */
+static inline int
+_thr_check_clockid(clockid_t clockid)
+{
+	switch (clockid) {
+	case CLOCK_REALTIME:
+	case CLOCK_REALTIME_PRECISE:
+	case CLOCK_REALTIME_FAST:
+	case CLOCK_MONOTONIC:
+	case CLOCK_MONOTONIC_PRECISE:
+	case CLOCK_MONOTONIC_FAST:
+	case CLOCK_UPTIME:
+	case CLOCK_UPTIME_PRECISE:
+	case CLOCK_UPTIME_FAST:
+	case CLOCK_SECOND:
+	case CLOCK_VIRTUAL:
+	case CLOCK_PROF:
+	case CLOCK_PROCESS_CPUTIME_ID:
+	case CLOCK_TAI:
+		return (0);
+	default:
+		return (EINVAL);
+	}
 }
 
 void	_sleepq_init(void) __hidden;

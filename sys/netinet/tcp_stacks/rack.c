@@ -275,7 +275,7 @@ static int32_t rack_rate_sample_method = USE_RTT_LOW;
 static int32_t rack_pace_every_seg = 0;
 static int32_t rack_delayed_ack_time = 40000;	/* 40ms in usecs */
 static int32_t rack_pacing_delay_reduction = 4;
-static int32_t rack_wma_divisor = 8;		/* For WMA calculation */
+static uint32_t rack_wma_divisor = 8;		/* For WMA calculation */
 static int32_t rack_cwnd_block_ends_measure = 0;
 static int32_t rack_rwnd_block_ends_measure = 0;
 static int32_t rack_def_profile = 0;
@@ -382,6 +382,7 @@ counter_u64_t rack_alloc_limited_conns;
 counter_u64_t rack_split_limited;
 counter_u64_t rack_rxt_clamps_cwnd;
 counter_u64_t rack_rxt_clamps_cwnd_uniq;
+counter_u64_t rack_dbl_recovery;
 
 counter_u64_t rack_multi_single_eq;
 counter_u64_t rack_proc_non_comp_ack;
@@ -815,6 +816,7 @@ sysctl_rack_clear(SYSCTL_HANDLER_ARGS)
 		counter_u64_zero(rack_alloc_limited_conns);
 		counter_u64_zero(rack_split_limited);
 		counter_u64_zero(rack_rxt_clamps_cwnd);
+		counter_u64_zero(rack_dbl_recovery);
 		counter_u64_zero(rack_rxt_clamps_cwnd_uniq);
 		counter_u64_zero(rack_multi_single_eq);
 		counter_u64_zero(rack_proc_non_comp_ack);
@@ -837,6 +839,22 @@ sysctl_rack_clear(SYSCTL_HANDLER_ARGS)
 		COUNTER_ARRAY_ZERO(rack_out_size, TCP_MSS_ACCT_SIZE);
 	}
 	rack_clear_counter = 0;
+	return (0);
+}
+
+static int
+sysctl_rack_wma_divisor(SYSCTL_HANDLER_ARGS)
+{
+	uint32_t val;
+	int error;
+
+	val = *(uint32_t *)arg1;
+	error = sysctl_handle_32(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (val == 0 || val > INT32_MAX)
+		return (EINVAL);
+	*(uint32_t *)arg1 = val;
 	return (0);
 }
 
@@ -1407,11 +1425,11 @@ rack_init_sysctls(void)
 	    "measure",
 	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 	    "Measure related controls");
-	SYSCTL_ADD_S32(&rack_sysctl_ctx,
+	SYSCTL_ADD_PROC(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_measure),
-	    OID_AUTO, "wma_divisor", CTLFLAG_RW,
-	    &rack_wma_divisor, 8,
-	    "When doing b/w calculation what is the  divisor for the WMA");
+	    OID_AUTO, "wma_divisor", CTLTYPE_U32 | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    &rack_wma_divisor, 0, sysctl_rack_wma_divisor, "IU",
+	    "When doing b/w calculation what is the divisor for the WMA");
 	SYSCTL_ADD_S32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_measure),
 	    OID_AUTO, "end_cwnd", CTLFLAG_RW,
@@ -1718,6 +1736,12 @@ rack_init_sysctls(void)
 	    OID_AUTO, "split_limited", CTLFLAG_RD,
 	    &rack_split_limited,
 	    "Split allocations dropped due to limit");
+	rack_dbl_recovery = counter_u64_alloc(M_WAITOK);
+	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
+	    SYSCTL_CHILDREN(rack_counters),
+	    OID_AUTO, "rxt_dbl_recovery", CTLFLAG_RD,
+	    &rack_dbl_recovery,
+	    "Number of times that we saw a double recovery scenario");
 	rack_rxt_clamps_cwnd = counter_u64_alloc(M_WAITOK);
 	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_counters),
@@ -3212,6 +3236,7 @@ rack_counter_destroy(void)
 	counter_u64_free(rack_split_limited);
 	counter_u64_free(rack_multi_single_eq);
 	counter_u64_free(rack_rxt_clamps_cwnd);
+	counter_u64_free(rack_dbl_recovery);
 	counter_u64_free(rack_rxt_clamps_cwnd_uniq);
 	counter_u64_free(rack_proc_non_comp_ack);
 	counter_u64_free(rack_sack_proc_all);
@@ -5584,6 +5609,8 @@ rack_cong_signal(struct tcpcb *tp, uint32_t type, uint32_t ack, int line)
 		tp->t_flags &= ~TF_WASFRECOVERY;
 		tp->t_flags &= ~TF_WASCRECOVERY;
 		if (!IN_FASTRECOVERY(tp->t_flags)) {
+			struct rack_sendmap *rsm;
+
 			/* Check if this is the end of the initial Start-up i.e. initial slow-start */
 			if (rack->rc_initial_ss_comp == 0) {
 				/* Yep it is the end of the initial slowstart */
@@ -5593,6 +5620,27 @@ rack_cong_signal(struct tcpcb *tp, uint32_t type, uint32_t ack, int line)
 			rack->r_ctl.rc_prr_out = 0;
 			rack->r_fast_output = 0;
 			rack->r_ctl.recovery_rxt_cnt = 0;
+			/* Now to protect against a double entry to recovery (exit and re-enter)
+			 * lets go through the outstanding and update the recovery_rxt_cnt to
+			 * account for retransmitted packets.
+			 */
+			TAILQ_FOREACH(rsm, &rack->r_ctl.rc_tmap, r_tnext) {
+				if ((rsm->r_flags & RACK_WAS_SACKPASS) &&
+				    (rsm->r_rtr_cnt > 1)) {
+					/*
+					 * A double entry into recovery where we
+					 * retransmitted this rsm in the previous recovery.
+					 * Note the counter should be used to see if it ever occurs.
+					 * If it never is found anywnhere then we should remove this
+					 * code i.e the TAILQ_FOREACH block. Note we use r_rtr_cnt in
+					 * the multiply since we don't need the actual count to be accurate
+					 * we just need either 1 or >1 since once its >1 the recovery_rxt_cnt
+					 * will prevent a false postive on bad entries to recovery.
+					 */
+					rack->r_ctl.recovery_rxt_cnt += ((rsm->r_end - rsm->r_start) * (rsm->r_rtr_cnt - 1));
+					counter_u64_add(rack_dbl_recovery, 1);
+				}
+			}
 			if (rack->rack_no_prr == 0) {
 				rack->r_ctl.rc_prr_sndcnt = ctf_fixed_maxseg(tp);
 				rack_log_to_prr(rack, 2, in_rec_at_entry, line);
@@ -6844,7 +6892,7 @@ static void
 rack_setup_offset_for_rsm(struct tcp_rack *rack, struct rack_sendmap *src_rsm, struct rack_sendmap *rsm)
 {
 	struct mbuf *m;
-	uint32_t soff;
+	uint32_t soff, start;
 
 	if (src_rsm->m &&
 	    ((src_rsm->orig_m_len != src_rsm->m->m_len) ||
@@ -6853,7 +6901,10 @@ rack_setup_offset_for_rsm(struct tcp_rack *rack, struct rack_sendmap *src_rsm, s
 		rack_adjust_orig_mlen(src_rsm);
 	}
 	m = src_rsm->m;
-	soff = src_rsm->soff + (src_rsm->r_end - src_rsm->r_start);
+	start = src_rsm->r_start;
+	if ((src_rsm->r_flags & RACK_HAS_SYN) != 0)
+		start++;
+	soff = src_rsm->soff + (src_rsm->r_end - start);
 	while (soff >= m->m_len) {
 		/* Move out past this mbuf */
 		soff -= m->m_len;
@@ -6875,6 +6926,14 @@ rack_setup_offset_for_rsm(struct tcp_rack *rack, struct rack_sendmap *src_rsm, s
 			rsm->orig_t_space = M_TRAILINGROOM(rsm->m);
 			return;
 		}
+	}
+	if ((src_rsm->r_flags & RACK_HAS_SYN) != 0 &&
+	    src_rsm->r_end == src_rsm->r_start + 1) {
+		/* src_rsm is a SYN segment without data */
+		src_rsm->m = NULL;
+		src_rsm->soff = 0;
+		src_rsm->orig_m_len = 0;
+		src_rsm->orig_t_space = 0;
 	}
 	rsm->m = m;
 	rsm->soff = soff;
@@ -9495,8 +9554,10 @@ do_rest_ofb:
 				}
 				rack_log_map_chg(tp, rack, NULL, rsm, nrsm, MAP_SACK_M2, end, __LINE__);
 				rsm->r_flags &= (~RACK_HAS_FIN);
-				/* Check if the ack was too soon i.e. reordering + ack arrives too quickly */
-				prohibit_marking = rack_check_reorder_ack(tp, rack, nrsm, nrsm->r_end, cts, 0, __LINE__);
+				/* Don't do a rack_check_reorder_ack() here since this block just gets
+				 * us so the new rsm can be handled down below in the if(SEQ_GEQ(end, rsm->r_end) below.
+				 * It will be called in that block.
+				 */
 				/* Position us to point to the new nrsm that starts the sack blk */
 				rsm = nrsm;
 			}
@@ -9867,7 +9928,7 @@ do_rest_ofb:
 			}
 			nrsm->r_dupack = 0;
 			/* Check if the ack was too soon i.e. reordering + ack arrives too quickly */
-			prohibit_marking = rack_check_reorder_ack(tp, rack, nrsm, nrsm->r_end, cts, 0, __LINE__);
+			prohibit_marking = rack_check_reorder_ack(tp, rack, rsm, rsm->r_end, cts, 0, __LINE__);
 			rack_log_retran_reason(rack, nrsm, __LINE__, 0, 2);
 			rack_update_rtt(tp, rack, rsm, to, cts, SACKED, 0);
 			changed += (rsm->r_end - rsm->r_start);
@@ -12234,14 +12295,8 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 				m_freem(m);
 			} else {
-				int32_t newsize;
-
-				if (tlen > 0) {
-					newsize = tcp_autorcvbuf(m, th, so, tp, tlen);
-					if (newsize)
-						if (!sbreserve_locked(so, SO_RCV, newsize, NULL))
-							so->so_rcv.sb_flags &= ~SB_AUTOSIZE;
-				}
+				if (tlen > 0)
+					tcp_autorcvbuf(tp, tlen);
 #ifdef NETFLIX_SB_LIMITS
 				appended =
 #endif
@@ -12391,7 +12446,6 @@ rack_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
     uint32_t tiwin, int32_t nxt_pkt, uint8_t iptos)
 {
 	int32_t nsegs;
-	int32_t newsize = 0;	/* automatic sockbuf scaling */
 	struct tcp_rack *rack;
 #ifdef NETFLIX_SB_LIMITS
 	u_int mcnt, appended;
@@ -12469,20 +12523,13 @@ rack_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	tp->rcv_up = tp->rcv_nxt;
 	KMOD_TCPSTAT_ADD(tcps_rcvpack, nsegs);
 	KMOD_TCPSTAT_ADD(tcps_rcvbyte, tlen);
-	newsize = tcp_autorcvbuf(m, th, so, tp, tlen);
 
 	/* Add data to socket buffer. */
 	SOCK_RECVBUF_LOCK(so);
 	if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 		m_freem(m);
 	} else {
-		/*
-		 * Set new socket buffer size. Give up when limit is
-		 * reached.
-		 */
-		if (newsize)
-			if (!sbreserve_locked(so, SO_RCV, newsize, NULL))
-				so->so_rcv.sb_flags &= ~SB_AUTOSIZE;
+		tcp_autorcvbuf(tp, tlen);
 		m_adj(m, drop_hdrlen);	/* delayed header drop */
 #ifdef NETFLIX_SB_LIMITS
 		appended =
@@ -13946,7 +13993,8 @@ rack_init_fsb_block(struct tcpcb *tp, struct tcp_rack *rack, int32_t flags)
 		ip6 = (struct ip6_hdr *)rack->r_ctl.fsb.tcp_ip_hdr;
 		if (tp->t_port) {
 			rack->r_ctl.fsb.tcp_ip_hdr_len += sizeof(struct udphdr);
-			udp = (struct udphdr *)((caddr_t)ip6 + sizeof(struct ip6_hdr));
+			udp = (struct udphdr *)((char *)ip6 +
+			    sizeof(struct ip6_hdr));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
 			udp->uh_dport = tp->t_port;
 			rack->r_ctl.fsb.udp = udp;
@@ -13968,7 +14016,7 @@ rack_init_fsb_block(struct tcpcb *tp, struct tcp_rack *rack, int32_t flags)
 		ip = (struct ip *)rack->r_ctl.fsb.tcp_ip_hdr;
 		if (tp->t_port) {
 			rack->r_ctl.fsb.tcp_ip_hdr_len += sizeof(struct udphdr);
-			udp = (struct udphdr *)((caddr_t)ip + sizeof(struct ip));
+			udp = (struct udphdr *)((char *)ip + sizeof(struct ip));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
 			udp->uh_dport = tp->t_port;
 			rack->r_ctl.fsb.udp = udp;
@@ -18117,7 +18165,7 @@ rack_fo_base_copym(struct mbuf *the_m, uint32_t the_off, int32_t *plen,
 			n->m_data = m->m_data + off;
 			mb_dupcl(n, m);
 		} else {
-			bcopy(mtod(m, caddr_t)+off, mtod(n, caddr_t),
+			bcopy(mtod(m, char *) + off, mtod(n, char *),
 			    (u_int)n->m_len);
 		}
 		len -= n->m_len;
@@ -18912,8 +18960,11 @@ rack_sndbuf_autoscale(struct tcp_rack *rack)
 			scaleup += so->so_snd.sb_hiwat;
 			if (scaleup > V_tcp_autosndbuf_max)
 				scaleup = V_tcp_autosndbuf_max;
-			if (!sbreserve_locked(so, SO_SND, scaleup, curthread))
+			if (sbreserve_locked(so, SO_SND, scaleup, curthread)) {
+				TCP_PROBE2(send__autoresize, tp, scaleup);
+			} else {
 				so->so_snd.sb_flags &= ~SB_AUTOSIZE;
+			}
 		}
 	}
 }
@@ -21412,7 +21463,7 @@ send:
 		s_moff = moff;
 		if (len <= MHLEN - hdrlen - max_linkhdr && !hw_tls) {
 			m_copydata(mb, moff, (int)len,
-				   mtod(m, caddr_t)+hdrlen);
+				   mtod(m, char *) + hdrlen);
 			/*
 			 * If we are not retransmitting advance the
 			 * sndptr to help remember the next place in
@@ -21547,7 +21598,8 @@ send:
 		if (isipv6) {
 			ip6 = mtod(m, struct ip6_hdr *);
 			if (tp->t_port) {
-				udp = (struct udphdr *)((caddr_t)ip6 + sizeof(struct ip6_hdr));
+				udp = (struct udphdr *)((char *)ip6 +
+				    sizeof(struct ip6_hdr));
 				udp->uh_sport = htons(V_tcp_udp_tunneling_port);
 				udp->uh_dport = tp->t_port;
 				ulen = hdrlen + len - sizeof(struct ip6_hdr);
@@ -21562,7 +21614,8 @@ send:
 #ifdef INET
 			ip = mtod(m, struct ip *);
 			if (tp->t_port) {
-				udp = (struct udphdr *)((caddr_t)ip + sizeof(struct ip));
+				udp = (struct udphdr *)((char *)ip +
+				    sizeof(struct ip));
 				udp->uh_sport = htons(V_tcp_udp_tunneling_port);
 				udp->uh_dport = tp->t_port;
 				ulen = hdrlen + len - sizeof(struct ip);

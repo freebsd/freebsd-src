@@ -55,18 +55,22 @@ static struct options {
 	uint32_t	ms;
 	uint32_t	pi;
 	uint32_t	pil;
+	uint32_t	sector_size;
 	uint32_t	ses;
 	bool		Eflag;
 	bool		Cflag;
+	bool		dry_run;
 	const char	*dev;
 } opt = {
 	.lbaf = NONE,
 	.ms = NONE,
 	.pi = NONE,
 	.pil = NONE,
+	.sector_size = NONE,
 	.ses = SES_NONE,
 	.Eflag = false,
 	.Cflag = false,
+	.dry_run = false,
 	.dev = NULL,
 };
 
@@ -76,6 +80,8 @@ static const struct opts format_opts[] = {
 	    "Cryptographic erase"),
 	OPT("erase", 'E', arg_none, opt, Eflag,
 	    "User data erase"),
+	OPT("dry-run", 'n', arg_none, opt, dry_run,
+	    "Print the Format NVM command without submitting it"),
 	OPT("lbaf", 'f', arg_uint32, opt, lbaf,
 	    "LBA Format to apply to the media"),
 	OPT("ms", 'm', arg_uint32, opt, ms,
@@ -84,7 +90,9 @@ static const struct opts format_opts[] = {
 	    "Protective information"),
 	OPT("pil", 'l', arg_uint32, opt, pil,
 	    "Protective information location"),
-	OPT("ses", 's', arg_uint32, opt, ses,
+	OPT("sector-size", 's', arg_uint32, opt, sector_size,
+	    "Sector size"),
+	OPT("ses", 0, arg_uint32, opt, ses,
 	    "Secure erase settings"),
 	{ NULL, 0, arg_none, NULL, NULL }
 };
@@ -108,28 +116,114 @@ CMD_COMMAND(format_cmd);
 
 /* End of tables for command line parsing */
 
+static int
+find_lbaf(const struct nvme_namespace_data *nsd, uint32_t sector_size,
+    bool require_unique)
+{
+	uint32_t format, lbads;
+	int best, best_rp, i, matches, rp;
+
+	lbads = (uint32_t)fls(sector_size) - 1;
+	best = -1;
+	best_rp = 4;
+	matches = 0;
+	for (i = 0; i <= nsd->nlbaf; i++) {
+		format = nsd->lbaf[i];
+		if (NVMEV(NVME_NS_DATA_LBAF_LBADS, format) != lbads ||
+		    NVMEV(NVME_NS_DATA_LBAF_MS, format) !=
+		    sector_size % (1U << lbads))
+			continue;
+		matches++;
+		rp = NVMEV(NVME_NS_DATA_LBAF_RP, format);
+		if (rp < best_rp) {
+			best = i;
+			best_rp = rp;
+		}
+	}
+	if (require_unique && matches > 1)
+		return (-2);
+	return (best);
+}
+
+static void
+check_controller_namespace(int fd, uint32_t nsid, uint32_t sector_size,
+    int *lbaf, int *ms, int *pi, int *pil, bool *found)
+{
+	struct nvme_namespace_data nsd;
+	int fmt, ns_ms, ns_pi, ns_pil;
+
+	if (read_namespace_data(fd, nsid, &nsd))
+		errx(EX_IOERR, "Identify request failed for namespace %u", nsid);
+	fmt = find_lbaf(&nsd, sector_size, true);
+	if (fmt == -2)
+		errx(EX_USAGE,
+		    "namespace %u has multiple formats for sector size %u",
+		    nsid, sector_size);
+	if (fmt < 0)
+		errx(EX_USAGE, "namespace %u does not support sector size %u",
+		    nsid, sector_size);
+	ns_ms = opt.ms == NONE ?
+	    NVMEV(NVME_NS_DATA_FLBAS_EXTENDED, nsd.flbas) : opt.ms;
+	ns_pi = opt.pi == NONE ?
+	    NVMEV(NVME_NS_DATA_DPS_PIT, nsd.dps) : opt.pi;
+	ns_pil = opt.pil == NONE ?
+	    NVMEV(NVME_NS_DATA_DPS_MD_START, nsd.dps) : opt.pil;
+	if (!*found) {
+		*lbaf = fmt;
+		*ms = ns_ms;
+		*pi = ns_pi;
+		*pil = ns_pil;
+		*found = true;
+	} else if (*lbaf != fmt || *ms != ns_ms || *pi != ns_pi ||
+	    *pil != ns_pil) {
+		errx(EX_USAGE,
+		    "namespace %u has incompatible format parameters", nsid);
+	}
+}
+
 static void
 format(const struct cmd *f, int argc, char *argv[])
 {
 	struct nvme_controller_data	cd;
 	struct nvme_namespace_data	nsd;
+	struct nvme_ns_list		nslist;
 	struct nvme_pt_command		pt;
 	char				*path;
 	const char			*target;
-	uint32_t			nsid;
+	uint32_t			nsid, scan_nsid;
 	int				lbaf, ms, pi, pil, ses, fd;
+	u_int				i;
+	uint32_t			sector_size;
+	bool				done, found;
 
 	if (arg_parse(argc, argv, f))
 		return;
 
 	if ((int)opt.Eflag + opt.Cflag + (opt.ses != SES_NONE) > 1) {
 		fprintf(stderr,
-		    "Only one of -E, -C or -s may be specified\n");
+		    "Only one of -E, -C or --ses may be specified\n");
 		arg_help(argc, argv, f);
 	}
+	if (opt.ms != NONE && opt.ms > 1)
+		errx(EX_USAGE, "metadata setting must be 0 or 1");
+	if (opt.pi != NONE && opt.pi > 3)
+		errx(EX_USAGE,
+		    "protection information type must be between 0 and 3");
+	if (opt.pil != NONE && opt.pil > 1)
+		errx(EX_USAGE,
+		    "protection information location must be 0 or 1");
+	if (opt.ses > SES_CRYPTO)
+		errx(EX_USAGE, "secure erase setting must be between 0 and 2");
 
 	target = opt.dev;
 	lbaf = opt.lbaf;
+	sector_size = opt.sector_size;
+	if (lbaf >= 0 && sector_size != NONE) {
+		fprintf(stderr, "Only one of -f or -s may be specified\n");
+		arg_help(argc, argv, f);
+	}
+	if (sector_size == 0)
+		errx(EX_USAGE, "sector size must be non-zero");
 	ms = opt.ms;
 	pi = opt.pi;
 	pil = opt.pil;
@@ -140,7 +234,7 @@ format(const struct cmd *f, int argc, char *argv[])
 	else
 		ses = opt.ses;
 
-	open_dev(target, &fd, 1, 1);
+	open_dev(target, &fd, !opt.dry_run, 1);
 	get_nsid(fd, &path, &nsid);
 	if (nsid == 0) {
 		nsid = NVME_GLOBAL_NAMESPACE_TAG;
@@ -152,7 +246,7 @@ format(const struct cmd *f, int argc, char *argv[])
 		 * string to get the controller substring and namespace ID.
 		 */
 		close(fd);
-		open_dev(path, &fd, 1, 1);
+		open_dev(path, &fd, !opt.dry_run, 1);
 	}
 	free(path);
 
@@ -176,6 +270,13 @@ format(const struct cmd *f, int argc, char *argv[])
 		/* Try to keep previous namespace parameters. */
 		if (read_namespace_data(fd, nsid, &nsd))
 			errx(EX_IOERR, "Identify request failed");
+		if (sector_size != NONE) {
+			lbaf = find_lbaf(&nsd, sector_size, false);
+			if (lbaf < 0)
+				errx(EX_USAGE,
+				    "namespace does not support sector size %u",
+				    sector_size);
+		}
 		if (lbaf < 0)
 			lbaf = nvme_ns_data_format_index(&nsd);
 		if (lbaf > nsd.nlbaf)
@@ -183,14 +284,46 @@ format(const struct cmd *f, int argc, char *argv[])
 		if (ms < 0)
 			ms = NVMEV(NVME_NS_DATA_FLBAS_EXTENDED, nsd.flbas);
 		if (pi < 0)
-			pi = NVMEV(NVME_NS_DATA_DPS_MD_START, nsd.dps);
+			pi = NVMEV(NVME_NS_DATA_DPS_PIT, nsd.dps);
 		if (pil < 0)
-			pil = NVMEV(NVME_NS_DATA_DPS_PIT, nsd.dps);
+			pil = NVMEV(NVME_NS_DATA_DPS_MD_START, nsd.dps);
 	} else {
 
 		/* We have no previous parameters, so default to zeroes. */
+		if (sector_size != NONE) {
+			found = false;
+			if (cd.ver == 0) {
+				for (scan_nsid = 1; scan_nsid <= cd.nn; scan_nsid++)
+					check_controller_namespace(fd, scan_nsid,
+					    sector_size, &lbaf, &ms, &pi, &pil,
+					    &found);
+			} else {
+				scan_nsid = 0;
+				done = false;
+				while (!done) {
+					if (read_active_namespaces(fd, scan_nsid,
+					    &nslist))
+						errx(EX_IOERR,
+						    "Identify request failed");
+					for (i = 0; i < nitems(nslist.ns); i++) {
+						scan_nsid = nslist.ns[i];
+						if (scan_nsid == 0) {
+							done = true;
+							break;
+						}
+						check_controller_namespace(fd, scan_nsid,
+						    sector_size, &lbaf, &ms, &pi, &pil,
+						    &found);
+					}
+				}
+			}
+			if (!found)
+				errx(EX_USAGE, "controller has no active namespaces");
+		}
 		if (lbaf < 0)
 			lbaf = 0;
+		else if (lbaf > 63)
+			errx(EX_USAGE, "LBA format is out of range");
 		if (ms < 0)
 			ms = 0;
 		if (pi < 0)
@@ -200,10 +333,15 @@ format(const struct cmd *f, int argc, char *argv[])
 	}
 
 	memset(&pt, 0, sizeof(pt));
-	pt.cmd.opc = NVME_OPC_FORMAT_NVM;
-	pt.cmd.nsid = htole32(nsid);
-	pt.cmd.cdw10 = htole32((ses << 9) + (pil << 8) + (pi << 5) +
-	    (ms << 4) + lbaf);
+	nvme_admin_format_cmd(&pt.cmd, nsid, ses, pil, pi, ms, lbaf);
+	if (opt.dry_run) {
+		printf("Format NVM: opc=%#x nsid=%#010x cdw10=%#010x "
+		    "(lbaf=%d mset=%d pi=%d pil=%d ses=%d)\n",
+		    NVME_OPC_FORMAT_NVM, nsid, le32toh(pt.cmd.cdw10), lbaf,
+		    ms, pi, pil, ses);
+		close(fd);
+		exit(0);
+	}
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
 		err(EX_IOERR, "format request failed");

@@ -88,11 +88,13 @@ extern struct RtldLockInfo lockinfo;
 struct Struct_RtldLockState;
 typedef struct Struct_RtldLockState RtldLockState;
 
+void	lockstate_init(RtldLockState *);
 void	rlock_acquire(rtld_lock_t, RtldLockState *);
 void 	wlock_acquire(rtld_lock_t, RtldLockState *);
 void	lock_release(rtld_lock_t, RtldLockState *);
 void	lock_upgrade(rtld_lock_t, RtldLockState *);
 void	lock_restart_for_upgrade(RtldLockState *);
+bool	lockstate_rlocked(const RtldLockState *);
 bool	lockstate_wlocked(const RtldLockState *);
 
 void	dlerror_dflt_init(void);

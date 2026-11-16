@@ -16,6 +16,9 @@
 /* Define to 1 if you have the `bzero' function. */
 #define HAVE_BZERO 1
 
+/* Define to 1 if you have the <capsicum_helpers.h> header file. */
+#define HAVE_CAPSICUM_HELPERS_H 1
+
 /* Define to 1 if you have the `cap_enter' function. */
 #define HAVE_CAP_ENTER 1
 
@@ -32,7 +35,7 @@
 #define HAVE_DLFCN_H 1
 
 /* Define to 1 if you have the <endian.h> header file. */
-/* #undef HAVE_ENDIAN_H */
+#define HAVE_ENDIAN_H 1
 
 /* Define to 1 if you have the `faccessat' function. */
 #define HAVE_FACCESSAT 1
@@ -234,7 +237,7 @@
 #define PACKAGE_NAME "OpenBSM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "OpenBSM 1.2-alpha5"
+#define PACKAGE_STRING "OpenBSM 1.2-alpha6"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "openbsm"
@@ -243,7 +246,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.2-alpha5"
+#define PACKAGE_VERSION "1.2-alpha6"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
@@ -279,7 +282,7 @@
 #define USE_SYS_ENDIAN_H /**/
 
 /* Version number of package */
-#define VERSION "1.2-alpha5"
+#define VERSION "1.2-alpha6"
 
 /* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
    `char[]'. */

@@ -1000,29 +1000,34 @@ zfs_create_diskpart()
 
 	# Update fstab(5)
 	local swapsize
+	local suffix=
+
 	f_expand_number "$ZFSBOOT_SWAP_SIZE" swapsize
+	if [ "$ZFSBOOT_SWAP_ENCRYPTION" ]; then
+		suffix=".eli"
+	fi
 	if [ "$isswapmirror" ]; then
 		# This is not the first disk in the mirror, do nothing
 	elif [ ${swapsize:-0} -eq 0 ]; then
 		# If swap is 0 sized, don't add it to fstab
-	elif [ "$ZFSBOOT_SWAP_ENCRYPTION" -a "$ZFSBOOT_SWAP_MIRROR" ]; then
-		f_eval_catch $funcname printf "$PRINTF_FSTAB" \
-		             /dev/mirror/swap.eli none swap sw 0 0 \
-		             $BSDINSTALL_TMPETC/fstab || return $FAILURE
-		isswapmirror=1
 	elif [ "$ZFSBOOT_SWAP_MIRROR" ]; then
 		f_eval_catch $funcname printf "$PRINTF_FSTAB" \
-		             /dev/mirror/swap none swap sw 0 0 \
+		             /dev/mirror/swap$suffix none swap sw 0 0 \
 		             $BSDINSTALL_TMPETC/fstab || return $FAILURE
 		isswapmirror=1
-	elif [ "$ZFSBOOT_SWAP_ENCRYPTION" ]; then
-		f_eval_catch $funcname printf "$PRINTF_FSTAB" \
-		             /dev/$disk${swappart}.eli none swap sw 0 0 \
-		             $BSDINSTALL_TMPETC/fstab || return $FAILURE
 	else
-		f_eval_catch $funcname printf "$PRINTF_FSTAB" \
-		             /dev/$disk$swappart none swap sw 0 0 \
-		             $BSDINSTALL_TMPETC/fstab || return $FAILURE
+		case "$ZFSBOOT_PARTITION_SCHEME" in
+		GPT*)
+			f_eval_catch $funcname printf "$PRINTF_FSTAB" \
+			    /dev/gpt/swap$index$suffix none swap sw 0 0 \
+			    $BSDINSTALL_TMPETC/fstab || return $FAILURE
+			;;
+		*)
+			f_eval_catch $funcname printf "$PRINTF_FSTAB" \
+			    /dev/$disk$swappart$suffix none swap sw 0 0 \
+			    $BSDINSTALL_TMPETC/fstab || return $FAILURE
+			;;
+		esac
 	fi
 
 	return $SUCCESS

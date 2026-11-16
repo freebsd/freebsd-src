@@ -244,7 +244,7 @@ icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 	if (oip->ip_off & htons(~(IP_MF|IP_DF)))
 		goto freeit;
 	if (oip->ip_p == IPPROTO_ICMP && type != ICMP_REDIRECT &&
-	    !ICMP_INFOTYPE(((struct icmp *)((caddr_t)oip +
+	    !ICMP_INFOTYPE(((struct icmp *)((char *)oip +
 		oiphlen))->icmp_type)) {
 		ICMPSTAT_INC(icps_oldicmp);
 		goto freeit;
@@ -263,8 +263,7 @@ icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 		if (oiphlen + sizeof(struct tcphdr) > n->m_len &&
 		    n->m_next == NULL)
 			goto stdreply;
-		if (n->m_len < oiphlen + sizeof(struct tcphdr) &&
-		    (n = m_pullup(n, oiphlen + sizeof(struct tcphdr))) == NULL)
+		if ((n = m_pullup(n, oiphlen + sizeof(struct tcphdr))) == NULL)
 			goto freeit;
 		oip = mtod(n, struct ip *);
 		th = mtodo(n, oiphlen);
@@ -275,8 +274,7 @@ icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 			goto freeit;
 		if (oiphlen + tcphlen > n->m_len && n->m_next == NULL)
 			goto stdreply;
-		if (n->m_len < oiphlen + tcphlen &&
-		    (n = m_pullup(n, oiphlen + tcphlen)) == NULL)
+		if ((n = m_pullup(n, oiphlen + tcphlen)) == NULL)
 			goto freeit;
 		oip = mtod(n, struct ip *);
 		icmpelen = max(tcphlen, min(V_icmp_quotelen,
@@ -290,8 +288,7 @@ icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 		if (oiphlen + sizeof(struct sctphdr) > n->m_len &&
 		    n->m_next == NULL)
 			goto stdreply;
-		if (n->m_len < oiphlen + sizeof(struct sctphdr) &&
-		    (n = m_pullup(n, oiphlen + sizeof(struct sctphdr))) == NULL)
+		if ((n = m_pullup(n, oiphlen + sizeof(struct sctphdr))) == NULL)
 			goto freeit;
 		oip = mtod(n, struct ip *);
 		icmpelen = max(sizeof(struct sctphdr),
@@ -302,9 +299,8 @@ icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 		    sizeof(struct sctphdr) + 8 &&
 		    (n->m_len >= oiphlen + sizeof(struct sctphdr) + 8 ||
 		     n->m_next != NULL)) {
-			if (n->m_len < oiphlen + sizeof(struct sctphdr) + 8 &&
-			    (n = m_pullup(n, oiphlen +
-			    sizeof(struct sctphdr) + 8)) == NULL)
+			if ((n = m_pullup(n, oiphlen + sizeof(struct sctphdr) +
+			    8)) == NULL)
 				goto freeit;
 			oip = mtod(n, struct ip *);
 			sh = mtodo(n, oiphlen);
@@ -367,7 +363,7 @@ stdreply:	icmpelen = max(8, min(V_icmp_quotelen, ntohs(oip->ip_len) -
 	 * Copy the quotation into ICMP message and
 	 * convert quoted IP header back to network representation.
 	 */
-	m_copydata(n, 0, icmplen, (caddr_t)&icp->icmp_ip);
+	m_copydata(n, 0, icmplen, &icp->icmp_ip);
 	nip = &icp->icmp_ip;
 
 	/*
@@ -384,7 +380,7 @@ stdreply:	icmpelen = max(8, min(V_icmp_quotelen, ntohs(oip->ip_len) -
 	m->m_pkthdr.len = m->m_len;
 	m->m_pkthdr.rcvif = n->m_pkthdr.rcvif;
 	nip = mtod(m, struct ip *);
-	bcopy((caddr_t)oip, (caddr_t)nip, sizeof(struct ip));
+	bcopy(oip, nip, sizeof(struct ip));
 	nip->ip_len = htons(m->m_len);
 	nip->ip_v = IPVERSION;
 	nip->ip_hl = 5;
@@ -487,7 +483,7 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		goto freeit;
 	}
 	i = hlen + min(icmplen, ICMP_ADVLENMIN);
-	if (m->m_len < i && (m = m_pullup(m, i)) == NULL)  {
+	if ((m = m_pullup(m, i)) == NULL)  {
 		ICMPSTAT_INC(icps_tooshort);
 		return (IPPROTO_DONE);
 	}
@@ -570,7 +566,7 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		 */
 		i = sizeof(struct ip) + min(icmplen, ICMP_ADVLENPREF(icp));
 		ip_stripoptions(m);
-		if (m->m_len < i && (m = m_pullup(m, i)) == NULL) {
+		if ((m = m_pullup(m, i)) == NULL) {
 			/* This should actually not happen */
 			ICMPSTAT_INC(icps_tooshort);
 			return (IPPROTO_DONE);
@@ -911,18 +907,17 @@ match:
 			     */
 			    if (opt == IPOPT_RR || opt == IPOPT_TS ||
 				opt == IPOPT_SECURITY) {
-				    bcopy((caddr_t)cp,
-					mtod(opts, caddr_t) + opts->m_len, len);
-				    opts->m_len += len;
+					bcopy(cp, mtod(opts, char *) +
+					    opts->m_len, len);
+					opts->m_len += len;
 			    }
 		    }
 		    /* Terminate & pad, if necessary */
 		    cnt = opts->m_len % 4;
 		    if (cnt) {
 			    for (; cnt < 4; cnt++) {
-				    *(mtod(opts, caddr_t) + opts->m_len) =
-					IPOPT_EOL;
-				    opts->m_len++;
+				*(mtod(opts, char *) + opts->m_len) = IPOPT_EOL;
+				opts->m_len++;
 			    }
 		    }
 #ifdef ICMPPRINTFS

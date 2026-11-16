@@ -908,8 +908,7 @@ nat64_icmp_translate(struct mbuf *m, struct ip6_hdr *ip6, uint16_t icmpid,
 	int len, hlen, plen;
 	uint8_t type, code;
 
-	if (m->m_len < offset + ICMP_MINLEN)
-		m = m_pullup(m, offset + ICMP_MINLEN);
+	m = m_pullup(m, offset + ICMP_MINLEN);
 	if (m == NULL) {
 		NAT64STAT_INC(&cfg->stats, nomem);
 		return (m);
@@ -1490,8 +1489,7 @@ nat64_handle_icmp6(struct mbuf *m, int hlen, uint32_t aaddr, uint16_t aport,
 	 * The only two things we should be provided with are mapping between
 	 * IPv6iHost <> alias_host and between dport and alias_port.
 	 */
-	if (m->m_len < hlen + sizeof(struct ip6_hdr) + ICMP_MINLEN)
-		m = m_pullup(m, hlen + sizeof(struct ip6_hdr) + ICMP_MINLEN);
+	m = m_pullup(m, hlen + sizeof(struct ip6_hdr) + ICMP_MINLEN);
 	if (m == NULL) {
 		NAT64STAT_INC(&cfg->stats, nomem);
 		return (NAT64RETURN);

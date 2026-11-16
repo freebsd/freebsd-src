@@ -1,0 +1,6 @@
+SkipPlatforms: unix haiku lite
+Environment: PKG_CONFIG_SYSTEM_LIBRARY_PATH=C:\sys\lib
+PackageSearchPath: lib1
+Query: windows-system-libdir
+WantedFlags: libs
+ExpectedStdout: -lfoo

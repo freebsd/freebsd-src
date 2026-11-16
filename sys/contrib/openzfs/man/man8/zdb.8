@@ -15,7 +15,7 @@
 .\" Copyright (c) 2017 Lawrence Livermore National Security, LLC.
 .\" Copyright (c) 2017 Intel Corporation.
 .\"
-.Dd September 10, 2026
+.Dd October 20, 2026
 .Dt ZDB 8
 .Os
 .
@@ -100,6 +100,9 @@
 .Op Fl e Oo Fl V Oc Oo Fl p Ar path Oc Ns …
 .Op Fl U Ar cache
 .Ar poolname
+.Nm
+.Fl -anyraid-map
+.Ar poolname Op Ar vdev Ns …
 .
 .Sh DESCRIPTION
 The
@@ -465,6 +468,8 @@ Display histograms of per-vdev BRT refcounts.
 Dump the contents of the block reference tables.
 .It Fl u , -uberblock
 Display the current uberblock.
+.It Fl -anyraid-map
+Display information about the mappings of one or all anyraid vdevs in the pool.
 .El
 .Pp
 Other options:
@@ -594,7 +599,11 @@ on success,
 .Sy 1
 if a fatal error occurs,
 .Sy 2
-if invalid command line options were specified, or
+if invalid command line options were specified or the block traversal of
+.Fl b
+or
+.Fl c
+found leaked space, or
 .Sy 3
 if on-disk corruption was detected, but was not fatal.
 .Sh EXAMPLES

@@ -79,6 +79,14 @@ Reset access times on files after they are read.
 .It Fl B
 (o mode only)
 Block output to records of 5120 bytes.
+.It Fl Fl b64encode
+(o mode only)
+Encode the archive with base64, after any compression.
+In input mode, this option is ignored; base64-encoded archives are
+recognized automatically on input.
+If both this option and
+.Fl Fl uuencode
+are given, the last one specified is used.
 .It Fl C Ar size
 (o mode only)
 Block output to records of
@@ -154,7 +162,7 @@ automatically on input.
 .It Fl j
 Synonym for
 .Fl y .
-.It Fl L
+.It Fl L , Fl Fl dereference
 (o and p modes)
 All symbolic links will be followed.
 Normally, symbolic links are archived and copied as symbolic links.
@@ -163,6 +171,11 @@ With this option, the target of the link will be archived or copied instead.
 (p mode only)
 Create links from the target directory to the original files,
 instead of copying.
+.It Fl Fl grzip
+(o mode only)
+Compress the resulting archive with
+.Xr grzip 1 .
+In input mode, this option is ignored.
 .It Fl Fl lrzip
 (o mode only)
 Compress the resulting archive with
@@ -265,6 +278,16 @@ do not restore the contents to disk.
 (i and p modes)
 Unconditionally overwrite existing files.
 Ordinarily, an older file will not overwrite a newer file on disk.
+.It Fl Fl uuencode
+(o mode only)
+Encode the archive with
+.Xr uuencode 1 ,
+after any compression.
+In input mode, this option is ignored; uuencoded archives are
+recognized automatically on input.
+If both this option and
+.Fl Fl b64encode
+are given, the last one specified is used.
 .It Fl V , Fl Fl dot
 Print a dot to stderr for each file as it is processed.
 Superseded by

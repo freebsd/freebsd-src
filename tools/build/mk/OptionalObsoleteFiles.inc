@@ -1434,8 +1434,12 @@ OLD_FILES+=usr/share/man/man1/opt.1.gz
 CDDL_TEST_DIRS=	cddl
 . for d in ${CDDL_TEST_DIRS}
 .  if exists(${DESTDIR}${TESTSBASE}/${d}/)
-TESTS_DIRS!=find ${DESTDIR}${TESTSBASE}/${d}/ -type d | sed -e 's,^${DESTDIR}/,,'; echo
-OLD_DIRS+=${TESTS_DIRS}
+# Bug 299650: do not prune empty directories created by
+# `etc/mtree/BSD.tests.dist`.
+#
+# Read https://reviews.freebsd.org/D60928 for more details.
+#TESTS_DIRS!=find ${DESTDIR}${TESTSBASE}/${d}/ -type d | sed -e 's,^${DESTDIR}/,,'; echo
+#OLD_DIRS+=${TESTS_DIRS}
 TESTS_FILES!=find ${DESTDIR}${TESTSBASE}/${d}/ -type f | sed -e 's,^${DESTDIR}/,,'; echo
 OLD_FILES+=${TESTS_FILES}
 .  endif
@@ -1692,8 +1696,12 @@ OLD_FILES+=${TESTS_FILES}
 DTRACE_TEST_DIRS=	cddl/usr.sbin/dtrace
 . for d in ${DTRACE_TEST_DIRS}
 .  if exists(${DESTDIR}${TESTSBASE}/${d}/)
-TESTS_DIRS!=find ${DESTDIR}${TESTSBASE}/${d}/ -type d | sed -e 's,^${DESTDIR}/,,'; echo
-OLD_DIRS+=${TESTS_DIRS}
+# Bug 299650: do not prune empty directories created by
+# `etc/mtree/BSD.tests.dist`.
+#
+# Read https://reviews.freebsd.org/D60928 for more details.
+#TESTS_DIRS!=find ${DESTDIR}${TESTSBASE}/${d}/ -type d | sed -e 's,^${DESTDIR}/,,'; echo
+#OLD_DIRS+=${TESTS_DIRS}
 TESTS_FILES!=find ${DESTDIR}${TESTSBASE}/${d}/ -type f | sed -e 's,^${DESTDIR}/,,'; echo
 OLD_FILES+=${TESTS_FILES}
 .  endif
@@ -9471,8 +9479,12 @@ ZFS_TEST_DIRS=	cddl/usr.bin/ztest
 ZFS_TEST_DIRS+=	cddl/usr.sbin/zfsd
 . for d in ${ZFS_TEST_DIRS}
 .  if exists(${DESTDIR}${TESTSBASE}/${d}/)
-TESTS_DIRS!=find ${DESTDIR}${TESTSBASE}/${d}/ -type d | sed -e 's,^${DESTDIR}/,,'; echo
-OLD_DIRS+=${TESTS_DIRS}
+# Bug 299650: do not prune empty directories created by
+# `etc/mtree/BSD.tests.dist`.
+#
+# Read https://reviews.freebsd.org/D60928 for more details.
+#TESTS_DIRS!=find ${DESTDIR}${TESTSBASE}/${d}/ -type d | sed -e 's,^${DESTDIR}/,,'; echo
+#OLD_DIRS+=${TESTS_DIRS}
 TESTS_FILES!=find ${DESTDIR}${TESTSBASE}/${d}/ -type f | sed -e 's,^${DESTDIR}/,,'; echo
 OLD_FILES+=${TESTS_FILES}
 .  endif

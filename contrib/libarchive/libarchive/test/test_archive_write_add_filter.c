@@ -192,6 +192,15 @@ DEFINE_TEST(test_archive_write_add_filter_lzop)
 	test_add_filter_by_code(ARCHIVE_FILTER_LZOP, canLzop);
 }
 
+DEFINE_TEST(test_archive_write_add_filter_b64encode)
+{
+#if ARCHIVE_VERSION_NUMBER < 4000000
+	skipping("Filter code matches only with 4.0.0 or newer.");
+#else
+	test_add_filter_by_code(ARCHIVE_FILTER_B64, canAlways);
+#endif
+}
+
 DEFINE_TEST(test_archive_write_add_filter_uuencode)
 {
 	test_add_filter_by_code(ARCHIVE_FILTER_UU, canAlways);

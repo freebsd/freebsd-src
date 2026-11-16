@@ -103,11 +103,9 @@ tests(void)
 	TEST_DONE();
 
 
-#ifdef OPENSSL_HAS_ECC
 	TEST_START("check ECDSA signature");
 	check_sig("ecdsa.pub", "ecdsa.sig", msg, namespace);
 	TEST_DONE();
-#endif
 #endif
 
 	TEST_START("check ED25519 signature");
@@ -119,7 +117,7 @@ tests(void)
 	TEST_DONE();
 
 #ifdef ENABLE_SK
-#if defined(WITH_OPENSSL) && defined(OPENSSL_HAS_ECC)
+#if defined(WITH_OPENSSL)
 	TEST_START("check ECDSA-SK signature");
 	check_sig("ecdsa_sk.pub", "ecdsa_sk.sig", msg, namespace);
 	TEST_DONE();
@@ -129,11 +127,11 @@ tests(void)
 	check_sig("ed25519_sk.pub", "ed25519_sk.sig", msg, namespace);
 	TEST_DONE();
 
-#if defined(WITH_OPENSSL) && defined(OPENSSL_HAS_ECC)
+#if defined(WITH_OPENSSL)
 	TEST_START("check ECDSA-SK webauthn signature");
 	check_sig("ecdsa_sk_webauthn.pub", "ecdsa_sk_webauthn.sig",
 	    msg, namespace);
- 	TEST_DONE();
+	TEST_DONE();
 #endif
 #endif /* ENABLE_SK */
 

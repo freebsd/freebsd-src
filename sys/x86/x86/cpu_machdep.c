@@ -1073,6 +1073,60 @@ nmi_remove_handler(int (*handler)(struct trapframe *))
 	    __func__, handler);
 }
 
+/*
+ * A cpuctl(4) write to an IBS control MSR can clear the valid bit of a
+ * sample whose NMI is already raised, so no handler claims that NMI.
+ * Claim one such NMI per write if it arrives during the write or within
+ * IBS_CTL_WRITE_WINDOW_US after it; on Zen 4 it arrives within 2us.
+ */
+#define	IBS_CTL_WRITE_WINDOW_US	20
+
+#define	IBS_CTL_WRITE_IDLE	0
+#define	IBS_CTL_WRITE_BUSY	1
+#define	IBS_CTL_WRITE_DONE	2
+
+DPCPU_DEFINE_STATIC(u_int, ibs_ctl_write_state);
+DPCPU_DEFINE_STATIC(uint64_t, ibs_ctl_write_deadline);
+
+static u_long ibs_ctl_write_nmis;
+SYSCTL_ULONG(_machdep, OID_AUTO, ibs_ctl_write_nmis, CTLFLAG_RD,
+    &ibs_ctl_write_nmis, 0,
+    "NMIs claimed after an IBS control MSR write through cpuctl(4)");
+
+void
+x86_ibs_ctl_write_begin(void)
+{
+	MPASS(curthread->td_critnest > 0);
+	DPCPU_SET(ibs_ctl_write_state, IBS_CTL_WRITE_BUSY);
+}
+
+void
+x86_ibs_ctl_write_end(void)
+{
+	MPASS(curthread->td_critnest > 0);
+	DPCPU_SET(ibs_ctl_write_deadline, rdtsc() +
+	    tsc_freq / (1000000 / IBS_CTL_WRITE_WINDOW_US));
+	/* An NMI taken during the write may have used the claim already. */
+	atomic_cmpset_int(DPCPU_PTR(ibs_ctl_write_state), IBS_CTL_WRITE_BUSY,
+	    IBS_CTL_WRITE_DONE);
+}
+
+static bool
+x86_ibs_ctl_write_nmi(void)
+{
+	u_int state;
+
+	state = DPCPU_GET(ibs_ctl_write_state);
+	if (state == IBS_CTL_WRITE_IDLE)
+		return (false);
+	DPCPU_SET(ibs_ctl_write_state, IBS_CTL_WRITE_IDLE);
+	if (state == IBS_CTL_WRITE_DONE &&
+	    rdtsc() > DPCPU_GET(ibs_ctl_write_deadline))
+		return (false);
+	atomic_add_long(&ibs_ctl_write_nmis, 1);
+	return (true);
+}
+
 void
 nmi_handle_intr(struct trapframe *frame)
 {
@@ -1104,6 +1158,8 @@ nmi_handle_intr(struct trapframe *frame)
 		    (uintptr_t *)&hp->next);
 	}
 	if (handled)
+		return;
+	if (x86_ibs_ctl_write_nmi())
 		return;
 #ifdef SMP
 	if (nmi_is_broadcast) {

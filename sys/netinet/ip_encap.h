@@ -37,6 +37,8 @@
 
 #ifdef _KERNEL
 
+#include <net/vnet.h>
+
 int	encap4_input(struct mbuf **, int *, int);
 int	encap6_input(struct mbuf **, int *, int);
 
@@ -76,6 +78,11 @@ int ip_encap_unregister_srcaddr(const struct srcaddrtab *);
 int ip6_encap_unregister_srcaddr(const struct srcaddrtab *);
 int ip_encap_detach(const struct encaptab *);
 int ip6_encap_detach(const struct encaptab *);
+
+VNET_DECLARE(bool, encap_hash_inbound);
+#define	V_encap_hash_inbound	VNET(encap_hash_inbound)
+
+bool	encap_set_flowid(struct mbuf *, int);
 #endif
 
 #endif /*_NETINET_IP_ENCAP_H_*/

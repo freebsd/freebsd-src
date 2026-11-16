@@ -1,0 +1,3 @@
+Tool: pccritic
+ToolArgs: this-module-does-not-exist
+ExpectedExitCode: 1

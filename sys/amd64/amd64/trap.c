@@ -356,6 +356,15 @@ static const struct sfhandler sfhandlers[] = {
 	},
 };
 
+static void
+trap_update_thread(struct thread *td, struct trapframe *frame)
+{
+	td->td_pticks = 0;
+	td->td_frame = frame;
+	if (td->td_cowgen != atomic_load_int(&td->td_proc->p_cowgen))
+		thread_cow_update(td);
+}
+
 /*
  * Exception, fault, and trap interface to the FreeBSD kernel.
  * This common code is called from assembly language IDT gate entry
@@ -404,11 +413,8 @@ trap(struct trapframe *frame)
 		/* user trap */
 		trap_check_intr_user(td, frame);
 
-		td->td_pticks = 0;
-		td->td_frame = frame;
+		trap_update_thread(td, frame);
 		addr = frame->tf_rip;
-		if (td->td_cowgen != atomic_load_int(&p->p_cowgen))
-			thread_cow_update(td);
 
 		switch (type) {
 		case T_PRIVINFLT:	/* privileged instruction fault */
@@ -1392,14 +1398,14 @@ trap_fred_extint(struct trapframe_fred *frame, u_int vec)
 			}
 			break;
 		}
-#ifdef DEV_ISA
-#ifdef DEV_ATPIC
 		if (vec >= IDT_IO_INTS && vec < IDT_IO_INTS + NUM_ISA_IRQS) {
+#if defined(DEV_ISA) && defined(DEV_ATPIC)
 			atpic_handle_intr(vec - IDT_IO_INTS, &frame->tf_idt);
+#else
+			/* spuriousint() */
+#endif
 			break;
 		}
-#endif
-#endif
 		/* apic ioint */
 		lapic_handle_intr(vec, &frame->tf_idt);
 		break;
@@ -1573,6 +1579,30 @@ fred_inst_len(const struct trapframe_fred *frame)
 	    TF_FRED_EVINFO2_INSTLENSHIFT);
 }
 
+/*
+ * Reaction to userspace having no permissions to generate the event.
+ * Report T_PROTFLT and rewind %rip back to emulate fault instead of
+ * trap.
+ */
+static void
+trap_fred_u_noperm(struct trapframe_fred *frame, ksiginfo_t *ksi)
+{
+	frame->tf_idt.tf_rip -= fred_inst_len(frame);
+	frame->tf_idt.tf_addr = 0;
+	frame->tf_idt.tf_trapno = T_PROTFLT;
+	ksiginfo_init_trap(ksi);
+	ksi->ksi_signo = SIGBUS;
+	ksi->ksi_code = BUS_OBJERR;
+	ksi->ksi_trapno = T_PROTFLT;
+	ksi->ksi_addr = (void *)frame->tf_idt.tf_rip;
+}
+
+static void
+trap_fred_update_thread(struct thread *td, struct trapframe_fred *frame)
+{
+	trap_update_thread(td, &frame->tf_idt);
+}
+
 int fred_verbose_events;
 
 void trap_fred_u(struct trapframe_fred *frame);
@@ -1583,6 +1613,9 @@ trap_fred_u(struct trapframe_fred *frame)
 	ksiginfo_t ksi;
 	u_int type, vec;
 	bool do_trapsig;
+
+	kasan_mark(frame, sizeof(*frame), sizeof(*frame), 0);
+	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
 
 	td = curthread;
 	type = frame->tf_idt.tf_fred_evinfo2 & TF_FRED_EVINFO2_TYPEMASK;
@@ -1606,20 +1639,20 @@ trap_fred_u(struct trapframe_fred *frame)
 	switch (type) {
 	case TF_FRED_EVINFO2_TYPE_EXTINT:
 		trap_fred_extint(frame, vec);
+		enable_intr();
 		break;
 	case TF_FRED_EVINFO2_TYPE_NMI:
 		frame->tf_idt.tf_trapno = T_NMI;
 		nmi_handle_intr(&frame->tf_idt);
+		fred_out_of_nmi();
+		enable_intr();
 #ifdef HWPMC_HOOKS
 		if ((td->td_pflags & TDP_CALLCHAIN) != 0) {
 			int (*ph)(struct thread *, int, void *);
 
-			fred_out_of_nmi();
 			ph = atomic_load_ptr(&pmc_hook);
-			if (ph != NULL) {
-				enable_intr();
+			if (ph != NULL)
 				ph(td, PMC_FN_USER_CALLCHAIN, &frame->tf_idt);
-			}
 		}
 #endif
 		break;
@@ -1633,10 +1666,7 @@ trap_fred_u(struct trapframe_fred *frame)
 		    &frame->tf_idt, frame->tf_idt.tf_trapno) != 0)
 			return;
 #endif
-		td->td_pticks = 0;
-		td->td_frame = &frame->tf_idt;
-		if (td->td_cowgen != atomic_load_int(&td->td_proc->p_cowgen))
-			thread_cow_update(td);
+		trap_fred_update_thread(td, frame);
 		trap_fred_handle_u_exc(td, frame, vec, &ksi, &do_trapsig);
 		break;
 	case TF_FRED_EVINFO2_TYPE_INTn:
@@ -1646,26 +1676,41 @@ trap_fred_u(struct trapframe_fred *frame)
 			frame->tf_idt.tf_err = fred_inst_len(frame);
 			ia32_syscall(&frame->tf_idt);
 			break;
+		} else
+#endif
+		if (vec == IDT_BP || vec == IDT_OF) {
+			trap_fred_ev_to_trapno(frame, vec);
+			trap_fred_update_thread(td, frame);
+			trap_fred_handle_u_exc(td, frame, vec, &ksi,
+			    &do_trapsig);
+			break;
+		}
+#ifdef KDTRACE_HOOKS
+		else if (vec == IDT_DTRACE_RET) {
+			frame->tf_idt.tf_trapno = T_DTRACE_RET;
+			trap_fred_update_thread(td, frame);
+			(void)trap_user_dtrace(&frame->tf_idt,
+			    &dtrace_return_probe_ptr);
+			return;
 		}
 #endif
-		frame->tf_idt.tf_trapno = vec;
-		ksiginfo_init_trap(&ksi);
-		ksi.ksi_signo = SIGBUS;
-		ksi.ksi_code = BUS_OBJERR;
-		ksi.ksi_trapno = frame->tf_idt.tf_trapno;
-		ksi.ksi_addr = (void *)frame->tf_idt.tf_rip;
+		trap_fred_u_noperm(frame, &ksi);
+		/* error code: gate selector from IDT */
+		frame->tf_idt.tf_err = (vec * 8) | 2;
 		do_trapsig = true;
 		break;
 	case TF_FRED_EVINFO2_TYPE_SYSCALL:
 		/* Excessive */
 		enable_intr();
-		if (vec == TF_FRED_EVINFO2_VEC_SYSCALL) {
+		if (vec == TF_FRED_EVINFO2_VEC_SYSCALL &&
+		    (frame->tf_idt.tf_fred_evinfo2 & TF_FRED_EVINFO2_LM) != 0) {
 			frame->tf_idt.tf_err = fred_inst_len(frame);
 			td->td_frame = &frame->tf_idt;
 			amd64_syscall(td, (frame->tf_idt.tf_rflags & PSL_T) !=
 			    0);
 		} else {
-			/* SYSENTER returns without action */
+			trap_fred_u_noperm(frame, &ksi);
+			do_trapsig = true;
 		}
 		break;
 	default:
@@ -1749,13 +1794,30 @@ trap_fred_handle_k_exc(struct thread *td, struct trapframe_fred *frame,
 	 * there is no sense to enable interrupts.
 	 */
 
-	if (exc != IDT_PF && trap_check_pcb_onfault(td, &frame->tf_idt))
-		return;
+	if (exc != IDT_DF && exc != IDT_MC) {
+#ifdef KDB
+		if (kdb_active) {
+			kdb_reenter();
+			return;
+		}
+#endif
+		if (exc != IDT_PF && trap_check_pcb_onfault(td,
+		    &frame->tf_idt))
+			return;
+	}
 
 	switch (exc) {
 	case IDT_DE:
 		break;
 	case IDT_DB:
+		/*
+		 * Clear %dr6 when #DB trapped from kernel mode, so
+		 * that PT_GETDBREGS does not report stale value.
+		 * FRED updates %dr6 despite providing the same
+		 * information in the tf_fred_evdata field.
+		 */
+		load_dr6(0);
+
 		if (user_dbreg_trap(frame->tf_fred_evdata))
 			return;
 		/* FALLTHROUGH */
@@ -1815,6 +1877,10 @@ trap_fred_handle_k_exc(struct thread *td, struct trapframe_fred *frame,
 	case IDT_MF:
 		break;
 	case IDT_AC:
+		if (curpcb->pcb_onfault != NULL) {
+			frame->tf_idt.tf_rip = (long)curpcb->pcb_onfault;
+			return;
+		}
 		break;
 	case IDT_MC:
 		mca_intr();
@@ -1822,7 +1888,7 @@ trap_fred_handle_k_exc(struct thread *td, struct trapframe_fred *frame,
 	case IDT_XF:
 		break;
 	default:
-		printf("Missing FRED handler for exception %d", exc);
+		printf("Missing FRED handler for exception %d\n", exc);
 		trap_fatal(&frame->tf_idt, 0);
 	}
 	trap_fatal(&frame->tf_idt, 0);
@@ -1834,6 +1900,9 @@ trap_fred_k(struct trapframe_fred *frame)
 {
 	struct thread *td;
 	u_int vec;
+
+	kasan_mark(frame, sizeof(*frame), sizeof(*frame), 0);
+	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
 
 	td = curthread;
 	vec = frame->tf_idt.tf_fred_evinfo2 & TF_FRED_EVINFO2_VECMASK;

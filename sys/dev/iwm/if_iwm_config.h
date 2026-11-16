@@ -139,6 +139,9 @@ struct iwm_cfg {
 	uint8_t nvm_hw_section_num;
 	int apmg_wake_up_wa;
 	enum iwm_nvm_type nvm_type;
+	int xtal_latency;
+	int ltr_delay;
+	int low_latency_xtal;
 };
 
 /*

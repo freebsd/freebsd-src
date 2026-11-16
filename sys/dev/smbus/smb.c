@@ -190,6 +190,7 @@ static int
 smbioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	char buf[SMB_MAXBLOCKSIZE];
+	char buf2[SMB_MAXBLOCKSIZE];
 	device_t parent;
 #ifdef COMPAT_FREEBSD32
 	struct smbcmd sswab;
@@ -381,6 +382,28 @@ smbioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		if (s->rcount > bcount)
 			s->rcount = bcount;
 		error = copyout(buf, s->rbuf, s->rcount);
+		break;
+
+	case SMB_BPCALL:
+		if (s->wcount < 0 || s->rcount < 0) {
+			error = EINVAL;
+			break;
+		}
+		if (s->wcount > SMB_MAXBLOCKSIZE)
+			s->wcount = SMB_MAXBLOCKSIZE;
+		if (s->rcount > SMB_MAXBLOCKSIZE)
+			s->rcount = SMB_MAXBLOCKSIZE;
+		if (s->wcount)
+			error = copyin(s->wbuf, buf, s->wcount);
+		if (error)
+			break;
+		error = smbus_error(smbus_bpcall(parent, s->slave, s->cmd,
+		    s->wcount, buf, &bcount, buf2));
+		if (error)
+			break;
+		if (s->rcount > bcount)
+			s->rcount = bcount;
+		error = copyout(buf2, s->rbuf, s->rcount);
 		break;
 
 	default:

@@ -144,3 +144,45 @@ DEFINE_TEST(test_archive_read_support)
 	test_filter_or_format(archive_read_support_filter_uu);
 	test_filter_or_format(archive_read_support_filter_xz);
 }
+
+DEFINE_TEST(test_archive_read_support_twice)
+{
+	struct archive *a;
+	int r;
+
+	a = archive_read_new();
+	assert(a != NULL);
+
+	/* Adding format bidders once should work. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_7zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_ar(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_cab(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_cpio(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_empty(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_iso9660(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_lha(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_mtree(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_tar(a));
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN)
+		assertEqualStringA(a, "Xar not supported on this platform",
+		    archive_error_string(a));
+	else
+		assertEqualIntA(a, ARCHIVE_OK, r);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
+
+	/* Adding format bidders twice should lead to warnings. */
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_support_format_7zip(a));
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_support_format_ar(a));
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_support_format_cab(a));
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_support_format_cpio(a));
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_support_format_empty(a));
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_support_format_iso9660(a));
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_support_format_lha(a));
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_support_format_mtree(a));
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_support_format_tar(a));
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_support_format_xar(a));
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_support_format_zip(a));
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}

@@ -1,0 +1,112 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2026 Federico Angelilli <fedang@FreeBSD.org>
+.\"
+.Dd October 28, 2026
+.Dt SMP_RENDEZVOUS 9
+.Os
+.Sh NAME
+.Nm smp_rendezvous ,
+.Nm smp_rendezvous_cpu ,
+.Nm smp_rendezvous_cpus ,
+.Nm smp_rendezvous_cpus_retry ,
+.Nm smp_rendezvous_cpus_done ,
+.Nm smp_no_rendezvous_barrier
+.Nd temporarily halt multiprocessing to run designated routine
+.Sh SYNOPSIS
+.In sys/smp.h
+.Ft void
+.Fo smp_rendezvous
+.Fa "void (* setup_func)(void *)"
+.Fa "void (* action_func)(void *)"
+.Fa "void (* teardown_func)(void *)"
+.Fa "void *arg"
+.Fc
+.Ft void
+.Fo smp_rendezvous_cpu
+.Fa "u_int cpuid"
+.Fa "void (*setup_func)(void *)"
+.Fa "void (*action_func)(void *)"
+.Fa "void (*teardown_func)(void *)"
+.Fa "void *arg"
+.Fc
+.Ft void
+.Fo smp_rendezvous_cpus
+.Fa "cpuset_t map"
+.Fa "void (*setup_func)(void *)"
+.Fa "void (*action_func)(void *)"
+.Fa "void (*teardown_func)(void *)"
+.Fa "void *arg"
+.Fc
+.Ft void
+.Fo smp_rendezvous_cpus_retry
+.Fa "cpuset_t map"
+.Fa "void (* setup_func)(void *)"
+.Fa "void (* action_func)(void *)"
+.Fa "void (* teardown_func)(void *)"
+.Fa "void (* wait_func)(void *, int)"
+.Fa "struct smp_rendezvous_cpus_retry_arg *arg"
+.Fc
+.Ft void
+.Fo smp_rendezvous_cpus_done
+.Fa "struct smp_rendezvous_cpus_retry_arg *arg"
+.Fc
+.Sh DESCRIPTION
+These functions provide an interface for interrupting the normal SMP
+flow on a set of CPUs to execute an
+.Fa action
+routine on all of them.
+The
+.Fa setup
+and
+.Fa teardown
+functions are executed before and after the action, respectively.
+Between the setup and action, all CPUs are synchronized with a barrier, unless
+.Nm smp_rendezvous_no_barrier
+is specified as the setup argument.
+The same mechanism applies to the transition between action and teardown.
+.Pp
+The
+.Fn smp_rendezvous_cpus
+function starts a rendezvous with the CPUs specified in the given
+.Fa map .
+The
+.Fa arg
+parameter is directly passed to the callbacks.
+.Pp
+The
+.Fn smp_rendezvous
+and
+.Fn smp_rendezvous_cpu
+functions act the same, respectively targeting all the CPUs or the one matching
+.Fa cpuid .
+.Pp
+The
+.Fn smp_rendezvous_cpus_retry
+function repeatedly starts a rendezvous until all of the CPUs in the given
+.Fa map
+acknowledged completion by calling
+.Fn smp_rendezvous_cpus_done .
+In this case, the
+.Fa arg
+parameter is used to keep track of the working set of CPUs.
+.Bd -literal -offset indent
+struct smp_rendezvous_cpus_retry_arg {
+	cpuset_t cpus;
+};
+.Ed
+.Pp
+The
+.Fn smp_rendezvous_no_barrier
+function is just a sentinel and should not be called.
+.Sh SEE ALSO
+.Xr cpuset 9
+.Sh HISTORY
+The
+.Nm smp_rendezvous
+function was first introduced in
+.Fx 3.3 .
+.Sh AUTHORS
+This manual page was written by
+.An Federico Angelilli Aq Mt fedang@FreeBSD.org .

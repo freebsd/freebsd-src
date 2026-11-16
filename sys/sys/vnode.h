@@ -1002,6 +1002,10 @@ void	vop_mkdir_debugpost(void *a, int rc);
 
 void	vop_rename_fail(struct vop_rename_args *ap);
 
+#ifndef MAC
+#define mac_vnode_check_stat(active_cred, file_cred, vp)	0
+#endif
+
 #define	vop_stat_helper_pre(ap)	({						\
 	struct vop_stat_args *_ap = (ap);					\
 	int _error;								\
@@ -1015,6 +1019,11 @@ void	vop_rename_fail(struct vop_rename_args *ap);
 	}									\
 	_error;									\
 })
+
+
+#ifndef MAC
+#undef mac_vnode_check_stat
+#endif
 
 #define	vop_stat_helper_post(ap, error)	({					\
 	struct vop_stat_args *_ap = (ap);					\

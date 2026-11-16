@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.384 2026/07/06 07:49:58 djm Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.386 2026/09/16 00:29:44 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -478,7 +478,7 @@ ssh_connect_direct(struct ssh *ssh, const char *host, struct addrinfo *aitop,
     struct sockaddr_storage *hostaddr, u_short port, int connection_attempts,
     int *timeout_ms, int want_keepalive)
 {
-	int on = 1, saved_timeout_ms = *timeout_ms;
+	int saved_timeout_ms = *timeout_ms;
 	int oerrno, sock = -1, attempt;
 	char ntop[NI_MAXHOST], strport[NI_MAXSERV];
 	struct addrinfo *ai;
@@ -568,10 +568,8 @@ ssh_connect_direct(struct ssh *ssh, const char *host, struct addrinfo *aitop,
 	debug("Connection established.");
 
 	/* Set SO_KEEPALIVE if requested. */
-	if (want_keepalive &&
-	    setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *)&on,
-	    sizeof(on)) == -1)
-		error("setsockopt SO_KEEPALIVE: %.100s", strerror(errno));
+	if (want_keepalive)
+		set_keepalive(sock); /* logs errors */
 
 	/* Set the connection. */
 	if (ssh_packet_set_connection(ssh, sock, sock) == NULL)
@@ -1668,10 +1666,14 @@ ssh_login(struct ssh *ssh, Sensitive *sensitive, const char *orighost,
 	/* authenticate user */
 	debug("Authenticating to %s:%d as '%s'", host, port, server_user);
 	ssh_kex2(ssh, host, hostaddr, port, cinfo);
+	kex_set_warn_weak_crypto(ssh, options.warn_weak_crypto &&
+	    !options.kex_algorithms_set);
 	if (!options.kex_algorithms_set && ssh->kex != NULL &&
 	    ssh->kex->name != NULL && options.warn_weak_crypto &&
-	    !kex_is_pq_from_name(ssh->kex->name))
+	    !kex_is_pq_from_name(ssh->kex->name)) {
 		warn_nonpq_kex();
+		ssh->kex->non_pq_kex_warned = 1;
+	}
 	ssh_userauth2(ssh, local_user, server_user, host, sensitive);
 	free(local_user);
 	free(host);

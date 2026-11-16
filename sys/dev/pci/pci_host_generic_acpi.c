@@ -368,12 +368,13 @@ generic_pcie_acpi_route_interrupt(device_t bus, device_t dev, int pin)
 	return (acpi_pcib_route_interrupt(bus, dev, pin, &sc->ap_prt));
 }
 
-static u_int
+static intptr_t
 generic_pcie_get_xref(device_t pci, device_t child)
 {
 	struct generic_pcie_acpi_softc *sc;
 	uintptr_t rid;
-	u_int xref, devid;
+	intptr_t xref;
+	u_int devid;
 	int err;
 
 	sc = device_get_softc(pci);
@@ -391,7 +392,8 @@ generic_pcie_map_id(device_t pci, device_t child, uintptr_t *id)
 {
 	struct generic_pcie_acpi_softc *sc;
 	uintptr_t rid;
-	u_int xref, devid;
+	intptr_t xref;
+	u_int devid;
 	int err;
 
 	sc = device_get_softc(pci);

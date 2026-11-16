@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.h,v 1.116 2026/03/11 09:10:59 dtucker Exp $ */
+/* $OpenBSD: misc.h,v 1.120 2026/09/16 06:23:16 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -65,6 +65,7 @@ int	 set_nonblock(int);
 int	 unset_nonblock(int);
 void	 set_nodelay(int);
 int	 set_reuseaddr(int);
+int	 set_keepalive(int);
 char	*get_rdomain(int);
 int	 set_rdomain(int, const char *);
 int	 get_sock_af(int);
@@ -108,11 +109,12 @@ int	 valid_env_name(const char *);
 const char *atoi_err(const char *, int *);
 int	 parse_absolute_time(const char *, uint64_t *);
 void	 format_absolute_time(uint64_t, char *, size_t);
-int	 parse_pattern_interval(const char *, char **, int *);
+int	 parse_pattern_interval(const char *, char **, double *);
 int	 path_absolute(const char *);
 int	 stdfd_devnull(int, int, int);
 int	 lib_contains_symbol(const char *, const char *);
 char	*get_homedir(void);
+int	 mkdir_path(const char *, mode_t);
 
 void	 sock_set_v6only(int);
 
@@ -232,16 +234,20 @@ struct timespec;
 void ptimeout_init(struct timespec *pt);
 void ptimeout_deadline_sec(struct timespec *pt, long sec);
 void ptimeout_deadline_ms(struct timespec *pt, long ms);
+void ptimeout_deadline_sec_double(struct timespec *pt, double sec);
 void ptimeout_deadline_monotime_tsp(struct timespec *pt, struct timespec *when);
 void ptimeout_deadline_monotime(struct timespec *pt, time_t when);
+void ptimeout_deadline_monotime_double(struct timespec *pt, double when);
 int ptimeout_get_ms(struct timespec *pt);
 struct timespec *ptimeout_get_tsp(struct timespec *pt);
 int ptimeout_isset(struct timespec *pt);
 
 /* misc-agent.c */
-char	*agent_hostname_hash(void);
-int	 agent_listener(const char *, const char *, int *, char **);
-void	 agent_cleanup_stale(const char *, int);
+int	 agent_listener(const char *, const char *, uid_t, const char *,
+	    pid_t, const char *, int *, char **, char **);
+void	 agent_cleanup_stale(const char *, const char *, uid_t,
+	    const char *, int);
+int	 agent_listener_cleanup(const char *, const char *, const char *);
 
 /* readpass.c */
 

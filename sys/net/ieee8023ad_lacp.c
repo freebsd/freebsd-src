@@ -279,12 +279,8 @@ lacp_pdu_input(struct lacp_port *lp, struct mbuf *m)
 		goto bad;
 	}
 
-	if (m->m_len < sizeof(*du)) {
-		m = m_pullup(m, sizeof(*du));
-		if (m == NULL) {
-			return (ENOMEM);
-		}
-	}
+	if ((m = m_pullup(m, sizeof(*du))) == NULL)
+		return (ENOMEM);
 
 	du = mtod(m, struct lacpdu *);
 
@@ -964,6 +960,8 @@ lacp_aggregator_bandwidth(struct lacp_aggregator *la)
 	}
 
 	speed = ifmedia_baudrate(lp->lp_media);
+	if (speed == 0)
+		speed = lp->lp_ifp->if_baudrate;
 	speed *= la->la_nports;
 	if (speed == 0) {
 		LACP_DPRINTF((lp, "speed 0? media=0x%x nports=%d\n",
@@ -1922,12 +1920,8 @@ lacp_marker_input(struct lacp_port *lp, struct mbuf *m)
 		goto bad;
 	}
 
-	if (m->m_len < sizeof(*mdu)) {
-		m = m_pullup(m, sizeof(*mdu));
-		if (m == NULL) {
-			return (ENOMEM);
-		}
-	}
+	if ((m = m_pullup(m, sizeof(*mdu))) == NULL)
+		return (ENOMEM);
 
 	mdu = mtod(m, struct markerdu *);
 

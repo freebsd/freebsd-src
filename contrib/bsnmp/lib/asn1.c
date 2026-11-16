@@ -777,7 +777,7 @@ asn_get_ipaddress_raw(struct asn_buf *b, asn_len_t len, u_char *addr)
 		asn_error(b, "short length for ip-Address %u", len);
 		for (i = 0; i < len; i++)
 			*addr++ = *b->asn_cptr++;
-		while (i++ < len)
+		while (i++ < 4)
 			*addr++ = 0;
 		b->asn_len -= len;
 		return (ASN_ERR_BADLEN);

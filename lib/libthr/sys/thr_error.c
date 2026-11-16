@@ -39,8 +39,6 @@
 #include "libc_private.h"
 #include "thr_private.h"
 
-extern int __libsys_errno;
-
 __weak_reference(__error_threaded, __error);
 int *
 __error_threaded(void)

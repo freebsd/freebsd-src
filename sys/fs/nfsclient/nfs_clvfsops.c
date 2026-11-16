@@ -1290,7 +1290,7 @@ nfs_mount(struct mount *mp)
 		newflag |= NFSMNT_RDMA;
 		/* Set readahead to 8, if not already set. */
 		if ((args.flags & NFSMNT_READAHEAD) == 0) {
-			args.readahead = 8;
+			args.readahead = 15;
 			args.flags |= NFSMNT_READAHEAD;
 		}
 	}

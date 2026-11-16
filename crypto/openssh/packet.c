@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.c,v 1.339 2026/06/30 00:09:01 djm Exp $ */
+/* $OpenBSD: packet.c,v 1.346 2026/09/22 22:51:43 job Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -67,9 +67,7 @@
 #ifdef WITH_OPENSSL
 # include <openssl/bn.h>
 # include <openssl/evp.h>
-# ifdef OPENSSL_HAS_ECC
-#  include <openssl/ec.h>
-# endif
+# include <openssl/ec.h>
 #endif
 
 #ifdef WITH_ZLIB
@@ -89,6 +87,7 @@
 #include "packet.h"
 #include "ssherr.h"
 #include "sshbuf.h"
+#include "version.h"
 
 #ifdef PACKET_DEBUG
 #define DBG(x) x
@@ -453,22 +452,22 @@ ssh_packet_connection_is_on_socket(struct ssh *ssh)
 	state = ssh->state;
 	if (state->connection_in == -1 || state->connection_out == -1)
 		return 0;
-	/* filedescriptors in and out are the same, so it's a socket */
-	if (state->connection_in == state->connection_out)
-		return 1;
 	fromlen = sizeof(from);
 	memset(&from, 0, sizeof(from));
 	if (getpeername(state->connection_in, (struct sockaddr *)&from,
 	    &fromlen) == -1)
 		return 0;
+	if (from.ss_family != AF_INET && from.ss_family != AF_INET6)
+		return 0;
+	/* filedescriptors in and out are the same, so it's a socket */
+	if (state->connection_in == state->connection_out)
+		return 1;
 	tolen = sizeof(to);
 	memset(&to, 0, sizeof(to));
 	if (getpeername(state->connection_out, (struct sockaddr *)&to,
 	    &tolen) == -1)
 		return 0;
 	if (fromlen != tolen || memcmp(&from, &to, fromlen) != 0)
-		return 0;
-	if (from.ss_family != AF_INET && from.ss_family != AF_INET6)
 		return 0;
 	return 1;
 }
@@ -806,14 +805,13 @@ ssh_packet_init_compression(struct ssh *ssh)
 
 #ifdef WITH_ZLIB
 static int
-start_compression_out(struct ssh *ssh, int level)
+start_compression_out(struct ssh *ssh)
 {
-	if (level < 1 || level > 9)
-		return SSH_ERR_INVALID_ARGUMENT;
-	debug("Enabling compression at level %d.", level);
+	debug("Enabling compression.");
 	if (ssh->state->compression_out_started == 1)
 		deflateEnd(&ssh->state->compression_out_stream);
-	switch (deflateInit(&ssh->state->compression_out_stream, level)) {
+	switch (deflateInit2(&ssh->state->compression_out_stream,
+	    Z_BEST_SPEED, Z_DEFLATED, 15, 8, Z_HUFFMAN_ONLY)) {
 	case Z_OK:
 		ssh->state->compression_out_started = 1;
 		break;
@@ -915,6 +913,8 @@ uncompress_buffer(struct ssh *ssh, struct sshbuf *in, struct sshbuf *out)
 			if ((r = sshbuf_put(out, buf, sizeof(buf) -
 			    ssh->state->compression_in_stream.avail_out)) != 0)
 				return r;
+			if (sshbuf_len(out) >= PACKET_MAX_SIZE)
+				return SSH_ERR_INVALID_FORMAT;
 			break;
 		case Z_BUF_ERROR:
 			/*
@@ -939,7 +939,7 @@ uncompress_buffer(struct ssh *ssh, struct sshbuf *in, struct sshbuf *out)
 #else	/* WITH_ZLIB */
 
 static int
-start_compression_out(struct ssh *ssh, int level)
+start_compression_out(struct ssh *ssh)
 {
 	return SSH_ERR_INTERNAL_ERROR;
 }
@@ -1045,7 +1045,7 @@ ssh_set_newkeys(struct ssh *ssh, int mode)
 		if ((r = ssh_packet_init_compression(ssh)) < 0)
 			return r;
 		if (mode == MODE_OUT) {
-			if ((r = start_compression_out(ssh, 6)) != 0)
+			if ((r = start_compression_out(ssh)) != 0)
 				return r;
 		} else {
 			if ((r = start_compression_in(ssh)) != 0)
@@ -1190,7 +1190,7 @@ ssh_packet_enable_delayed_compress(struct ssh *ssh)
 			if ((r = ssh_packet_init_compression(ssh)) != 0)
 				return r;
 			if (mode == MODE_OUT) {
-				if ((r = start_compression_out(ssh, 6)) != 0)
+				if ((r = start_compression_out(ssh)) != 0)
 					return r;
 			} else {
 				if ((r = start_compression_in(ssh)) != 0)
@@ -1578,7 +1578,7 @@ ssh_packet_read(struct ssh *ssh)
 	int r;
 
 	if ((r = ssh_packet_read_seqnr(ssh, &type, NULL)) != 0)
-		fatal_fr(r, "read");
+		sshpkt_fatal(ssh, r, "read");
 	return type;
 }
 
@@ -2047,7 +2047,7 @@ ssh_packet_send_debug(struct ssh *ssh, const char *fmt,...)
 	    (r = sshpkt_put_cstring(ssh, "")) != 0 ||
 	    (r = sshpkt_send(ssh)) != 0 ||
 	    (r = ssh_packet_write_wait(ssh)) != 0)
-		fatal_fr(r, "send DEBUG");
+		sshpkt_fatal(ssh, r, "send DEBUG");
 }
 
 void
@@ -2356,6 +2356,9 @@ ssh_packet_get_maxsize(struct ssh *ssh)
 void
 ssh_packet_set_rekey_limits(struct ssh *ssh, uint64_t bytes, uint32_t seconds)
 {
+	if (bytes == 0 && seconds == 0)
+		return;
+
 	debug3("rekey after %llu bytes, %u seconds", (unsigned long long)bytes,
 	    (unsigned int)seconds);
 	ssh->state->rekey_limit = bytes;
@@ -2431,7 +2434,10 @@ kex_to_blob(struct sshbuf *m, struct kex *kex)
 	    (r = sshbuf_put_stringb(m, kex->client_version)) != 0 ||
 	    (r = sshbuf_put_stringb(m, kex->server_version)) != 0 ||
 	    (r = sshbuf_put_stringb(m, kex->session_id)) != 0 ||
-	    (r = sshbuf_put_u32(m, kex->flags)) != 0)
+	    (r = sshbuf_put_u32(m, kex->flags)) != 0 ||
+	    (r = sshbuf_put_u32(m, kex->warn_weak_crypto)) != 0 ||
+	    (r = sshbuf_put_u32(m, kex->pq_kex_negotiated)) != 0 ||
+	    (r = sshbuf_put_u32(m, kex->non_pq_kex_warned)) != 0)
 		return r;
 	return 0;
 }
@@ -2605,7 +2611,10 @@ kex_from_blob(struct sshbuf *m, struct kex **kexp)
 	    (r = sshbuf_get_stringb(m, kex->client_version)) != 0 ||
 	    (r = sshbuf_get_stringb(m, kex->server_version)) != 0 ||
 	    (r = sshbuf_get_stringb(m, kex->session_id)) != 0 ||
-	    (r = sshbuf_get_u32(m, &kex->flags)) != 0)
+	    (r = sshbuf_get_u32(m, &kex->flags)) != 0 ||
+	    (r = sshbuf_get_u32(m, &kex->warn_weak_crypto)) != 0 ||
+	    (r = sshbuf_get_u32(m, &kex->pq_kex_negotiated)) != 0 ||
+	    (r = sshbuf_get_u32(m, &kex->non_pq_kex_warned)) != 0)
 		goto out;
 	if (kex->we_need > 1024) {
 		r = SSH_ERR_INVALID_FORMAT;
@@ -2743,7 +2752,6 @@ sshpkt_put_stringb(struct ssh *ssh, const struct sshbuf *v)
 }
 
 #ifdef WITH_OPENSSL
-#ifdef OPENSSL_HAS_ECC
 int
 sshpkt_put_ec(struct ssh *ssh, const EC_POINT *v, const EC_GROUP *g)
 {
@@ -2755,7 +2763,6 @@ sshpkt_put_ec_pkey(struct ssh *ssh, EVP_PKEY *pkey)
 {
 	return sshbuf_put_ec_pkey(ssh->state->outgoing_packet, pkey);
 }
-#endif /* OPENSSL_HAS_ECC */
 
 int
 sshpkt_put_bignum2(struct ssh *ssh, const BIGNUM *v)
@@ -2821,13 +2828,11 @@ sshpkt_getb_froms(struct ssh *ssh, struct sshbuf **valp)
 }
 
 #ifdef WITH_OPENSSL
-#ifdef OPENSSL_HAS_ECC
 int
 sshpkt_get_ec(struct ssh *ssh, EC_POINT *v, const EC_GROUP *g)
 {
 	return sshbuf_get_ec(ssh->state->incoming_packet, v, g);
 }
-#endif /* OPENSSL_HAS_ECC */
 
 int
 sshpkt_get_bignum2(struct ssh *ssh, BIGNUM **valp)
@@ -3101,6 +3106,7 @@ connection_info_message(struct ssh *ssh)
 	comp_info = comp_status_message(ssh);
 
 	xasprintf(&ret, "Connection information for %s pid %lld\r\n"
+	    "  versions %s -> %s\r\n"
 	    "%s"
 	    "  duration %s\r\n"
 	    "  kexalgorithm %s\r\n  hostkeyalgorithm %s\r\n"
@@ -3109,6 +3115,7 @@ connection_info_message(struct ssh *ssh)
 	    "  traffic %s in, %s out\r\n"
 	    "%s",
 	    thishost, (long long)getpid(),
+	    SSH_RELEASE, ssh->remote_version,
 	    tcp_info,
 	    fmt_timeframe(monotime() - state->start_time),
 	    kex->name, kex->hostkey_alg,

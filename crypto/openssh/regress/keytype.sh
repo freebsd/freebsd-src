@@ -1,4 +1,4 @@
-#	$OpenBSD: keytype.sh,v 1.13 2026/06/14 04:08:05 djm Exp $
+#	$OpenBSD: keytype.sh,v 1.14 2026/09/02 00:39:18 djm Exp $
 #	Placed in the Public Domain.
 
 tid="login with different key types"
@@ -43,7 +43,7 @@ kname_to_ktype() {
 	rsa-*)		echo rsa-sha2-512,rsa-sha2-256,ssh-rsa;;
 	ed25519-sk)	echo sk-ssh-ed25519@openssh.com;;
 	ecdsa-sk)	echo sk-ecdsa-sha2-nistp256@openssh.com;;
-	mldsa44-ed25519) echo ssh-mldsa44-ed25519@openssh.com ;;
+	mldsa44-ed25519) echo ssh-mldsa44-ed25519;;
 	esac
 }
 

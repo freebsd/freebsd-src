@@ -12,7 +12,6 @@ Created: test
 PackageName: test5@5.0.0
 SPDXID: SPDXRef-Package-test5C405.0.0
 PackageVersion: 5.0.0
-PackageDownloadLocation: NOASSERTION
 PackageSupplier: Person: Test5 Maintainer
 PackageHomePage: https://github.com/pkgconf/pkgconf/
 PackageLicenseDeclared: MIT
@@ -27,7 +26,6 @@ PackageDownloadLocation: https://github.com/pkgconf/pkgconf/archive/refs/tags/pk
 PackageName: test6@6.0.0
 SPDXID: SPDXRef-Package-test6C406.0.0
 PackageVersion: 6.0.0
-PackageDownloadLocation: NOASSERTION
 PackageSupplier: Person: Test6 Maintainer
 PackageHomePage: https://github.com/pkgconf/pkgconf/releases/
 PackageLicenseDeclared: Apache-2.0

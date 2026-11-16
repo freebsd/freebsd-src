@@ -188,27 +188,27 @@ static int64_t
 memory_read_seek(struct archive *a, void *client_data, int64_t offset, int whence)
 {
 	struct read_memory_data *mine = (struct read_memory_data *)client_data;
+	const unsigned char *p;
 
 	(void)a; /* UNUSED */
 	switch (whence) {
 	case SEEK_SET:
-		mine->p = mine->start + offset;
+		p = mine->start + offset;
 		break;
 	case SEEK_END:
-		mine->p = mine->end + offset;
+		p = mine->end + offset;
 		break;
 	case SEEK_CUR:
-		mine->p += offset;
+		p = mine->p + offset;
 		break;
-	}
-	if (mine->p < mine->start) {
-		mine->p = mine->start;
+	default:
 		return ARCHIVE_FAILED;
 	}
-	if (mine->p > mine->end) {
-		mine->p = mine->end;
+	if (p < mine->start)
 		return ARCHIVE_FAILED;
-	}
+	if (p > mine->end)
+		return ARCHIVE_FAILED;
+	mine->p = p;
 	return (mine->p - mine->start);
 }
 

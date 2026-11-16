@@ -1,7 +1,12 @@
 /*-
- * Copyright (c) 2006-2007 Robert N. M. Watson
+ * Copyright (c) 2006-2007, 2017 Robert N. M. Watson
  * Copyright (c) 2008 Apple Inc.
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -51,6 +56,10 @@
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+
+#include <compat/uuid.h>
+#include <compat/uuid_stream.h>
+#include <compat/uuid_to_string.h>
 
 static int	do_records, do_tokens;
 
@@ -972,6 +981,68 @@ generate_socketex_record(const char *directory, const char *record_filename)
 	write_record(directory, record_filename, socketex_token, AUE_NULL);
 }
 
+static char	 arg_uuid_n = 4;
+static char	*arg_uuid_text = "test_arg_uuid_token";
+static uint8_t	 arg_uuid_data[] = {
+	0x53, 0xea, 0x62, 0x5a, 0x1c, 0xd4, 0xe6, 0x11, 0xc8, 0xa3, 0x25,
+	0x00, 0x9d, 0x4b, 0xb4, 0x9c,
+};
+
+static void
+generate_arg_uuid_token(const char *directory, const char *token_filename)
+{
+	token_t *arg_uuid_token;
+
+	arg_uuid_token = au_to_arg_uuid(arg_uuid_n, arg_uuid_text,
+	    &arg_uuid_data);
+	if (arg_uuid_token == NULL)
+		errx(EX_OSERR, "au_to_arg_uuid");
+	write_token(directory, token_filename, arg_uuid_token);
+}
+
+static void
+generate_arg_uuid_record(const char *directory, const char *record_filename)
+{
+	token_t *arg_uuid_token;
+
+	arg_uuid_token = au_to_arg_uuid(arg_uuid_n, arg_uuid_text,
+	    &arg_uuid_data);
+	if (arg_uuid_token == NULL)
+		errx(EX_OSERR, "au_to_arg_uuid");
+	write_record(directory, record_filename, arg_uuid_token, AUE_NULL);
+}
+
+static char	 ret_uuid_n = 5;
+static char	*ret_uuid_text = "test_ret_uuid_token";
+static uint8_t	 ret_uuid_data[] = {
+	0x43, 0x36, 0xb3, 0x77, 0x1d, 0xd4, 0xe6, 0x11, 0xc8, 0xa3, 0x25,
+	0x00, 0x9d, 0x4b, 0xb4, 0x9c,
+};
+
+static void
+generate_ret_uuid_token(const char *directory, const char *token_filename)
+{
+	token_t *ret_uuid_token;
+
+	ret_uuid_token = au_to_return_uuid(ret_uuid_n, ret_uuid_text,
+	    &ret_uuid_data);
+	if (ret_uuid_token == NULL)
+		errx(EX_OSERR, "au_to_ret_uuid");
+	write_token(directory, token_filename, ret_uuid_token);
+}
+
+static void
+generate_ret_uuid_record(const char *directory, const char *record_filename)
+{
+	token_t *ret_uuid_token;
+
+	ret_uuid_token = au_to_return_uuid(ret_uuid_n, ret_uuid_text,
+	    &ret_uuid_data);
+	if (ret_uuid_token == NULL)
+		errx(EX_OSERR, "au_to_ret_uuid");
+	write_record(directory, record_filename, ret_uuid_token, AUE_NULL);
+}
+
 /*
  * Generate a series of error-number specific return tokens in records.
  */
@@ -1110,6 +1181,8 @@ main(int argc, char *argv[])
 #endif
 		generate_zonename_token(directory, "zonename_token");
 		generate_socketex_token(directory, "socketex_token");
+		generate_arg_uuid_token(directory, "arg_uuid_token");
+		generate_ret_uuid_token(directory, "ret_uuid_token");
 	}
 
 	if (do_records) {
@@ -1148,6 +1221,8 @@ main(int argc, char *argv[])
 #endif
 		generate_zonename_record(directory, "zonename_record");
 		generate_socketex_record(directory, "socketex_record");
+		generate_arg_uuid_record(directory, "arg_uuid_record");
+		generate_ret_uuid_record(directory, "ret_uuid_record");
 		do_error_records(directory);
 	}
 

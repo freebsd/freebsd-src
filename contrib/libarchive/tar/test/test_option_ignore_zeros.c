@@ -9,7 +9,9 @@
 static int
 make_files(void)
 {
-	int ret;
+	char *pa, *pb, *pc;
+	size_t sa, sb;
+	int ret = 0;
 
 	assertMakeDir("in", 0755);
 	assertMakeDir("out", 0755);
@@ -18,14 +20,28 @@ make_files(void)
 	assertMakeFile("in/c", 0644, "c");
 	assertEqualInt(0, systemf("%s cf a.tar -C in a", testprog));
 	assertEqualInt(0, systemf("%s cf b.tar -C in b", testprog));
-	/* An archive formed with cat, and readable with --ignore-zeros. */
-	ret = systemf("cat a.tar b.tar > ab-cat.tar");
-	if (ret != 0) {
-		skipping("This test requires a `cat` program");
-		return (ret);
+	/* A concatenated archive, readable with --ignore-zeros. */
+
+	assertEqualInt((pa = slurpfile(&sa, "a.tar")) == NULL, 0);
+	assertEqualInt((pb = slurpfile(&sb, "b.tar")) == NULL, 0);
+	assertEqualInt((pc = malloc(sa + sb)) == NULL, 0);
+
+	if (pa == NULL || pb == NULL || pc == NULL) {
+		skipping("failed to combine files");
+		ret = 1;
+		goto done;
 	}
 
-	return (0);
+	memcpy(pc, pa, sa);
+	memcpy(pc + sa, pb, sb);
+	assertMakeBinFile("ab-cat.tar", 0644, sa + sb, pc);
+
+done:
+	free(pa);
+	free(pb);
+	free(pc);
+
+	return (ret);
 }
 
 DEFINE_TEST(test_option_ignore_zeros_mode_t)
@@ -70,13 +86,6 @@ DEFINE_TEST(test_option_ignore_zeros_mode_x)
 
 DEFINE_TEST(test_option_ignore_zeros_mode_c)
 {
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	// The first command run by systemf below prints this to stderr:
-	// bsdtar.exe: a: Can't translate uname '(null)' to UTF-8
-	// bsdtar.exe: b: Can't translate uname '(null)' to UTF-8
-	skipping("TODO: figure out why this test fails on github workflows with MSVC");
-	return;
-#else
 	if (make_files())
 		return;
 
@@ -96,7 +105,6 @@ DEFINE_TEST(test_option_ignore_zeros_mode_c)
 	assertEqualFile("out/a", "in/a");
 	assertEqualFile("out/b", "in/b");
 	assertEqualFile("out/c", "in/c");
-#endif
 }
 
 static void

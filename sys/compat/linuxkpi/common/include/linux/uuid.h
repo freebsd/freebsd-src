@@ -60,6 +60,12 @@ typedef struct {
 	char	x[16];
 } guid_t;
 
+/* Renamed to stay clear of the other uuid_t types in the tree. */
+typedef struct {
+	uint8_t	b[UUID_SIZE];
+} linux_uuid_t;
+#define	uuid_t	linux_uuid_t
+
 extern const guid_t guid_null;
 
 static inline void
@@ -99,6 +105,30 @@ static inline bool
 guid_is_null(const guid_t *guid)
 {
 	return (guid_equal(guid, &guid_null));
+}
+
+static inline bool
+uuid_equal(const linux_uuid_t *u1, const linux_uuid_t *u2)
+{
+	return (memcmp(u1, u2, sizeof(linux_uuid_t)) == 0);
+}
+
+static inline void
+uuid_copy(linux_uuid_t *dst, const linux_uuid_t *src)
+{
+	memcpy(dst, src, sizeof(linux_uuid_t));
+}
+
+static inline void
+import_uuid(linux_uuid_t *dst, const uint8_t *src)
+{
+	memcpy(dst, src, sizeof(linux_uuid_t));
+}
+
+static inline void
+export_uuid(uint8_t *dst, const linux_uuid_t *src)
+{
+	memcpy(dst, src, sizeof(linux_uuid_t));
 }
 
 #endif	/* _LINUXKPI_LINUX_UUID_H */

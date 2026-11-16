@@ -25,14 +25,12 @@ section {
     }
 }
 section {
-    test {
-    }
+    test {}
 }
 section {
     foo {
         param = 123.200000;
     }
 }
-array [
-]
+array []
 

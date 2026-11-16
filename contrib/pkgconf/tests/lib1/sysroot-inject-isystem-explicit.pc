@@ -1,0 +1,6 @@
+prefix=/usr
+Cflags: -isystem${pc_sysrootdir}/opt/x
+
+Name: sysroot-inject-isystem-explicit
+Description: test fixture
+Version: 1.0.0

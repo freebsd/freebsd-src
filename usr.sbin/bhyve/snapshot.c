@@ -876,6 +876,8 @@ vm_restore_devices(struct restore_state *rstate)
 	int ret;
 	struct pci_devinst *pdi = NULL;
 
+	pci_restore_prepare();
+
 	while ((pdi = pci_next(pdi)) != NULL) {
 		ret = vm_restore_device(rstate, pci_snapshot, pdi->pi_name, pdi);
 		if (ret)

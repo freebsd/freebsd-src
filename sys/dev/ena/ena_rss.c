@@ -102,15 +102,22 @@ ena_rss_init_default(struct ena_adapter *adapter)
 {
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
 	device_t dev = adapter->pdev;
+	u32 table_size;
 	int qid, rc, i;
 
-	rc = ena_com_rss_init(ena_dev, ENA_RX_RSS_TABLE_LOG_SIZE);
+	rc = ena_com_rss_init(ena_dev);
 	if (unlikely(rc != 0)) {
 		ena_log(dev, ERR, "Cannot init indirect table\n");
 		return (rc);
 	}
 
-	for (i = 0; i < ENA_RX_RSS_TABLE_SIZE; i++) {
+	table_size = ena_get_rss_indirection_table_size(adapter);
+	if (table_size == 0) {
+		rc = EOPNOTSUPP;
+		goto err_rss_destroy;
+	}
+
+	for (i = 0; i < table_size; i++) {
 #ifdef RSS
 		qid = rss_get_indirection_to_bucket(i) % adapter->num_io_queues;
 #else
@@ -173,6 +180,11 @@ ena_rss_configure(struct ena_adapter *adapter)
 		}
 	}
 
+	if (ena_dev->rss.tbl_log_size == 0) {
+		ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_RSS_ACTIVE, adapter);
+		return (0);
+	}
+
 	/* Set indirect table */
 	rc = ena_com_indirect_table_set(ena_dev);
 	if (unlikely((rc != 0) && (rc != EOPNOTSUPP)))
@@ -188,45 +200,15 @@ ena_rss_configure(struct ena_adapter *adapter)
 	if (unlikely((rc != 0) && (rc != EOPNOTSUPP)))
 		return (rc);
 
+	ENA_FLAG_SET_ATOMIC(ENA_FLAG_RSS_ACTIVE, adapter);
+
 	return (0);
 }
-
-static void
-ena_rss_init_default_deferred(void *arg)
-{
-	struct ena_adapter *adapter;
-	devclass_t dc;
-	int max;
-	int rc;
-
-	dc = devclass_find("ena");
-	if (unlikely(dc == NULL)) {
-		ena_log_raw(ERR, "SYSINIT: %s: No devclass ena\n", __func__);
-		return;
-	}
-
-	max = devclass_get_maxunit(dc);
-	while (max-- >= 0) {
-		adapter = devclass_get_softc(dc, max);
-		if (adapter != NULL) {
-			rc = ena_rss_init_default(adapter);
-			ENA_FLAG_SET_ATOMIC(ENA_FLAG_RSS_ACTIVE, adapter);
-			if (unlikely(rc != 0)) {
-				ena_log(adapter->pdev, WARN,
-				    "WARNING: RSS was not properly initialized,"
-				    " it will affect bandwidth\n");
-				ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_RSS_ACTIVE,
-				    adapter);
-			}
-		}
-	}
-}
-SYSINIT(ena_rss_init, SI_SUB_KICK_SCHEDULER, SI_ORDER_SECOND,
-    ena_rss_init_default_deferred, NULL);
 
 int
 ena_rss_indir_get(struct ena_adapter *adapter, uint32_t *table)
 {
+	u32 table_size;
 	int rc, i;
 
 	rc = ena_com_indirect_table_get(adapter->ena_dev, table);
@@ -240,7 +222,11 @@ ena_rss_indir_get(struct ena_adapter *adapter, uint32_t *table)
 		return (rc);
 	}
 
-	for (i = 0; i < ENA_RX_RSS_TABLE_SIZE; ++i)
+	table_size = ena_get_rss_indirection_table_size(adapter);
+	if (table_size == 0)
+		return (EOPNOTSUPP);
+
+	for (i = 0; i < table_size; ++i)
 		table[i] = ENA_IO_RXQ_IDX_TO_COMBINED_IDX(table[i]);
 
 	return (0);
@@ -249,9 +235,14 @@ ena_rss_indir_get(struct ena_adapter *adapter, uint32_t *table)
 int
 ena_rss_indir_set(struct ena_adapter *adapter, uint32_t *table)
 {
+	u32 table_size;
 	int rc, i;
 
-	for (i = 0; i < ENA_RX_RSS_TABLE_SIZE; ++i) {
+	table_size = ena_get_rss_indirection_table_size(adapter);
+	if (table_size == 0)
+		return (EOPNOTSUPP);
+
+	for (i = 0; i < table_size; ++i) {
 		rc = ena_com_indirect_table_fill_entry(adapter->ena_dev, i,
 		    ENA_IO_RXQ_IDX(table[i]));
 		if (rc != 0) {
@@ -275,21 +266,38 @@ int
 ena_rss_indir_init(struct ena_adapter *adapter)
 {
 	struct ena_indir *indir = adapter->rss_indir;
+	u32 table_size;
 	int rc;
 
-	if (indir == NULL)
+	if (indir == NULL) {
+		table_size = ena_get_rss_indirection_table_size(adapter);
+		if (table_size == 0)
+			return (EOPNOTSUPP);
+
 		adapter->rss_indir = indir = malloc(sizeof(struct ena_indir),
 		    M_DEVBUF, M_WAITOK | M_ZERO);
 
+		indir->table = malloc(sizeof(uint32_t) * table_size,
+		    M_DEVBUF, M_WAITOK | M_ZERO);
+		indir->record_size = ENA_RSS_RECORD_SIZE(table_size,
+		    adapter->max_num_io_queues);
+		indir->sysctl_buf = malloc(indir->record_size * table_size + 1,
+		    M_DEVBUF, M_WAITOK | M_ZERO);
+		indir->table_size = table_size;
+	}
+
 	rc = ena_rss_indir_get(adapter, indir->table);
 	if (rc != 0) {
+		free(indir->sysctl_buf, M_DEVBUF);
+		free(indir->table, M_DEVBUF);
 		free(adapter->rss_indir, M_DEVBUF);
 		adapter->rss_indir = NULL;
 
 		return (rc);
 	}
 
-	ena_rss_copy_indir_buf(indir->sysctl_buf, indir->table);
+	ena_rss_copy_indir_buf(indir->sysctl_buf, indir->table,
+	    indir->table_size, indir->record_size);
 
 	return (0);
 }

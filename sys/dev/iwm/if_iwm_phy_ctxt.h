@@ -113,4 +113,9 @@ extern	int iwm_phy_ctxt_changed(struct iwm_softc *sc,
 	    struct iwm_phy_ctxt *ctxt, struct ieee80211_channel *chan,
 	    uint8_t chains_static, uint8_t chains_dynamic);
 
+extern	int iwm_phy_ctxt_cmd(struct iwm_softc *sc,
+	    struct iwm_phy_ctxt *ctxt,
+	    uint8_t chains_static, uint8_t chains_dynamic,
+	    uint32_t action, uint32_t apply_time, uint8_t sco);
+
 #endif	/* __IF_IWM_PHY_CTXT_H__ */

@@ -12,7 +12,7 @@
 #include "ufshci_private.h"
 #include "ufshci_reg.h"
 
-static void
+void
 ufshci_ctrlr_fail(struct ufshci_controller *ctrlr)
 {
 	/*
@@ -23,8 +23,12 @@ ufshci_ctrlr_fail(struct ufshci_controller *ctrlr)
 	if (atomic_swap_32(&ctrlr->is_failed, 1) != 0)
 		return;
 
+	ufshci_printf(ctrlr, "controller failed, rejecting new requests\n");
+
 	ufshci_req_queue_fail(ctrlr, &ctrlr->task_mgmt_req_queue);
 	ufshci_req_queue_fail(ctrlr, &ctrlr->transfer_req_queue);
+
+	ufshci_sim_controller_failed(ctrlr);
 }
 
 /* Some controllers require a reinit after switching to the max gear. */
@@ -166,6 +170,15 @@ ufshci_ctrlr_start(struct ufshci_controller *ctrlr, bool resetting)
 	/* TODO: Configure Background Operations */
 
 	/*
+	 * The device is ready for I/O now, so let the held I/O go out. The
+	 * steps below need I/O to flow: a bus scan and the lookup of the
+	 * well-known LUN that it creates.
+	 */
+	ctrlr->io_ready = true;
+	ufshci_req_queue_resume(&ctrlr->task_mgmt_req_queue);
+	ufshci_req_queue_resume(&ctrlr->transfer_req_queue);
+
+	/*
 	 * A reset normally arrives after the SIM is attached. But if the
 	 * first start attempt failed early, the reset path runs without a
 	 * SIM. Attach it whenever it does not exist yet.
@@ -274,7 +287,7 @@ ufshci_ctrlr_disable(struct ufshci_controller *ctrlr)
 int
 ufshci_ctrlr_enable(struct ufshci_controller *ctrlr)
 {
-	uint32_t ie, hcs;
+	uint32_t ie, hcs, attempt;
 	int error;
 
 	error = ufshci_ctrlr_enable_host_ctrlr(ctrlr);
@@ -282,18 +295,27 @@ ufshci_ctrlr_enable(struct ufshci_controller *ctrlr)
 		return (error);
 
 	/* Send DME_LINKSTARTUP command to start the link startup procedure */
-	error = ufshci_uic_send_dme_link_startup(ctrlr);
-	if (error)
-		return (error);
+	for (attempt = 0; attempt < UFSHCI_MAX_LINK_STARTUP_ATTEMPTS;
+	    attempt++) {
+		error = ufshci_uic_send_dme_link_startup(ctrlr);
+		if (error) {
+			ufshci_printf(ctrlr,
+			    "DME_LINKSTARTUP attempt %u failed: %d\n",
+			    attempt + 1, error);
+			continue;
+		}
 
-	/*
-	 * The device_present(UFSHCI_HCS_REG_DP) bit becomes true if the host
-	 * controller has successfully received a Link Startup UIC command
-	 * response and the UFS device has found a physical link to the
-	 * controller.
-	 */
-	hcs = ufshci_mmio_read_4(ctrlr, hcs);
-	if (!UFSHCIV(UFSHCI_HCS_REG_DP, hcs)) {
+		/*
+		 * The device_present(UFSHCI_HCS_REG_DP) bit becomes true if
+		 * the host controller has successfully received a Link
+		 * Startup UIC command response and the UFS device has found
+		 * a physical link to the controller.
+		 */
+		hcs = ufshci_mmio_read_4(ctrlr, hcs);
+		if (UFSHCIV(UFSHCI_HCS_REG_DP, hcs))
+			break;
+	}
+	if (attempt == UFSHCI_MAX_LINK_STARTUP_ATTEMPTS) {
 		ufshci_printf(ctrlr, "UFS device not found\n");
 		return (ENXIO);
 	}
@@ -357,6 +379,7 @@ ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev)
 	int error;
 
 	ctrlr->device_init_timeout_in_ms = UFSHCI_DEVICE_INIT_TIMEOUT_MS;
+	ctrlr->io_ready = false;
 	ctrlr->uic_cmd_timeout_in_ms = UFSHCI_UIC_CMD_TIMEOUT_MS;
 	ctrlr->dev = dev;
 	ctrlr->sc_unit = device_get_unit(dev);
@@ -444,13 +467,16 @@ ufshci_ctrlr_construct(struct ufshci_controller *ctrlr, device_t dev)
 	if (error)
 		return (error);
 
-	/* TODO: Separate IO and Admin slot */
-
 	/*
-	 * max_hw_pend_io is the number of slots in the transfer_req_queue.
-	 * Reduce num_entries by one to reserve an admin slot.
+	 * Two of the slots stay out of the count handed to CAM. The
+	 * reserve step keeps the last one for admin requests, so a
+	 * reset's bring-up command always has somewhere to land. The one
+	 * after it is headroom the queue needs to stay busy. Giving CAM
+	 * as many openings as there are slots that I/O can use measured
+	 * at about a seventh of the throughput, so do not raise this
+	 * without testing it under load.
 	 */
-	ctrlr->max_hw_pend_io = ctrlr->transfer_req_queue.num_entries - 1;
+	ctrlr->max_hw_pend_io = ctrlr->transfer_req_queue.num_entries - 2;
 
 	/* Create a thread for the taskqueue. */
 	ctrlr->taskqueue = taskqueue_create("ufshci_taskq", M_WAITOK,
@@ -476,10 +502,10 @@ ufshci_ctrlr_destruct(struct ufshci_controller *ctrlr, device_t dev)
 
 	/* TODO: Flush In-flight IOs */
 
-	/* Release resources */
-	ufshci_utmr_req_queue_destroy(ctrlr);
-	ufshci_utr_req_queue_destroy(ctrlr);
-
+	/*
+	 * Tear the interrupt down first, so the handler cannot touch a
+	 * queue while it is being freed.
+	 */
 	if (ctrlr->tag)
 		bus_teardown_intr(ctrlr->dev, ctrlr->res, ctrlr->tag);
 
@@ -488,13 +514,28 @@ ufshci_ctrlr_destruct(struct ufshci_controller *ctrlr, device_t dev)
 		    rman_get_rid(ctrlr->res), ctrlr->res);
 
 	/*
-	 * The interrupt and the timers are gone, so nothing enqueues new
-	 * tasks. Free the taskqueue before the SIM teardown below.
+	 * A watchdog escalates a timeout to a reset on the taskqueue, so
+	 * stop the watchdogs before the taskqueue goes away.
+	 */
+	ufshci_req_queue_stop_watchdog(&ctrlr->task_mgmt_req_queue);
+	ufshci_req_queue_stop_watchdog(&ctrlr->transfer_req_queue);
+
+	/*
+	 * Free the taskqueue next, which waits for a reset already
+	 * running. Only then destroy the queues, because that running
+	 * reset walks them.
 	 */
 	if (ctrlr->taskqueue != NULL) {
 		taskqueue_free(ctrlr->taskqueue);
 		ctrlr->taskqueue = NULL;
 	}
+
+	/* Quiet the hardware, so no DMA or interrupt outlives the queues. */
+	ufshci_ctrlr_disable(ctrlr);
+
+	/* Release resources */
+	ufshci_utmr_req_queue_destroy(ctrlr);
+	ufshci_utr_req_queue_destroy(ctrlr);
 
 	ufshci_sim_release_wlun_periph(ctrlr);
 
@@ -521,6 +562,15 @@ nores:
 void
 ufshci_ctrlr_reset(struct ufshci_controller *ctrlr)
 {
+	/*
+	 * Detach frees the taskqueue before it tears the rest down, so a
+	 * request that arrives after that has nowhere to go.
+	 */
+	if (ctrlr->taskqueue == NULL)
+		return;
+
+	/* I/O waits from here until the reset has brought the device up. */
+	ctrlr->io_ready = false;
 	taskqueue_enqueue(ctrlr->taskqueue, &ctrlr->reset_task);
 }
 
@@ -552,7 +602,7 @@ ufshci_ctrlr_send_nop(struct ufshci_controller *ctrlr)
 	if (error)
 		return (error);
 
-	ufshci_completion_poll(&status);
+	ufshci_completion_poll(ctrlr, &status);
 	if (status.error) {
 		ufshci_printf(ctrlr, "ufshci_ctrlr_send_nop failed!\n");
 		return (ENXIO);

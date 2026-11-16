@@ -176,6 +176,8 @@ SRCS+=	os/freebsd/execenv_jail.cpp	\
 LIBADD+=	jail
 .endif
 
+CXXSTD=		gnu++20
+
 FILESGROUPS=	DOCS MISC STORE
 
 .if ${MK_EXAMPLES} != "no"

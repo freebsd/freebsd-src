@@ -16,14 +16,14 @@ ggatec_trim_body()
 	load_ggate
 
 	port=33080
-	us=$(alloc_ggate_dev)
 	work=$(alloc_md)
 	atf_check -e ignore -o ignore dd if=/dev/random of=/dev/$work bs=1m count=1 conv=notrunc
 	echo $CONF >> $PLAINFILES
 	echo "localhost RW /dev/$work" > $CONF
 	atf_check ggated -p $port -F $PIDFILE $CONF
-	atf_check ggatec create -p $port -u $us localhost /dev/$work
-	ggate_dev=/dev/ggate${us}
+	atf_check -o save:ggateu ggatec create -p $port localhost /dev/$work
+	ggate_dev=/dev/`cat ggateu`
+	cat ggateu | sed 's:ggate::' >> ggate.devs
 	wait_for_ggate_device ${ggate_dev}
 
 	# ggatec only supports read or write.
@@ -55,7 +55,6 @@ ggated_body()
 	load_ggate
 
 	port=33081
-	us=$(alloc_ggate_dev)
 	work=$(alloc_md)
 	src=$(alloc_md)
 
@@ -68,16 +67,16 @@ ggated_body()
 	echo "127.0.0.1 RW /dev/$work" > $CONF
 
 	atf_check ggated -p $port -F $PIDFILE $CONF
-	atf_check ggatec create -p $port -u $us 127.0.0.1 /dev/$work
-
-	ggate_dev=/dev/ggate${us}
+	atf_check -o save:ggateu ggatec create -p $port 127.0.0.1 /dev/$work
+	ggate_dev=/dev/`cat ggateu`
+	cat ggateu | sed 's:ggate::' >> ggate.devs
 
 	wait_for_ggate_device ${ggate_dev}
 
 	atf_check -e ignore -o ignore \
 	    dd if=/dev/${src} of=${ggate_dev} bs=1m count=1 conv=notrunc
 
-	checksum /dev/$src /dev/$work
+	checksum /dev/$src /dev/$work $ggate_dev
 }
 
 ggated_cleanup()
@@ -98,22 +97,21 @@ ggatel_file_body()
 {
 	load_ggate
 
-	us=$(alloc_ggate_dev)
 
 	echo src work >> ${PLAINFILES}
 	dd if=/dev/random of=work bs=1m count=1
 	dd if=/dev/random of=src bs=1m count=1
 
-	atf_check ggatel create -u $us work
-
-	ggate_dev=/dev/ggate${us}
+	atf_check -o save:ggateu ggatel create work
+	ggate_dev=/dev/`cat ggateu`
+	cat ggateu | sed 's:ggate::' >> ggate.devs
 
 	wait_for_ggate_device ${ggate_dev}
 
 	atf_check -e ignore -o ignore \
 	    dd if=src of=${ggate_dev} bs=1m count=1 conv=notrunc
 
-	checksum src work
+	checksum src work $ggate_dev
 }
 
 ggatel_file_cleanup()
@@ -134,7 +132,6 @@ ggatel_md_body()
 {
 	load_ggate
 
-	us=$(alloc_ggate_dev)
 	work=$(alloc_md)
 	src=$(alloc_md)
 
@@ -143,16 +140,16 @@ ggatel_md_body()
 	atf_check -e ignore -o ignore \
 	    dd if=/dev/random of=$src bs=1m count=1 conv=notrunc
 
-	atf_check ggatel create -u $us /dev/$work
-
-	ggate_dev=/dev/ggate${us}
+	atf_check -o save:ggateu ggatel create /dev/$work
+	ggate_dev=/dev/`cat ggateu`
+	cat ggateu | sed 's:ggate::' >> ggate.devs
 
 	wait_for_ggate_device ${ggate_dev}
 
 	atf_check -e ignore -o ignore \
 	    dd if=/dev/$src of=${ggate_dev} bs=1m count=1 conv=notrunc
 
-	checksum /dev/$src /dev/$work
+	checksum /dev/$src /dev/$work $ggate_dev
 }
 
 ggatel_md_cleanup()
@@ -166,18 +163,6 @@ atf_init_test_cases()
 	atf_add_test_case ggatel_file
 	atf_add_test_case ggatel_md
 	atf_add_test_case ggatec_trim
-}
-
-alloc_ggate_dev()
-{
-	local us
-
-	us=0
-	while [ -c /dev/ggate${us} ]; do
-		: $(( us += 1 ))
-	done
-	echo ${us} > ggate.devs
-	echo ${us}
 }
 
 alloc_md()
@@ -195,6 +180,7 @@ checksum()
 	local src work
 	src=$1
 	work=$2
+	ggate_dev=$3
 
 	src_checksum=$(md5 -q $src)
 	work_checksum=$(md5 -q $work)
@@ -203,7 +189,7 @@ checksum()
 		atf_fail "work md5 checksum didn't match"
 	fi
 
-	ggate_checksum=$(md5 -q /dev/ggate${us})
+	ggate_checksum=$(md5 -q $ggate_dev)
 	if [ "$ggate_checksum" != "$src_checksum" ]; then
 		atf_fail "ggate md5 checksum didn't match"
 	fi

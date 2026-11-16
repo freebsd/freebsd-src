@@ -14,6 +14,8 @@
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 
+#include <machine/_inttypes.h>
+
 #include "opt_acpi.h"
 
 #if defined(DEV_ACPI)
@@ -320,17 +322,30 @@ amdsmu_resume_check(device_t dev, enum power_stype stype)
 	struct amdsmu_metrics *m = &sc->metrics;
 	bool any_blocking = false;
 	const struct amdsmu_diagnostics *d;
+	devclass_t dc;
 
 	if (stype != POWER_STYPE_SUSPEND_TO_IDLE)
 		return;
-	if (m->s0i3_last_entry_status != 0)
+	/*
+	 * XXX For some reason, s0i3_last_entry_status sometimes reports 1 when
+	 * system didn't enter S0i3 during the last suspend.
+	 */
+	if (m->time_last_in_s0i3 != 0) {
+		device_printf(dev,
+		    "spent %" PRIu64 " seconds in S0i3 during last suspend\n",
+		    m->time_last_in_s0i3 / 1000000);
 		return;
+	}
 
 	device_printf(dev,
 	    "failed to enter S0i3 during last suspend; "
 	    "battery drain will be excessive\n");
 
-	if (sc->product->amdsmu_deviceid != PCI_DEVICEID_AMD_PHOENIX_ROOT) {
+	switch (sc->product->amdsmu_deviceid) {
+	case PCI_DEVICEID_AMD_PHOENIX_ROOT:
+	case PCI_DEVICEID_AMD_KRACKAN_POINT_ROOT:
+		break;
+	default:
 		device_printf(dev, "only limited diagnostic information "
 		    "available for %x:%x; check dev.amdsmu.0 sysctl tree\n",
 		    sc->product->amdsmu_vendorid,
@@ -368,11 +383,13 @@ amdsmu_resume_check(device_t dev, enum power_stype stype)
 
 		if (d == NULL)
 			continue;
-		if (d->expected_module != NULL &&
-		    devclass_find(d->expected_module) == NULL)
-			device_printf(dev,
-			    "    hint: load %s to allow this block to "
-			    "suspend\n", d->expected_module);
+		if (d->expected_devclass != NULL) {
+			dc = devclass_find(d->expected_devclass);
+			if (dc == NULL || devclass_get_count(dc) == 0)
+				device_printf(dev,
+				    "    hint: load %s to allow this block to "
+				    "suspend\n", d->mod_to_load);
+		}
 		if (d->extra != NULL)
 			device_printf(dev, "    hint: %s\n", d->extra);
 	}

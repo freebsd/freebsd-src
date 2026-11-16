@@ -32,6 +32,7 @@
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/module.h>
+#include <sys/msan.h>
 #include <sys/sglist.h>
 #include <sys/queue.h>
 #include <sys/bus.h>
@@ -210,6 +211,7 @@ vt9p_intr_complete(void *xsc)
 	struct vt9p_softc *chan;
 	struct virtqueue *vq;
 	struct p9_req_t *curreq;
+	uint32_t len;
 
 	chan = (struct vt9p_softc *)xsc;
 	vq = chan->vt9p_vq;
@@ -218,8 +220,9 @@ vt9p_intr_complete(void *xsc)
 
 	VT9P_LOCK(chan);
 again:
-	while ((curreq = virtqueue_dequeue(vq, NULL)) != NULL) {
+	while ((curreq = virtqueue_dequeue(vq, &len)) != NULL) {
 		curreq->rc.tag = curreq->tc.tag;
+		kmsan_mark(curreq->rc.sdata, len, KMSAN_STATE_INITED);
 		wakeup_one(curreq);
 	}
 	if (virtqueue_enable_intr(vq) != 0) {

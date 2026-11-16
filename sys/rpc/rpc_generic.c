@@ -1008,6 +1008,10 @@ rpc_copy_uio_pages(struct mbuf *mr, struct uio *uiop, int siz, bool from_pages)
 	while (siz > 0) {
 		if (uiop->uio_iovcnt <= 0 || uiop->uio_iov == NULL)
 			return (EBADRPC);
+		if (uiop->uio_iov->iov_len == 0) {
+			uiop->uio_iovcnt--;
+			uiop->uio_iov++;
+		}
 		left = uiop->uio_iov->iov_len;
 		uiocp = uiop->uio_iov->iov_base;
 		if (left > siz)
@@ -1055,14 +1059,9 @@ rpc_copy_uio_pages(struct mbuf *mr, struct uio *uiop, int siz, bool from_pages)
 			uiop->uio_offset += xfer;
 			uiop->uio_resid -= xfer;
 		}
-		if (uiop->uio_iov->iov_len <= siz) {
-			uiop->uio_iovcnt--;
-			uiop->uio_iov++;
-		} else {
-			uiop->uio_iov->iov_base = (void *)
-				((char *)uiop->uio_iov->iov_base + uiosiz);
-			uiop->uio_iov->iov_len -= uiosiz;
-		}
+		uiop->uio_iov->iov_base = (void *)
+			((char *)uiop->uio_iov->iov_base + uiosiz);
+		uiop->uio_iov->iov_len -= uiosiz;
 		siz -= uiosiz;
 	}
 	return (0);

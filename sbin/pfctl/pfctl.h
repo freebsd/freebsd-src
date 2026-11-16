@@ -115,8 +115,6 @@ int	 pfr_set_addrs(struct pfr_table *, struct pfr_addr *, int,
 int	 pfr_get_addrs(struct pfr_table *, struct pfr_addr *, int *, int);
 int	 pfr_get_astats(struct pfr_table *, struct pfr_astats *, int *, int);
 int	 pfr_tst_addrs(struct pfr_table *, struct pfr_addr *, int, int *, int);
-int	 pfr_ina_define(struct pfr_table *, struct pfr_addr *, int, int *,
-	    int *, int, int);
 void	 pfr_buf_clear(struct pfr_buffer *);
 int	 pfr_buf_add(struct pfr_buffer *, const void *);
 void	*pfr_buf_next(struct pfr_buffer *, const void *);
@@ -172,10 +170,6 @@ void	 print_seq(struct pfctl_state_peer *);
 void	 print_state(struct pfctl_state *, int);
 
 int	 pfctl_cmdline_symset(char *);
-int	 pfctl_add_trans(struct pfr_buffer *, int, const char *);
-u_int32_t
-	 pfctl_get_ticket(struct pfr_buffer *, int, const char *);
-int	 pfctl_trans(int, struct pfr_buffer *, u_long, int);
 
 int	 pf_get_ruleset_number(u_int8_t);
 void	 pf_init_ruleset(struct pfctl_ruleset *);

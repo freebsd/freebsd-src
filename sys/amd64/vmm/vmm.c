@@ -884,6 +884,65 @@ done:
 	return (0);
 }
 
+/*
+ * In-kernel MMIO devices.  A MOVS can have its operands in different
+ * devices, so each access is dispatched using its own GPA.
+ */
+struct vm_mmio_device {
+	uint64_t		base;
+	uint64_t		size;
+	mem_region_read_t	read;
+	mem_region_write_t	write;
+};
+
+static const struct vm_mmio_device vm_mmio_devices[] = {
+	{ DEFAULT_APIC_BASE, PAGE_SIZE, lapic_mmio_read, lapic_mmio_write },
+	{ VIOAPIC_BASE, VIOAPIC_SIZE, vioapic_mmio_read, vioapic_mmio_write },
+	{ VHPET_BASE, VHPET_SIZE, vhpet_mmio_read, vhpet_mmio_write },
+};
+
+static const struct vm_mmio_device *
+vm_mmio_lookup(uint64_t gpa)
+{
+	size_t i;
+
+	for (i = 0; i < nitems(vm_mmio_devices); i++) {
+		/*
+		 * Match only the starting GPA, as before.  The device handlers
+		 * determine how to handle the access size, alignment and offset;
+		 * a full-range check here could reject accesses they would ignore.
+		 */
+		if (gpa >= vm_mmio_devices[i].base &&
+		    gpa - vm_mmio_devices[i].base < vm_mmio_devices[i].size)
+			return (&vm_mmio_devices[i]);
+	}
+	return (NULL);
+}
+
+static int
+vm_mmio_read(struct vcpu *vcpu, uint64_t gpa, uint64_t *rval, int size,
+    void *arg)
+{
+	const struct vm_mmio_device *dev;
+
+	dev = vm_mmio_lookup(gpa);
+	if (dev == NULL)
+		return (EINVAL);
+	return (dev->read(vcpu, gpa, rval, size, arg));
+}
+
+static int
+vm_mmio_write(struct vcpu *vcpu, uint64_t gpa, uint64_t wval, int size,
+    void *arg)
+{
+	const struct vm_mmio_device *dev;
+
+	dev = vm_mmio_lookup(gpa);
+	if (dev == NULL)
+		return (EINVAL);
+	return (dev->write(vcpu, gpa, wval, size, arg));
+}
+
 static int
 vm_handle_inst_emul(struct vcpu *vcpu, bool *retu)
 {
@@ -891,8 +950,6 @@ vm_handle_inst_emul(struct vcpu *vcpu, bool *retu)
 	struct vm_exit *vme;
 	uint64_t gla, gpa, cs_base;
 	struct vm_guest_paging *paging;
-	mem_region_read_t mread;
-	mem_region_write_t mwrite;
 	enum vm_cpu_mode cpu_mode;
 	int cs_d, error, fault;
 
@@ -940,22 +997,13 @@ vm_handle_inst_emul(struct vcpu *vcpu, bool *retu)
 	    vcpu->nextrip);
 
 	/* return to userland unless this is an in-kernel emulated device */
-	if (gpa >= DEFAULT_APIC_BASE && gpa < DEFAULT_APIC_BASE + PAGE_SIZE) {
-		mread = lapic_mmio_read;
-		mwrite = lapic_mmio_write;
-	} else if (gpa >= VIOAPIC_BASE && gpa < VIOAPIC_BASE + VIOAPIC_SIZE) {
-		mread = vioapic_mmio_read;
-		mwrite = vioapic_mmio_write;
-	} else if (gpa >= VHPET_BASE && gpa < VHPET_BASE + VHPET_SIZE) {
-		mread = vhpet_mmio_read;
-		mwrite = vhpet_mmio_write;
-	} else {
+	if (vm_mmio_lookup(gpa) == NULL) {
 		*retu = true;
 		return (0);
 	}
 
-	error = vmm_emulate_instruction(vcpu, gpa, vie, paging, mread, mwrite,
-	    retu);
+	error = vmm_emulate_instruction(vcpu, gpa, vie, paging,
+	    vm_mmio_read, vm_mmio_write, retu);
 
 	return (error);
 }

@@ -192,9 +192,9 @@ struct rfb_pixfmt_msg {
 
 #define	RFB_CLIENTMSG_EXT_KEYEVENT	0
 
-#define	RFB_MAX_WIDTH			2000
-#define	RFB_MAX_HEIGHT			1200
-#define	RFB_ZLIB_BUFSZ			RFB_MAX_WIDTH*RFB_MAX_HEIGHT*4
+#define	RFB_MAX_WIDTH			GC_COLS_MAX
+#define	RFB_MAX_HEIGHT			GC_ROWS_MAX
+#define	RFB_ZLIB_BUFSZ			(RFB_MAX_WIDTH * RFB_MAX_HEIGHT * 4)
 
 #define PIXEL_RED_SHIFT		16
 #define PIXEL_GREEN_SHIFT	8
@@ -1463,8 +1463,6 @@ rfb_init(sa_family_t family, const char *hostname, int port, int wait,
 	return (0);
 
  error:
-	if (rc->pixfmt_mtx)
-		pthread_mutex_destroy(&rc->pixfmt_mtx);
 	if (ai != NULL) {
 		assert(family != AF_UNIX);
 		freeaddrinfo(ai);

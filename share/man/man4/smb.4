@@ -162,6 +162,22 @@ The count is returned in
 .Fa rcount .
 The data is returned in the buffer pointed to by
 .Fa rbuf .
+.It Dv SMB_BPCALL Ta
+.Em BlockProcessCall
+first sends the byte from
+.Fa cmd
+to the device, followed by the byte from
+.Fa wcount
+and then
+.Fa wcount
+bytes of data from the buffer pointed to by
+.Fa wbuf .
+It then reads a count of data bytes from the device followed
+by that many bytes of data.
+The read count is returned in
+.Fa rcount .
+The data is returned in the buffer pointed to by
+.Fa rbuf .
 .El
 .Pp
 The

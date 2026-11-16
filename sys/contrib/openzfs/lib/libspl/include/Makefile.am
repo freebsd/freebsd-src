@@ -2,13 +2,11 @@
 libspldir = $(includedir)/libspl
 libspl_HEADERS = \
 	%D%/assert.h \
-	%D%/atomic.h \
 	%D%/libgen.h \
 	%D%/libspl.h \
 	%D%/statcommon.h \
 	%D%/stdlib.h \
 	%D%/string.h \
-	%D%/umem.h \
 	%D%/unistd.h \
 	%D%/zone.h
 
@@ -28,36 +26,30 @@ libspl_sys_HEADERS = \
 	%D%/sys/acl.h \
 	%D%/sys/acl_impl.h \
 	%D%/sys/asm_linkage.h \
+	%D%/sys/atomic.h \
 	%D%/sys/backtrace.h \
 	%D%/sys/callb.h \
 	%D%/sys/cmn_err.h \
 	%D%/sys/condvar.h \
 	%D%/sys/cred.h \
 	%D%/sys/debug.h \
-	%D%/sys/dkio.h \
-	%D%/sys/dklabel.h \
 	%D%/sys/feature_tests.h \
-	%D%/sys/inttypes.h \
 	%D%/sys/isa_defs.h \
 	%D%/sys/kmem.h \
+	%D%/sys/kmem_cache.h \
 	%D%/sys/kstat.h \
 	%D%/sys/list.h \
 	%D%/sys/list_impl.h \
 	%D%/sys/misc.h \
-	%D%/sys/mhd.h \
-	%D%/sys/mkdev.h \
 	%D%/sys/mod.h \
 	%D%/sys/mutex.h \
 	%D%/sys/policy.h \
-	%D%/sys/poll.h \
-	%D%/sys/priv.h \
 	%D%/sys/processor.h \
 	%D%/sys/procfs_list.h \
 	%D%/sys/random.h \
 	%D%/sys/rwlock.h \
 	%D%/sys/sid.h \
 	%D%/sys/simd.h \
-	%D%/sys/stack.h \
 	%D%/sys/stdtypes.h \
 	%D%/sys/string.h \
 	%D%/sys/sunddi.h \
@@ -74,6 +66,7 @@ libspl_sys_HEADERS = \
 	%D%/sys/types.h \
 	%D%/sys/types32.h \
 	%D%/sys/uio.h \
+	%D%/sys/vmem.h \
 	%D%/sys/vnode.h \
 	%D%/sys/wmsum.h \
 	%D%/sys/zone.h
@@ -108,9 +101,3 @@ libspl_sys_HEADERS += \
 libspl_ia32_HEADERS = \
 	%D%/os/freebsd/sys/ia32/asm_linkage.h
 endif
-
-
-libspl_sys_dktpdir = $(libspl_sysdir)/dktp
-libspl_sys_dktp_HEADERS = \
-	%D%/sys/dktp/fdisk.h
-

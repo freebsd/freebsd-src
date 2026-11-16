@@ -178,6 +178,7 @@ static const pci_vendor_info_t ixgbe_vendor_info_array[] =
 };
 
 static void *ixgbe_register(device_t);
+static int  ixgbe_attach(device_t);
 static int  ixgbe_if_attach_pre(if_ctx_t);
 static int  ixgbe_if_attach_post(if_ctx_t);
 static int  ixgbe_if_detach(if_ctx_t);
@@ -307,6 +308,9 @@ static u32  ixgbe_handle_fw_event(void *);
 static int ixgbe_enable_lse(struct ixgbe_softc *sc);
 static int ixgbe_disable_lse(struct ixgbe_softc *sc);
 
+static void ixgbe_cache_ldo_policy(struct ixgbe_softc *sc);
+static void ixgbe_apply_ldo_link_state(struct ixgbe_softc *sc, bool link_up);
+
 /************************************************************************
  *  FreeBSD Device Interface Entry Points
  ************************************************************************/
@@ -314,7 +318,7 @@ static device_method_t ix_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_register, ixgbe_register),
 	DEVMETHOD(device_probe, iflib_device_probe),
-	DEVMETHOD(device_attach, iflib_device_attach),
+	DEVMETHOD(device_attach, ixgbe_attach),
 	DEVMETHOD(device_detach, iflib_device_detach),
 	DEVMETHOD(device_shutdown, iflib_device_shutdown),
 	DEVMETHOD(device_suspend, iflib_device_suspend),
@@ -360,6 +364,66 @@ ixgbe_device_iov_init(device_t dev, uint16_t num_vfs,
 	return (iflib_device_iov_init_restart(dev, num_vfs, params));
 }
 #endif
+
+/************************************************************************
+ * ixgbe_cache_ldo_policy
+ ************************************************************************/
+static void
+ixgbe_cache_ldo_policy(struct ixgbe_softc *sc)
+{
+	struct ixgbe_link_default_override_tlv ldo = {0};
+	struct ixgbe_hw *hw = &sc->hw;
+	s32 error;
+
+	sc->ldo_valid = false;
+	sc->ldo_port_disabled = false;
+
+	/* Link Default Override uses the E610-only Admin Command Interface. */
+	if (hw->mac.type != ixgbe_mac_E610)
+		return;
+
+	error = ixgbe_get_link_default_override(hw, &ldo);
+	if (error) {
+		device_printf(sc->dev,
+		    "Failed to read E610 Link Default Override TLV, error: %d\n",
+		    error);
+		return;
+	}
+
+	sc->ldo_valid = true;
+	sc->ldo_port_disabled =
+	    !!(ldo.link_options & IXGBE_LINK_OVERRIDE_PORT_DIS);
+} /* ixgbe_cache_ldo_policy */
+
+/************************************************************************
+ * ixgbe_apply_ldo_link_state
+ ************************************************************************/
+static void
+ixgbe_apply_ldo_link_state(struct ixgbe_softc *sc, bool link_up)
+{
+	struct ixgbe_hw *hw = &sc->hw;
+	s32 error;
+
+	if (!sc->ldo_valid || !sc->ldo_port_disabled)
+		return;
+
+	error = ixgbe_force_link_state(hw, link_up);
+	if (!error)
+		return;
+
+	if (!link_up && error == IXGBE_ERR_ACI_ERROR &&
+	    hw->aci.last_status == IXGBE_ACI_RC_EMODE) {
+		device_printf(sc->dev,
+		    "Firmware vetoed link shutdown, "
+		    "last ACI status: %d\n", hw->aci.last_status);
+		return;
+	}
+
+	device_printf(sc->dev,
+	    "Failed to force link %s, error: %d, "
+	    "last aci status: %d\n", link_up ? "up" : "down", error,
+	    hw->aci.last_status);
+} /* ixgbe_apply_ldo_link_state */
 
 static device_method_t ixgbe_if_methods[] = {
 	DEVMETHOD(ifdi_attach_pre, ixgbe_if_attach_pre),
@@ -1089,6 +1153,24 @@ ixgbe_register(device_t dev)
 } /* ixgbe_register */
 
 /************************************************************************
+ * ixgbe_attach - Device attach entry point
+ *
+ *   The MDIO bus children are attached here rather than in
+ *   ixgbe_if_attach_post(): their register accesses take the iflib
+ *   context lock, which iflib holds across IFDI_ATTACH_POST.
+ ************************************************************************/
+static int
+ixgbe_attach(device_t dev)
+{
+	int error;
+
+	error = iflib_device_attach(dev);
+	if (error == 0)
+		ixgbe_mdio_attach(iflib_get_softc(device_get_softc(dev)));
+	return (error);
+} /* ixgbe_attach */
+
+/************************************************************************
  * ixgbe_if_attach_pre - Device initialization routine, part 1
  *
  *   Called when the driver is being loaded.
@@ -1175,6 +1257,7 @@ ixgbe_if_attach_pre(if_ctx_t ctx)
 		hw->phy.smart_speed = ixgbe_smart_speed;
 
 	ixgbe_init_device_features(sc);
+	ixgbe_cache_ldo_policy(sc);
 
 	/* Verify adapter fan is still functional (if applicable) */
 	if (sc->feat_en & IXGBE_FEATURE_FAN_FAIL) {
@@ -1187,7 +1270,7 @@ ixgbe_if_attach_pre(if_ctx_t ctx)
 
 	/* Enable EEE power saving */
 	if (sc->feat_en & IXGBE_FEATURE_EEE)
-		hw->mac.ops.setup_eee(hw, true);
+		ixgbe_setup_eee(hw, true);
 
 	/* Set an initial default flow control value */
 	hw->fc.requested_mode = ixgbe_flow_control;
@@ -1394,9 +1477,6 @@ ixgbe_if_attach_post(if_ctx_t ctx)
 
 	/* Add sysctls */
 	ixgbe_add_device_sysctls(ctx);
-
-	/* Add MDIO bus if required / supported */
-	ixgbe_mdio_attach(sc);
 
 	/* Init recovery mode timer and state variable */
 	if (sc->feat_en & IXGBE_FEATURE_RECOVERY_MODE) {
@@ -2061,9 +2141,14 @@ ixgbe_config_link(if_ctx_t ctx)
 				    "error: %d", err);
 		}
 
-		if (hw->mac.ops.setup_link)
+		if (hw->mac.ops.setup_link) {
 			err = hw->mac.ops.setup_link(hw, autoneg,
 			    sc->link_up);
+			if (err)
+				return;
+		}
+
+		ixgbe_apply_ldo_link_state(sc, true);
 	}
 } /* ixgbe_config_link */
 
@@ -2209,7 +2294,6 @@ ixgbe_update_stats_counters(struct ixgbe_softc *sc)
 	 * Aggregate following types of errors as RX errors:
 	 * - CRC error count,
 	 * - illegal byte error count,
-	 * - missed packets count,
 	 * - length error count,
 	 * - undersized packets count,
 	 * - fragmented packets count,
@@ -2217,7 +2301,7 @@ ixgbe_update_stats_counters(struct ixgbe_softc *sc)
 	 * - jabber count.
 	 */
 	IXGBE_SET_IERRORS(sc, stats->crcerrs + stats->illerrc +
-	    stats->mpctotal + stats->rlec + stats->ruc + stats->rfc +
+	    stats->rlec + stats->ruc + stats->rfc +
 	    stats->roc + stats->rjc);
 } /* ixgbe_update_stats_counters */
 
@@ -3730,6 +3814,20 @@ ixgbe_add_debug_sysctls(struct ixgbe_softc *sc)
 
 	if (sc->feat_en & IXGBE_FEATURE_FW_LOGGING)
 		ixgbe_add_fw_logging_tunables(sc, sc->debug_sysctls);
+
+	if (sc->hw.mac.type == ixgbe_mac_E610) {
+		struct sysctl_oid_list *debug_list;
+		debug_list = SYSCTL_CHILDREN(sc->debug_sysctls);
+
+		SYSCTL_ADD_BOOL(ctx, debug_list, OID_AUTO, "ldo_valid",
+		    CTLFLAG_RD, &sc->ldo_valid, 0,
+		    "E610 Link Default Override policy valid");
+
+		SYSCTL_ADD_BOOL(ctx, debug_list, OID_AUTO,
+		    "ldo_port_disabled", CTLFLAG_RD, &sc->ldo_port_disabled,
+		    0, "E610 Link Default Override PORT_DIS set");
+	}
+
 } /* ixgbe_add_debug_sysctls */
 
 /************************************************************************
@@ -5120,6 +5218,8 @@ ixgbe_if_stop(if_ctx_t ctx)
 		iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
 		sc->link_active = false;
 	}
+	ixgbe_if_update_admin_status(ctx);
+	ixgbe_apply_ldo_link_state(sc, false);
 
 	/* reprogram the RAR[0] in case user changed it. */
 	ixgbe_set_rar(&sc->hw, 0, sc->hw.mac.addr, 0, IXGBE_RAH_AV);
@@ -6332,8 +6432,6 @@ ixgbe_init_device_features(struct ixgbe_softc *sc)
 		sc->feat_cap |= IXGBE_FEATURE_RECOVERY_MODE;
 		sc->feat_cap |= IXGBE_FEATURE_SRIOV;
 		sc->feat_cap |= IXGBE_FEATURE_FDIR;
-		if (sc->hw.device_id == IXGBE_DEV_ID_X550EM_X_KR)
-			sc->feat_cap |= IXGBE_FEATURE_EEE;
 		break;
 	case ixgbe_mac_X550EM_a:
 		sc->feat_cap |= IXGBE_FEATURE_RECOVERY_MODE;

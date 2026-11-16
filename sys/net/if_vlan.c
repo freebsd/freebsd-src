@@ -1569,8 +1569,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 		 */
 		switch (ifp->if_type) {
 		case IFT_ETHER:
-			if (m->m_len < sizeof(*evl) &&
-			    (m = m_pullup(m, sizeof(*evl))) == NULL) {
+			if ((m = m_pullup(m, sizeof(*evl))) == NULL) {
 				if_printf(ifp, "cannot pullup VLAN header\n");
 				return;
 			}

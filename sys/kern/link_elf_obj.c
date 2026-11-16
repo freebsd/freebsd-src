@@ -341,6 +341,46 @@ link_elf_protect(elf_file_t ef)
 }
 
 static int
+link_elf_obj_check_symtab(elf_file_t ef, const char *filename)
+{
+	const Elf_Sym *symp;
+	long i;
+
+	if (ef->ddbstrcnt == 0 || ef->ddbstrtab[ef->ddbstrcnt - 1] != '\0') {
+		link_elf_error(filename, "corrupt symbol string table");
+		return (ENOEXEC);
+	}
+	for (i = 0, symp = ef->ddbsymtab; i < ef->ddbsymcnt; i++, symp++) {
+		if (symp->st_name >= ef->ddbstrcnt) {
+			link_elf_error(filename, "corrupt symbol name offset");
+			return (ENOEXEC);
+		}
+	}
+	return (0);
+}
+
+static int
+link_elf_obj_check_shstrtab(elf_file_t ef, const Elf_Shdr *shdr, int shnum,
+    const char *filename)
+{
+	int i;
+
+	if (ef->shstrtab == NULL)
+		return (0);
+	if (ef->shstrcnt == 0 || ef->shstrtab[ef->shstrcnt - 1] != '\0') {
+		link_elf_error(filename, "corrupt section name string table");
+		return (ENOEXEC);
+	}
+	for (i = 0; i < shnum; i++) {
+		if (shdr[i].sh_name >= ef->shstrcnt) {
+			link_elf_error(filename, "corrupt section name offset");
+			return (ENOEXEC);
+		}
+	}
+	return (0);
+}
+
+static int
 link_elf_link_preload(linker_class_t cls, const char *filename,
     linker_file_t *result)
 {
@@ -397,6 +437,14 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 	symtabindex = -1;
 	symstrindex = -1;
 	for (i = 0; i < hdr->e_shnum; i++) {
+		if ((shdr[i].sh_type == SHT_REL ||
+		    shdr[i].sh_type == SHT_RELA) &&
+		    shdr[i].sh_info >= hdr->e_shnum) {
+			link_elf_error(filename,
+			    "file has an invalid relocation section");
+			error = ENOEXEC;
+			goto out;
+		}
 		switch (shdr[i].sh_type) {
 		case SHT_PROGBITS:
 		case SHT_NOBITS:
@@ -475,8 +523,14 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 	ef->ddbsymtab = (Elf_Sym *)shdr[symtabindex].sh_addr;
 	ef->ddbstrcnt = shdr[symstrindex].sh_size;
 	ef->ddbstrtab = (char *)shdr[symstrindex].sh_addr;
+	error = link_elf_obj_check_symtab(ef, filename);
+	if (error != 0)
+		goto out;
 	ef->shstrcnt = shdr[shstrindex].sh_size;
 	ef->shstrtab = (char *)shdr[shstrindex].sh_addr;
+	error = link_elf_obj_check_shstrtab(ef, shdr, hdr->e_shnum, filename);
+	if (error != 0)
+		goto out;
 
 	/* Now fill out progtab and the relocation tables. */
 	pb = 0;
@@ -836,6 +890,14 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	for (i = 0; i < hdr->e_shnum; i++) {
 		if (shdr[i].sh_size == 0)
 			continue;
+		if ((shdr[i].sh_type == SHT_REL ||
+		    shdr[i].sh_type == SHT_RELA) &&
+		    shdr[i].sh_info >= hdr->e_shnum) {
+			link_elf_error(filename,
+			    "file has an invalid relocation section");
+			error = ENOEXEC;
+			goto out;
+		}
 		switch (shdr[i].sh_type) {
 		case SHT_PROGBITS:
 		case SHT_NOBITS:
@@ -883,7 +945,7 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		error = ENOEXEC;
 		goto out;
 	}
-	if (symstrindex < 0 || symstrindex > hdr->e_shnum ||
+	if (symstrindex < 0 || symstrindex >= hdr->e_shnum ||
 	    shdr[symstrindex].sh_type != SHT_STRTAB) {
 		link_elf_error(filename, "file has invalid symbol strings");
 		error = ENOEXEC;
@@ -933,8 +995,17 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		error = EINVAL;
 		goto out;
 	}
+	error = link_elf_obj_check_symtab(ef, filename);
+	if (error != 0)
+		goto out;
 
 	/* Do we have a string table for the section names?  */
+	if (hdr->e_shstrndx >= hdr->e_shnum) {
+		link_elf_error(filename,
+		    "file has an invalid section name string table");
+		error = ENOEXEC;
+		goto out;
+	}
 	shstrindex = -1;
 	if (hdr->e_shstrndx != 0 &&
 	    shdr[hdr->e_shstrndx].sh_type == SHT_STRTAB) {
@@ -953,6 +1024,9 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 			goto out;
 		}
 	}
+	error = link_elf_obj_check_shstrtab(ef, shdr, hdr->e_shnum, filename);
+	if (error != 0)
+		goto out;
 
 	/* Size up code/data(progbits) and bss(nobits). */
 	alignmask = 0;
@@ -1333,12 +1407,16 @@ link_elf_unload_file(linker_file_t file)
 		return;
 	}
 
-	for (i = 0; i < ef->nreltab; i++)
-		free(ef->reltab[i].rel, M_LINKER);
-	for (i = 0; i < ef->nrelatab; i++)
-		free(ef->relatab[i].rela, M_LINKER);
-	free(ef->reltab, M_LINKER);
-	free(ef->relatab, M_LINKER);
+	if (ef->reltab != NULL) {
+		for (i = 0; i < ef->nreltab; i++)
+			free(ef->reltab[i].rel, M_LINKER);
+		free(ef->reltab, M_LINKER);
+	}
+	if (ef->relatab != NULL) {
+		for (i = 0; i < ef->nrelatab; i++)
+			free(ef->relatab[i].rela, M_LINKER);
+		free(ef->relatab, M_LINKER);
+	}
 	free(ef->progtab, M_LINKER);
 
 	if (ef->object != NULL)

@@ -601,7 +601,7 @@ rt_maskedcopy(const struct sockaddr *src, struct sockaddr *dst,
 	while (cp2 < cplim)
 		*cp2++ = *cp1++ & *cp3++;
 	if (cp2 < cplim2)
-		bzero((caddr_t)cp2, (unsigned)(cplim2 - cp2));
+		bzero(cp2, (unsigned)(cplim2 - cp2));
 }
 
 /*

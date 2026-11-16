@@ -1,3 +1,5 @@
+.include <src.opts.mk>
+
 .PATH: ${SRCTOP}/lib/libc/gen		# for pw_scan.c
 
 PACKAGE=	runtime
@@ -9,5 +11,8 @@ CFLAGS+= -I${SRCTOP}/lib/libc/gen		# for pw_scan.h
 .if defined(BOOTSTRAPPING)
 CFLAGS+=-I${.CURDIR}/bootstrap
 .endif
+
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

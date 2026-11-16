@@ -245,6 +245,13 @@ rtld_lock_t	rtld_libc_lock = &rtld_locks[1];
 rtld_lock_t	rtld_phdr_lock = &rtld_locks[2];
 
 void
+lockstate_init(RtldLockState *lockstate)
+{
+	memset(lockstate, 0, sizeof(*lockstate));
+	TAILQ_INIT(&lockstate->donelists);
+}
+
+void
 rlock_acquire(rtld_lock_t lock, RtldLockState *lockstate)
 {
 
@@ -324,6 +331,12 @@ lock_restart_for_upgrade(RtldLockState *lockstate)
 	default:
 		assert(0);
 	}
+}
+
+bool
+lockstate_rlocked(const RtldLockState *lockstate)
+{
+	return (lockstate->lockstate == RTLD_LOCK_RLOCKED);
 }
 
 bool
@@ -469,7 +482,8 @@ _rtld_atfork_pre(int *locks)
 
 	if (locks == NULL)
 		return;
-	bzero(ls, sizeof(ls));
+	lockstate_init(&ls[0]);
+	lockstate_init(&ls[1]);
 
 	/*
 	 * Warning: this did not worked well with the rtld compat
@@ -495,8 +509,9 @@ _rtld_atfork_post(int *locks)
 
 	if (locks == NULL)
 		return;
+	lockstate_init(&ls[0]);
+	lockstate_init(&ls[1]);
 
-	bzero(ls, sizeof(ls));
 	ls[0].lockstate = locks[2];
 	ls[1].lockstate = locks[0];
 	lock_release(rtld_bind_lock, &ls[1]);

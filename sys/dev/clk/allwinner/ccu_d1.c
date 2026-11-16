@@ -200,7 +200,7 @@ NP_CLK(pll_cpux_clk,
     "pll_cpux",					/* name */
     pll_cpux_parents,				/* parents */
     0x0,					/* offset */
-    8, 8, 0, 0,					/* n factor */
+    8, 8, 0, 0, 0,				/* n factor */
     0, 2, 0, 0,					/* p factor */
     27,						/* gate */
     28, 1000,					/* lock */
@@ -212,7 +212,7 @@ NMM_CLK(pll_ddr0_clk,
     "pll_ddr0",					/* name */
      pll_ddr0_parents,				/* parents */
     0x10,					/* offset */
-    8, 7, 0, 0,					/* n factor */
+    8, 7, 0, 0, 0,				/* n factor */
     0, 1, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     27,						/* gate */
@@ -226,7 +226,7 @@ NMM_CLK(pll_periph0_4x_clk,
     "pll_periph0_4x",				/* name */
     pll_periph0_4x_parents,			/* parents */
     0x20,					/* offset */
-    8, 8, 0, 0,					/* n factor */
+    8, 8, 0, 0, 0,				/* n factor */
     0, 1, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     27,						/* gate */
@@ -275,7 +275,7 @@ NP_CLK(pll_video0_clk,
     "pll_video0",				/* name */
     pll_video0_parents,				/* parents */
     0x40,					/* offset */
-    8, 7, 0, 0,					/* n factor */
+    8, 7, 0, 0, 0,				/* n factor */
     1, 1, 0, 0,					/* p factor */
     27,						/* gate */
     28, 1000,					/* lock */
@@ -312,7 +312,7 @@ NP_CLK(pll_video1_clk,
     "pll_video1", 				/* name */
     pll_video1_parents,				/* parents */
     0x48,					/* offset */
-    8, 7, 0, 0,					/* n factor */
+    8, 7, 0, 0, 0,				/* n factor */
     1, 1, 0, 0,					/* p factor */
     27,						/* gate */
     28, 1000,					/* lock */
@@ -348,7 +348,7 @@ NMM_CLK(pll_ve_clk,
     "pll_ve",					/* name */
     pll_ve_parents,				/* parents */
     0x58,					/* offset */
-    8, 7, 0, 0,					/* n factor */
+    8, 7, 0, 0, 0,				/* n factor */
     0, 1, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     27,						/* gate */
@@ -362,7 +362,7 @@ NMM_CLK(pll_audio0_4x_clk,
     "pll_audio0_4x",				/* name */
     pll_audio0_4x_parents,			/* parents */
     0x78,					/* offset */
-    8, 7, 0, 0,					/* n factor */
+    8, 7, 0, 0, 0,				/* n factor */
     0, 1, 0, 0,					/* m0 factor */
     1, 1, 0, 0,					/* m1 factor */
     27,						/* gate */
@@ -398,7 +398,7 @@ NP_CLK(pll_audio1_clk,
     "pll_audio1", 				/* name */
     pll_audio1_parents,				/* parents */
     0x80,					/* offset */
-    8, 7, 0, 0,					/* n factor */
+    8, 7, 0, 0, 0,				/* n factor */
     1, 1, 0, 0,					/* p factor */
     27,						/* gate */
     28, 1000,					/* lock */
@@ -1018,6 +1018,23 @@ static struct aw_ccung_clk ccu_d1_clks[] = {
 	{ .type = AW_CLK_DIV,	.clk.div	= &riscv_axi_clk},
 };
 
+/*
+ * Registers of the PLLs, the lock status bit of a PLL is only updated when
+ * its lock enable bit is set.
+ */
+#define	PLL_LOCK_ENABLE		(1 << 29)
+
+static const bus_size_t d1_pll_regs[] = {
+	0x00,	/* PLL_CPUX */
+	0x10,	/* PLL_DDR0 */
+	0x20,	/* PLL_PERIPH0 */
+	0x40,	/* PLL_VIDEO0 */
+	0x48,	/* PLL_VIDEO1 */
+	0x58,	/* PLL_VE */
+	0x78,	/* PLL_AUDIO0 */
+	0x80,	/* PLL_AUDIO1 */
+};
+
 static int
 ccu_d1_probe(device_t dev)
 {
@@ -1035,6 +1052,8 @@ static int
 ccu_d1_attach(device_t dev)
 {
 	struct aw_ccung_softc *sc;
+	uint32_t val;
+	int error, i;
 
 	sc = device_get_softc(dev);
 
@@ -1045,7 +1064,20 @@ ccu_d1_attach(device_t dev)
 	sc->clks = ccu_d1_clks;
 	sc->nclks = nitems(ccu_d1_clks);
 
-	return (aw_ccung_attach(dev));
+	error = aw_ccung_attach(dev);
+	if (error != 0)
+		return (error);
+
+	/*
+	 * Only the PLLs used by the firmware have the lock enable bit set,
+	 * set it for all of them so that we can wait for them to lock.
+	 */
+	for (i = 0; i < nitems(d1_pll_regs); i++) {
+		val = bus_read_4(sc->res, d1_pll_regs[i]);
+		bus_write_4(sc->res, d1_pll_regs[i], val | PLL_LOCK_ENABLE);
+	}
+
+	return (0);
 }
 
 static device_method_t ccu_d1_methods[] = {

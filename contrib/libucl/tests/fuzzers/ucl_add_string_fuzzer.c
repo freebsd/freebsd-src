@@ -17,6 +17,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 	ucl_parser_add_string(parser, (char *)data, size);
 	
 	if (ucl_parser_get_error(parser) != NULL) {
+		ucl_parser_free (parser);
 		return 0;
 	}
 

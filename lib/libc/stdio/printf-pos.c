@@ -337,9 +337,48 @@ reswitch:	switch (ch) {
 		case 't':
 			flags |= PTRDIFFT;
 			goto rflag;
+		case 'w':
+			flags &= ~(CHARINT|SHORTINT|LONGINT|LLONGINT|INTMAXT);
+			if (fmt[0] == 'f') {
+				flags |= FASTINT;
+				fmt++;
+			} else {
+				flags &= ~FASTINT;
+			}
+			if (fmt[0] == '8') {
+				if (!(flags & FASTINT))
+					flags |= CHARINT;
+				else
+					/* no flag set = 32 */ ;
+				fmt += 1;
+			} else if (fmt[0] == '1' && fmt[1] == '6') {
+				if (!(flags & FASTINT))
+					flags |= SHORTINT;
+				else
+					/* no flag set = 32 */ ;
+				fmt += 2;
+			} else if (fmt[0] == '3' && fmt[1] == '2') {
+				/* no flag set = 32 */ ;
+				fmt += 2;
+			} else if (fmt[0] == '6' && fmt[1] == '4') {
+				flags |= LLONGINT;
+				fmt += 2;
+			} else {
+				if (flags & FASTINT) {
+					flags &= ~FASTINT;
+					fmt--;
+				}
+				break;
+			}
+			goto rflag;
 		case 'z':
 			flags |= SIZET;
 			goto rflag;
+		case 'B':
+		case 'b':
+			if ((error = adduarg(&types, flags)))
+				goto error;
+			break;
 		case 'C':
 			flags |= LONGINT;
 			/*FALLTHROUGH*/
@@ -357,13 +396,14 @@ reswitch:	switch (ch) {
 			if ((error = addsarg(&types, flags)))
 				goto error;
 			break;
-		case 'a':
 		case 'A':
-		case 'e':
+		case 'a':
 		case 'E':
+		case 'e':
+		case 'F':
 		case 'f':
-		case 'g':
 		case 'G':
+		case 'g':
 			error = addtype(&types,
 			    (flags & LONGDBL) ? T_LONG_DOUBLE : T_DOUBLE);
 			if (error)
@@ -526,9 +566,48 @@ reswitch:	switch (ch) {
 		case 't':
 			flags |= PTRDIFFT;
 			goto rflag;
+		case 'w':
+			flags &= ~(CHARINT|SHORTINT|LONGINT|LLONGINT|INTMAXT);
+			if (fmt[0] == 'f') {
+				flags |= FASTINT;
+				fmt++;
+			} else {
+				flags &= ~FASTINT;
+			}
+			if (fmt[0] == '8') {
+				if (!(flags & FASTINT))
+					flags |= CHARINT;
+				else
+					/* no flag set = 32 */ ;
+				fmt += 1;
+			} else if (fmt[0] == '1' && fmt[1] == '6') {
+				if (!(flags & FASTINT))
+					flags |= SHORTINT;
+				else
+					/* no flag set = 32 */ ;
+				fmt += 2;
+			} else if (fmt[0] == '3' && fmt[1] == '2') {
+				/* no flag set = 32 */ ;
+				fmt += 2;
+			} else if (fmt[0] == '6' && fmt[1] == '4') {
+				flags |= LLONGINT;
+				fmt += 2;
+			} else {
+				if (flags & FASTINT) {
+					flags &= ~FASTINT;
+					fmt--;
+				}
+				break;
+			}
+			goto rflag;
 		case 'z':
 			flags |= SIZET;
 			goto rflag;
+		case 'B':
+		case 'b':
+			if ((error = adduarg(&types, flags)))
+				goto error;
+			break;
 		case 'C':
 			flags |= LONGINT;
 			/*FALLTHROUGH*/
@@ -546,13 +625,14 @@ reswitch:	switch (ch) {
 			if ((error = addsarg(&types, flags)))
 				goto error;
 			break;
-		case 'a':
 		case 'A':
-		case 'e':
+		case 'a':
 		case 'E':
+		case 'e':
+		case 'F':
 		case 'f':
-		case 'g':
 		case 'G':
+		case 'g':
 			error = addtype(&types,
 			    (flags & LONGDBL) ? T_LONG_DOUBLE : T_DOUBLE);
 			if (error)

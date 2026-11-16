@@ -18,6 +18,8 @@ date \- show and set date and time
 \fR[\fIyyyy\fR]\fImmddhhmm\fR[\fIyy\fR][\fB.\fIss\fR]
 ]
 .SH DESCRIPTION
+.ie '\(en'' .ds en \-
+.el .ds en \(en
 .ie '\(lq'' .ds lq \&"\"
 .el .ds lq \(lq\"
 .ie '\(rq'' .ds rq \&"\"
@@ -77,6 +79,6 @@ hexadecimal (leading 0x), preceded by an optional sign.
 .br
 /usr/share/zoneinfo	timezone directory
 .br
-/usr/share/zoneinfo/Etc/UTC	for UTC leap seconds, if supported
+/usr/share/zoneinfo/Etc/UTC	for leap seconds (1972\*(en2016), if supported
 .SH SEE ALSO
 .BR strftime (3).

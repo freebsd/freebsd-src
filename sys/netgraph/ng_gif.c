@@ -463,10 +463,8 @@ ng_gif_rcv_lower(node_p node, struct mbuf *m)
 		NG_FREE_M(m);
 		return (EINVAL);
 	}
-	if (m->m_len < sizeof(sa_family_t)
-	    && (m = m_pullup(m, sizeof(sa_family_t))) == NULL) {
+	if ((m = m_pullup(m, sizeof(sa_family_t))) == NULL)
 		return (ENOBUFS);
-	}
 
 	dst.sa_family = *mtod(m, sa_family_t *);
 	m_adj(m, sizeof(sa_family_t));

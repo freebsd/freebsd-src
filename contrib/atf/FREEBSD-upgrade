@@ -1,45 +1,94 @@
-This document contains a collection of notes specific to the import
-of atf into head.  These notes are built on the instructions in
-the FreeBSD Subversion Primer that detail how to deal with vendor
-branches and you are supposed to follow those:
+# atf
 
-	http://www.freebsd.org/doc/en/articles/committers-guide/subversion-primer.html
+## Introduction
 
-The ATF source code is hosted on GitHub:
+This document contains a collection of notes specific to the import of atf into
+`:main`. These notes are loosely based on instructions available in the
+[FreeBSD Committer's Guide][vendor-import-git-page].
 
-	https://github.com/jmmv/atf
+[vendor-import-git-page]: https://docs.freebsd.org/en/articles/committers-guide/#vendor-import-git
 
-and is imported into the atf vendor branch (see base/vendor/atf/).
+## Project Release Information
 
-To merge the vendor branch into head do something like this:
+The ATF source code is hosted on [GitHub][github-project-page]. See the
+[project releases][github-project-releases] page for the latest release.
 
-	cd .../base/head/contrib/atf
-	svn merge --accept=postpone \
-	    svn+ssh://svn.freebsd.org/base/vendor/atf/dist .
-	svn remove --force $(cat FREEBSD-Xlist)
+[github-project-releases]: https://github.com/freebsd/atf/releases
 
-and resolve any conflicts that may arise at this point.
+## Importing New Releases Into the Vendor Branch
 
-Once this is done, you must regenerate bconfig.h.  The recommended way
-of doing so is by using the release files already imported into the
-vendor branch (which is a good justification for importing the verbatim
-sources in the first place so that this step is reproducible).  You can
-use a set of commands similar to the following:
+The latest ATF version is imported into the vendor branch, [vendor/atf][vendor-atf-branch].
 
-	mkdir /tmp/atf
-	cd /tmp/atf
-	.../vendor/atf/dist/configure \
-	    --prefix=/ \
-	    --exec-prefix=/usr \
-	    --datarootdir=/usr/share
-	cp bconfig.h .../base/head/contrib/atf/
+[vendor-atf-branch]: https://cgit.freebsd.org/src/tree/?h=vendor/atf
 
-Please do NOT run './configure' straight from the 'dist' directory of
-the vendor branch as you easily risk committing build products into the
+## Preparing the Sources for Commit
+
+### The "Merge From Vendor" (MFV) Process
+
+To merge the vendor branch into head, do something like this:
+
+```
+% cd "${SRCTOP}/contrib/atf"
+% git subtree merge -P contrib/atf freebsd/vendor/atf/<release-tag>
+% git rm --force $(cat FREEBSD-Xlist)
+```
+Resolve any conflicts that may arise after running `git rm`.
+
+### Regenerating Generated Files
+
+Once the initial MFV is done, all generated files (headers, manpages) must be
+regenerated and committed to the source tree.  The recommended way of doing so
+is by using the release files already imported into the vendor branch, where
+possible.  You can use a set of commands similar to the following:
+
+```
+% mkdir /tmp/atf
+% cd /tmp/atf
+% .../vendor/atf/dist/configure \
+    --prefix=/ \
+    --exec-prefix=/usr \
+    --datarootdir=/usr/share
+% gmake all
+% for infile in config.h.in "$(find doc -name "*.in")"; do \
+    cp "${infile%.in}" .../"base/head/contrib/atf/${infile%/*}"; \
+  done
+```
+Please do NOT run './configure' straight from the `dist` directory of the
+vendor branch: this risks introducing unwanted build products into the source
 tree.
 
-Lastly, with the list of old and new files in this import, make sure
-to update the reachover Makefiles accordingly.
+### Updating Makefiles
 
-Test the build (keeping in mind the WITH_TESTS/WITHOUT_TESTS knobs) and,
-if all looks good, you are ready to commit all the changes in one go.
+Finally, make sure to update the reachover Makefiles accordingly. Here are some
+directories/ and `Makefile`s of interest at time of writing:
+
+- `lib/atf/`
+- `libexec/atf/`
+- `share/examples/atf/`
+- `share/man/man7/Makefile`
+
+## Pruning Unnecessary Files
+
+Files and directories under `contrib/atf` were pruned using the following
+example command:
+
+```
+% cd "${SRCTOP}/contrib/atf"
+% sh -c 'for F in `grep -v FreeBSD FREEBSD-Xlist`; do rm -Rf ./${F} ; done'
+```
+
+## Contributing Changes
+
+To make local changes to atf, simply commit the changes to the `:main`
+branch. Never make local changes on the vendor branch which have not already
+been merged into the upstream source repository!
+
+Please contribute back to the [GitHub project][github-project-page] to ease
+future release updates.
+
+## Testing Changes
+
+Test the build (keeping in mind the `WITH_TESTS`/`WITHOUT_TESTS` build knobs).
+If all looks good, you are ready to commit!
+
+[github-project-page]: https://github.com/freebsd/atf/

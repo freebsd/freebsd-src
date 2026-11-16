@@ -1216,13 +1216,19 @@ dsl_crypto_key_sync(dsl_crypto_key_t *dck, dmu_tx_t *tx)
 {
 	zio_crypt_key_t *key = &dck->dck_key;
 	dsl_wrapping_key_t *wkey = dck->dck_wkey;
-	uint8_t keydata[MASTER_KEY_MAX_LEN];
-	uint8_t hmac_keydata[SHA512_HMAC_KEYLEN];
+	uint8_t *keydata, *hmac_keydata;
 	uint8_t iv[WRAPPING_IV_LEN];
 	uint8_t mac[WRAPPING_MAC_LEN];
 
 	ASSERT(dmu_tx_is_syncing(tx));
 	ASSERT3U(key->zk_crypt, <, ZIO_CRYPT_FUNCTIONS);
+
+	/*
+	 * The wrapped keys are written by the crypto backend, which may be
+	 * hardware doing DMA, so they can't live on the stack.
+	 */
+	keydata = kmem_zalloc(MASTER_KEY_MAX_LEN, KM_SLEEP);
+	hmac_keydata = kmem_zalloc(SHA512_HMAC_KEYLEN, KM_SLEEP);
 
 	/* encrypt and store the keys along with the IV and MAC */
 	VERIFY0(zio_crypt_key_wrap(&dck->dck_wkey->wk_key, key, iv, mac,
@@ -1233,6 +1239,9 @@ dsl_crypto_key_sync(dsl_crypto_key_t *dck, dmu_tx_t *tx)
 	    key->zk_crypt, wkey->wk_ddobj, key->zk_guid, iv, mac, keydata,
 	    hmac_keydata, wkey->wk_keyformat, wkey->wk_salt, wkey->wk_iters,
 	    tx);
+
+	kmem_free(keydata, MASTER_KEY_MAX_LEN);
+	kmem_free(hmac_keydata, SHA512_HMAC_KEYLEN);
 }
 
 typedef struct spa_keystore_change_key_args {
@@ -1247,7 +1256,7 @@ typedef struct spa_keystore_change_key_args {
  * That function cannot return an error, so a key it fails to hold there is
  * fatal, and this recursion must visit exactly the dsl dirs that one does.
  * A dataset whose key material no longer matches the encryption root it
- * points at is rejected here with EACCES instead.
+ * points at is rejected here instead.
  */
 static int
 spa_keystore_change_key_check_impl(uint64_t rddobj, uint64_t ddobj,
@@ -1289,7 +1298,26 @@ spa_keystore_change_key_check_impl(uint64_t rddobj, uint64_t ddobj,
 
 	/* the sync function will rewrap this key, so it must be readable */
 	if (!skip) {
+		dsl_wrapping_key_t *wkey = NULL;
+
+		/*
+		 * Hold the root's wrapping key so that it cannot be unloaded
+		 * while this key is unwrapped with it. An EACCES from the
+		 * key hold below is then an unwrap failure.
+		 */
+		ret = spa_keystore_wkey_hold_dd(dp->dp_spa, dd, FTAG, &wkey);
+		if (ret != 0) {
+			dsl_dir_rele(dd, FTAG);
+			return (SET_ERROR(EACCES));
+		}
+
 		ret = spa_keystore_dsl_key_hold_dd(dp->dp_spa, dd, FTAG, &dck);
+		dsl_wrapping_key_rele(wkey, FTAG);
+		if (ret == EACCES) {
+			dprintf_dd(dd, "%s\n", "change-key: key cannot be "
+			    "unwrapped with its encryption root's key");
+			ret = SET_ERROR(ZFS_ERR_CRYPTO_KEY_MISMATCH);
+		}
 		if (ret != 0) {
 			dsl_dir_rele(dd, FTAG);
 			return (ret);
@@ -2570,10 +2598,14 @@ dsl_crypto_populate_key_nvlist(objset_t *os, uint64_t from_ivset_guid,
 	if (ret != 0)
 		goto error;
 
-	/* see zfs_disable_ivset_guid_check tunable for errata info */
+	/*
+	 * See zfs_disable_ivset_guid_check tunable for errata info.  Only
+	 * snapshots get an IVset guid: a raw send of a file system (or zdb -B
+	 * of its objset) has none, which is not the errata.
+	 */
 	ret = zap_lookup(mos, ds->ds_object, DS_FIELD_IVSET_GUID, 8, 1,
 	    &to_ivset_guid);
-	if (ret != 0)
+	if (ret != 0 && ds->ds_is_snapshot)
 		ASSERT3U(dp->dp_spa->spa_errata, !=, 0);
 
 	/*

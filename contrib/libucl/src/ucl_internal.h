@@ -141,8 +141,24 @@ typedef SSIZE_T ssize_t;
  */
 
 #define UCL_MAX_RECURSION 16
+#define UCL_MAX_NESTING 1024
+
+/*
+ * Bookkeeping that a single tree element is assumed to cost on top of the
+ * object itself: a hash element, a khash slot and the usual allocator
+ * overhead. It is deliberately a rough estimate - it only has to make
+ * `max_alloc` track the real footprint closely enough to be a useful budget.
+ */
+#define UCL_NODE_OVERHEAD 64
 #define UCL_TRASH_KEY 0
 #define UCL_TRASH_VALUE 1
+
+/*
+ * Flags the comments read inside a container that holds nothing else, which
+ * follow its leading comments and precede the ones after it, as
+ * UCL_OBJECT_INHERITED flags the latter. Not one of ucl_object_flags_t.
+ */
+#define UCL_OBJECT_INNER_COMMENT (1u << 15)
 
 enum ucl_parser_state {
 	UCL_STATE_INIT = 0,
@@ -189,6 +205,11 @@ struct ucl_macro {
 
 enum ucl_stack_flags {
 	UCL_STACK_HAS_OBRACE = (1u << 0),
+	/*
+	 * The frame of the { that starts a chunk going on in an open object, such
+	 * as an included file: it holds the object of the frame below it, and is
+	 * no container of its own
+	 */
 	UCL_STACK_AUTOMATIC = (1u << 1),
 	UCL_STACK_MAX = (1u << 2),
 };
@@ -272,6 +293,12 @@ struct ucl_parser {
 	void *var_data;
 	ucl_object_t *comments;
 	ucl_object_t *last_comment;
+	ucl_object_t *pending_merge; /* Key merged before its value was read. */
+	struct ucl_parser_limits limits;
+	uint64_t cur_nodes;
+	uint64_t cur_alloc;
+	uint32_t cur_depth;
+	bool top_obj_is_placeholder; /* Created by an empty initial chunk. */
 	UT_string *err;
 };
 
@@ -293,6 +320,45 @@ size_t ucl_unescape_json_string(char *str, size_t len);
  * @param str
  */
 size_t ucl_unescape_squoted_string(char *str, size_t len);
+
+/**
+ * Pop the head frame off the parser stack, keeping the nesting depth counter
+ * in sync
+ * @param parser parser object
+ * @param st frame to pop, must be the current head of parser->stack
+ */
+void ucl_parser_pop_container(struct ucl_parser *parser, struct ucl_stack *st);
+
+/**
+ * Empty an array without releasing the objects it holds. Used to unwind a
+ * partially built array whose elements are still owned by somebody else.
+ * @param ar array object
+ */
+void ucl_array_detach_elements(ucl_object_t *ar);
+
+/**
+ * Remove the comments of an object about to be unreferenced, and of all it
+ * holds, as far as that releases them. Comments are keyed by address, so
+ * objects allocated later would take them otherwise.
+ * @param comments comments object of a parser
+ * @param obj object to be unreferenced
+ */
+void ucl_comments_forget(ucl_object_t *comments, const ucl_object_t *obj);
+
+/**
+ * Account for one more element in the resulting tree
+ * @param parser parser object
+ * @return false if either the node or the allocation budget is exhausted
+ */
+bool ucl_parser_account_node(struct ucl_parser *parser);
+
+/**
+ * Charge `bytes` against the parser's allocation budget
+ * @param parser parser object
+ * @param bytes amount of memory the tree is about to grow by
+ * @return false if the budget is exhausted (parser error is set)
+ */
+bool ucl_parser_account_alloc(struct ucl_parser *parser, uint64_t bytes);
 
 /**
  * Handle include macro
@@ -366,6 +432,82 @@ size_t ucl_strlcpy_tolower(char *dst, const char *src, size_t siz);
 
 char *ucl_strnstr(const char *s, const char *find, int len);
 char *ucl_strncasestr(const char *s, const char *find, int len);
+
+/*
+ * Overflow checked size arithmetic, meant for computing allocation sizes.
+ * Each helper stores the exact result in `res` and returns true, or returns
+ * false and leaves `res` untouched if the result does not fit in a size_t.
+ * The portable variants are always defined, so that the fallback used by
+ * compilers without the builtins is covered by the tests everywhere.
+ */
+#if defined(__has_builtin)
+#if __has_builtin(__builtin_add_overflow) && __has_builtin(__builtin_mul_overflow)
+#define UCL_HAVE_BUILTIN_OVERFLOW 1
+#endif
+#endif
+#if !defined(UCL_HAVE_BUILTIN_OVERFLOW) && defined(__GNUC__) && __GNUC__ >= 5
+#define UCL_HAVE_BUILTIN_OVERFLOW 1
+#endif
+
+static inline bool
+ucl_size_add_portable(size_t a, size_t b, size_t *res)
+{
+	if (b > SIZE_MAX - a) {
+		return false;
+	}
+
+	*res = a + b;
+
+	return true;
+}
+
+static inline bool
+ucl_size_mul_portable(size_t a, size_t b, size_t *res)
+{
+	if (a != 0 && b > SIZE_MAX / a) {
+		return false;
+	}
+
+	*res = a * b;
+
+	return true;
+}
+
+static inline bool
+ucl_size_add(size_t a, size_t b, size_t *res)
+{
+#ifdef UCL_HAVE_BUILTIN_OVERFLOW
+	size_t r;
+
+	if (__builtin_add_overflow(a, b, &r)) {
+		return false;
+	}
+
+	*res = r;
+
+	return true;
+#else
+	return ucl_size_add_portable(a, b, res);
+#endif
+}
+
+static inline bool
+ucl_size_mul(size_t a, size_t b, size_t *res)
+{
+#ifdef UCL_HAVE_BUILTIN_OVERFLOW
+	size_t r;
+
+	if (__builtin_mul_overflow(a, b, &r)) {
+		return false;
+	}
+
+	*res = r;
+
+	return true;
+#else
+	return ucl_size_mul_portable(a, b, res);
+#endif
+}
 
 #ifdef __GNUC__
 static inline void
@@ -487,7 +629,7 @@ ucl_hash_insert_object(ucl_hash_t *hashlin,
 	}
 	if (!ucl_hash_insert(nhp, obj, obj->key, obj->keylen)) {
 		if (nhp != hashlin) {
-			ucl_hash_destroy(nhp, NULL);
+			ucl_hash_destroy(nhp, NULL, NULL);
 		}
 		return NULL;
 	}
@@ -614,6 +756,75 @@ void ucl_emitter_print_key_msgpack(bool print_key,
 								   const ucl_object_t *obj);
 
 /**
+ * Print integer to the cbor output
+ * @param ctx
+ * @param val
+ */
+void ucl_emitter_print_int_cbor(struct ucl_emitter_context *ctx,
+								int64_t val);
+/**
+ * Print double to the cbor output
+ * @param ctx
+ * @param val
+ */
+void ucl_emitter_print_double_cbor(struct ucl_emitter_context *ctx,
+								   double val);
+/**
+ * Print boolean to the cbor output
+ * @param ctx
+ * @param val
+ */
+void ucl_emitter_print_bool_cbor(struct ucl_emitter_context *ctx,
+								 bool val);
+/**
+ * Print string to the cbor output
+ * @param ctx
+ * @param s
+ * @param len
+ */
+void ucl_emitter_print_string_cbor(struct ucl_emitter_context *ctx,
+								   const char *s, size_t len);
+
+/**
+ * Print binary string to the cbor output
+ * @param ctx
+ * @param s
+ * @param len
+ */
+void ucl_emitter_print_binary_string_cbor(struct ucl_emitter_context *ctx,
+										  const char *s, size_t len);
+
+/**
+ * Print array preamble for cbor
+ * @param ctx
+ * @param len
+ */
+void ucl_emitter_print_array_cbor(struct ucl_emitter_context *ctx,
+								  size_t len);
+
+/**
+ * Print object preamble for cbor
+ * @param ctx
+ * @param len
+ */
+void ucl_emitter_print_object_cbor(struct ucl_emitter_context *ctx,
+								   size_t len);
+/**
+ * Print NULL to the cbor output
+ * @param ctx
+ */
+void ucl_emitter_print_null_cbor(struct ucl_emitter_context *ctx);
+/**
+ * Print object's key if needed to the cbor output
+ * @param print_key
+ * @param ctx
+ * @param obj
+ */
+void ucl_emitter_print_key_cbor(bool print_key,
+								struct ucl_emitter_context *ctx,
+								const ucl_object_t *obj);
+
+/**
  * Fetch URL into a buffer
  * @param url url to fetch
  * @param buf pointer to buffer (must be freed by callee)
@@ -645,10 +856,14 @@ bool ucl_fetch_file(const unsigned char *filename,
  * Add new element to an object using the current merge strategy and priority
  * @param parser
  * @param nobj
- * @return
+ * @param is_container true if the value of nobj is, or is going to be, an
+ * object or an array: only those are merged into an existing container
+ * @return true on success; on failure nobj is not taken and is left to the
+ * caller to release
  */
 bool ucl_parser_process_object_element(struct ucl_parser *parser,
-									   ucl_object_t *nobj);
+									   ucl_object_t *nobj,
+									   bool is_container);
 
 /**
  * Parse msgpack chunk
@@ -656,6 +871,13 @@ bool ucl_parser_process_object_element(struct ucl_parser *parser,
  * @return
  */
 bool ucl_parse_msgpack(struct ucl_parser *parser);
+
+/**
+ * Parse cbor chunk
+ * @param parser
+ * @return
+ */
+bool ucl_parse_cbor(struct ucl_parser *parser);
 
 bool ucl_parse_csexp(struct ucl_parser *parser);
 

@@ -101,8 +101,8 @@ get_bool_config()
 #
 setup()
 {
-    [ -x "${ARC_CMD}" ] || err "arc is required, install devel/arcanist-lib"
-    which jq >/dev/null 2>&1 || err "jq is required, install textproc/jq"
+    [ -x "${ARC_CMD}" ] || err "arc is required"
+    which jq >/dev/null 2>&1 || err "jq is required"
 
     if [ "$VERBOSE" ]; then
         exec 3>&1
@@ -146,15 +146,24 @@ setup()
     trap cleanup EXIT HUP INT QUIT TRAP USR1 TERM
 }
 
-#
-# Invoke the actual arc command.  This allows us to only rely on the
-# devel/arcanist-lib port, which installs the actual script, rather than
-# the devel/arcanist-port, which installs a symlink in ${LOCALBASE}/bin
-# but conflicts with the archivers/arc port.
-#
-: "${LOCALBASE:=$(sysctl -n user.localbase)}"
-: "${LOCALBASE:=/usr/local}"
-: "${ARC_CMD:=${LOCALBASE}/lib/php/arcanist/bin/arc}"
+case "$(uname -s)" in
+FreeBSD)
+    #
+    # Invoke the actual arc command.  This allows us to only rely on the
+    # devel/*arcanist-lib port, which installs the actual script, rather than
+    # devel/*arcanist, which installs a symlink in ${LOCALBASE}/bin but
+    # conflicts with the archivers/arc port.
+    #
+    : "${LOCALBASE:=$(sysctl -n user.localbase)}"
+    : "${LOCALBASE:=/usr/local}"
+    : "${ARC_CMD:=${LOCALBASE}/lib/php/arcanist/bin/arc}"
+    ;;
+*)
+    # Linux, macOS, etc.
+    : "${ARC_CMD:="$(command -v arc)"}"
+    ;;
+esac
+
 arc()
 {
     ${ARC_CMD} "$@"

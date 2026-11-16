@@ -869,7 +869,7 @@ ng_ppp_rcvdata_bypass(hook_p hook, item_p item)
 		NG_FREE_ITEM(item);
 		return (EINVAL);
 	}
-	if (m->m_len < 4 && (m = m_pullup(m, 4)) == NULL) {
+	if ((m = m_pullup(m, 4)) == NULL) {
 		NG_FREE_ITEM(item);
 		return (ENOBUFS);
 	}
@@ -1423,7 +1423,7 @@ ng_ppp_rcvdata(hook_p hook, item_p item)
 	link->stats.recvOctets += m->m_pkthdr.len;
 
 	/* Strip address and control fields, if present. */
-	if (m->m_len < 2 && (m = m_pullup(m, 2)) == NULL)
+	if ((m = m_pullup(m, 2)) == NULL)
 		ERROUT(ENOBUFS);
 	if (mtod(m, uint8_t *)[0] == 0xff &&
 	    mtod(m, uint8_t *)[1] == 0x03)
@@ -1554,7 +1554,7 @@ ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 			NG_FREE_M(m);
 			ERROUT(EINVAL);
 		}
-		if (m->m_len < 2 && (m = m_pullup(m, 2)) == NULL)
+		if ((m = m_pullup(m, 2)) == NULL)
 			ERROUT(ENOBUFS);
 
 		shdr = be16dec(mtod(m, void *));
@@ -1571,7 +1571,7 @@ ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 			NG_FREE_M(m);
 			ERROUT(EINVAL);
 		}
-		if (m->m_len < 4 && (m = m_pullup(m, 4)) == NULL)
+		if ((m = m_pullup(m, 4)) == NULL)
 			ERROUT(ENOBUFS);
 
 		lhdr = be32dec(mtod(m, void *));
@@ -2432,14 +2432,14 @@ ng_ppp_cutproto(struct mbuf *m, uint16_t *proto)
 {
 
 	*proto = 0;
-	if (m->m_len < 1 && (m = m_pullup(m, 1)) == NULL)
+	if ((m = m_pullup(m, 1)) == NULL)
 		return (NULL);
 
 	*proto = *mtod(m, uint8_t *);
 	m_adj(m, 1);
 
 	if (!PROT_VALID(*proto)) {
-		if (m->m_len < 1 && (m = m_pullup(m, 1)) == NULL)
+		if ((m = m_pullup(m, 1)) == NULL)
 			return (NULL);
 
 		*proto = (*proto << 8) + *mtod(m, uint8_t *);
@@ -2456,7 +2456,7 @@ static struct mbuf *
 ng_ppp_prepend(struct mbuf *m, const void *buf, int len)
 {
 	M_PREPEND(m, len, M_NOWAIT);
-	if (m == NULL || (m->m_len < len && (m = m_pullup(m, len)) == NULL))
+	if (m == NULL || ((m = m_pullup(m, len)) == NULL))
 		return (NULL);
 	bcopy(buf, mtod(m, uint8_t *), len);
 	return (m);

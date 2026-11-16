@@ -2053,8 +2053,10 @@ linux_recvmmsg_common(struct thread *td, l_int s, struct l_mmsghdr *msg,
 		if (bsd_msg.msg_flags & MSG_OOB)
 			break;
 	}
-	if (error == 0)
+	if (datagrams != 0) {
 		td->td_retval[0] = datagrams;
+		error = 0;
+	}
 	fdrop(fp, td);
 	return (error);
 }

@@ -508,8 +508,7 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 	switch (type) {
 	case IEEE80211_FC0_TYPE_DATA:
 		hdrspace = ieee80211_hdrspace(ic, wh);
-		if (m->m_len < hdrspace &&
-		    (m = m_pullup(m, hdrspace)) == NULL) {
+		if ((m = m_pullup(m, hdrspace)) == NULL) {
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
 			    ni->ni_macaddr, NULL,
 			    "data too short: expecting %u", hdrspace);

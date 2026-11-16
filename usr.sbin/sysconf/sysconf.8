@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd September 23, 2026
+.Dd October 25, 2026
 .Dt SYSCONF 8
 .Os
 .Sh NAME
@@ -259,6 +259,18 @@ is instead the
 append operator and
 .Ql -=
 strikes words from the last matching assignment fragment.
+For the UCL targets
+.Po
+.Cm ucl
+and
+.Cm pkg ;
+see
+.Xr sysconf-ucl 8
+.Pc ,
+the same operators on a value that is an array add and strike elements
+rather than words, and
+.Ar name Ns \&. Ns Ar i
+reaches one element.
 .Pp
 Files are never modified in place:
 updates are streamed to a temporary file which is flushed to stable storage
@@ -312,6 +324,27 @@ overlays under
 .Pa poudriere.d .
 See
 .Xr sysconf-poudriere 8 .
+.It Cm pkg
+.Xr pkg.conf 5
+and the repository files under
+.Pa /etc/pkg
+and
+.Pa /usr/local/etc/pkg/repos ,
+parsed with
+.Xr libucl 3
+as
+.Xr pkg 8
+does; a repository tag is addressed as
+.Ql tag.key .
+See
+.Xr sysconf-pkg 8 .
+.It Cm ucl
+UCL, via
+.Xr libucl 3 ,
+applied to a file named with
+.Fl f .
+See
+.Xr sysconf-ucl 8 .
 .It Cm generic
 Foreign or unknown format;
 requires
@@ -330,6 +363,18 @@ selects
 .Cm src .
 .Ql s
 matches both and is rejected with a list of matches.
+.Ql p
+likewise matches both
+.Cm pkg
+and
+.Cm poudriere ;
+.Ql pk
+selects
+.Cm pkg
+and
+.Ql po
+selects
+.Cm poudriere .
 An exact keyword always wins.
 Prefix matching is case-sensitive and applies to the start of the keyword
 only, so
@@ -736,6 +781,8 @@ Further examples for each target appear in
 .Xr sysconf-src 8 ,
 .Xr sysconf-rc 8 ,
 .Xr sysconf-poudriere 8 ,
+.Xr sysconf-pkg 8 ,
+.Xr sysconf-ucl 8 ,
 and
 .Xr sysconf-generic 8 .
 .Sh SEE ALSO
@@ -749,11 +796,13 @@ and
 .Xr sysconf-generic 8 ,
 .Xr sysconf-loader 8 ,
 .Xr sysconf-make 8 ,
+.Xr sysconf-pkg 8 ,
 .Xr sysconf-poudriere 8 ,
 .Xr sysconf-rc 8 ,
 .Xr sysconf-src 8 ,
 .Xr sysconf-sysctl 8 ,
 .Xr sysconf-targets 8 ,
+.Xr sysconf-ucl 8 ,
 .Xr sysctl 8 ,
 .Xr sysrc 8
 .Sh HISTORY

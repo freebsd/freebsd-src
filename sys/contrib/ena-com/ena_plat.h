@@ -391,7 +391,7 @@ ena_reg_read32(struct ena_bus *bus, bus_size_t offset)
 
 #define ENA_MEM_FREE_COHERENT(dmadev, size, virt, phys, dma)		\
 	do {								\
-		(void)size;						\
+		((void)(size));						\
 		bus_dmamap_unload((dma).tag, (dma).map);		\
 		bus_dmamem_free((dma).tag, (virt), (dma).map);		\
 		bus_dma_tag_destroy((dma).tag);				\

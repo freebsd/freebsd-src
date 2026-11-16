@@ -238,7 +238,7 @@ struct sc_info {
 	bus_space_handle_t	csh;
 
 	struct resource		*irq;
-	int			irqid;
+	int			rid;
 	void			*ih;
 	bus_dma_tag_t		dmat;
 
@@ -248,6 +248,9 @@ struct sc_info {
 	uint32_t		bufsize;
 	bus_dmamap_t		pmap;
 	bus_dmamap_t		rmap;
+	/* DMA buffer bus addresses. */
+	uint32_t		paddr;
+	uint32_t		raddr;
 	uint32_t		period;
 	uint32_t		speed;
 	uint32_t		force_period;

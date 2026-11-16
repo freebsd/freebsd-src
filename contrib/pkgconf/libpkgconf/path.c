@@ -67,8 +67,14 @@ prepare_path_node(const char *text, pkgconf_list_t *dirlist, bool filter)
 	pkgconf_path_t *node;
 	pkgconf_buffer_t pathbuf = PKGCONF_BUFFER_INITIALIZER;
 
-	pkgconf_buffer_append(&pathbuf, text);
-	pkgconf_path_relocate(&pathbuf);
+	if (!pkgconf_buffer_append(&pathbuf, text))
+		return NULL;
+
+	if (!pkgconf_path_relocate(&pathbuf))
+	{
+		pkgconf_buffer_finalize(&pathbuf);
+		return NULL;
+	}
 
 #ifdef PKGCONF_CACHE_INODES
 	struct stat st;
@@ -267,7 +273,9 @@ pkgconf_path_match_list(const char *path, const pkgconf_list_t *dirlist)
 	if (path == NULL)
 		return false;
 
-	pkgconf_buffer_append(&relocated, path);
+	if (!pkgconf_buffer_append(&relocated, path))
+		return false;
+
 	cpath = pkgconf_buffer_str(&relocated);
 
 	if (pkgconf_path_relocate(&relocated))
@@ -400,32 +408,32 @@ pkgconf_path_free(pkgconf_list_t *dirlist)
 	pkgconf_list_zero(dirlist);
 }
 
-static char *
-normpath(const pkgconf_buffer_t *pathbuf)
+/*
+ * !doc
+ *
+ * .. c:function:: void pkgconf_path_normalize_separators(char *path)
+ *
+ *    Rewrites a real OS path into pkgconf's canonical internal form, in which
+ *    the platform directory separator is always represented as ``/``.  On POSIX
+ *    this is a no-op (a backslash is an ordinary filename character); on Windows
+ *    it maps ``\`` to ``/``.  Runtime-injected paths (search paths, sysroot,
+ *    build root, prefix, pcfiledir) are normalized this way so that later path
+ *    comparisons -- sysroot injection and system-directory filtering -- are all
+ *    made on a consistent basis.
+ *
+ *    :param char* path: The path to normalize in place.
+ *    :return: nothing
+ */
+void
+pkgconf_path_normalize_separators(char *path)
 {
-	if (!pathbuf || pkgconf_buffer_len(pathbuf) == 0)
-		return NULL;
-
-	const char *path = pkgconf_buffer_str(pathbuf);
-	char *copy = strdup(path);
-	if (NULL == copy)
-		return NULL;
-	char *ptr = copy;
-
-	for (int ii = 0; copy[ii]; ii++)
-	{
-		*ptr++ = path[ii];
-		if ('/' == path[ii])
-		{
-			ii++;
-			while ('/' == path[ii])
-				ii++;
-			ii--;
-		}
-	}
-	*ptr = '\0';
-
-	return copy;
+#ifdef _WIN32
+	for (; *path != '\0'; path++)
+		if (*path == PKG_DIR_SEP_S)
+			*path = '/';
+#else
+	(void) path;
+#endif
 }
 
 /*
@@ -433,7 +441,8 @@ normpath(const pkgconf_buffer_t *pathbuf)
  *
  * .. c:function:: bool pkgconf_path_relocate(pkgconf_buffer_t *buf)
  *
- *    Relocates a path, possibly calling normpath() on it.
+ *    Normalizes a path in place: folds the platform separator to '/' and
+ *    collapses runs of '/'.
  *
  *    :param pkgconf_buffer_t* buf: The path to relocate.
  *    :return: true on success, false on error
@@ -442,14 +451,29 @@ normpath(const pkgconf_buffer_t *pathbuf)
 bool
 pkgconf_path_relocate(pkgconf_buffer_t *buf)
 {
-	char *tmpbuf;
+	char *base = buf->base;
+	char *w;
+	const char *r;
 
-	if ((tmpbuf = normpath(buf)) != NULL)
+	if (base == NULL || pkgconf_buffer_len(buf) == 0)
+		return true;
+
+	/* fold the platform separator to '/' before collapsing runs, so that a
+	 * mix of '\' and '/' (as seen on Windows) is treated uniformly. */
+	pkgconf_path_normalize_separators(base);
+
+	/* collapse runs of '/' in place; the result never grows, so w <= r always */
+	w = base;
+	for (r = base; *r != '\0'; r++)
 	{
-		pkgconf_buffer_reset(buf);
-		pkgconf_buffer_append(buf, tmpbuf);
-		free(tmpbuf);
+		*w++ = *r;
+		if (*r == '/')
+			while (r[1] == '/')
+				r++;
 	}
+
+	*w = '\0';
+	buf->end = w;
 
 	return true;
 }
@@ -474,7 +498,7 @@ pkgconf_path_trim_basename(pkgconf_buffer_t *buf)
 		return false;
 
 	sep = strrchr(buf->base, PKG_DIR_SEP_S);
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__OS2__)
 	char *sep2 = strrchr(buf->base, '/');
 	if (sep2 != NULL && (sep == NULL || sep2 > sep))
 		sep = sep2;
@@ -507,7 +531,7 @@ pkgconf_path_find_basename(const char *path)
 	const char *sep;
 
 	sep = strrchr(path, PKG_DIR_SEP_S);
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__OS2__)
 	const char *sep2 = strrchr(path, '/');
 	if (sep2 != NULL && (sep == NULL || sep2 > sep))
 		sep = sep2;

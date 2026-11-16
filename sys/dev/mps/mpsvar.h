@@ -788,6 +788,8 @@ void mpssas_ir_shutdown(struct mps_softc *sc, int howto);
 int mps_reinit(struct mps_softc *sc);
 void mpssas_handle_reinit(struct mps_softc *sc);
 
+int mps_hostboot(struct mps_softc *sc, uint8_t *fw_image, uint32_t fw_len);
+
 void mps_base_static_config_pages(struct mps_softc *sc);
 void mps_wd_config_pages(struct mps_softc *sc);
 

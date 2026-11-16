@@ -426,9 +426,10 @@ tcp_lro_parser(struct mbuf *m, struct lro_parser *po, struct lro_parser *pi, boo
 			break;
 
 		/* Try to parse inner headers. */
-		data_ptr = tcp_lro_low_level_parser(data_ptr, pi, update_data, true,
-						    (m->m_len - ((caddr_t)data_ptr - m->m_data)));
-		if (data_ptr == NULL || (pi->total_hdr_len + po->total_hdr_len) > m->m_len)
+		data_ptr = tcp_lro_low_level_parser(data_ptr, pi, update_data,
+		    true, (m->m_len - ((char *)data_ptr - m->m_data)));
+		if (data_ptr == NULL ||
+		    (pi->total_hdr_len + po->total_hdr_len) > m->m_len)
 			break;
 
 		/* Verify supported header types. */

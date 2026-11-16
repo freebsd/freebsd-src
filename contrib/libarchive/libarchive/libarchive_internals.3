@@ -329,7 +329,7 @@ from most ISO9660 readers.
 The libarchive support utilizes a work-queue design that
 keeps a list of known entries sorted by their location in the input.
 Whenever libarchive's ISO9660 implementation is asked for the next
-header, checks this list to find the next item on the disk.
+header, it checks this list to find the next item on the disk.
 Directories are parsed when they are encountered and new
 items are added to the list.
 This design relies heavily on the ISO9660 image being optimized so that

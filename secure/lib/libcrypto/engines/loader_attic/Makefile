@@ -2,7 +2,7 @@ SHLIB_NAME?=	loader_attic.so
 
 SRCS=	e_loader_attic.c pvkfmt.c
 
-CFLAGS+=	-DOPENSSL_NO_PROVIDER_CORE
+CFLAGS+=	-DOPENSSL_NO_PROVIDER_CODE
 
 LCRYPTO_SRC=	${SRCTOP}/crypto/openssl
 

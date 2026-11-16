@@ -205,15 +205,12 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 	if (IN6_IS_ADDR_UNSPECIFIED(&saddr6))
 		goto freeit;
 
-	if (m->m_len < off + icmp6len) {
-		m = m_pullup(m, off + icmp6len);
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			return;
-		}
+	if ((m = m_pullup(m, off + icmp6len)) == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return;
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
-	nd_rs = (struct nd_router_solicit *)((caddr_t)ip6 + off);
+	nd_rs = (struct nd_router_solicit *)((char *)ip6 + off);
 
 	icmp6len -= sizeof(*nd_rs);
 	nd6_option_init(nd_rs + 1, icmp6len, &ndopts);
@@ -301,7 +298,7 @@ nd6_ra_opt_pi(struct nd_opt_hdr *pt, struct ifnet *ifp,
 		return;
 	}
 
-	bzero(&pr, sizeof(pr));
+	memset(&pr, 0, sizeof(pr));
 	pr.ndpr_prefix.sin6_family = AF_INET6;
 	pr.ndpr_prefix.sin6_len = sizeof(pr.ndpr_prefix);
 	pr.ndpr_prefix.sin6_addr = pi->nd_opt_pi_prefix;
@@ -550,15 +547,12 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 		goto bad;
 	}
 
-	if (m->m_len < off + icmp6len) {
-		m = m_pullup(m, off + icmp6len);
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			return;
-		}
-		ip6 = mtod(m, struct ip6_hdr *);
+	if ((m = m_pullup(m, off + icmp6len)) == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return;
 	}
-	nd_ra = (struct nd_router_advert *)((caddr_t)ip6 + off);
+	ip6 = mtod(m, struct ip6_hdr *);
+	nd_ra = (struct nd_router_advert *)((char *)ip6 + off);
 
 	icmp6len -= sizeof(*nd_ra);
 	nd6_option_init(nd_ra + 1, icmp6len, &ndopts);
@@ -575,7 +569,7 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst))
 		mcast = true;
 
-	bzero(&dr0, sizeof(dr0));
+	memset(&dr0, 0, sizeof(dr0));
 	dr0.rtaddr = saddr6;
 	dr0.raflags = nd_ra->nd_ra_flags_reserved;
 	/*
@@ -637,7 +631,7 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 		auth = ((m->m_flags & M_AUTHIPHDR) && (m->m_flags & M_AUTHIPDGM));
 		for (pt = (struct nd_opt_hdr *)ndopts.nd_opts_pi;
 		     pt <= (struct nd_opt_hdr *)ndopts.nd_opts_pi_end;
-		     pt = (struct nd_opt_hdr *)((caddr_t)pt +
+		     pt = (struct nd_opt_hdr *)((char *)pt +
 						(pt->nd_opt_len << 3))) {
 			nd6_ra_opt_pi(pt, ifp, nd_ra, dr, auth, mcast);
 		}
@@ -2799,7 +2793,7 @@ nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
 	if (error != 0)
 		return (error);
 
-	bzero(&d, sizeof(d));
+	memset(&d, 0, sizeof(d));
 	d.rtaddr.sin6_family = AF_INET6;
 	d.rtaddr.sin6_len = sizeof(d.rtaddr);
 

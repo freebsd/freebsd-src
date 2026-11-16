@@ -59,6 +59,7 @@ EOD
 	;;
 *)
 	PACKAGER=apt
+	PACKAGES="libcrypt-dev"
 esac
 
 TARGETS=${config}
@@ -140,25 +141,20 @@ for TARGET in $TARGETS; do
 	;;
     sk)
 	INSTALL_FIDO_PPA="yes"
-	PACKAGES="$PACKAGES libfido2-dev libu2f-host-dev libcbor-dev"
 	;;
     selinux)
 	PACKAGES="$PACKAGES libselinux1-dev selinux-policy-dev libaudit-dev"
 	;;
     hardenedmalloc)
 	INSTALL_HARDENED_MALLOC=yes
-	# Need clang >= 19 for constexpr.
-	PACKAGES="$PACKAGES clang-19"
+	# Need clang >= 19 for constexpr and >= 20 for avx10.1-512
+	PACKAGES="$PACKAGES clang-20"
 	;;
     musl)
 	PACKAGES="$PACKAGES musl-tools"
 	;;
     tcmalloc)
 	PACKAGES="$PACKAGES libgoogle-perftools-dev"
-	;;
-    openssl-noec)
-	INSTALL_OPENSSL=OpenSSL_1_1_1k
-	SSLCONFOPTS="no-ec"
 	;;
     openssl-*)
 	INSTALL_OPENSSL=$(echo ${TARGET} | cut -f2 -d-)
@@ -207,7 +203,9 @@ done
 if [ "yes" = "$INSTALL_FIDO_PPA" ]; then
     sudo apt update -qq
     sudo apt install -qy software-properties-common
-    sudo apt-add-repository -y ppa:yubico/stable
+    # Not all release+arch combinations have this, so optionally install.
+    (sudo apt-add-repository -y ppa:yubico/stable && \
+	sudo apt install libfido2-dev libu2f-host-dev libcbor-dev) || true
 fi
 
 tries=3
@@ -247,7 +245,8 @@ if [ "${INSTALL_HARDENED_MALLOC}" = "yes" ]; then
     (cd ${HOME} &&
      git clone https://github.com/GrapheneOS/hardened_malloc.git &&
      cd ${HOME}/hardened_malloc &&
-     make CC=clang-19 && sudo cp out/libhardened_malloc.so /usr/lib/)
+     clang-20 --version &&
+     make CC=clang-20 && sudo cp out/libhardened_malloc.so /usr/lib/)
 fi
 
 if [ ! -z "${INSTALL_OPENSSL}" ]; then

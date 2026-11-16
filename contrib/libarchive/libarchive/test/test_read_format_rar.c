@@ -2,6 +2,7 @@
  * Copyright (c) 2003-2007 Tim Kientzle
  * Copyright (c) 2011 Andres Mejia
  * Copyright (c) 2011-2012 Michihiro NAKAJIMA
+ * Copyright (c) 2026 Eduard Zateev
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -205,7 +206,7 @@ DEFINE_TEST(test_read_format_rar_unicode_UTF8)
   struct archive_entry *ae;
   struct archive *a;
 
-  if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+  if (!setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4')) {
 	skipping("en_US.UTF-8 locale not available on this system.");
 	return;
   }
@@ -344,8 +345,11 @@ DEFINE_TEST(test_read_format_rar_unicode_CP932)
   struct archive_entry *ae;
   struct archive *a;
 
-  if (NULL == setlocale(LC_ALL, "Japanese_Japan") &&
-    NULL == setlocale(LC_ALL, "ja_JP.SJIS")) {
+  if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+    NULL == setlocale(LC_ALL, "Japanese_Japan") &&
+#endif
+    !setCheckedLocale("ja_JP.SJIS", "\x82\xA0", L'\x3042')) {
 	skipping("CP932 locale not available on this system.");
 	return;
   }
@@ -4034,6 +4038,34 @@ DEFINE_TEST(test_read_format_rar_symlink_huge)
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 #endif
+}
+
+DEFINE_TEST(test_read_format_rar_symlink_huge64)
+{
+  static const unsigned char archive[] = {
+    0x52, 0x61, 0x72, 0x21, 0x1a, 0x07, 0x00, 0x75,
+    0xa5, 0x74, 0x00, 0x01, 0x29, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x01, 0x00, 0x00, 0xa0, 0x00, 0x00, 0xff,
+    0xff, 0xff, 0x7f, 0x00, 0x00, 0x00, 0x00, 0x78,
+    0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
+  };
+  struct archive_entry *ae;
+  struct archive *a;
+
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_filter_none(a));
+  assertA(0 == archive_read_support_format_rar(a));
+  assertA(0 == archive_read_open_memory(a, archive, sizeof(archive)));
+
+  failure("Oversized RAR symlink target should be rejected");
+  assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+  assertEqualString("Unable to read link", archive_error_string(a));
+
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 DEFINE_TEST(test_read_format_rar_unbound_staticdata)

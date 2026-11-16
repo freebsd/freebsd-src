@@ -1299,13 +1299,19 @@ ena_update_queue_size(struct ena_adapter *adapter, uint32_t new_tx_size,
 }
 
 static void
+ena_set_io_queue_count(struct ena_adapter *adapter, uint32_t num)
+{
+	adapter->num_io_queues = num;
+	ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_RSS_ACTIVE, adapter);
+	/* Force indirection table to be reinitialized */
+	ena_com_rss_destroy(adapter->ena_dev);
+}
+
+static void
 ena_update_io_rings(struct ena_adapter *adapter, uint32_t num)
 {
 	ena_free_all_io_rings_resources(adapter);
-	/* Force indirection table to be reinitialized */
-	ena_com_rss_destroy(adapter->ena_dev);
-
-	adapter->num_io_queues = num;
+	ena_set_io_queue_count(adapter, num);
 	ena_init_io_rings(adapter);
 }
 
@@ -1939,7 +1945,7 @@ ena_request_io_irq(struct ena_adapter *adapter)
 		flags = RF_ACTIVE | RF_SHAREABLE;
 	}
 
-	for (i = ENA_IO_IRQ_FIRST_IDX; i < adapter->msix_vecs; i++) {
+	for (i = ENA_IO_IRQ_FIRST_IDX; i < ENA_IO_IRQ_IDX(adapter->num_io_queues); i++) {
 		irq = &adapter->irq_tbl[i];
 
 		if (unlikely(irq->requested))
@@ -2053,7 +2059,7 @@ ena_free_io_irq(struct ena_adapter *adapter)
 	struct ena_irq *irq;
 	int rc;
 
-	for (int i = ENA_IO_IRQ_FIRST_IDX; i < adapter->msix_vecs; i++) {
+	for (int i = ENA_IO_IRQ_FIRST_IDX; i < ENA_IO_IRQ_IDX(adapter->num_io_queues); i++) {
 		irq = &adapter->irq_tbl[i];
 		if (irq->requested) {
 			ena_log(pdev, DBG, "tear down irq: %d\n", irq->vector);
@@ -2128,13 +2134,11 @@ ena_up_complete(struct ena_adapter *adapter)
 {
 	int rc;
 
-	if (likely(ENA_FLAG_ISSET(ENA_FLAG_RSS_ACTIVE, adapter))) {
-		rc = ena_rss_configure(adapter);
-		if (rc != 0) {
-			ena_log(adapter->pdev, ERR,
-			    "Failed to configure RSS\n");
-			return (rc);
-		}
+	rc = ena_rss_configure(adapter);
+	if (rc != 0) {
+		ena_log(adapter->pdev, ERR,
+		    "Failed to configure RSS\n");
+		return (rc);
 	}
 
 	rc = ena_change_mtu(adapter->ifp, if_getmtu(adapter->ifp));
@@ -3680,7 +3684,8 @@ ena_restore_device(struct ena_adapter *adapter)
 	 * are available.
 	 */
 	if ((adapter->msix_vecs - ENA_ADMIN_MSIX_VEC) < adapter->num_io_queues)
-		adapter->num_io_queues = adapter->msix_vecs - ENA_ADMIN_MSIX_VEC;
+		ena_set_io_queue_count(adapter,
+		    adapter->msix_vecs - ENA_ADMIN_MSIX_VEC);
 
 	/* Re-initialize rings basic information */
 	ena_init_io_rings(adapter);
@@ -4115,8 +4120,11 @@ ena_detach(device_t pdev)
 
 	ena_free_pci_resources(adapter);
 
-	if (adapter->rss_indir != NULL)
+	if (adapter->rss_indir != NULL) {
+		free(adapter->rss_indir->table, M_DEVBUF);
+		free(adapter->rss_indir->sysctl_buf, M_DEVBUF);
 		free(adapter->rss_indir, M_DEVBUF);
+	}
 
 	if (likely(ENA_FLAG_ISSET(ENA_FLAG_RSS_ACTIVE, adapter)))
 		ena_com_rss_destroy(ena_dev);

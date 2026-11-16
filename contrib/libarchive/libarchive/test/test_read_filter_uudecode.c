@@ -34,11 +34,22 @@ static const char archive[] = {
 "end\n"
 };
 
+static const char empty_archive[] = {
+"begin 644 -\n"
+"`\n"
+"end\n"
+};
+
 static const char archive64[] = {
 "begin-base64 644 test_read_uu.Z\n"
 "H52QLgAIHEiwoMGDCBMqXMiwIUIYEG/UqAECAMQYEmFUvJhxI8SPIDXGgDFjBg0YNDDOsAECxsga\n"
 "NmIAAFHDoc2bOHPqBFBnDp0wcizCoJOmzc6ERI0ePRhSo1CQFZdKnUq1qtWrWLNq3cq1q9evYMOK\n"
 "HUu2rNmzaNOqXcu2rdu3ZwE=\n"
+"====\n"
+};
+
+static const char empty_archive64[] = {
+"begin-base64 644 -\n"
 "====\n"
 };
 
@@ -158,6 +169,21 @@ test_read_uu_sub(const char *uudata, size_t uusize, int no_nl)
 	free(buff);
 }
 
+static void
+test_empty(const char *uudata)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, uudata, strlen(uudata), 2));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_filter_uudecode)
 {
 	/* Read the traditional uuencoded data. */
@@ -165,6 +191,8 @@ DEFINE_TEST(test_read_filter_uudecode)
 	/* Read the traditional uuencoded data with very long line extra
 	 * data in front of it. */
 	test_read_uu_sub(archive, sizeof(archive)-1, 1);
+	/* Read an empty uuencoded file. */
+	test_empty(empty_archive);
 }
 
 DEFINE_TEST(test_read_filter_uudecode_base64)
@@ -174,4 +202,6 @@ DEFINE_TEST(test_read_filter_uudecode_base64)
 	/* Read the Base64 uuencoded data with very long line extra data
 	 * in front of it. */
 	test_read_uu_sub(archive64, sizeof(archive64)-1, 1);
+	/* Read an empty base64 encoded file. */
+	test_empty(empty_archive64);
 }

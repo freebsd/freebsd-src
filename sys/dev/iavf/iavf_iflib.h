@@ -311,7 +311,10 @@ SLIST_HEAD(mac_list, iavf_mac_filter);
 struct iavf_vlan_filter {
 	SLIST_ENTRY(iavf_vlan_filter)  next;
 	u16     vlan;
-	u16     flags;
+	bool    desired;
+	bool    applied;
+	bool    uncertain;
+	bool    rejected;	/* Do not retry a NACK within the same bounded pass. */
 };
 
 /**
@@ -362,9 +365,23 @@ struct iavf_sc {
 	struct mac_list		*mac_filters;
 	struct vlan_list	*vlan_filters;
 
+	/* One VLAN transaction, protected by vc_mtx (lists use the CTX lock). */
+	enum virtchnl_ops	vlan_op;
+	enum virtchnl_status_code vlan_status;
+	u16			vlan_id;
+	bool			vlan_done;
+	u32			vlan_batch_pending;	/* Published to retry callout. */
+
 	/* Virtual comm channel */
 	struct virtchnl_vf_resource *vf_res;
 	struct virtchnl_vsi_resource *vsi_res;
+
+	/* RSS query snapshot and outstanding requests, protected by vc_mtx. */
+	u8			rss_key[RSS_KEYSIZE];
+	u16			rss_key_size;
+	u64			rss_hena;
+	u32			rss_pending;
+	u32			rss_configured;
 
 	/* Misc stats maintained by the driver */
 	u64			admin_irq;
@@ -407,4 +424,5 @@ void		iavf_add_queues_sysctls(device_t dev, struct iavf_vsi *vsi);
 
 void	iavf_enable_intr(struct iavf_vsi *);
 void	iavf_disable_intr(struct iavf_vsi *);
+void	iavf_invalidate_rss(struct iavf_sc *);
 #endif /* _IAVF_IFLIB_H_ */

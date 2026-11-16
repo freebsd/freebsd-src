@@ -358,6 +358,8 @@ rpctlssd_connect_2_svc(struct rpctlssd_connect_arg *argp,
 	assert(rqstp->rq_xprt == xprt);
 
 	ctx = malloc(sizeof(*ctx));
+	if (ctx == NULL)
+		return (FALSE);
 	memcpy(&ctx->arg, argp, sizeof(ctx->arg));
 	ctx->xid = *(uint32_t *)pthread_getspecific(xidkey);
 

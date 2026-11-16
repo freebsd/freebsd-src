@@ -57,13 +57,14 @@ static int lmpid = 0;
 static int last_hi = 0;		/* used in u_process and u_endscreen */
 static int lastline = 0;
 
-#define lineindex(l) ((l)*screen_width)
+#define lineindex(l) ((l)*(screen_width + 1))
 
 
 /* things initialized by display_init and used thruout */
 
 /* buffer of proc information lines for display updating */
 static char *screenbuf = NULL;
+static bool *screenhl = NULL;
 
 static const char * const *procstate_names;
 static const char * const *cpustate_names;
@@ -132,6 +133,8 @@ display_resize(void)
     {
 	free(screenbuf);
     }
+    free(screenhl);
+    screenhl = NULL;
 
     /* calculate the current dimensions */
     /* if operating in "dumb" mode, we only need one line */
@@ -140,12 +143,18 @@ display_resize(void)
     if (lines < 0)
 	lines = 0;
 
-    /* now, allocate space for the screen buffer */
-    screenbuf = calloc(lines, screen_width);
+    /* allocate space for each line, including its terminating NUL */
+    screenbuf = calloc(lines, screen_width + 1);
     if (screenbuf == NULL)
     {
 	/* oops! */
 	return(-1);
+    }
+    screenhl = calloc(lines, sizeof(*screenhl));
+    if (screenhl == NULL) {
+	free(screenbuf);
+	screenbuf = NULL;
+	return (-1);
     }
 
     /* return number of lines available */
@@ -817,10 +826,11 @@ u_header(const char *text __unused)
  *  *_process(line, thisline) - print one process line
  *
  *  Assumptions:  lastline is consistent
+ *                u_process(): smart_terminal is true
  */
 
 void
-i_process(int line, char *thisline)
+i_process(int line, char *thisline, bool hl)
 {
     char *p;
     char *base;
@@ -840,11 +850,16 @@ i_process(int line, char *thisline)
     }
 
     /* write the line out */
-    fputs(thisline, stdout);
+    if (hl)
+	top_standout(thisline);
+    else
+	fputs(thisline, stdout);
 
     /* copy it in to our buffer */
     base = smart_terminal ? screenbuf + lineindex(line) : screenbuf;
     p = stpcpy(base, thisline);
+    if (smart_terminal)
+	screenhl[line] = hl;
 
     /* zero fill the rest of it */
     if (p - base < screen_width)
@@ -854,7 +869,7 @@ i_process(int line, char *thisline)
 }
 
 void
-u_process(int line, char *newline)
+u_process(int line, char *newline, bool hl)
 {
     char *optr;
     int screen_line = line + Header_lines;
@@ -887,7 +902,10 @@ u_process(int line, char *newline)
 	}
 
 	/* now write the line */
-	fputs(newline, stdout);
+	if (hl)
+	    top_standout(newline);
+	else
+	    fputs(newline, stdout);
 
 	/* copy it in to the buffer */
 	optr = stpcpy(bufferline, newline);
@@ -897,6 +915,24 @@ u_process(int line, char *newline)
 	{
 	    memset(optr, 0, screen_width - (optr - bufferline));
 	}
+	screenhl[line] = hl;
+    } else if (hl || screenhl[line] != hl) {
+	int oldlen;
+
+	/* line_update() cannot change or preserve standout attributes */
+	oldlen = strlen(bufferline);
+	Move_to(0, screen_line);
+	lastline = screen_line;
+	if (hl)
+	    top_standout(newline);
+	else
+	    fputs(newline, stdout);
+	if (len < oldlen)
+	    (void)clear_eol(oldlen - len);
+	optr = stpcpy(bufferline, newline);
+	if (optr - bufferline < screen_width)
+	    memset(optr, 0, screen_width - (optr - bufferline));
+	screenhl[line] = hl;
     }
     else
     {

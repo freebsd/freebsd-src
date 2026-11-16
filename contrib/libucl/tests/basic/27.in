@@ -1,0 +1,23 @@
+# A braced file included in a braced object adds its keys to that object,
+# which its own brace still closes. 27-nested.inc is braced as well, and
+# includes a braced file at its top and in an object of its own.
+{ .include "${CURDIR}/27-braced.inc" top = 1;
+x { .include "${CURDIR}/27-braced.inc"
+ y = 1 }
+arr = [{ .include "${CURDIR}/27-braced.inc" y = 2 }, { y = 3 }]
+deep {
+	nested {
+		.include "${CURDIR}/27-braced.inc"
+		y = 4;
+	}
+	y = 5;
+}
+outer {
+	.include "${CURDIR}/27-nested.inc"
+	y = 6;
+}
+prefixed {
+	.include(prefix=true, key="k") "${CURDIR}/27-braced.inc"
+	y = 7;
+}
+}

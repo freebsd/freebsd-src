@@ -200,3 +200,96 @@ DEFINE_TEST(test_read_data_into_fd_sparse)
 	assertFileSize("file", FILE_SIZE);
 	assertFileContents(sparse_expected, FILE_SIZE, "file");
 }
+
+/*
+ * Extracting into a non-empty file opened with O_APPEND, as in
+ * "bsdtar -xO >> file", must append plain and sparse entries.
+ */
+DEFINE_TEST(test_read_data_into_fd_append)
+{
+	static char buff[32768];
+	static char hole_data[0x3000];
+	static char expected[7 + sizeof(hole_data) + 6];
+	struct archive *a;
+	struct archive_entry *ae;
+	size_t archive_size = 0, expected_size;
+	int fd;
+
+	assertMakeFile("append", 0644, "header\n");
+
+	/* Entries one and two are plain, "sparse" is a hole, data, a hole. */
+	memset(hole_data, 'a', sizeof(hole_data));
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_pax(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &archive_size));
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "sparse");
+	archive_entry_set_mode(ae, S_IFREG | 0644);
+	archive_entry_set_size(ae, sizeof(hole_data));
+	archive_entry_sparse_add_entry(ae, 0x1000, 0x1000);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, (int)sizeof(hole_data),
+	    archive_write_data(a, hole_data, sizeof(hole_data)));
+	archive_entry_free(ae);
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "one");
+	archive_entry_set_mode(ae, S_IFREG | 0644);
+	archive_entry_set_size(ae, 3);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, 3, archive_write_data(a, "one", 3));
+	archive_entry_free(ae);
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "two");
+	archive_entry_set_mode(ae, S_IFREG | 0644);
+	archive_entry_set_size(ae, 3);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, 3, archive_write_data(a, "two", 3));
+	archive_entry_free(ae);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, buff, archive_size));
+
+	fd = open("append", O_WRONLY | O_APPEND | O_BINARY);
+	assert(fd >= 0);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("sparse", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_data_into_fd(a, fd));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("one", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_data_into_fd(a, fd));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("two", archive_entry_pathname(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_data_into_fd(a, fd));
+	close(fd);
+
+	memset(expected, 0, sizeof(expected));
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/*
+	 * The library writes with WriteFile(), which ignores O_APPEND, so
+	 * the data starts at the beginning of the file. Skipped holes keep
+	 * what was there.
+	 */
+	memcpy(expected, "header\n", 7);
+	memset(expected + 0x1000, 'a', 0x1000);
+	memcpy(expected + sizeof(hole_data), "onetwo", 6);
+	expected_size = sizeof(hole_data) + 6;
+#else
+	memcpy(expected, "header\n", 7);
+	memset(expected + 7 + 0x1000, 'a', 0x1000);
+	memcpy(expected + 7 + sizeof(hole_data), "onetwo", 6);
+	expected_size = 7 + sizeof(hole_data) + 6;
+#endif
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	assertFileSize("append", (int)expected_size);
+	assertFileContents(expected, (int)expected_size, "append");
+}

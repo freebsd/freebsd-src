@@ -117,10 +117,10 @@ extern	int iwm_poll_bit(struct iwm_softc *sc, int reg,
 	uint32_t bits, uint32_t mask, int timo);
 extern	int iwm_nic_lock(struct iwm_softc *sc);
 extern	void iwm_nic_unlock(struct iwm_softc *sc);
-extern	void iwm_set_bits_mask_prph(struct iwm_softc *sc,
+extern	int iwm_set_bits_mask_prph(struct iwm_softc *sc,
 	uint32_t reg, uint32_t bits, uint32_t mask);
-extern	void iwm_set_bits_prph(struct iwm_softc *sc, uint32_t reg, uint32_t bits);
-extern	void iwm_clear_bits_prph(struct iwm_softc *sc, uint32_t reg, uint32_t bits);
+extern	int iwm_set_bits_prph(struct iwm_softc *sc, uint32_t reg, uint32_t bits);
+extern	int iwm_clear_bits_prph(struct iwm_softc *sc, uint32_t reg, uint32_t bits);
 extern	void iwm_enable_rfkill_int(struct iwm_softc *sc);
 extern	int iwm_check_rfkill(struct iwm_softc *sc);
 extern	int iwm_set_hw_ready(struct iwm_softc *sc);
@@ -128,6 +128,9 @@ extern	int iwm_prepare_card_hw(struct iwm_softc *sc);
 extern	void iwm_apm_config(struct iwm_softc *sc);
 extern	int iwm_apm_init(struct iwm_softc *sc);
 extern	void iwm_apm_stop(struct iwm_softc *sc);
+extern	int iwm_clear_persistence_bit(struct iwm_softc *sc);
+extern	void iwm_conf_msix_hw(struct iwm_softc *sc, int stopped);
+extern	void iwm_init_msix_hw(struct iwm_softc *sc);
 extern	int iwm_start_hw(struct iwm_softc *sc);
 extern	void iwm_set_pwr(struct iwm_softc *sc);
 extern	int iwm_pcie_rx_stop(struct iwm_softc *sc);

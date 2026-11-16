@@ -439,8 +439,7 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	 */
 	if (inp->inp_ip_p == IPPROTO_ICMPV6) {
 		struct icmp6_hdr *icmp6;
-		if (m->m_len < sizeof(struct icmp6_hdr) &&
-		    (m = m_pullup(m, sizeof(struct icmp6_hdr))) == NULL) {
+		if ((m = m_pullup(m, sizeof(struct icmp6_hdr))) == NULL) {
 			error = ENOBUFS;
 			goto bad;
 		}
@@ -516,7 +515,7 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		}
 		if (!n)
 			goto bad;
-		p = (u_int16_t *)(mtod(n, caddr_t) + off);
+		p = (uint16_t *)(mtod(n, char *) + off);
 		*p = 0;
 		*p = in6_cksum(m, ip6->ip6_nxt, sizeof(*ip6), plen);
 	}

@@ -35,7 +35,7 @@
 #define	XHCI_MAX_EVENTS		232
 #define	XHCI_MAX_COMMANDS	(16 * 1)
 #define	XHCI_MAX_RSEG		1
-#define	XHCI_MAX_TRANSFERS	4
+#define	XHCI_MAX_TRANSFERS	8
 #if USB_MAX_EP_STREAMS == 8
 #define	XHCI_MAX_STREAMS	8
 #define	XHCI_MAX_STREAMS_LOG	3
@@ -355,6 +355,9 @@ struct xhci_dev_endpoint_trbs {
 	    XHCI_MAX_TRANSFERS) + XHCI_MAX_STREAMS];
 };
 
+/* The endpoint rings are addressed from a single physical page */
+CTASSERT(sizeof(struct xhci_dev_endpoint_trbs) <= 4096);
+
 #if (USB_PAGE_SIZE < 4096)
 #error "The XHCI driver needs a pagesize above or equal to 4K"
 #endif
@@ -409,10 +412,12 @@ struct xhci_hw_root {
 };
 
 CTASSERT(sizeof(struct xhci_hw_root) == XHCI_PAGE_SIZE);
+CTASSERT(XHCI_MAX_TRANSFERS <= 32);
 
 struct xhci_endpoint_ext {
 	struct xhci_trb		*trb;
 	struct usb_xfer		*xfer[XHCI_MAX_TRANSFERS * XHCI_MAX_STREAMS];
+	uint32_t		xfer_mask[XHCI_MAX_STREAMS];
 	struct usb_page_cache	*page_cache;
 	uint64_t		physaddr;
 	uint8_t			trb_used[XHCI_MAX_STREAMS];
@@ -478,10 +483,22 @@ struct xhci_bos_desc {
 	struct usb_devcap_container_id_descriptor cidd;
 } __packed;
 
+struct xhci_ssp_bos_desc {
+	struct usb_bos_descriptor		bosd;
+	struct usb_devcap_usb2ext_descriptor	usb2extd;
+	struct usb_devcap_ss_descriptor		usbdcd;
+	struct usb_devcap_container_id_descriptor cidd;
+	struct usb_devcap_ss_plus_descriptor_header ssplus;
+	uDWord caps[8];
+} __packed;
+
 union xhci_hub_desc {
 	struct usb_status		stat;
 	struct usb_port_status		ps;
 	struct usb_hub_ss_descriptor	hubd;
+	struct usb_ext_status		ext_ps;
+	struct usb_device_descriptor	devd;
+	struct xhci_ssp_bos_desc	ssp_bos;
 	uint8_t				temp[128];
 };
 
@@ -548,6 +565,10 @@ struct xhci_softc {
 	uint8_t			sc_command_ccs;
 	/* number of XHCI device slots */
 	uint8_t			sc_noslot;
+	/* Enhanced SuperSpeed speed IDs of the controller, see XHCI_PSIV_BIT */
+	uint16_t		sc_ss_psiv;
+	/* xHCI interface version, see XHCI_HCIVERSION_* */
+	uint16_t		sc_hcversion;
 	/* number of ports on root HUB */
 	uint8_t			sc_noport;
 	/* root HUB device configuration */

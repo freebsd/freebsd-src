@@ -16,6 +16,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef PCI_IOV
 
+#include <net/if_vf_status.h>
+
 static inline bool
 bnxt_eth_addr_valid(const uint8_t *addr)
 {
@@ -97,26 +99,125 @@ bnxt_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 	struct bnxt_vf_info *vf = &softc->pf.vf[vfnum];
+	uint8_t admin_mac[ETHER_ADDR_LEN];
+	bool has_admin_mac;
 	int rc;
 
+	BNXT_SRIOV_LOCK(softc);
 	vf->fw_fid = softc->pf.first_vf_id + vfnum;
 	vf->vfnum = vfnum;
+	has_admin_mac = bnxt_vf_parse_schema(softc, vf, params);
+	memcpy(admin_mac, vf->mac_addr, sizeof(admin_mac));
+	BNXT_SRIOV_UNLOCK(softc);
 
 	/*
 	 * If the schema provided a valid admin MAC, program it into firmware.
 	 */
-	if (bnxt_vf_parse_schema(softc, vf, params)) {
-		rc = bnxt_set_vf_admin_mac(softc, vf, vf->mac_addr);
-		if (rc)
+	if (has_admin_mac) {
+		rc = bnxt_set_vf_admin_mac(softc, vf, admin_mac);
+		if (rc) {
 			device_printf(softc->dev,
 				      "vf%u: PF-assigned MAC programming failed (rc=%d), falling back to firmware/default MAC\n",
 				      vfnum, rc);
+			BNXT_SRIOV_LOCK(softc);
+			memset(vf->mac_addr, 0, ETHER_ADDR_LEN);
+			BNXT_SRIOV_UNLOCK(softc);
+		}
 	}
 
 	(void)bnxt_set_vf_trust(softc, vfnum, vf->trusted);
 	(void)bnxt_set_vf_spoofchk(softc, vfnum, vf->spoofchk);
 
+	BNXT_SRIOV_LOCK(softc);
+	if (softc->pf.num_vfs != 0 && vfnum < softc->pf.num_vfs)
+		softc->pf.vf[vfnum].configured = true;
+	BNXT_SRIOV_UNLOCK(softc);
+
 	return 0;
+}
+
+int
+bnxt_vf_status(if_ctx_t ctx, struct if_vf_status **statusp)
+{
+	struct bnxt_vf_status {
+		u8 mac[ETHER_ADDR_LEN];
+		u16 tx_queue_count;
+		u16 rx_queue_count;
+		bool mac_valid;
+		bool configured;
+		bool allow_set_mac;
+		bool mac_anti_spoof;
+		bool allow_promisc;
+	} snapshot[BNXT_MAX_VFS];
+	struct bnxt_softc *softc;
+	struct bnxt_vf_info *vf;
+	struct if_vf_info *info;
+	struct if_vf_status *status;
+	u16 num_vfs;
+	int i;
+
+	softc = iflib_get_softc(ctx);
+	/* The iflib context lock serializes this with IOV init and uninit. */
+	if (!BNXT_PF(softc) || !softc->pf.iov_attached)
+		return (EOPNOTSUPP);
+	if (softc->pf.num_vfs == 0) {
+		status = if_vf_status_alloc(0);
+		if (status == NULL)
+			return (ENOMEM);
+		*statusp = status;
+		return (0);
+	}
+	BNXT_SRIOV_LOCK(softc);
+	num_vfs = softc->pf.num_vfs;
+	MPASS(num_vfs <= BNXT_MAX_VFS);
+	memset(snapshot, 0, sizeof(snapshot));
+	for (i = 0; i < num_vfs; i++) {
+		vf = &softc->pf.vf[i];
+		if (bnxt_eth_addr_valid(vf->vf_mac_addr)) {
+			memcpy(snapshot[i].mac, vf->vf_mac_addr,
+			    ETHER_ADDR_LEN);
+			snapshot[i].mac_valid = true;
+		} else if (bnxt_eth_addr_valid(vf->mac_addr)) {
+			memcpy(snapshot[i].mac, vf->mac_addr, ETHER_ADDR_LEN);
+			snapshot[i].mac_valid = true;
+		}
+		snapshot[i].tx_queue_count = vf->min_tx_rings;
+		snapshot[i].rx_queue_count = vf->min_rx_rings;
+		snapshot[i].configured = vf->configured;
+		snapshot[i].allow_set_mac =
+		    (vf->flags & BNXT_VF_TRUST) != 0 ||
+		    !bnxt_eth_addr_valid(vf->mac_addr);
+		snapshot[i].mac_anti_spoof =
+		    (vf->flags & BNXT_VF_SPOOFCHK) != 0;
+		snapshot[i].allow_promisc =
+		    (vf->flags & BNXT_VF_TRUST) != 0;
+	}
+	BNXT_SRIOV_UNLOCK(softc);
+
+	status = if_vf_status_alloc(num_vfs);
+	if (status == NULL)
+		return (ENOMEM);
+	for (i = 0; i < num_vfs; i++) {
+		info = &status->vfs[i];
+		info->fields = IFVF_F_CONFIGURED | IFVF_F_ALLOW_SET_MAC |
+		    IFVF_F_MAC_ANTI_SPOOF |
+		    IFVF_F_ALLOW_PROMISC;
+		info->index = i;
+		info->configured = snapshot[i].configured;
+		if (snapshot[i].mac_valid) {
+			memcpy(info->mac, snapshot[i].mac, sizeof(info->mac));
+			info->fields |= IFVF_F_MAC;
+		}
+		info->tx_queue_count = snapshot[i].tx_queue_count;
+		info->rx_queue_count = snapshot[i].rx_queue_count;
+		info->fields |= IFVF_F_NUM_TX_QUEUES |
+		    IFVF_F_NUM_RX_QUEUES;
+		info->allow_set_mac = snapshot[i].allow_set_mac;
+		info->mac_anti_spoof = snapshot[i].mac_anti_spoof;
+		info->allow_promisc = snapshot[i].allow_promisc;
+	}
+	*statusp = status;
+	return (0);
 }
 
 /* Free driver-side VF resources (called after hwrm_vf_resc_free) */
@@ -212,16 +313,22 @@ static int bnxt_set_vf_params(struct bnxt_softc *softc, int vf_id)
 {
 	struct hwrm_func_cfg_input req = {0};
 	struct bnxt_vf_info *vf;
+	u32 flags;
 	int rc;
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_CFG);
 
+	BNXT_SRIOV_LOCK(softc);
 	vf = &softc->pf.vf[vf_id];
 	req.fid = htole16(vf->fw_fid);
 
-
-	if (bnxt_eth_addr_valid(vf->mac_addr)) {
-		req.enables |= htole32(HWRM_FUNC_CFG_INPUT_ENABLES_DFLT_MAC_ADDR);
+	if (bnxt_eth_addr_valid(vf->vf_mac_addr)) {
+		req.enables |= htole32(
+		    HWRM_FUNC_CFG_INPUT_ENABLES_DFLT_MAC_ADDR);
+		memcpy(req.dflt_mac_addr, vf->vf_mac_addr, ETHER_ADDR_LEN);
+	} else if (bnxt_eth_addr_valid(vf->mac_addr)) {
+		req.enables |= htole32(
+		    HWRM_FUNC_CFG_INPUT_ENABLES_DFLT_MAC_ADDR);
 		memcpy(req.dflt_mac_addr, vf->mac_addr, ETHER_ADDR_LEN);
 	}
 
@@ -230,8 +337,19 @@ static int bnxt_set_vf_params(struct bnxt_softc *softc, int vf_id)
 		req.dflt_vlan = htole16(vf->vlan);
 	}
 
-	if (vf->flags & BNXT_VF_TRUST)
-		req.flags = htole32(HWRM_FUNC_CFG_INPUT_FLAGS_TRUSTED_VF_ENABLE);
+	flags = 0;
+	if (softc->fw_cap & BNXT_FW_CAP_TRUSTED_VF) {
+		flags |= vf->flags & BNXT_VF_TRUST ?
+		    HWRM_FUNC_CFG_INPUT_FLAGS_TRUSTED_VF_ENABLE :
+		    HWRM_FUNC_CFG_INPUT_FLAGS_TRUSTED_VF_DISABLE;
+	}
+	if (softc->hwrm_spec_code >= 0x10701) {
+		flags |= vf->flags & BNXT_VF_SPOOFCHK ?
+		    HWRM_FUNC_CFG_INPUT_FLAGS_SRC_MAC_ADDR_CHECK_ENABLE :
+		    HWRM_FUNC_CFG_INPUT_FLAGS_SRC_MAC_ADDR_CHECK_DISABLE;
+	}
+	BNXT_SRIOV_UNLOCK(softc);
+	req.flags = htole32(flags);
 
 	BNXT_HWRM_LOCK(softc);
 	rc = _hwrm_send_message(softc, &req, sizeof(req));
@@ -387,7 +505,8 @@ bool bnxt_promisc_ok(struct bnxt_softc *softc)
 }
 
 static int
-bnxt_hwrm_set_trusted_vf(struct bnxt_softc *softc, struct bnxt_vf_info *vf)
+bnxt_hwrm_set_trusted_vf(struct bnxt_softc *softc, struct bnxt_vf_info *vf,
+    bool trusted)
 {
 	struct hwrm_func_cfg_input req = {0};
 	int rc;
@@ -399,7 +518,7 @@ bnxt_hwrm_set_trusted_vf(struct bnxt_softc *softc, struct bnxt_vf_info *vf)
 
 	req.fid = htole16(vf->fw_fid);
 
-	if (vf->flags & BNXT_VF_TRUST)
+	if (trusted)
 		req.flags = htole32(HWRM_FUNC_CFG_INPUT_FLAGS_TRUSTED_VF_ENABLE);
 	else
 		req.flags = htole32(HWRM_FUNC_CFG_INPUT_FLAGS_TRUSTED_VF_DISABLE);
@@ -426,14 +545,9 @@ bnxt_set_vf_trust(struct bnxt_softc *softc, int vf_id, bool trusted)
 	}
 	vf = &softc->pf.vf[vf_id];
 
-	if (trusted)
-		vf->flags |= BNXT_VF_TRUST;
-	else
-		vf->flags &= ~BNXT_VF_TRUST;
-
 	BNXT_SRIOV_UNLOCK(softc);
 
-	rc = bnxt_hwrm_set_trusted_vf(softc, vf);
+	rc = bnxt_hwrm_set_trusted_vf(softc, vf, trusted);
 	if (rc == 0) {
 		BNXT_SRIOV_LOCK(softc);
 		if (softc->pf.num_vfs != 0 && vf_id < softc->pf.num_vfs) {
@@ -454,6 +568,8 @@ bnxt_vf_configure_mac(struct bnxt_softc *softc, struct bnxt_vf_info *vf)
 	u32 msg_size = sizeof(struct hwrm_func_vf_cfg_input);
 	struct hwrm_func_vf_cfg_input *req =
 		(struct hwrm_func_vf_cfg_input *)vf->hwrm_cmd_req_addr;
+	u8 mac[ETHER_ADDR_LEN];
+	int rc;
 
 	/* Allow VF to set a valid MAC address, if trust is set to on or
 	 * if the PF assigned MAC address is zero
@@ -465,8 +581,14 @@ bnxt_vf_configure_mac(struct bnxt_softc *softc, struct bnxt_vf_info *vf)
 		if (bnxt_eth_addr_valid(req->dflt_mac_addr) &&
 		    (trust || !bnxt_eth_addr_valid(vf->mac_addr) ||
 		     bnxt_eth_addr_equal(req->dflt_mac_addr, vf->mac_addr))) {
-			bnxt_eth_addr_copy(vf->vf_mac_addr, req->dflt_mac_addr);
-			return bnxt_hwrm_exec_fwd_resp(softc, vf, msg_size);
+			bnxt_eth_addr_copy(mac, req->dflt_mac_addr);
+			rc = bnxt_hwrm_exec_fwd_resp(softc, vf, msg_size);
+			if (rc == 0) {
+				BNXT_SRIOV_LOCK(softc);
+				bnxt_eth_addr_copy(vf->vf_mac_addr, mac);
+				BNXT_SRIOV_UNLOCK(softc);
+			}
+			return (rc);
 		}
 		return bnxt_hwrm_fwd_err_resp(softc, vf, msg_size);
 	}
@@ -632,6 +754,9 @@ bnxt_hwrm_set_vf_spoofchk(struct bnxt_softc *sc, struct bnxt_vf_info *vf,
 {
 	struct hwrm_func_cfg_input req = {0};
 	int rc = 0;
+
+	if (sc->hwrm_spec_code < 0x10701)
+		return (EOPNOTSUPP);
 
 	bnxt_hwrm_cmd_hdr_init(sc, &req, HWRM_FUNC_CFG);
 
@@ -1018,6 +1143,8 @@ void bnxt_sriov_attach(struct bnxt_softc *softc)
 	rc = pci_iov_attach(dev, pf_schema, vf_schema);
 	if (rc)
 		device_printf(dev, "Failed to initialize SR-IOV (error=%d)\n", rc);
+	else
+		softc->pf.iov_attached = true;
 }
 
 #else

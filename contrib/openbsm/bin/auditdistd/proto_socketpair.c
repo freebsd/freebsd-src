@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
  * the FreeBSD Foundation.
@@ -110,7 +109,7 @@ sp_wrap(int fd, bool client, void **ctxp)
 }
 
 static int
-sp_send(void *ctx, const unsigned char *data, size_t size, int fd)
+sp_send(void *ctx, const void *data, size_t size, int fd)
 {
 	struct sp_ctx *spctx = ctx;
 	int sock;
@@ -149,7 +148,7 @@ sp_send(void *ctx, const unsigned char *data, size_t size, int fd)
 }
 
 static int
-sp_recv(void *ctx, unsigned char *data, size_t size, int *fdp)
+sp_recv(void *ctx, void *data, size_t size, int *fdp)
 {
 	struct sp_ctx *spctx = ctx;
 	int sock;
@@ -247,7 +246,7 @@ sp_close(void *ctx)
 }
 
 static struct proto sp_proto = {
-	.prt_name = "socketpair",
+	.prt_name = "skp",
 	.prt_connect = sp_connect,
 	.prt_wrap = sp_wrap,
 	.prt_send = sp_send,

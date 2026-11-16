@@ -3142,6 +3142,19 @@ igc_update_stats_counters(struct igc_softc *sc)
 	sc->stats.htdpmc += IGC_READ_REG(&sc->hw, IGC_HTDPMC);
 	sc->stats.tsctc += IGC_READ_REG(&sc->hw, IGC_TSCTC);
 
+	/*
+	 * Packets dropped because a queue's descriptor ring was full.  The
+	 * register does not clear on read.
+	 */
+	for (int i = 0; i < sc->rx_num_queues; i++) {
+		u32 rqdpc = IGC_READ_REG(&sc->hw, IGC_RQDPC(i));
+
+		if (rqdpc != 0) {
+			IGC_WRITE_REG(&sc->hw, IGC_RQDPC(i), 0);
+			sc->rx_queues[i].rx_drops += rqdpc;
+		}
+	}
+
 	igc_update_ecc_stats(sc);
 }
 
@@ -3166,6 +3179,13 @@ igc_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 	case IFCOUNTER_OERRORS:
 		return (if_get_counter_default(ifp, cnt) +
 		    sc->stats.ecol + sc->stats.latecol);
+	case IFCOUNTER_IQDROPS: {
+		uint64_t drops = if_get_counter_default(ifp, cnt);
+
+		for (int i = 0; i < sc->rx_num_queues; i++)
+			drops += sc->rx_queues[i].rx_drops;
+		return (drops);
+	}
 	default:
 		return (if_get_counter_default(ifp, cnt));
 	}
@@ -3367,6 +3387,9 @@ igc_add_hw_stats(struct igc_softc *sc)
 		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "rx_irq",
 		    CTLFLAG_RD, &rxr->rx_irq,
 		    "Queue MSI-X Receive Interrupts");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_drops",
+		    CTLFLAG_RD, &rx_que->rx_drops,
+		    "Packets dropped for want of a receive descriptor");
 	}
 
 	/* MAC stats get their own sub node */

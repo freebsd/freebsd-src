@@ -57,6 +57,8 @@ archive_write_set_compression_program(struct archive *a, const char *cmd)
 }
 #endif
 
+#ifdef HAVE_WAITPID
+
 struct archive_write_program_data {
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	HANDLE		 child;
@@ -396,3 +398,59 @@ free_data(struct program *program)
 		free(program);
 	}
 }
+
+#else
+
+int
+archive_write_add_filter_program(struct archive *a, const char *cmd)
+{
+	(void)cmd; /* UNUSED */
+	archive_set_error(a, ENOSYS, "Processes not supported");
+	return (ARCHIVE_FATAL);
+}
+
+struct archive_write_program_data *
+__archive_write_program_allocate(const char *program)
+{
+	(void)program; /* UNUSED */
+	return (NULL);
+}
+
+int
+__archive_write_program_free(struct archive_write_program_data *data)
+{
+	(void)data; /* UNUSED */
+	return (ARCHIVE_OK);
+}
+
+int
+__archive_write_program_open(struct archive_write_filter *f,
+    struct archive_write_program_data *data, const char *cmd)
+{
+	(void)f; /* UNUSED */
+	(void)data; /* UNUSED */
+	(void)cmd; /* UNUSED */
+	return (ARCHIVE_FATAL);
+}
+
+int
+__archive_write_program_write(struct archive_write_filter *f,
+    struct archive_write_program_data *data, const void *buff, size_t length)
+{
+	(void)f; /* UNUSED */
+	(void)data; /* UNUSED */
+	(void)buff; /* UNUSED */
+	(void)length; /* UNUSED */
+	return (ARCHIVE_FATAL);
+}
+
+int
+__archive_write_program_close(struct archive_write_filter *f,
+    struct archive_write_program_data *data)
+{
+	(void)f; /* UNUSED */
+	(void)data; /* UNUSED */
+	return (ARCHIVE_FATAL);
+}
+
+#endif

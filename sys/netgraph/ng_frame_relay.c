@@ -415,7 +415,7 @@ ngfrm_decode(node_p node, item_p item)
 	struct mbuf *m;
 
 	NGI_GET_M(item, m);
-	if (m->m_len < 4 && (m = m_pullup(m, 4)) == NULL)
+	if ((m = m_pullup(m, 4)) == NULL)
 		ERROUT(ENOBUFS);
 	data = mtod(m, char *);
 	if ((alen = sc->addrlen) == 0) {

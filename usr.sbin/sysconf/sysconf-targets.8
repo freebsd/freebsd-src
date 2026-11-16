@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd September 22, 2026
+.Dd October 25, 2026
 .Dt SYSCONF-TARGETS 8
 .Os
 .Sh NAME
@@ -25,6 +25,8 @@ Per-target file lists and syntax quirks are in
 .Xr sysconf-src 8 ,
 .Xr sysconf-rc 8 ,
 .Xr sysconf-poudriere 8 ,
+.Xr sysconf-pkg 8 ,
+.Xr sysconf-ucl 8 ,
 and
 .Xr sysconf-generic 8 .
 Shared options remain in
@@ -161,10 +163,12 @@ but may differ when the value depends on conditionals or mk defaults.
 .Xr sysconf-generic 8 ,
 .Xr sysconf-loader 8 ,
 .Xr sysconf-make 8 ,
+.Xr sysconf-pkg 8 ,
 .Xr sysconf-poudriere 8 ,
 .Xr sysconf-rc 8 ,
 .Xr sysconf-src 8 ,
-.Xr sysconf-sysctl 8
+.Xr sysconf-sysctl 8 ,
+.Xr sysconf-ucl 8
 .Sh HISTORY
 The
 .Nm sysconf

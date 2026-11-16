@@ -17,6 +17,7 @@ dev/clk/rockchip/rk_clk_armclk.c	standard
 dev/clk//rockchip/rk_clk_composite.c	standard
 dev/clk//rockchip/rk_clk_fract.c	standard
 dev/clk//rockchip/rk_clk_gate.c		standard
+dev/clk/rockchip/rk_clk_mmc.c		standard
 dev/clk//rockchip/rk_clk_mux.c		standard
 dev/clk//rockchip/rk_clk_pll.c		standard
 dev/clk//rockchip/rk_cru.c		standard

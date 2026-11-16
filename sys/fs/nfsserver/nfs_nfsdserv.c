@@ -4835,7 +4835,13 @@ nfsrvd_createsession(struct nfsrv_descript *nd, __unused int isdgram,
 			printf("Consider increasing kern.ipc.maxsockbuf\n");
 		do_printf = false;
 	}
+	if (sep->sess_maxresp <= NFS_MAXXDR) {
+		nd->nd_repstat = NFSERR_TOOSMALL;
+		goto nfsmout;
+	}
 	sep->sess_maxrespcached = fxdr_unsigned(uint32_t, *tl++);
+	if (sep->sess_maxrespcached > sep->sess_maxresp)
+		sep->sess_maxrespcached = sep->sess_maxresp;
 	sep->sess_maxops = fxdr_unsigned(uint32_t, *tl++);
 	sep->sess_maxslots = fxdr_unsigned(uint32_t, *tl++);
 	if (sep->sess_maxslots > NFSV4_SLOTS)
@@ -6039,7 +6045,7 @@ nfsrvd_copy_file_range(struct nfsrv_descript *nd, __unused int isdgram,
 	if (nd->nd_repstat == 0)
 		nd->nd_repstat = ret;
 	if (nd->nd_repstat == 0 && (at.na_uid != nd->nd_cred->cr_uid ||
-	     NFSVNO_EXSTRICTACCESS(exp)))
+	     NFSVNO_EXSTRICTACCESS(toexp)))
 		nd->nd_repstat = nfsvno_accchk(tovp, VWRITE, nd->nd_cred, toexp,
 		    curthread, NFSACCCHK_ALLOWOWNER, NFSACCCHK_VPISLOCKED,
 		    NULL);
@@ -6268,7 +6274,7 @@ nfsrvd_clone(struct nfsrv_descript *nd, __unused int isdgram,
 	if (nd->nd_repstat == 0)
 		nd->nd_repstat = ret;
 	if (nd->nd_repstat == 0 && (at.na_uid != nd->nd_cred->cr_uid ||
-	     NFSVNO_EXSTRICTACCESS(exp)))
+	     NFSVNO_EXSTRICTACCESS(toexp)))
 		nd->nd_repstat = nfsvno_accchk(tovp, VWRITE, nd->nd_cred, toexp,
 		    curthread, NFSACCCHK_ALLOWOWNER, NFSACCCHK_VPISLOCKED,
 		    NULL);

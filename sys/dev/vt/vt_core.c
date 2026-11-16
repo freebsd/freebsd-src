@@ -61,6 +61,7 @@
 #if defined(__i386__) || defined(__amd64__)
 #include <machine/psl.h>
 #include <machine/frame.h>
+#include <machine/md_var.h>
 #endif
 
 static int vtterm_cngrab_noswitch(struct vt_device *, struct vt_window *);
@@ -2971,6 +2972,8 @@ skip_thunk:
 #if defined(__i386__)
 		td->td_frame->tf_eflags |= PSL_IOPL;
 #elif defined(__amd64__)
+		if (fred)
+			return (EINVAL);
 		td->td_frame->tf_rflags |= PSL_IOPL;
 #endif
 		return (0);

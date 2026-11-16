@@ -63,6 +63,7 @@ ATF_TESTS_C+=	fmaximum_fminimum_test
 ATF_TESTS_C+=	ilogb2_test
 ATF_TESTS_C+=	invtrig_test
 ATF_TESTS_C+=	invctrig_test
+ATF_TESTS_C+=	iseqsig_test
 ATF_TESTS_C+=	logarithm_test
 ATF_TESTS_C+=	lrint_test
 ATF_TESTS_C+=	lround_test

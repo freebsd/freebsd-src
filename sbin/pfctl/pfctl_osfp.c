@@ -263,7 +263,7 @@ pfctl_file_fingerprints(int dev, int opts, const char *fp_filename)
 void
 pfctl_clear_fingerprints(int dev, int opts)
 {
-	if (pfctl_flush_fingerprints(pfh) != 0)
+	if ((errno = pfctl_flush_fingerprints(pfh)) != 0)
 		pfctl_err(opts, 1, "DIOCOSFPFLUSH");
 }
 

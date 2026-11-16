@@ -1,7 +1,6 @@
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>
- * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
  * the FreeBSD Foundation.
@@ -494,7 +493,7 @@ tcp_wrap(int fd, bool client, void **ctxp)
 }
 
 static int
-tcp_send(void *ctx, const unsigned char *data, size_t size, int fd)
+tcp_send(void *ctx, const void *data, size_t size, int fd)
 {
 	struct tcp_ctx *tctx = ctx;
 
@@ -510,7 +509,7 @@ tcp_send(void *ctx, const unsigned char *data, size_t size, int fd)
 }
 
 static int
-tcp_recv(void *ctx, unsigned char *data, size_t size, int *fdp)
+tcp_recv(void *ctx, void *data, size_t size, int *fdp)
 {
 	struct tcp_ctx *tctx = ctx;
 

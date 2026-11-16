@@ -22,7 +22,7 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/time.h>
- 
+
 #include <assert.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -59,7 +59,7 @@
 #define BENCH_COLUMN_WIDTH	40
 
 #define MINIMUM(a, b)    (((a) < (b)) ? (a) : (b))
- 
+
 #define TEST_CHECK_INT(r, pred) do {		\
 		switch (pred) {			\
 		case TEST_EQ:			\

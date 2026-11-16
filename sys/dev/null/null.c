@@ -50,6 +50,7 @@ static struct cdev *full_dev;
 static struct cdev *null_dev;
 static struct cdev *zero_dev;
 
+static d_read_t null_read;
 static d_write_t full_write;
 static d_write_t null_write;
 static d_ioctl_t null_ioctl;
@@ -82,7 +83,7 @@ static struct cdevsw full_cdevsw = {
 
 static struct cdevsw null_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_read =	(d_read_t *)nullop,
+	.d_read =	null_read,
 	.d_write =	null_write,
 	.d_ioctl =	null_ioctl,
 	.d_kqfilter =	kqfilter,
@@ -98,6 +99,13 @@ static struct cdevsw zero_cdevsw = {
 	.d_name =	"zero",
 	.d_flags =	D_MMAP_ANON,
 };
+
+static int
+null_read(struct cdev *dev __unused, struct uio *uio __unused,
+    int flags __unused)
+{
+	return (0);
+}
 
 /* ARGSUSED */
 static int

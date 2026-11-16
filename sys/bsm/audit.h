@@ -183,13 +183,21 @@ typedef	u_int32_t	au_class_t;
 typedef	u_int64_t	au_asflgs_t __attribute__ ((aligned (8)));
 
 struct au_tid {
-	u_int32_t	port;		/* XXX dev_t compatibility */
+#ifdef __FreeBSD__
+	u_int32_t	port;
+#else
+	dev_t		port;
+#endif
 	u_int32_t	machine;
 };
 typedef	struct au_tid	au_tid_t;
 
 struct au_tid_addr {
-	u_int32_t	at_port;	/* XXX dev_t compatibility */
+#ifdef __FreeBSD__
+	u_int32_t	at_port;
+#else
+	dev_t		at_port;
+#endif
 	u_int32_t	at_type;
 	u_int32_t	at_addr[4];
 };

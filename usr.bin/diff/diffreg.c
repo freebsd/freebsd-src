@@ -415,7 +415,8 @@ diffreg_stone(char *file1, char *file2, int flags, int capsicum)
 		goto closem;
 	}
 
-	if (diff_format == D_BRIEF && ignore_pats == NULL &&
+	if ((diff_format == D_BRIEF || diff_format == D_QUIET) &&
+	    ignore_pats == NULL &&
 	    (flags & (D_FOLDBLANKS|D_IGNOREBLANKS|D_IGNORECASE|
 	    D_SKIPBLANKLINES|D_STRIPCR)) == 0)
 	{
@@ -1107,7 +1108,8 @@ restart:
 		return;
 	}
 proceed:
-	if (*pflags & D_HEADER && diff_format != D_BRIEF) {
+	if ((*pflags & D_HEADER) != 0 &&
+	    diff_format != D_BRIEF && diff_format != D_QUIET) {
 		printf("%s %s %s\n", diffargs, file1, file2);
 		*pflags &= ~D_HEADER;
 	}
@@ -1156,6 +1158,7 @@ proceed:
 		anychange = 1;
 	switch (diff_format) {
 	case D_BRIEF:
+	case D_QUIET:
 		return;
 	case D_NORMAL:
 	case D_EDIT:

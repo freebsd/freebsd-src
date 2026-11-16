@@ -103,9 +103,7 @@ ATF_TC_BODY(mlock_err, tc)
 	unsigned long vmin = 0;
 	size_t len = sizeof(vmin);
 #endif
-#if !defined(__aarch64__) && !defined(__riscv)
 	void *invalid_ptr;
-#endif
 	void *buf;
 
 #ifdef __FreeBSD__
@@ -159,13 +157,14 @@ ATF_TC_BODY(mlock_err, tc)
 #endif
 	(void)free(buf);
 
-/* There is no sbrk on AArch64 and RISC-V */
-#if !defined(__aarch64__) && !defined(__riscv)
 	/*
-	 * Try to create a pointer to an unmapped page - first after current
-	 * brk will likely do.
+	 * Try to create a pointer to an unmapped page - mmap and then
+	 * munmap a page.
 	 */
-	invalid_ptr = (void*)(((uintptr_t)sbrk(0)+page) & ~(page-1));
+	invalid_ptr = mmap(NULL, page, PROT_READ | PROT_WRITE,
+	    MAP_ANON | MAP_PRIVATE, -1, 0);
+	ATF_REQUIRE(invalid_ptr != MAP_FAILED);
+	ATF_REQUIRE(munmap(invalid_ptr, page) == 0);
 	printf("testing with (hopefully) invalid pointer %p\n", invalid_ptr);
 
 	errno = 0;
@@ -173,7 +172,6 @@ ATF_TC_BODY(mlock_err, tc)
 
 	errno = 0;
 	ATF_REQUIRE_ERRNO(ENOMEM, munlock(invalid_ptr, page) == -1);
-#endif
 }
 
 #ifdef __FreeBSD__

@@ -27,6 +27,42 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20261113:
+	pwd_mkdb(8) now validates login names using the same character rules
+	that pw(8) applies, so names containing shell metacharacters or other
+	disallowed characters can no longer be introduced through vipw(8),
+	chpass(1) or a hand-edited master.passwd.  pw(8) has also been changed
+	to reject the single quote (') and backtick (`) in user and group
+	names.
+
+	As a result, an existing master.passwd that already contains a login
+	name with a now-disallowed character will cause every pwd_mkdb(8) run
+	to fail with "invalid login name", which in turn blocks passwd(1),
+	chpass(1) and pw(8) until the offending name is corrected.  The
+	disallowed characters are whitespace, control and 8-bit characters,
+	and any of
+
+	, : + & # % $ ^ ( ) ! @ ~ * ? < > = | \ / " ; ' `
+
+	A leading '-' is also rejected.  A single trailing '$' remains
+	permitted for Samba machine accounts, and the NIS compatibilty
+	prefixes (a leading '+' or '-', optionally followed by '@') are still
+	allowed.  Review /etc/master.passwd and rename any affected acconuts
+	before updating the password database.
+
+20261102:
+	The USB stack now supports SuperSpeedPlus links.  This adds new values
+	to enum usb_dev_speed and enum usb_revision, turns USB_SPEED_MAX and
+	the other USB_*_MAX macros into enum values, and changes the layout
+	of struct usb_port.  Out-of-tree USB kernel modules must be rebuilt.
+	__FreeBSD_version has been bumped to 1600030 for ports that need to
+	detect these changes.
+
+20261018:
+	The FreeBSD-base repository is now enabled in /etc/pkg/FreeBSD.conf.
+	To disable it, edit that file or put "FreeBSD-base: { enabled: no }"
+	into /usr/local/etc/pkg/repos/FreeBSD.conf.
+
 20260919:
 	less(1) has been updated to version 710, which removes the obsolete
 	lesskey(1) utility.  It is no longer built or installed, and the

@@ -256,6 +256,9 @@ getauclassnum_r(struct au_class_ent *c, au_class_t class_number)
 	setauclass_locked();
 	while ((cp = getauclassent_r_locked(c)) != NULL) {
 		if (class_number == cp->ac_class)
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
+			pthread_mutex_unlock(&mutex);
+#endif
 			return (cp);
 	}
 #ifdef HAVE_PTHREAD_MUTEX_LOCK

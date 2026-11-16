@@ -75,7 +75,7 @@ and publish that to a VirtIO queue; on the hypervisor side, the
 packet is extracted from the VirtIO queue and converted to a
 hypervisor-specific packet representation.
 The overhead of format conversions (and packet copies, in same cases) is not
-incured by
+incurred by
 .Nm
 in netmap mode, because mbufs are not used at all, and the packet format
 is the one defined by netmap (e.g.,

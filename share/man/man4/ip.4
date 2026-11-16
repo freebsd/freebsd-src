@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 7, 2026
+.Dd November 18, 2026
 .Dt IP 4
 .Os
 .Sh NAME
@@ -507,7 +507,7 @@ or 0 to specify the default interface.
 The kernel differentiates between these two structures by their size.
 .Pp
 The use of
-.Vt IP_MULTICAST_IF
+.Dv IP_MULTICAST_IF
 is
 .Em not recommended ,
 as multicast memberships are scoped to each
@@ -586,17 +586,17 @@ the host is multihomed.
 If
 .Va imr_ifindex
 is non-zero, value of
-.Va imr_interface
+.Va imr_address
 is ignored.
 Otherwise, if
 .Va imr_ifindex
 is 0, kernel will use IP address from
-.Va imr_interface
+.Va imr_address
 to lookup the interface.
 Value of
-.Va imr_interface
+.Va imr_address
 may be set to
-.Va INADDR_ANY
+.Dv INADDR_ANY
 to choose the default interface, although this is not recommended; this is
 considered to be the first interface corresponding to the default route.
 Otherwise, the first multicast-capable interface configured in the system

@@ -79,18 +79,12 @@ static moduledata_t ipfw_nptv6_mod = {
 	0
 };
 
-/* Define startup order. */
-#define	IPFW_NPTV6_SI_SUB_FIREWALL	SI_SUB_PROTO_IFATTACHDOMAIN
-#define	IPFW_NPTV6_MODEVENT_ORDER	(SI_ORDER_ANY - 128) /* after ipfw */
-#define	IPFW_NPTV6_MODULE_ORDER		(IPFW_NPTV6_MODEVENT_ORDER + 1)
-#define	IPFW_NPTV6_VNET_ORDER		(IPFW_NPTV6_MODEVENT_ORDER + 2)
-
-DECLARE_MODULE(ipfw_nptv6, ipfw_nptv6_mod, IPFW_NPTV6_SI_SUB_FIREWALL,
-    IPFW_NPTV6_MODULE_ORDER);
+DECLARE_MODULE(ipfw_nptv6, ipfw_nptv6_mod, SI_SUB_PROTO_FIREWALL,
+    SI_ORDER_SECOND);
 MODULE_DEPEND(ipfw_nptv6, ipfw, 3, 3, 3);
 MODULE_VERSION(ipfw_nptv6, 1);
 
-VNET_SYSINIT(vnet_ipfw_nptv6_init, IPFW_NPTV6_SI_SUB_FIREWALL,
-    IPFW_NPTV6_VNET_ORDER, vnet_ipfw_nptv6_init, NULL);
-VNET_SYSUNINIT(vnet_ipfw_nptv6_uninit, IPFW_NPTV6_SI_SUB_FIREWALL,
-    IPFW_NPTV6_VNET_ORDER, vnet_ipfw_nptv6_uninit, NULL);
+VNET_SYSINIT(vnet_ipfw_nptv6_init, SI_SUB_PROTO_FIREWALL, SI_ORDER_SECOND,
+    vnet_ipfw_nptv6_init, NULL);
+VNET_SYSUNINIT(vnet_ipfw_nptv6_uninit, SI_SUB_PROTO_FIREWALL, SI_ORDER_SECOND,
+    vnet_ipfw_nptv6_uninit, NULL);

@@ -31,6 +31,7 @@
 #include <sys/limits.h>
 #include <sys/proc.h>
 #include <sys/random.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
@@ -44,7 +45,7 @@
  */
 CTASSERT(EWOULDBLOCK == EAGAIN);
 
-static int
+int
 kern_getrandom(struct thread *td, void *user_buf, size_t buflen,
     unsigned int flags)
 {

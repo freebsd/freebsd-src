@@ -26,6 +26,10 @@
 #ifndef	__AW_CLK_H__
 #define __AW_CLK_H__
 
+#include <dev/clk/clk.h>
+
+#include "clkdev_if.h"
+
 /*
   Allwinner clocks formula :
 
@@ -72,12 +76,14 @@ struct aw_clk_init {
 #define	AW_CLK_FACTOR_ZERO_IS_ONE	0x0010
 #define	AW_CLK_FACTOR_MIN_VALUE		0x0020
 #define	AW_CLK_FACTOR_MAX_VALUE		0x0040
+#define	AW_CLK_FACTOR_SEARCH_VALUE	0x0080
 
 struct aw_clk_factor {
 	uint32_t	shift;		/* Shift bits for the factor */
 	uint32_t	mask;		/* Mask to get the factor, will be override by the clk methods */
 	uint32_t	width;		/* Number of bits for the factor */
-	uint32_t	value;		/* Fixed value, depends on AW_CLK_FACTOR_FIXED */
+	uint32_t	value;		/* Fixed value, depends on AW_CLK_FACTOR_FIXED
+				 * or AW_CLK_FACTOR_SEARCH_VALUE */
 
 	uint32_t	cond_shift;
 	uint32_t	cond_mask;
@@ -96,6 +102,42 @@ struct aw_clk_frac {
 	uint32_t	mode_sel;
 	uint32_t	freq_sel;
 };
+
+/*
+ * Wait for a PLL to report that it is locked, the hardware sets the lock
+ * bit once the output is stable.
+ */
+static inline void
+aw_clk_wait_for_lock(struct clknode *clk, uint32_t offset, uint32_t lock_shift,
+    uint32_t retries)
+{
+	uint32_t retry, val;
+
+	for (retry = 0; retry < retries; retry++) {
+		CLKDEV_READ_4(clknode_get_device(clk), offset, &val);
+		if ((val & (1 << lock_shift)) != 0)
+			return;
+		DELAY(1000);
+	}
+
+	device_printf(clknode_get_device(clk), "%s did not lock\n",
+	    clknode_get_name(clk));
+}
+
+/*
+ * A PLL that is disabled cannot lock, so there is nothing to wait for after
+ * its rate has been changed, the lock is waited for when it is enabled.
+ */
+static inline bool
+aw_clk_has_lock_to_wait(uint32_t flags, uint32_t gate_shift, uint32_t val)
+{
+	if ((flags & AW_CLK_HAS_LOCK) == 0)
+		return (false);
+	if ((flags & AW_CLK_HAS_GATE) == 0)
+		return (true);
+
+	return ((val & (1 << gate_shift)) != 0);
+}
 
 static inline uint32_t
 aw_clk_get_factor(uint32_t val, struct aw_clk_factor *factor)
@@ -129,7 +171,8 @@ aw_clk_factor_get_max(struct aw_clk_factor *factor)
 {
 	uint32_t max;
 
-	if (factor->flags & AW_CLK_FACTOR_FIXED)
+	if (factor->flags &
+	    (AW_CLK_FACTOR_FIXED | AW_CLK_FACTOR_SEARCH_VALUE))
 		max = factor->value;
 	else if (factor->flags & AW_CLK_FACTOR_POWER_OF_TWO)
 		max = 1 << ((1 << factor->width) - 1);
@@ -145,7 +188,8 @@ aw_clk_factor_get_min(struct aw_clk_factor *factor)
 {
 	uint32_t min;
 
-	if (factor->flags & AW_CLK_FACTOR_FIXED)
+	if (factor->flags &
+	    (AW_CLK_FACTOR_FIXED | AW_CLK_FACTOR_SEARCH_VALUE))
 		min = factor->value;
 	else if (factor->flags & AW_CLK_FACTOR_ZERO_BASED)
 		min = 0;
@@ -406,7 +450,7 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 
 #define NMM_CLK(_clkname, _id, _name, _pnames,		\
      _offset,						\
-     _nshift, _nwidth, _nvalue, _nflags,		\
+     _nshift, _nwidth, _nvalue, _nflags, _nmin,	\
     _m0shift, _m0width, _m0value, _m0flags,		\
     _m1shift, _m1width, _m1value, _m1flags,		\
     _gate_shift,					\
@@ -424,6 +468,7 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.n.width = _nwidth,			\
 		.n.value = _nvalue,			\
 		.n.flags = _nflags,			\
+		.n.min_value = _nmin,			\
 		.m0.shift = _m0shift,			\
 		.m0.width = _m0width,			\
 		.m0.value = _m0value,			\
@@ -440,7 +485,7 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 
 #define NP_CLK(_clkname, _id, _name, _pnames,		\
      _offset,						\
-     _nshift, _nwidth, _nvalue, _nflags,		\
+     _nshift, _nwidth, _nvalue, _nflags, _nmin,	\
      _pshift, _pwidth, _pvalue, _pflags,		\
     _gate_shift,					\
     _lock, _lock_retries,				\
@@ -457,6 +502,7 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.n.width = _nwidth,			\
 		.n.value = _nvalue,			\
 		.n.flags = _nflags,			\
+		.n.min_value = _nmin,			\
 		.p.shift = _pshift,			\
 		.p.width = _pwidth,			\
 		.p.value = _pvalue,			\

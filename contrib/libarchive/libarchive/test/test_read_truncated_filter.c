@@ -174,3 +174,93 @@ DEFINE_TEST(test_read_truncated_filter_xz)
 {
 	test_truncation("xz", archive_write_add_filter_xz, canXz());
 }
+
+/*
+ * Check that we generate an error message when the 8 byte trailer of a gzip
+ * file is incomplete, whether or not the beginning of the file was
+ * decompressed before the error was found.
+ */
+static void
+test_gzip_truncated_trailer(size_t datasize)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	char *buff, *data, tmp[1024];
+	size_t buffsize, used, n;
+	int r, failed;
+
+	buffsize = datasize + 100000;
+	assert(NULL != (buff = malloc(buffsize)));
+	assert(NULL != (data = malloc(datasize)));
+	if (buff == NULL || data == NULL) {
+		free(buff);
+		free(data);
+		return;
+	}
+	fill_with_pseudorandom_data(data, datasize);
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
+	if (archive_write_add_filter_gzip(a) != ARCHIVE_OK) {
+		skipping("gzip writing not supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+		free(buff);
+		free(data);
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, buffsize, &used));
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_filetype(ae, AE_IFREG);
+	archive_entry_set_pathname(ae, "file");
+	archive_entry_set_size(ae, datasize);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	assertEqualIntA(a, (int)datasize,
+	    (int)archive_write_data(a, data, datasize));
+	archive_entry_free(ae);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	for (n = 1; n <= 8; n++) {
+		assert((a = archive_read_new()) != NULL);
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+		if (archive_read_support_filter_gzip(a) != ARCHIVE_OK) {
+			skipping("gzip reading not supported on this platform");
+			assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+			break;
+		}
+
+		/* Read everything, and find out which call fails. */
+		failed = 0;
+		r = archive_read_open_memory(a, buff, used - n);
+		if (r != ARCHIVE_OK) {
+			failed = 1;
+		} else if (archive_read_next_header(a, &ae) != ARCHIVE_OK) {
+			failed = 1;
+		} else {
+			while ((r = (int)archive_read_data(a, tmp,
+			    sizeof(tmp))) > 0)
+				;
+			failed = (r < 0);
+		}
+
+		failure("%d bytes missing, %d bytes of data", (int)n,
+		    (int)datasize);
+		assertEqualInt(1, failed);
+		failure("%d bytes missing, %d bytes of data", (int)n,
+		    (int)datasize);
+		assert(NULL != archive_error_string(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	}
+
+	free(data);
+	free(buff);
+}
+
+DEFINE_TEST(test_read_truncated_filter_gzip_trailer)
+{
+	/* Small enough to be decompressed when opening the archive... */
+	test_gzip_truncated_trailer(100);
+	/* ...and large enough to be decompressed in several blocks. */
+	test_gzip_truncated_trailer(200000);
+}

@@ -117,6 +117,9 @@ acpi_lid_status_update(struct acpi_lid_softc *sc)
 	/* Send notification via devd */
 	acpi_UserNotify("Lid", sc->lid_handle, sc->lid_status);
 
+	/* Notify in-kernel consumers */
+	EVENTHANDLER_INVOKE(acpi_lid_event, sc->lid_status);
+
 #ifdef EVDEV_SUPPORT
 	/* Notify evdev about lid status */
 	evdev_push_sw(sc->lid_evdev, SW_LID, lid_status ? 0 : 1);

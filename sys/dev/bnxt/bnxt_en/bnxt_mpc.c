@@ -844,8 +844,8 @@ static inline uint32_t bnxt_tx_avail(struct bnxt_softc *softc,
 {
 	uint32_t used, prod, cons;
 
-	prod = atomic_load_acq_16(&txr->prod);
-	cons = atomic_load_acq_16(&txr->cons);
+	prod = atomic_load_acq_32(&txr->prod);
+	cons = atomic_load_acq_32(&txr->cons);
 
 	if (prod >= cons)
 		used = prod - cons;
@@ -907,9 +907,8 @@ int bnxt_start_xmit_mpc(struct bnxt_softc *softc, struct bnxt_ring *txr,
 	}
 	memcpy(txbd, data, len);
 	prod = ADVANCE_TX_BY(txr, prod, bds);
-	/* Release-store pairs with the atomic_load_acq_16(&txr->prod) in
-	 * bnxt_tx_avail() and bnxt_adv_mpc_cons(). */
-	atomic_store_rel_16(&txr->prod, prod);
+	/* Pairs with the acquire load of prod in bnxt_tx_avail(). */
+	atomic_store_rel_32(&txr->prod, prod);
 
 	softc->db_ops.bnxt_db_tx(txr, prod);
 
@@ -952,9 +951,9 @@ static void bnxt_adv_mpc_cons(struct bnxt_softc *softc, struct bnxt_ring *txr)
 			}
 		}
 		tx_cons = ADVANCE_TX_BY(txr, tx_cons, mpc_buf->inline_bds);
-		/* Pairs with bnxt_tx_avail()'s atomic_load_acq_16(&txr->cons). */
-		atomic_store_rel_16(&txr->cons, tx_cons);
-		if (tx_cons == atomic_load_acq_16(&txr->prod))
+		/* Pairs with the acquire load in bnxt_tx_avail(). */
+		atomic_store_rel_32(&txr->cons, tx_cons);
+		if (tx_cons == atomic_load_acq_32(&txr->prod))
 			break;
 		mpc_buf = &txr->tx_mpc_buf_ring[tx_cons];
 	} while (mpc_buf->handle == BNXT_INV_MPC_HDL);

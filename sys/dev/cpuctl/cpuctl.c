@@ -54,6 +54,7 @@
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
+#include <x86/cputypes.h>
 #include <x86/ucode.h>
 
 static d_open_t cpuctl_open;
@@ -245,6 +246,39 @@ cpuctl_do_cpuid(int cpu, cpuctl_cpuid_args_t *data, struct thread *td)
 	return (error);
 }
 
+static bool cpuctl_ibs_present;
+
+static void
+cpuctl_ibs_detect(void)
+{
+	cpuctl_ibs_present = (cpu_vendor_id == CPU_VENDOR_AMD ||
+	    cpu_vendor_id == CPU_VENDOR_HYGON) &&
+	    (amd_feature2 & AMDID2_IBS) != 0;
+}
+
+/* Let nmi_handle_intr() claim an IBS NMI orphaned by the write. */
+static int
+cpuctl_wrmsr(u_int msr, uint64_t val)
+{
+	int ret;
+
+	MPASS(curthread->td_critnest > 0);
+	if (!cpuctl_ibs_present)
+		return (wrmsr_safe(msr, val));
+	switch (msr) {
+	case MSR_AMD_IBS_FETCH_CTL:
+	case MSR_AMD_IBS_OP_CTL:
+	case MSR_AMD_IBS_OP_CTL2:
+	case MSR_AMD_IBS_FETCH_CTL2:
+		x86_ibs_ctl_write_begin();
+		ret = wrmsr_safe(msr, val);
+		x86_ibs_ctl_write_end();
+		return (ret);
+	default:
+		return (wrmsr_safe(msr, val));
+	}
+}
+
 /*
  * Actually perform MSR operations.
  */
@@ -276,18 +310,20 @@ cpuctl_do_msr(int cpu, cpuctl_msr_args_t *data, u_long cmd, struct thread *td)
 		data->data = 0;
 		ret = rdmsr_safe(data->msr, &data->data);
 	} else if (cmd == CPUCTL_WRMSR) {
-		ret = wrmsr_safe(data->msr, data->data);
+		critical_enter();
+		ret = cpuctl_wrmsr(data->msr, data->data);
+		critical_exit();
 	} else if (cmd == CPUCTL_MSRSBIT) {
 		critical_enter();
 		ret = rdmsr_safe(data->msr, &reg);
 		if (ret == 0)
-			ret = wrmsr_safe(data->msr, reg | data->data);
+			ret = cpuctl_wrmsr(data->msr, reg | data->data);
 		critical_exit();
 	} else if (cmd == CPUCTL_MSRCBIT) {
 		critical_enter();
 		ret = rdmsr_safe(data->msr, &reg);
 		if (ret == 0)
-			ret = wrmsr_safe(data->msr, reg & ~data->data);
+			ret = cpuctl_wrmsr(data->msr, reg & ~data->data);
 		critical_exit();
 	} else
 		panic("[cpuctl,%d]: unknown operation requested: %lu",
@@ -574,6 +610,7 @@ cpuctl_modevent(module_t mod __unused, int type, void *data __unused)
 
 	switch(type) {
 	case MOD_LOAD:
+		cpuctl_ibs_detect();
 		if (bootverbose)
 			printf("cpuctl: access to MSR registers/cpuid info.\n");
 		cpuctl_devs = malloc(sizeof(*cpuctl_devs) * (mp_maxid + 1), M_CPUCTL,

@@ -119,8 +119,10 @@ If the kernel returned an extended error string in addition to the
 code, the
 .Fn err
 function prints the string with interpolated values for parameters,
-as provided to the corresponding invocation of
-.Xr EXTERROR 9 .
+as provided to the corresponding invocation of the
+.Fn EXTERROR
+macro, see
+.Xr exterror 9 .
 If the extended error string was not provided, but extended error
 information was, or even if string was provided and the
 .Ev EXTERROR_VERBOSE

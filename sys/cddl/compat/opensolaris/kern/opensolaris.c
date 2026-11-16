@@ -34,8 +34,6 @@
 #include <sys/module.h>
 #include <sys/mutex.h>
 
-extern struct opensolaris_utsname utsname;
-
 cpu_core_t	cpu_core[MAXCPU];
 kmutex_t	cpu_lock;
 solaris_cpu_t	solaris_cpu[MAXCPU];

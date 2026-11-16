@@ -10,6 +10,8 @@
 #ifndef _MACHINE_IEEEFP_H_
 #define	_MACHINE_IEEEFP_H_
 
+#include <sys/cdefs.h>
+
 /* Deprecated FPU control interface */
 
 /* FP exception codes */

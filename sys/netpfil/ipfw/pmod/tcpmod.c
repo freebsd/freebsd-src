@@ -67,16 +67,14 @@ tcpmod_setmss(struct mbuf **mp, struct tcphdr *tcp, int tlen, uint16_t mss,
 
 	m = *mp;
 	ret = IP_FW_DENY;
-	if (m->m_len < m->m_pkthdr.len) {
-		/*
-		 * We shouldn't have any data, IP packet contains only
-		 * TCP header with options.
-		 */
-		*mp = m = m_pullup(m, m->m_pkthdr.len);
-		if (m == NULL) {
-			*done = 1;
-			return (ret);
-		}
+	/*
+	 * We shouldn't have any data, IP packet contains only
+	 * TCP header with options.
+	 */
+	*mp = m = m_pullup(m, m->m_pkthdr.len);
+	if (m == NULL) {
+		*done = 1;
+		return (ret);
 	}
 	/* Parse TCP options. */
 	for (tlen -= sizeof(struct tcphdr), cp = (u_char *)(tcp + 1);

@@ -159,9 +159,6 @@ static cpumask_t *static_single_cpu_mask_lcs;
 struct kobject linux_class_root;
 struct device linux_root_device;
 struct class linux_class_misc;
-struct list_head pci_drivers;
-struct list_head pci_devices;
-spinlock_t pci_lock;
 struct uts_namespace init_uts_ns;
 
 unsigned long linux_timer_hz_mask;
@@ -2969,9 +2966,6 @@ linux_compat_init(void *arg)
 	linux_root_device.bsddev = root_bus;
 	linux_class_misc.name = "misc";
 	class_register(&linux_class_misc);
-	INIT_LIST_HEAD(&pci_drivers);
-	INIT_LIST_HEAD(&pci_devices);
-	spin_lock_init(&pci_lock);
 	init_waitqueue_head(&linux_bit_waitq);
 	init_waitqueue_head(&linux_var_waitq);
 
@@ -3082,7 +3076,6 @@ linux_compat_uninit(void *arg)
 	free(__cpu_data, M_KMALLOC);
 #endif
 
-	spin_lock_destroy(&pci_lock);
 	rw_destroy(&linux_vma_lock);
 }
 SYSUNINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_uninit, NULL);

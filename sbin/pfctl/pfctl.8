@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd April 20, 2026
+.Dd October 26, 2026
 .Dt PFCTL 8
 .Os
 .Sh NAME
@@ -45,6 +45,7 @@
 .Oo Fl k
 .Ar host | network | label | id | gateway | source | nat
 .Oc Xc
+.Op Fl l Ar fd
 .Op Fl o Ar level
 .Op Fl p Ar device
 .Op Fl s Ar modifier
@@ -385,6 +386,15 @@ To remove a source from a source limiter use:
 .Pp
 .Dl # pfctl -I 1 -k source -k 192.0.2.2
 .Pp
+.It Fl l Ar fd
+Use the already open Netlink socket
+.Ar fd ,
+inherited from the parent process, instead of creating a new one.
+No other process may use the socket while
+.Nm
+runs.
+Used by
+.Xr authpf 8 .
 .It Fl M
 Kill matching states in the opposite direction (on other interfaces) when
 killing states.

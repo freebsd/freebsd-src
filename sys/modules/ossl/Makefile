@@ -28,14 +28,17 @@ SRCS.arm= \
 	ossl_aes_gcm_neon.c
 
 SRCS.aarch64= \
+	aes-gcm-armv8_64.S \
 	chacha-armv8.S \
 	chacha-armv8-sve.S \
+	ghashv8-armx.S \
 	poly1305-armv8.S \
 	sha1-armv8.S \
 	sha256-armv8.S \
 	sha512-armv8.S \
 	vpaes-armv8.S \
-	ossl_aarch64.c
+	ossl_aarch64.c \
+	ossl_aes_gcm.c
 
 SRCS.amd64= \
 	aes-gcm-avx512.S \

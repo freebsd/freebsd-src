@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
  * the FreeBSD Foundation.
@@ -86,12 +85,14 @@ mtx_unlock(pthread_mutex_t *lock)
 	error = pthread_mutex_unlock(lock);
 	PJDLOG_ASSERT(error == 0);
 }
+#if defined(HAVE_PTHREAD_MUTEX_ISOWNED_NP)
 static __inline bool
 mtx_owned(pthread_mutex_t *lock)
 {
 
 	return (pthread_mutex_isowned_np(lock) != 0);
 }
+#endif
 
 static __inline void
 rw_init(pthread_rwlock_t *lock)

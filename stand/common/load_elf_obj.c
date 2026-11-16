@@ -367,6 +367,8 @@ __elfN(obj_loadimage)(struct preloaded_file *fp, elf_file_t ef, uint64_t off)
 
 	ret = lastaddr - firstaddr;
 	fp->f_addr = firstaddr;
+	if (archsw.arch_file_measure != NULL)
+		archsw.arch_file_measure(fp, firstaddr, ret);
 
 	if (module_verbose > MODULE_VERBOSE_SILENT)
 		printf("size 0x%lx at 0x%lx", (u_long)ret, (u_long)firstaddr);

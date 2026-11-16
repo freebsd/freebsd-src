@@ -263,6 +263,7 @@ void linker_kldload_unbusy(int flags);
 #define MODINFOMD_NOCOPY	0x8000		/* don't copy this metadata to the kernel */
 
 #define MODINFOMD_DEPLIST	(0x4001 | MODINFOMD_NOCOPY)	/* depends on */
+#define MODINFOMD_TPM_MEASURE	(0x4002 | MODINFOMD_NOCOPY)	/* TPM input */
 
 #ifdef _KERNEL
 #define MD_FETCH(mdp, info, type) ({ \

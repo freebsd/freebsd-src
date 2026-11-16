@@ -81,8 +81,13 @@ MALLOC_DECLARE(M_NVME);
 
 #define NVME_ADMIN_TIMEOUT_PERIOD	(60)    /* in seconds */
 #define NVME_DEFAULT_TIMEOUT_PERIOD	(30)    /* in seconds */
+#define NVME_FORMAT_TIMEOUT_PERIOD	(10 * 60) /* in seconds */
 #define NVME_MIN_TIMEOUT_PERIOD		(5)
 #define NVME_MAX_TIMEOUT_PERIOD		(120)
+#define NVME_MAX_FORMAT_TIMEOUT_PERIOD	(60 * 60)
+
+#define NVME_TIMEOUT_DEFAULT		0U
+#define NVME_TIMEOUT_NONE		UINT32_MAX
 
 #define NVME_DEFAULT_RETRY_COUNT	(4)
 
@@ -113,12 +118,11 @@ struct nvme_request {
 	struct memdesc			payload;
 	nvme_cb_fn_t			cb_fn;
 	void				*cb_arg;
+	uint32_t			timeout_ms;
 	int16_t				retries;
 	uint16_t			ioq;
 #define NVME_IOQ_DEFAULT		0xffff
 	bool				payload_valid;
-	bool				timeout;
-	bool				spare[2];		/* Future use */
 	STAILQ_ENTRY(nvme_request)	stailq;
 };
 
@@ -244,7 +248,7 @@ struct nvme_controller {
 #define	QUIRK_APPLE_S3X_NS1_ONLY		0x200	/* Ignore Apple-internal namespace 2 */
 #define	QUIRK_APPLE_128_BYTE_SQES		0x400	/* T2 uses 128-byte I/O SQEs */
 #define	QUIRK_PCIE_FLR_ON_FATAL			0x800	/* Use FLR for a fatal controller */
-#define	QUIRK_APPLE_S3X_SERIALIZE		0x1000	/* One S3X I/O at a time */
+#define	QUIRK_IGNORE_RAB			0x2000	/* Don't configure AB from RAB */
 
 /* Values programmed into CC.IOSQES (log2 of the SQE size in bytes). */
 #define	NVME_IOSQES_64				6
@@ -266,6 +270,7 @@ struct nvme_controller {
 	int			msi_count;
 	bool			is_msix;
 	uint32_t		enable_aborts;
+	int			outstanding_aborts;
 
 	uint32_t		num_io_queues;
 	uint32_t		max_hw_pend_io;
@@ -302,6 +307,7 @@ struct nvme_controller {
 
 	/** timeout period in seconds */
 	uint32_t		admin_timeout_period;
+	uint32_t		format_timeout_period;
 	uint32_t		timeout_period;
 
 	/** doorbell stride */
@@ -406,6 +412,8 @@ void	nvme_ctrlr_cmd_set_interrupt_coalescing(struct nvme_controller *ctrlr,
 						uint32_t threshold,
 						nvme_cb_fn_t cb_fn,
 						void *cb_arg);
+void	nvme_ctrlr_cmd_set_arbitration(struct nvme_controller *ctrlr,
+	    uint32_t cdw11, nvme_cb_fn_t cb_fn, void *cb_arg);
 void	nvme_ctrlr_cmd_get_error_page(struct nvme_controller *ctrlr,
 				      struct nvme_error_information_entry *payload,
 				      uint32_t num_entries, /* 0 = max */
@@ -541,7 +549,7 @@ _nvme_allocate_request(const int how, nvme_cb_fn_t cb_fn, void *cb_arg)
 		req->ioq = NVME_IOQ_DEFAULT;
 		req->cb_fn = cb_fn;
 		req->cb_arg = cb_arg;
-		req->timeout = true;
+		req->timeout_ms = NVME_TIMEOUT_DEFAULT;
 	}
 	return (req);
 }

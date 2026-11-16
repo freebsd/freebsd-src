@@ -241,7 +241,7 @@ _pthread_exit_mask(void *status, sigset_t *mask)
 	thread_uw_init();
 	if (uwl_forcedunwind != NULL) {
 #else
-	if (_Unwind_ForcedUnwind != NULL) {
+	if (_Unwind_ForcedUnwind != NULL && _Unwind_GetCFA != NULL) {
 #endif
 		if (curthread->unwind_disabled) {
 			if (message_printed == 0) {
@@ -278,8 +278,10 @@ exit_thread(void)
 {
 	struct pthread *curthread = _get_curthread();
 
+	THR_LOCK(curthread);
 	free(curthread->name);
 	curthread->name = NULL;
+	THR_UNLOCK(curthread);
 
 	/* Check if there is thread specific data: */
 	if (curthread->specific != NULL) {

@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd August 21, 2020
+.Dd November 12, 2026
 .Dt GRE 4
 .Os
 .Sh NAME
@@ -81,7 +81,23 @@ interfaces support a number of additional parameters to the
 .Xr ifconfig 8 :
 .Bl -tag -width "enable_csum"
 .It Ar grekey
+Set the GRE key for both incoming and outgoing packets.
+.It Ar greokey
 Set the GRE key used for outgoing packets.
+A value of 0 disables the key option.
+.It Ar greikey
+The incoming key is used to choose the interface for incoming packets.
+This allows configuring several tunnels between the same pair of addresses,
+each tunnel must have a unique incoming key.
+An incoming packet is accepted by the interface with same key,
+otherwise if the
+.Xr sysctl 8
+variable
+.Va net.link.gre.key_fallback
+is set to true, the packet is accepted by the interface
+without a key that is configured with the same addresses.
+If there is no such interface either, but only one interface is configured
+with these addresses, it accepts the packet whatever its key is.
 A value of 0 disables the key option.
 .It Ar enable_csum
 Enables checksum calculation for outgoing packets.
@@ -268,8 +284,7 @@ to the desired level of nesting.
 .An Andrey V. Elsukov Aq Mt ae@FreeBSD.org
 .An Heiko W.Rupp Aq Mt hwr@pilhuhn.de
 .Sh BUGS
-The current implementation uses the key only for outgoing packets.
-Incoming packets with a different key or without a key will be treated as if they
-would belong to this interface.
+The current implementation cannot use the key 0 for outgoing packets.
+Incoming packets with the key 0 are also ignored.
 .Pp
-The sequence number field also used only for outgoing packets.
+The sequence number field is used only for outgoing packets.

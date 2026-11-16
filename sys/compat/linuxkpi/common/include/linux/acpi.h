@@ -52,6 +52,10 @@ to_acpi_device_node(const struct fwnode_handle *fwnode)
 
 #define	ACPI_COMPANION(dev)	to_acpi_device_node((dev)->fwnode)
 
+#else
+
+#define	ACPI_COMPANION(dev)	NULL
+
 #endif
 
 #endif /* _LINUXKPI_LINUX_ACPI_H_ */

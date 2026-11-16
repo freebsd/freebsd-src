@@ -19,7 +19,7 @@
       </Feature>
 
       <StandardDirectory Id="ProgramFiles6432Folder">
-          <Directory Id="INSTALLFOLDER" Name="pkgconf @VERSION@" />
+          <Directory Id="INSTALLFOLDER" Name="pkgconf-@VERSION@" />
       </StandardDirectory>
 
       <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
@@ -39,6 +39,21 @@
               <File Id="PkgconfigExeFile"
                     Name="pkg-config.exe"
                     Source="@EXE@"
+                    KeyPath="yes" />
+          </Component>
+          <Component Id="BomtoolExe" Guid="*">
+              <File Id="BomtoolExeFile"
+                    Source="@BOMTOOL_EXE@"
+                    KeyPath="yes" />
+          </Component>
+          <Component Id="SpdxtoolExe" Guid="*">
+              <File Id="SpdxtoolExeFile"
+                    Source="@SPDXTOOL_EXE@"
+                    KeyPath="yes" />
+          </Component>
+          <Component Id="PccriticExe" Guid="*">
+              <File Id="PccriticExeFile"
+                    Source="@PCCRITIC_EXE@"
                     KeyPath="yes" />
           </Component>
           <?if "@BUILD_TYPE@" = "shared" ?>

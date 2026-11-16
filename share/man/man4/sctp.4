@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 21, 2023
+.Dd October 21, 2026
 .Dt SCTP 4
 .Os
 .Sh NAME
@@ -605,6 +605,8 @@ Enable SCTP Auto-ASCONF.
 Maximum incoming SCTP buffer size.
 .It Va sendspace
 Maximum outgoing SCTP buffer size.
+.It Va ignore_loopback_iftype
+Ignore interface type when determining loopback address scope.
 .El
 .El
 .Sh SEE ALSO

@@ -1428,7 +1428,7 @@ gsbase_load_fault:
 	ALIGN_TEXT
 user_fred_syscall:
 	movq	%rdx,TF_RDX(%rsp)
-	movq	%rcx,TF_RCX(%rsp)
+	movq	%r11,TF_R11(%rsp)
 	SAVE_SEGS
 	movq	PCPU(CURPCB),%r11
 	andl	$~PCB_FULL_IRET,PCB_FLAGS(%r11)
@@ -1439,6 +1439,7 @@ user_fred_syscall:
 	movq	%r9,TF_R9(%rsp)
 	movq	%rbx,TF_RBX(%rsp)
 	movq	%rbp,TF_RBP(%rsp)
+	movq	%r10,TF_RCX(%rsp)
 	movq	%r12,TF_R12(%rsp)
 	movq	%r13,TF_R13(%rsp)
 	movq	%r14,TF_R14(%rsp)
@@ -1462,10 +1463,11 @@ user_fred_syscall:
 	movq	TF_RSI(%rsp),%rsi
 	movq	TF_RDX(%rsp),%rdx
 	movq	TF_RAX(%rsp),%rax
+	movq	TF_RIP(%rsp),%rcx
+	movq	TF_RFLAGS(%rsp),%r11
 	xorl	%r8d,%r8d
 	xorl	%r9d,%r9d
 	xorl	%r10d,%r10d
-	xorl	%r11d,%r11d
 	addq	$TF_ERR,%rsp
 	.globl	fred_syscall_eretu
 fred_syscall_eretu:
@@ -1486,12 +1488,6 @@ user_fred_non_syscall:
 	movq	%r14,TF_R14(%rsp)
 	movq	%r15,TF_R15(%rsp)
 	SAVE_SEGS
-	movq	PCPU(CURTHREAD),%r9
-	movq	TD_PCB(%r9),%r8
-	rdfsbase %rax
-	movq	%rax,PCB_FSBASE(%r8)
-	rdgsbase %rax
-	movq	%rax,PCB_GSBASE(%r8)
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
 	KMSAN_ENTER
 	movq	%rsp, %rdi
@@ -1643,15 +1639,19 @@ fred_eretu_fault:
 	.globl	fred_events_handlers, fred_events_handlers_end
 fred_events_handlers:
 	subq	$TF_ERR,%rsp
+	/*
+	 * %rax is saved early both to provide a free register and to
+	 * show the right syscall number in ddb backtrace.
+	 */
 	movq	%rax,TF_RAX(%rsp)
 	movq	%rdi,TF_RDI(%rsp)
 	movq	%rsi,TF_RSI(%rsp)
 	movl	TF_FRED_EVINFO2(%rsp),%edi
 	movl	%edi,%eax
-	andl	$TF_FRED_EVINFO2_TYPEMASK,%edi
-	cmpl	$TF_FRED_EVINFO2_TYPE_SYSCALL,%edi
-	je	user_fred_syscall
-	jmp	user_fred_non_syscall
+	andl	$TF_FRED_EVINFO2_SYSCALLMASK,%edi
+	cmpl	$TF_FRED_EVINFO2_SYSCALLVAL,%edi
+	jne	user_fred_non_syscall
+	jmp	user_fred_syscall
 
 	. = fred_events_handlers + 256
 	subq	$TF_ERR,%rsp
@@ -1671,6 +1671,18 @@ fred_events_handlers:
 	movq	%r14,TF_R14(%rsp)
 	movq	%r15,TF_R15(%rsp)
 	movq	%rsp, %rdi
+#ifdef KDTRACE_HOOKS
+	movl	TF_FRED_EVINFO2(%rsp),%eax
+	andl	$TF_FRED_EVINFO2_EXCMASK,%eax
+	cmpl	$(TF_FRED_EVINFO2_TYPE_INT3 | IDT_BP),%eax
+	jne	2f
+	cmpq	$0,dtrace_invop_jump_addr
+	je	1f
+	movq	$1f,dtrace_invop_calltrap_addr(%rip)
+	jmpq	*dtrace_invop_jump_addr
+1:	movq	%rsp,%rdi
+2:
+#endif
 	KMSAN_ENTER
 	call	trap_fred_k
 	KMSAN_LEAVE
@@ -1687,7 +1699,8 @@ fred_out_of_nmi:
 	pushq	$0
 	pushq	$0
 	movw	%ss,%ax
-	orl	$(1<<18),%eax	/* NMI block release for ERETS */
+	/* NMI block release for ERETS */
+	orl	$(TF_FRED_EVINFO1_NMI << 16),%eax
 	pushq	%rax
 	pushq	%rbp
 	pushfq

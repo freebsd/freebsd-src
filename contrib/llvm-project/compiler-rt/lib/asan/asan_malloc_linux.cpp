@@ -49,7 +49,7 @@ INTERCEPTOR(void, free, void *ptr) {
   if (DlsymAlloc::PointerIsMine(ptr))
     return DlsymAlloc::Free(ptr);
   GET_STACK_TRACE_FREE;
-  asan_free(ptr, &stack, FROM_MALLOC);
+  asan_free(ptr, &stack);
 }
 
 #if SANITIZER_INTERCEPT_CFREE
@@ -57,9 +57,31 @@ INTERCEPTOR(void, cfree, void *ptr) {
   if (DlsymAlloc::PointerIsMine(ptr))
     return DlsymAlloc::Free(ptr);
   GET_STACK_TRACE_FREE;
-  asan_free(ptr, &stack, FROM_MALLOC);
+  asan_free(ptr, &stack);
 }
 #endif // SANITIZER_INTERCEPT_CFREE
+
+#  if SANITIZER_INTERCEPT_FREE_SIZED
+INTERCEPTOR(void, free_sized, void* ptr, uptr size) {
+  if (UNLIKELY(!ptr))
+    return;
+  if (DlsymAlloc::PointerIsMine(ptr))
+    return DlsymAlloc::Free(ptr);
+  GET_STACK_TRACE_FREE;
+  asan_free_sized(ptr, size, &stack);
+}
+#  endif  // SANITIZER_INTERCEPT_FREE_SIZED
+
+#  if SANITIZER_INTERCEPT_FREE_ALIGNED_SIZED
+INTERCEPTOR(void, free_aligned_sized, void* ptr, uptr alignment, uptr size) {
+  if (UNLIKELY(!ptr))
+    return;
+  if (DlsymAlloc::PointerIsMine(ptr))
+    return DlsymAlloc::Free(ptr);
+  GET_STACK_TRACE_FREE;
+  asan_free_aligned_sized(ptr, alignment, size, &stack);
+}
+#  endif  // SANITIZER_INTERCEPT_FREE_ALIGNED_SIZED
 
 INTERCEPTOR(void*, malloc, uptr size) {
   if (DlsymAlloc::Use())
@@ -93,12 +115,12 @@ INTERCEPTOR(void*, reallocarray, void *ptr, uptr nmemb, uptr size) {
 #if SANITIZER_INTERCEPT_MEMALIGN
 INTERCEPTOR(void*, memalign, uptr boundary, uptr size) {
   GET_STACK_TRACE_MALLOC;
-  return asan_memalign(boundary, size, &stack, FROM_MALLOC);
+  return asan_memalign(boundary, size, &stack);
 }
 
 INTERCEPTOR(void*, __libc_memalign, uptr boundary, uptr size) {
   GET_STACK_TRACE_MALLOC;
-  return asan_memalign(boundary, size, &stack, FROM_MALLOC);
+  return asan_memalign(boundary, size, &stack);
 }
 #endif // SANITIZER_INTERCEPT_MEMALIGN
 

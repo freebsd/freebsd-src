@@ -202,27 +202,22 @@ ufs_itimes(struct vnode *vp, struct timespec *tsa)
 	VI_UNLOCK(vp);
 }
 
-static int
-ufs_sync_nlink1(struct mount *mp)
-{
-	int error;
-
-	error = vfs_busy(mp, 0);
-	if (error == 0) {
-		VFS_SYNC(mp, MNT_WAIT);
-		vfs_unbusy(mp);
-		error = ERELOOKUP;
-	}
-	vfs_rel(mp);
-	return (error);
-}
-
+/*
+ * With soft updates, i_nlink can stay at UFS_LINK_MAX after links were
+ * removed, until the removals are on disk.  Sync the file system and have
+ * the caller restart the operation with ERELOOKUP.
+ *
+ * The caller is between vn_start_write() and vn_finished_write().  That
+ * holds a reference on the mount, and keeps an unmount from getting past
+ * the write suspension in VFS_UNMOUNT(), so the mount does not need to be
+ * referenced or busied here while the vnodes are unlocked.  vfs_busy()
+ * would even deadlock, as it waits for an unmount in progress to finish.
+ */
 static int
 ufs_sync_nlink(struct vnode *vp, struct vnode *vp1)
 {
 	struct inode *ip;
 	struct mount *mp;
-	int error;
 
 	ip = VTOI(vp);
 	if (ip->i_nlink < UFS_LINK_MAX)
@@ -231,13 +226,12 @@ ufs_sync_nlink(struct vnode *vp, struct vnode *vp1)
 		return (EMLINK);
 
 	mp = vp->v_mount;
-	vfs_ref(mp);
 	VOP_UNLOCK(vp);
 	if (vp1 != NULL)
 		VOP_UNLOCK(vp1);
-	error = ufs_sync_nlink1(mp);
+	VFS_SYNC(mp, MNT_WAIT);
 	vn_lock_pair(vp, false, LK_EXCLUSIVE, vp1, false, LK_EXCLUSIVE);
-	return (error);
+	return (ERELOOKUP);
 }
 
 /*
@@ -1452,7 +1446,6 @@ relock:
 			error = EMLINK;
 			goto unlockout;
 		}
-		vfs_ref(mp);
 		MPASS(!want_seqc_end);
 		VOP_UNLOCK(fdvp);
 		VOP_UNLOCK(fvp);
@@ -1460,7 +1453,9 @@ relock:
 		if (tvp != NULL)
 			vref(tvp);
 		VOP_VPUT_PAIR(tdvp, &tvp, true);
-		error = ufs_sync_nlink1(mp);
+		/* See ufs_sync_nlink(). */
+		VFS_SYNC(mp, MNT_WAIT);
+		error = ERELOOKUP;
 		vrele(fdvp);
 		vrele(fvp);
 		vrele(tdvp);
@@ -1592,14 +1587,15 @@ relock:
 				vn_seqc_write_end(fvp);
 				vn_seqc_write_end(fdvp);
 				want_seqc_end = false;
-				vfs_ref(mp);
 				VOP_UNLOCK(fdvp);
 				VOP_UNLOCK(fvp);
 				vref(tdvp);
 				if (tvp != NULL)
 					vref(tvp);
 				VOP_VPUT_PAIR(tdvp, &tvp, true);
-				error = ufs_sync_nlink1(mp);
+				/* See ufs_sync_nlink(). */
+				VFS_SYNC(mp, MNT_WAIT);
+				error = ERELOOKUP;
 				vrele(fdvp);
 				vrele(fvp);
 				vrele(tdvp);

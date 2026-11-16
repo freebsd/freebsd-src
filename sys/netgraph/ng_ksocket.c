@@ -51,6 +51,7 @@
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
+#include <sys/epoch.h>
 #include <sys/malloc.h>
 #include <sys/ctype.h>
 #include <sys/protosw.h>
@@ -1119,6 +1120,7 @@ ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 static void
 ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 {
+	struct epoch_tracker et;
 	struct socket *so = arg1;
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mesg *response;
@@ -1231,7 +1233,9 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 		}
 
 sendit:		/* Forward data with optional peer sockaddr as packet tag */
+		NET_EPOCH_ENTER(et);
 		NG_SEND_DATA_ONLY(error, priv->hook, m);
+		NET_EPOCH_EXIT(et);
 	}
 
 	/*
@@ -1243,8 +1247,11 @@ sendit:		/* Forward data with optional peer sockaddr as packet tag */
 		struct mbuf *m;
 
 		m = m_gethdr(M_NOWAIT, MT_DATA);
-		if (m != NULL)
+		if (m != NULL) {
+			NET_EPOCH_ENTER(et);
 			NG_SEND_DATA_ONLY(error, priv->hook, m);
+			NET_EPOCH_EXIT(et);
+		}
 		priv->flags |= KSF_EOFSEEN;
 	}
 }

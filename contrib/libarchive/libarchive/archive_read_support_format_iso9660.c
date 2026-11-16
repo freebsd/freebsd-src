@@ -320,9 +320,6 @@ struct heap_queue {
 };
 
 struct iso9660 {
-	int	magic;
-#define ISO9660_MAGIC   0x96609660
-
 	int opt_support_joliet;
 	int opt_support_rockridge;
 
@@ -391,9 +388,9 @@ static int	archive_read_format_iso9660_read_data(struct archive_read *,
 static int	archive_read_format_iso9660_read_data_skip(struct archive_read *);
 static int	archive_read_format_iso9660_read_header(struct archive_read *,
 		    struct archive_entry *);
-static const char *build_pathname(struct archive_string *, struct file_info *, int);
+static int	build_pathname(struct archive_string *, struct file_info *, int);
 static int	build_pathname_utf16be(unsigned char *, size_t, size_t *,
-		    struct file_info *);
+		    struct file_info *, int);
 #if DEBUG
 static void	dump_isodirrec(FILE *, const unsigned char *isodirrec);
 #endif
@@ -423,7 +420,7 @@ static struct file_info *
 static int	parse_rockridge(struct archive_read *a,
 		    struct file_info *file, const unsigned char *start,
 		    const unsigned char *end);
-static int	register_CE(struct archive_read *a, int32_t location,
+static int	register_CE(struct archive_read *a, uint32_t location,
 		    struct file_info *file);
 static int	read_CE(struct archive_read *a, struct iso9660 *iso9660);
 static void	parse_rockridge_NM1(struct file_info *,
@@ -435,6 +432,7 @@ static void	parse_rockridge_TF1(struct file_info *,
 static void	parse_rockridge_ZF1(struct file_info *,
 		    const unsigned char *, int);
 static void	register_file(struct iso9660 *, struct file_info *);
+static void	release_file(struct file_info *);
 static void	release_files(struct iso9660 *);
 static inline void re_add_entry(struct iso9660 *, struct file_info *);
 static inline struct file_info * re_get_entry(struct iso9660 *);
@@ -464,11 +462,9 @@ archive_read_support_format_iso9660(struct archive *_a)
 
 	iso9660 = calloc(1, sizeof(*iso9660));
 	if (iso9660 == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate iso9660 data");
+		archive_set_error(_a, ENOMEM, "Can't allocate iso9660 data");
 		return (ARCHIVE_FATAL);
 	}
-	iso9660->magic = ISO9660_MAGIC;
 	iso9660->cache_files.first = NULL;
 	iso9660->cache_files.last = &(iso9660->cache_files.first);
 	iso9660->re_files.first = NULL;
@@ -491,11 +487,9 @@ archive_read_support_format_iso9660(struct archive *_a)
 	    NULL,
 	    NULL);
 
-	if (r != ARCHIVE_OK) {
+	if (r != ARCHIVE_OK)
 		free(iso9660);
-		return (r);
-	}
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 
@@ -504,7 +498,7 @@ archive_read_format_iso9660_bid(struct archive_read *a, int best_bid)
 {
 	struct iso9660 *iso9660 = a->format->data;
 	ssize_t bytes_read;
-	const unsigned char *p;
+	const unsigned char *h;
 	int seenTerminator;
 
 	/* If there's already a better bid than we can ever
@@ -518,41 +512,41 @@ archive_read_format_iso9660_bid(struct archive_read *a, int best_bid)
 	 * if the I/O layer gives us more, we'll take it.
 	 */
 #define RESERVED_AREA	(SYSTEM_AREA_BLOCK * LOGICAL_BLOCK_SIZE)
-	p = __archive_read_ahead(a,
+	h = __archive_read_ahead(a,
 	    RESERVED_AREA + 8 * LOGICAL_BLOCK_SIZE,
 	    &bytes_read);
-	if (p == NULL)
+	if (h == NULL)
 	    return (-1);
 
 	/* Skip the reserved area. */
 	bytes_read -= RESERVED_AREA;
-	p += RESERVED_AREA;
+	h += RESERVED_AREA;
 
 	/* Check each volume descriptor. */
 	seenTerminator = 0;
 	for (; bytes_read > LOGICAL_BLOCK_SIZE;
-	    bytes_read -= LOGICAL_BLOCK_SIZE, p += LOGICAL_BLOCK_SIZE) {
+	    bytes_read -= LOGICAL_BLOCK_SIZE, h += LOGICAL_BLOCK_SIZE) {
 		/* Do not handle undefined Volume Descriptor Type. */
-		if (p[0] >= 4 && p[0] <= 254)
+		if (h[0] >= 4 && h[0] <= 254)
 			return (0);
 		/* Standard Identifier must be "CD001" */
-		if (memcmp(p + 1, "CD001", 5) != 0)
+		if (memcmp(h + 1, "CD001", 5) != 0)
 			return (0);
-		if (isPVD(iso9660, p))
+		if (isPVD(iso9660, h))
 			continue;
 		if (!iso9660->joliet.location) {
-			if (isJolietSVD(iso9660, p))
+			if (isJolietSVD(iso9660, h))
 				continue;
 		}
-		if (isBootRecord(p))
+		if (isBootRecord(h))
 			continue;
-		if (isEVD(p))
+		if (isEVD(h))
 			continue;
-		if (isSVD(p))
+		if (isSVD(h))
 			continue;
-		if (isVolumePartition(iso9660, p))
+		if (isVolumePartition(iso9660, h))
 			continue;
-		if (isVDSetTerminator(p)) {
+		if (isVDSetTerminator(h)) {
 			seenTerminator = 1;
 			break;
 		}
@@ -1287,8 +1281,9 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 		}
 
 		iso9660->utf16be_path_len = 0;
-		if (build_pathname_utf16be(iso9660->utf16be_path,
-		    UTF16_NAME_MAX, &(iso9660->utf16be_path_len), file) != 0) {
+		r = build_pathname_utf16be(iso9660->utf16be_path,
+		    UTF16_NAME_MAX, &(iso9660->utf16be_path_len), file, 0);
+		if (r != ARCHIVE_OK) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Pathname is too long");
@@ -1315,16 +1310,15 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			rd_r = ARCHIVE_WARN;
 		}
 	} else {
-		const char *path = build_pathname(&iso9660->pathname, file, 0);
-		if (path == NULL) {
+		archive_string_empty(&iso9660->pathname);
+		r = build_pathname(&iso9660->pathname, file, 0);
+		if (r != ARCHIVE_OK) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Pathname is too long");
 			return (ARCHIVE_FATAL);
-		} else {
-			archive_string_empty(&iso9660->pathname);
-			archive_entry_set_pathname(entry, path);
 		}
+		archive_entry_set_pathname(entry, iso9660->pathname.s);
 	}
 
 	iso9660->entry_bytes_remaining = file->size;
@@ -1517,8 +1511,7 @@ zisofs_read_data(struct archive_read *a,
 		if (zisofs->block_pointers_alloc < xsize) {
 			size_t alloc;
 
-			if (zisofs->block_pointers != NULL)
-				free(zisofs->block_pointers);
+			free(zisofs->block_pointers);
 			alloc = ((xsize >> 10) + 1) << 10;
 			zisofs->block_pointers = malloc(alloc);
 			if (zisofs->block_pointers == NULL) {
@@ -1533,8 +1526,7 @@ zisofs_read_data(struct archive_read *a,
 		/* Allocate uncompressed data buffer. */
 		xsize = (size_t)1UL << zisofs->pz_log2_bs;
 		if (zisofs->uncompressed_buffer_size < xsize) {
-			if (zisofs->uncompressed_buffer != NULL)
-				free(zisofs->uncompressed_buffer);
+			free(zisofs->uncompressed_buffer);
 			zisofs->uncompressed_buffer = malloc(xsize);
 			if (zisofs->uncompressed_buffer == NULL) {
 				archive_set_error(&a->archive, ENOMEM,
@@ -1910,12 +1902,12 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 
 	if (iso9660->seenJoliet) {
 		/* Joliet names are max 64 chars (128 bytes) according to spec,
-		 * but genisoimage/mkisofs allows recording longer Joliet
-		 * names which are 103 UCS2 characters(206 bytes) by their
-		 * option '-joliet-long'.
+		 * but authoring tools record longer ones: genisoimage/mkisofs
+		 * up to 103 UCS2 characters (206 bytes) with '-joliet-long',
+		 * Windows tools up to what the directory record holds. The
+		 * record already bounds name_len (checked above), so the
+		 * whole name is kept.
 		 */
-		if (name_len > 206)
-			name_len = 206;
 		name_len &= ~1;
 
 		/* trim trailing first version and dot from filename.
@@ -2163,8 +2155,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	register_file(iso9660, file);
 	return (file);
 fail:
-	archive_string_free(&file->name);
-	free(file);
+	release_file(file);
 	return (NULL);
 }
 
@@ -2194,7 +2185,7 @@ parse_rockridge(struct archive_read *a, struct file_info *file,
 					 *   8 byte offset w/in above sector
 					 *   8 byte length of continuation
 					 */
-					int32_t location =
+					uint32_t location =
 					    archive_le32dec(data);
 					file->ce_offset =
 					    archive_le32dec(data+8);
@@ -2341,22 +2332,24 @@ parse_rockridge(struct archive_read *a, struct file_info *file,
 }
 
 static int
-register_CE(struct archive_read *a, int32_t location,
+register_CE(struct archive_read *a, uint32_t location,
     struct file_info *file)
 {
 	struct iso9660 *iso9660 = a->format->data;
 	struct read_ce_queue *heap;
-	uint64_t offset, parent_offset;
+	uint64_t offset, parent_offset, ce_end;
 	size_t hole, parent;
 
-	offset = ((uint64_t)location) * (uint64_t)iso9660->logical_block_size;
-	if (((file->mode & AE_IFMT) == AE_IFREG &&
+	if (archive_ckd_mul_u64(&offset, (uint64_t)location,
+	      (uint64_t)iso9660->logical_block_size) ||
+	    archive_ckd_add_u64(&ce_end, offset,
+	      ((uint64_t)file->ce_offset) + file->ce_size) ||
+	    ((file->mode & AE_IFMT) == AE_IFREG &&
 	    offset >= file->offset) ||
 	    offset < iso9660->current_position ||
 	    (((uint64_t)file->ce_offset) + file->ce_size)
 	      > (uint64_t)iso9660->logical_block_size ||
-	    offset + file->ce_offset + file->ce_size
-		  > iso9660->volume_size) {
+	    ce_end > iso9660->volume_size) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Invalid parameter in SUSP \"CE\" extension");
 		return (ARCHIVE_FATAL);
@@ -2765,25 +2758,31 @@ register_file(struct iso9660 *iso9660, struct file_info *file)
 }
 
 static void
-release_files(struct iso9660 *iso9660)
+release_file(struct file_info *file)
 {
 	struct content *con, *connext;
+
+	archive_string_free(&file->name);
+	archive_string_free(&file->symlink);
+	free(file->utf16be_name);
+	con = file->contents.first;
+	while (con != NULL) {
+		connext = con->next;
+		free(con);
+		con = connext;
+	}
+	free(file);
+}
+
+static void
+release_files(struct iso9660 *iso9660)
+{
 	struct file_info *file;
 
 	file = iso9660->use_files;
 	while (file != NULL) {
 		struct file_info *next = file->use_next;
-
-		archive_string_free(&file->name);
-		archive_string_free(&file->symlink);
-		free(file->utf16be_name);
-		con = file->contents.first;
-		while (con != NULL) {
-			connext = con->next;
-			free(con);
-			con = connext;
-		}
-		free(file);
+		release_file(file);
 		file = next;
 	}
 }
@@ -3061,14 +3060,28 @@ re_get_entry(struct iso9660 *iso9660)
 static inline int
 rede_add_entry(struct file_info *file)
 {
-	struct file_info *re;
+	struct file_info *re, *slow;
+	int slow_turn = 0;
 
 	/*
 	 * Find "RE" entry.
+	 *
+	 * A malformed image can chain "CL"/"RE" reparenting so that the
+	 * parent pointers form a cycle in which no node carries the "re"
+	 * flag.  Advance a second pointer at half speed (Floyd's cycle
+	 * detection) so such a loop is reported as a malformed archive
+	 * instead of spinning forever.
 	 */
-	re = file->parent;
-	while (re != NULL && !re->re)
+	re = slow = file->parent;
+	while (re != NULL && !re->re) {
 		re = re->parent;
+		if (slow_turn) {
+			slow = slow->parent;
+			if (re == slow)
+				return (-1);	/* Cyclic parent chain. */
+		}
+		slow_turn = !slow_turn;
+	}
 	if (re == NULL)
 		return (-1);
 
@@ -3439,53 +3452,64 @@ time_from_tm(struct tm *t)
 #endif
 }
 
-static const char *
+static int
 build_pathname(struct archive_string *as, struct file_info *file, int depth)
 {
 	// Plain ISO9660 only allows 8 dir levels; if we get
 	// to 1000, then something is very, very wrong.
-	if (depth > 1000) {
-		return NULL;
-	}
+	if (depth > 1000)
+		return (ARCHIVE_FATAL);
 	if (file->parent != NULL && archive_strlen(&file->parent->name) > 0) {
-		if (build_pathname(as, file->parent, depth + 1) == NULL) {
-			return NULL;
-		}
+		int r = build_pathname(as, file->parent, depth + 1);
+
+		if (r != ARCHIVE_OK)
+			return (r);
 		archive_strcat(as, "/");
 	}
 	if (archive_strlen(&file->name) == 0)
 		archive_strcat(as, ".");
 	else
 		archive_string_concat(as, &file->name);
-	return (as->s);
+	return (ARCHIVE_OK);
 }
 
 static int
 build_pathname_utf16be(unsigned char *p, size_t max, size_t *len,
-    struct file_info *file)
+    struct file_info *file, int depth)
 {
+	/*
+	 * Plain ISO9660 only allows 8 dir levels; if we get
+	 * to 1000, then something is very, very wrong.  A malformed
+	 * image can also form a cycle in the parent chain via Rock
+	 * Ridge "CL"/"RE" relocation, which without this limit would
+	 * recurse until the stack is exhausted.  Mirrors the cap in
+	 * build_pathname().
+	 */
+	if (depth > 1000)
+		return (ARCHIVE_FATAL);
 	if (file->parent != NULL && file->parent->utf16be_bytes > 0) {
-		if (build_pathname_utf16be(p, max, len, file->parent) != 0)
-			return (-1);
+		if (build_pathname_utf16be(p, max, len, file->parent,
+		    depth + 1) != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
 		if (*len + 2 > max)
-			return (-1);/* Path is too long! */
+			return (ARCHIVE_FATAL);/* Path is too long! */
 		p[*len] = 0;
 		p[*len + 1] = '/';
 		*len += 2;
 	}
 	if (file->utf16be_bytes == 0) {
 		if (*len + 2 > max)
-			return (-1);/* Path is too long! */
+			return (ARCHIVE_FATAL);/* Path is too long! */
 		p[*len] = 0;
 		p[*len + 1] = '.';
 		*len += 2;
 	} else {
 		if (*len + file->utf16be_bytes > max)
-			return (-1);/* Path is too long! */
+			return (ARCHIVE_FATAL);/* Path is too long! */
 		memcpy(p + *len, file->utf16be_name, file->utf16be_bytes);
 		*len += file->utf16be_bytes;
 	}
-	return (0);
+	return (ARCHIVE_OK);
 }
 
 #if DEBUG

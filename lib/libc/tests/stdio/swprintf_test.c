@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <locale.h>
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <wchar.h>
@@ -46,6 +47,7 @@ ATF_TC_BODY(swprintf_b, tc)
 	SWPRINTF_TEST("         0b1", "%#12b", 1);
 	SWPRINTF_TEST("0b0000000001", "%#012b", 1);
 	SWPRINTF_TEST("0b1111111111111111111111111111111", "%#b", INT_MAX);
+	SWPRINTF_TEST("0b0011", "%1$#05jb%b", (uintmax_t)1, 1);
 }
 
 ATF_TC_WITHOUT_HEAD(swprintf_B);
@@ -65,6 +67,7 @@ ATF_TC_BODY(swprintf_B, tc)
 	SWPRINTF_TEST("         0B1", "%#12B", 1);
 	SWPRINTF_TEST("0B0000000001", "%#012B", 1);
 	SWPRINTF_TEST("0B1111111111111111111111111111111", "%#B", INT_MAX);
+	SWPRINTF_TEST("0B0011", "%1$#05jB%B", (uintmax_t)1, 1);
 }
 
 ATF_TC_WITHOUT_HEAD(swprintf_d);
@@ -80,6 +83,17 @@ ATF_TC_BODY(swprintf_d, tc)
 	SWPRINTF_TEST("  2147483647", "%12d", INT_MAX);
 	SWPRINTF_TEST("002147483647", "%012d", INT_MAX);
 	SWPRINTF_TEST("2,147,483,647", "%'d", INT_MAX);
+}
+
+ATF_TC_WITHOUT_HEAD(swprintf_F);
+ATF_TC_BODY(swprintf_F, tc)
+{
+	SWPRINTF_TEST("1.500000", "%F", 1.5);
+	SWPRINTF_TEST("INF", "%F", INFINITY);
+	SWPRINTF_TEST("-INF", "%F", -INFINITY);
+	SWPRINTF_TEST("1.500000", "%1$F", 1.5);
+	SWPRINTF_TEST("-INF", "%1$F", -INFINITY);
+	SWPRINTF_TEST("  1.500000", "%1$*2$F", 1.5, 10);
 }
 
 ATF_TC_WITHOUT_HEAD(swprintf_x);
@@ -158,6 +172,11 @@ ATF_TC_BODY(swprintf_wN, tc)
 	SWPRINTF_TEST("wd", "%wd", 0);
 	SWPRINTF_TEST("w1d", "%w1d", 0);
 	SWPRINTF_TEST("w128d", "%w128d", 0);
+
+	SWPRINTF_TEST(" 1", "%1$*2$w16d", (int16_t)1, 2);
+	SWPRINTF_TEST(" 1", "%1$*2$w32d", (int32_t)1, 2);
+	SWPRINTF_TEST(" 1", "%1$*2$w64d", (int64_t)1, 2);
+	SWPRINTF_TEST("42w42d", "%1$d%w42d", 42);
 }
 
 ATF_TC_WITHOUT_HEAD(swprintf_wfN);
@@ -190,6 +209,11 @@ ATF_TC_BODY(swprintf_wfN, tc)
 	SWPRINTF_TEST("wfd", "%wfd", 0);
 	SWPRINTF_TEST("wf1d", "%wf1d", 0);
 	SWPRINTF_TEST("wf128d", "%wf128d", 0);
+
+	SWPRINTF_TEST(" 1", "%1$*2$w16d", (int_fast16_t)1, 2);
+	SWPRINTF_TEST(" 1", "%1$*2$w32d", (int_fast32_t)1, 2);
+	SWPRINTF_TEST(" 1", "%1$*2$w64d", (int_fast64_t)1, 2);
+	SWPRINTF_TEST("42wf42d", "%1$d%wf42d", 42);
 }
 
 ATF_TP_ADD_TCS(tp)
@@ -198,6 +222,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, swprintf_b);
 	ATF_TP_ADD_TC(tp, swprintf_B);
 	ATF_TP_ADD_TC(tp, swprintf_d);
+	ATF_TP_ADD_TC(tp, swprintf_F);
 	ATF_TP_ADD_TC(tp, swprintf_x);
 	ATF_TP_ADD_TC(tp, swprintf_X);
 	ATF_TP_ADD_TC(tp, swprintf_wN);

@@ -372,6 +372,7 @@ gssint_convert_name_to_union_name(OM_uint32 *minor_status, gss_mechanism mech,
 {
     OM_uint32 major_status,tmp;
     gss_union_name_t union_name;
+    gss_OID name_type;
 
     union_name = (gss_union_name_t) malloc (sizeof(gss_union_name_desc));
     if (!union_name) {
@@ -404,9 +405,15 @@ gssint_convert_name_to_union_name(OM_uint32 *minor_status, gss_mechanism mech,
     major_status = mech->gss_display_name(minor_status,
 					  internal_name,
 					  union_name->external_name,
-					  &union_name->name_type);
+					  &name_type);
     if (major_status != GSS_S_COMPLETE) {
 	map_error(minor_status, mech);
+	goto allocation_failure;
+    }
+    major_status = generic_gss_copy_oid(minor_status, name_type,
+					&union_name->name_type);
+    if (major_status != GSS_S_COMPLETE) {
+	map_errcode(minor_status);
 	goto allocation_failure;
     }
 

@@ -29,14 +29,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 11, 2010
+.Dd November 11, 2026
 .Dt STRTOD 3
 .Os
 .Sh NAME
 .Nm strtod , strtof , strtold
-.Nd convert
-.Tn ASCII
-string to floating point
+.Nd convert ASCII string to floating point
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -113,6 +111,9 @@ function) are skipped.
 The decimal point
 character is defined in the program's locale (category
 .Dv LC_NUMERIC ) .
+.Pp
+Extended locale versions of these functions are documented in
+.Xr xlocale 3 .
 .Sh RETURN VALUES
 The
 .Fn strtod ,

@@ -579,17 +579,30 @@ fetch_socks5_getenv(char **host, int *port)
 
 
 /*
+ * Return current time in milliseconds since an arbitrary epoch.
+ */
+typedef unsigned long mstime_t;
+static mstime_t
+mstime_mono(void)
+{
+	struct timespec ts;
+
+	(void)clock_gettime(CLOCK_MONOTONIC, &ts);
+	return ((mstime_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+}
+
+/*
  * Establish a TCP connection to the specified port on the specified host.
  */
 conn_t *
 fetch_connect(const char *host, int port, int af, int verbose)
 {
-	struct timeval now, timeout, delta;
 	struct pollfd pfd;
 	struct addrinfo *cais = NULL, *sais = NULL, *cai, *sai;
 	const char *bindaddr;
 	conn_t *conn = NULL;
-	int deltams, err = 0, serrno, sd = -1;
+	mstime_t now, deadline, deltams;
+	int err = 0, serrno, sd = -1;
 	char *sockshost;
 	int socksport;
 
@@ -630,10 +643,8 @@ fetch_connect(const char *host, int port, int af, int verbose)
 	/* try each server address in turn */
 	for (err = 0, sai = sais; sai != NULL; sai = sai->ai_next) {
 		/* start the clock */
-		if (fetchTimeout > 0) {
-			gettimeofday(&timeout, NULL);
-			timeout.tv_sec += fetchTimeout;
-		}
+		if (fetchTimeout > 0)
+			deadline = mstime_mono() + fetchTimeout * 1000;
 
 		/* open socket */
 		if ((sd = socket(sai->ai_family, SOCK_STREAM, 0)) < 0) {
@@ -665,22 +676,18 @@ fetch_connect(const char *host, int port, int af, int verbose)
 			goto next;
 
 		/* wait for connection */
+		deltams = INFTIM;
+		pfd.fd = sd;
+		pfd.events = POLLOUT;
 		for (;;) {
-			deltams = INFTIM;
-			pfd.fd = sd;
-			pfd.events = POLLOUT;
-
 			/* check the clock */
 			if (fetchTimeout > 0) {
-				gettimeofday(&now, NULL);
-				if (!timercmp(&timeout, &now, >)) {
+				if ((now = mstime_mono()) > deadline) {
 					errno = ETIMEDOUT;
 					err = -1;
 					goto next;
 				}
-				timersub(&timeout, &now, &delta);
-				deltams = delta.tv_sec * 1000 +
-				    delta.tv_usec / 1000;
+				deltams = deadline - now;
 			}
 			/* wait for something to happen */
 			if ((err = poll(&pfd, 1, deltams)) > 0)
@@ -1002,7 +1009,11 @@ fetch_ssl_verify_altname(STACK_OF(GENERAL_NAME) *altnames,
 	for (i = 0; i < sk_GENERAL_NAME_num(altnames); ++i) {
 		name = sk_GENERAL_NAME_value(altnames, i);
 		ns = (const char *)ASN1_STRING_get0_data(name->d.ia5);
+#if OPENSSL_VERSION_NUMBER >= 0x40100000L
+		nslen = ASN1_STRING_get_length(name->d.ia5);
+#else
 		nslen = (size_t)ASN1_STRING_length(name->d.ia5);
+#endif
 
 		if (name->type == GEN_DNS && ip == NULL &&
 		    fetch_ssl_hname_match(host, strlen(host), ns, nslen))
@@ -1219,6 +1230,8 @@ int
 fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 {
 #ifdef WITH_SSL
+	struct pollfd pfd;
+	mstime_t now, deadline, deltams;
 	int ret, ssl_err;
 	X509_NAME *name;
 	char *str;
@@ -1251,11 +1264,40 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 		return (-1);
 	}
 #endif
+	if (fetchTimeout > 0)
+		deadline = mstime_mono() + fetchTimeout * 1000;
+	deltams = INFTIM;
+	pfd.fd = conn->sd;
 	while ((ret = SSL_connect(conn->ssl)) == -1) {
 		ssl_err = SSL_get_error(conn->ssl, ret);
-		if (ssl_err != SSL_ERROR_WANT_READ &&
-		    ssl_err != SSL_ERROR_WANT_WRITE) {
+		switch (ssl_err) {
+		case SSL_ERROR_WANT_READ:
+			pfd.events = POLLIN;
+			break;
+		case SSL_ERROR_WANT_WRITE:
+			pfd.events = POLLOUT;
+			break;
+		default:
 			ERR_print_errors_fp(stderr);
+			return (-1);
+		}
+		/* check what's left of our timeout */
+		if (fetchTimeout > 0) {
+			if ((now = mstime_mono()) > deadline) {
+				errno = ETIMEDOUT;
+				fetch_syserr();
+				return (-1);
+			}
+			deltams = deadline - now;
+		}
+		ret = poll(&pfd, 1, deltams);
+		if (ret == 0) {
+			fetch_info("SSL handshake timed out");
+			return (-1);
+		}
+		if (ret < 0) {
+			if (errno == EINTR && fetchRestartCalls)
+				continue;
 			return (-1);
 		}
 	}
@@ -1356,15 +1398,12 @@ fetch_ssl_write(SSL *ssl, void *buf, size_t len)
 ssize_t
 fetch_read(conn_t *conn, void *buf, size_t len)
 {
-	struct timeval now, timeout, delta;
 	struct pollfd pfd;
 	ssize_t rlen, total;
-	int deltams;
+	mstime_t now, deadline, deltams;
 
-	if (fetchTimeout > 0) {
-		gettimeofday(&timeout, NULL);
-		timeout.tv_sec += fetchTimeout;
-	}
+	if (fetchTimeout > 0)
+		deadline = mstime_mono() + fetchTimeout * 1000;
 
 	deltams = INFTIM;
 	pfd.fd = conn->sd;
@@ -1417,15 +1456,12 @@ fetch_read(conn_t *conn, void *buf, size_t len)
 		}
 		/* check what's left of our timeout */
 		if (fetchTimeout > 0) {
-			gettimeofday(&now, NULL);
-			if (!timercmp(&timeout, &now, >)) {
+			if ((now = mstime_mono()) > deadline) {
 				errno = ETIMEDOUT;
 				fetch_syserr();
 				return (-1);
 			}
-			timersub(&timeout, &now, &delta);
-			deltams = delta.tv_sec * 1000 +
-			    delta.tv_usec / 1000;
+			deltams = deadline - now;
 		}
 		/* wait for the socket to become readable */
 		if (poll(&pfd, 1, deltams) < 0) {
@@ -1601,15 +1637,12 @@ fetch_write(conn_t *conn, const void *buf, size_t len)
 ssize_t
 fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 {
-	struct timeval now, timeout, delta;
 	struct pollfd pfd;
 	ssize_t wlen, total;
-	int deltams;
+	mstime_t now, deadline, deltams;
 
-	if (fetchTimeout > 0) {
-		gettimeofday(&timeout, NULL);
-		timeout.tv_sec += fetchTimeout;
-	}
+	if (fetchTimeout > 0)
+		deadline = mstime_mono() + fetchTimeout * 1000;
 
 	deltams = INFTIM;
 	pfd.fd = conn->sd;
@@ -1665,15 +1698,12 @@ fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 		}
 		/* check what's left of our timeout */
 		if (fetchTimeout > 0) {
-			gettimeofday(&now, NULL);
-			if (!timercmp(&timeout, &now, >)) {
+			if ((now = mstime_mono()) > deadline) {
 				errno = ETIMEDOUT;
 				fetch_syserr();
 				return (-1);
 			}
-			timersub(&timeout, &now, &delta);
-			deltams = delta.tv_sec * 1000 +
-			    delta.tv_usec / 1000;
+			deltams = deadline - now;
 		}
 		/* wait for the socket to become writeable */
 		if (poll(&pfd, 1, deltams) < 0) {

@@ -875,7 +875,9 @@ db_show_rm(const struct lock_object *lock)
  *
  * Neither rms_rlock nor rms_runlock use thread fences. Instead interrupt
  * fences are inserted to ensure ordering with the code executed in the IPI
- * handler.
+ * handler.  Writers interrupt all CPUs both to block readers and to unblock
+ * them, so a reader that sees no writer also sees what the last writer
+ * stored.
  *
  * No attempt is made to track which CPUs read locked at least once,
  * consequently write locking sends IPIs to all of them. This will become a
@@ -1171,7 +1173,7 @@ rms_assert_no_pcpu_readers(struct rmslock *rms)
 #endif
 
 static void
-rms_wlock_switch(struct rmslock *rms)
+rms_block_readers(struct rmslock *rms)
 {
 	struct rmslock_ipi rmsipi;
 
@@ -1186,6 +1188,19 @@ rms_wlock_switch(struct rmslock *rms)
 	    smp_no_rendezvous_barrier,
 	    rms_wait_func,
 	    &rmsipi.srcra);
+}
+
+/*
+ * Order the writer's stores before the count readers check without a fence.
+ */
+static void
+rms_unblock_readers(struct rmslock *rms)
+{
+
+	MPASS(rms->readers == 0);
+	MPASS(rms->writers == 1);
+
+	cpus_fence_seq_cst();
 }
 
 void
@@ -1210,7 +1225,7 @@ rms_wlock(struct rmslock *rms)
 	KASSERT(rms->owner == RMS_NOOWNER,
 	    ("%s: unexpected owner value %p\n", __func__, rms->owner));
 
-	rms_wlock_switch(rms);
+	rms_block_readers(rms);
 	rms_assert_no_pcpu_readers(rms);
 
 	if (rms->readers > 0) {
@@ -1235,6 +1250,8 @@ rms_wunlock(struct rmslock *rms)
 	    ("%s: unexpected owner value %p\n", __func__, rms->owner));
 	MPASS(rms->writers >= 1);
 	MPASS(rms->readers == 0);
+	if (rms->writers == 1)
+		rms_unblock_readers(rms);
 	rms->writers--;
 	if (rms->writers > 0) {
 		wakeup_one(&rms->owner);

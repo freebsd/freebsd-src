@@ -592,17 +592,15 @@ ip6_input(struct mbuf *m)
 			goto bad;
 
 		m_move_pkthdr(n, m);
-		m_copydata(m, 0, n->m_pkthdr.len, mtod(n, caddr_t));
+		m_copydata(m, 0, n->m_pkthdr.len, mtod(n, void *));
 		n->m_len = n->m_pkthdr.len;
 		m_freem(m);
 		m = n;
 	}
-	if (m->m_len < sizeof(struct ip6_hdr)) {
-		if ((m = m_pullup(m, sizeof(struct ip6_hdr))) == NULL) {
-			IP6STAT_INC(ip6s_toosmall);
-			in6_ifstat_inc(rcvif, ifs6_in_hdrerr);
-			goto bad;
-		}
+	if ((m = m_pullup(m, sizeof(struct ip6_hdr))) == NULL) {
+		IP6STAT_INC(ip6s_toosmall);
+		in6_ifstat_inc(rcvif, ifs6_in_hdrerr);
+		goto bad;
 	}
 
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -946,41 +944,31 @@ bad:
 static int
 ip6_hopopts_input(u_int32_t *rtalertp, struct mbuf **mp, int *offp)
 {
-	struct mbuf *m = *mp;
 	int off = *offp, hbhlen;
 	struct ip6_hbh *hbh;
 
 	/* validation of the length of the header */
-	if (m->m_len < off + sizeof(*hbh)) {
-		m = m_pullup(m, off + sizeof(*hbh));
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			*mp = NULL;
-			return (-1);
-		}
+	if ((*mp = m_pullup(*mp, off + sizeof(*hbh))) == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return (-1);
 	}
-	hbh = (struct ip6_hbh *)(mtod(m, caddr_t) + off);
+	hbh = (struct ip6_hbh *)(mtod(*mp, char *) + off);
 	hbhlen = (hbh->ip6h_len + 1) << 3;
 
-	if (m->m_len < off + hbhlen) {
-		m = m_pullup(m, off + hbhlen);
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_exthdrtoolong);
-			*mp = NULL;
-			return (-1);
-		}
+	if ((*mp = m_pullup(*mp, off + hbhlen)) == NULL) {
+		IP6STAT_INC(ip6s_exthdrtoolong);
+		return (-1);
 	}
-	hbh = (struct ip6_hbh *)(mtod(m, caddr_t) + off);
+	hbh = (struct ip6_hbh *)(mtod(*mp, char *) + off);
 	off += hbhlen;
 	hbhlen -= sizeof(struct ip6_hbh);
-	if (ip6_process_hopopts(m, (u_int8_t *)hbh + sizeof(struct ip6_hbh),
-				hbhlen, rtalertp) < 0) {
+	if (ip6_process_hopopts(*mp, (u_int8_t *)hbh + sizeof(struct ip6_hbh),
+	    hbhlen, rtalertp) < 0) {
 		*mp = NULL;
 		return (-1);
 	}
 
 	*offp = off;
-	*mp = m;
 	return (0);
 }
 
@@ -1029,7 +1017,7 @@ ip6_process_hopopts(struct mbuf *m, u_int8_t *opthead, int hbhlen,
 				return (-1);
 			}
 			optlen = IP6OPT_RTALERT_LEN;
-			bcopy((caddr_t)(opt + 2), (caddr_t)&rtalert_val, 2);
+			bcopy(opt + 2, &rtalert_val, 2);
 			*rtalertp = ntohs(rtalert_val);
 			break;
 		case IP6OPT_JUMBO:
@@ -1403,7 +1391,7 @@ ip6_savecontrol(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 
 			if (off + sizeof(*ip6e) > m->m_len)
 				goto loopend;
-			ip6e = (struct ip6_ext *)(mtod(m, caddr_t) + off);
+			ip6e = (struct ip6_ext *)(mtod(m, char *) + off);
 			if (nxt == IPPROTO_AH)
 				elen = (ip6e->ip6e_len + 2) << 2;
 			else
@@ -1557,7 +1545,7 @@ ip6_get_prevhdr(const struct mbuf *m, int off)
 	len = sizeof(struct ip6_hdr);
 	nlen = 0;
 	while (len < off) {
-		m_copydata(m, len, sizeof(ip6e), (caddr_t)&ip6e);
+		m_copydata(m, len, sizeof(ip6e), &ip6e);
 		switch (nxt) {
 		case IPPROTO_FRAGMENT:
 			nlen = sizeof(struct ip6_frag);
@@ -1594,7 +1582,7 @@ ip6_nexthdr(const struct mbuf *m, int off, int proto, int *nxtp)
 	case IPPROTO_IPV6:
 		if (m->m_pkthdr.len < off + sizeof(ip6))
 			return -1;
-		m_copydata(m, off, sizeof(ip6), (caddr_t)&ip6);
+		m_copydata(m, off, sizeof(ip6), &ip6);
 		if (nxtp)
 			*nxtp = ip6.ip6_nxt;
 		off += sizeof(ip6);
@@ -1607,7 +1595,7 @@ ip6_nexthdr(const struct mbuf *m, int off, int proto, int *nxtp)
 		 */
 		if (m->m_pkthdr.len < off + sizeof(fh))
 			return -1;
-		m_copydata(m, off, sizeof(fh), (caddr_t)&fh);
+		m_copydata(m, off, sizeof(fh), &fh);
 		/* IP6F_OFF_MASK = 0xfff8(BigEndian), 0xf8ff(LittleEndian) */
 		if (fh.ip6f_offlg & IP6F_OFF_MASK)
 			return -1;
@@ -1619,7 +1607,7 @@ ip6_nexthdr(const struct mbuf *m, int off, int proto, int *nxtp)
 	case IPPROTO_AH:
 		if (m->m_pkthdr.len < off + sizeof(ip6e))
 			return -1;
-		m_copydata(m, off, sizeof(ip6e), (caddr_t)&ip6e);
+		m_copydata(m, off, sizeof(ip6e), &ip6e);
 		if (nxtp)
 			*nxtp = ip6e.ip6e_nxt;
 		off += (ip6e.ip6e_len + 2) << 2;
@@ -1630,7 +1618,7 @@ ip6_nexthdr(const struct mbuf *m, int off, int proto, int *nxtp)
 	case IPPROTO_DSTOPTS:
 		if (m->m_pkthdr.len < off + sizeof(ip6e))
 			return -1;
-		m_copydata(m, off, sizeof(ip6e), (caddr_t)&ip6e);
+		m_copydata(m, off, sizeof(ip6e), &ip6e);
 		if (nxtp)
 			*nxtp = ip6e.ip6e_nxt;
 		off += (ip6e.ip6e_len + 1) << 3;

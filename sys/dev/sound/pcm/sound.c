@@ -428,8 +428,6 @@ pcm_register(device_t dev, char *str)
 	vchan_initsys(dev);
 	feeder_eq_initsys(dev);
 
-	sndstat_register(dev, SNDST_TYPE_PCM, d->status);
-
 	err = dsp_make_dev(dev);
 	if (err)
 		return (err);
@@ -440,6 +438,9 @@ pcm_register(device_t dev, char *str)
 			return (err);
 		}
 	}
+
+	/* Publish only once registration really has finished properly. */
+	sndstat_register(dev, SNDST_TYPE_PCM, d->status);
 
 	bus_topo_lock();
 	if (snd_unit_auto < 0)
@@ -463,8 +464,8 @@ pcm_unregister(device_t dev)
 
 	d = device_get_softc(dev);
 
-	if (!PCM_REGISTERED(d)) {
-		device_printf(dev, "unregister: device not configured\n");
+	if (!PCM_ALIVE(d)) {
+		device_printf(dev, "unregister: device not initialized\n");
 		return (0);
 	}
 
@@ -496,6 +497,7 @@ pcm_unregister(device_t dev)
 
 	cv_destroy(&d->cv);
 	mtx_destroy(&d->lock);
+	d->dev = NULL;
 
 	bus_topo_lock();
 	if (snd_unit == device_get_unit(dev)) {

@@ -15,107 +15,81 @@
  * from the use of this software.
  */
 
+#include <libpkgconf/config.h>
 #include <libpkgconf/stdinc.h>
 #include <libpkgconf/libpkgconf.h>
 
-#define push_or_return_fail(buf, c) \
-	do { if (!pkgconf_buffer_push_byte((buf), (char) (c))) return false; } while (0)
-
-#define trim_or_return_fail(buf) \
-	do { if (!pkgconf_buffer_trim_byte((buf))) return false; } while (0)
+#if HAVE_DECL_GETC_UNLOCKED
+# define pkgconf_getc(stream) getc_unlocked(stream)
+#else
+# define pkgconf_getc(stream) getc(stream)
+#endif
 
 bool
 pkgconf_fgetline(pkgconf_buffer_t *buffer, FILE *stream)
 {
 	bool quoted = false;
 	bool got_data = false;
-	char in[PKGCONF_ITEM_SIZE];
-	long unread = 0;
+	char run[256];
+	size_t runlen = 0;
+	int c;
 
-	while (fgets(in, sizeof in, stream) != NULL)
+	while ((c = pkgconf_getc(stream)) != EOF)
 	{
-		char *p = in;
-
 		got_data = true;
 
-		while (*p != '\0')
+		if (c == '\\' && !quoted)
 		{
-			unsigned char c = (unsigned char) *p++;
+			quoted = true;
+			continue;
+		}
 
-			if (c == '\\' && !quoted)
+		if (c == '\n')
+		{
+			if (quoted)
 			{
-				quoted = true;
+				quoted = false;
 				continue;
 			}
-			else if (c == '\n')
-			{
-				if (quoted)
-				{
-					quoted = false;
-					continue;
-				}
-				else
-					push_or_return_fail(buffer, (char) c);
 
-				goto done;
-			}
-			else if (c == '\r')
-			{
-				if (*p == '\n')
-				{
-					p++;
-				}
-				else if (*p == '\0')
-				{
-					/*
-					 * The matching '\n' may not have been read into `in`
-					 * yet if '\r' landed exactly on the fgets() buffer
-					 * boundary. Peek the real stream so a split CRLF
-					 * isn't misparsed as two lines.
-					 */
-					int next = getc(stream);
-
-					if (next != '\n' && next != EOF && ungetc(next, stream) == EOF)
-						return false;
-				}
-
-				if (quoted)
-				{
-					quoted = false;
-					continue;
-				}
-
-				push_or_return_fail(buffer, '\n');
-				/* unlike '\n', a lone '\r' doesn't bound the fgets() call above */
-				unread = (long) strlen(p);
-				goto done;
-			}
-			else
-			{
-				if (quoted)
-				{
-					push_or_return_fail(buffer, '\\');
-					quoted = false;
-				}
-
-				push_or_return_fail(buffer, (char) c);
-			}
+			break;
 		}
+
+		if (c == '\r')
+		{
+			int next = pkgconf_getc(stream);
+
+			if (next != '\n' && next != EOF && ungetc(next, stream) == EOF)
+				return false;
+
+			if (quoted)
+			{
+				quoted = false;
+				continue;
+			}
+
+			break;
+		}
+
+		if (runlen > sizeof run - 2)
+		{
+			if (!pkgconf_buffer_append_slice(buffer, run, runlen))
+				return false;
+
+			runlen = 0;
+		}
+
+		if (quoted)
+		{
+			run[runlen++] = '\\';
+			quoted = false;
+		}
+
+		run[runlen++] = (char) c;
 	}
 
-done:
-	if (unread > 0 && fseek(stream, -unread, SEEK_CUR) != 0)
+	if (runlen != 0 && !pkgconf_buffer_append_slice(buffer, run, runlen))
 		return false;
 
-	/* Remove newline character. */
-	if (pkgconf_buffer_lastc(buffer) == '\n')
-		trim_or_return_fail(buffer);
-
-	if (pkgconf_buffer_lastc(buffer) == '\r')
-		trim_or_return_fail(buffer);
-
-	if (!got_data)
-		return false;
-
-	return !ferror(stream);
+	return got_data && !ferror(stream);
 }

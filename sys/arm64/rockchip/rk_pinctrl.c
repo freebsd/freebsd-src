@@ -1016,16 +1016,17 @@ rk_pinctrl_parse_drive(struct rk_pinctrl_softc *sc, phandle_t node,
 	int i;
 
 	if (OF_getencprop(node, "drive-strength", &value,
-	    sizeof(value)) != 0)
+	    sizeof(value)) != sizeof(value))
 		return (-1);
 
 	/* Map to the correct drive value */
 	for (i = 0; i < sc->conf->npin_drive; i++) {
-		if (sc->conf->pin_drive[i].bank != bank &&
+		if (sc->conf->pin_drive[i].bank != bank ||
 		    sc->conf->pin_drive[i].subbank != subbank)
 			continue;
 		if (sc->conf->pin_drive[i].ma == value) {
 			*drive = sc->conf->pin_drive[i].value;
+			*offset = sc->conf->pin_drive[i].offset;
 			return (0);
 		}
 	}
@@ -1182,15 +1183,19 @@ rk_pinctrl_configure_pin(struct rk_pinctrl_softc *sc, uint32_t *pindata)
 	    "rockchip,rk3568-pinctrl")) {
 		uint32_t value;
 		if (OF_getencprop(pin_conf, "drive-strength", &value,
-		    sizeof(value)) == 0) {
+		    sizeof(value)) == sizeof(value)) {
 			if (bank)
 				reg = 0x01c0 + (bank * 0x40) + (pin / 2 * 4);
 			else
 				reg = 0x0070 + (pin / 2 * 4);
 
-			drive = ((1 << (value + 1)) - 1) << (pin % 2);
-
-			mask = 0x3f << (pin % 2);
+			/* Each pin has an 8 bits field, two pins per register */
+			bit = (pin % 2) * 8;
+			/* The field is full from level 7 */
+			if (value > 7)
+				value = 7;
+			drive = ((1 << (value + 1)) - 1) << bit;
+			mask = 0xff << bit;
 
 			SYSCON_WRITE_4(syscon, reg, drive | (mask << 16));
 		}

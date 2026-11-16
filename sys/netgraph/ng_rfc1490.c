@@ -313,8 +313,7 @@ ng_rfc1490_rcvdata(hook_p hook, item_p item)
 		const u_char *start;
 		const u_char *ptr;
 
-		if (m->m_len < MAX_ENCAPS_HDR
-		    && !(m = m_pullup(m, MAX_ENCAPS_HDR)))
+		if ((m = m_pullup(m, MAX_ENCAPS_HDR)) == NULL)
 			ERROUT(ENOBUFS);
 		ptr = start = mtod(m, const u_char *);
 

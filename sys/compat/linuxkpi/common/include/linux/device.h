@@ -48,6 +48,7 @@
 #include <linux/overflow.h>
 #include <linux/ratelimit.h>	/* via linux/dev_printk.h */
 #include <linux/fwnode.h>
+#include <linux/device/devres.h>
 #include <asm/atomic.h>
 
 #include <sys/bus.h>
@@ -291,26 +292,8 @@ dev_err_probe(const struct device *dev, int err, const char *fmt, ...)
 #define	dev_err_cast_probe(dev, err, fmt, ...) \
     ERR_PTR(dev_err_probe((dev), PTR_ERR(err), fmt, ##__VA_ARGS__)
 
-/* Public and LinuxKPI internal devres functions. */
-void *lkpi_devres_alloc(void(*release)(struct device *, void *), size_t, gfp_t);
-void lkpi_devres_add(struct device *, void *);
-void lkpi_devres_free(void *);
-void *lkpi_devres_find(struct device *, void(*release)(struct device *, void *),
-    int (*match)(struct device *, void *, void *), void *);
-int lkpi_devres_destroy(struct device *, void(*release)(struct device *, void *),
-    int (*match)(struct device *, void *, void *), void *);
-#define	devres_alloc(_r, _s, _g)	lkpi_devres_alloc(_r, _s, _g)
-#define	devres_add(_d, _p)		lkpi_devres_add(_d, _p)
-#define	devres_free(_p)			lkpi_devres_free(_p)
-#define	devres_find(_d, _rfn, _mfn, _mp) \
-					lkpi_devres_find(_d, _rfn, _mfn, _mp)
-#define	devres_destroy(_d, _rfn, _mfn, _mp) \
-					lkpi_devres_destroy(_d, _rfn, _mfn, _mp)
 void lkpi_devres_release_free_list(struct device *);
 void lkpi_devres_unlink(struct device *, void *);
-void lkpi_devm_kmalloc_release(struct device *, void *);
-void lkpi_devm_kfree(struct device *, const void *);
-#define	devm_kfree(_d, _p)		lkpi_devm_kfree(_d, _p)
 
 static inline const char *
 dev_driver_string(const struct device *dev)
@@ -702,40 +685,6 @@ char *lkpi_devm_kasprintf(struct device *, gfp_t, const char *, ...);
 
 #define	devm_kasprintf(_dev, _gfp, _fmt, ...)			\
     lkpi_devm_kasprintf(_dev, _gfp, _fmt, ##__VA_ARGS__)
-
-static __inline void *
-devm_kmalloc(struct device *dev, size_t size, gfp_t gfp)
-{
-	void *p;
-
-	p = lkpi_devres_alloc(lkpi_devm_kmalloc_release, size, gfp);
-	if (p != NULL)
-		lkpi_devres_add(dev, p);
-
-	return (p);
-}
-
-static inline void *
-devm_kmemdup(struct device *dev, const void *src, size_t len, gfp_t gfp)
-{
-	void *dst;
-
-	if (len == 0)
-		return (NULL);
-
-	dst = devm_kmalloc(dev, len, gfp);
-	if (dst != NULL)
-		memcpy(dst, src, len);
-
-	return (dst);
-}
-
-static inline void *
-devm_kmemdup_array(struct device *dev, const void *src, size_t n, size_t len,
-    gfp_t gfp)
-{
-	return (devm_kmemdup(dev, src, size_mul(n, len), gfp));
-}
 
 #define	devm_kzalloc(_dev, _size, _gfp)				\
     devm_kmalloc((_dev), (_size), (_gfp) | __GFP_ZERO)

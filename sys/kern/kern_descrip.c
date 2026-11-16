@@ -374,7 +374,6 @@ struct dup2_args {
 int
 sys_dup2(struct thread *td, struct dup2_args *uap)
 {
-
 	return (kern_dup(td, FDDUP_FIXED, 0, (int)uap->from, (int)uap->to));
 }
 
@@ -390,7 +389,6 @@ struct dup_args {
 int
 sys_dup(struct thread *td, struct dup_args *uap)
 {
-
 	return (kern_dup(td, FDDUP_NORMAL, 0, (int)uap->fd, 0));
 }
 
@@ -408,7 +406,6 @@ struct fcntl_args {
 int
 sys_fcntl(struct thread *td, struct fcntl_args *uap)
 {
-
 	return (kern_fcntl_freebsd(td, uap->fd, uap->cmd, uap->arg));
 }
 
@@ -1493,7 +1490,6 @@ struct close_args {
 int
 sys_close(struct thread *td, struct close_args *uap)
 {
-
 	return (kern_close(td, uap->fd));
 }
 
@@ -1610,7 +1606,6 @@ struct close_range_args {
 int
 sys_close_range(struct thread *td, struct close_range_args *uap)
 {
-
 	AUDIT_ARG_FD(uap->lowfd);
 	AUDIT_ARG_CMD(uap->highfd);
 	AUDIT_ARG_FFLAGS(uap->flags);
@@ -1704,12 +1699,18 @@ struct fstat_args {
 int
 sys_fstat(struct thread *td, struct fstat_args *uap)
 {
+	return (user_fstat(td, uap->fd, uap->sb));
+}
+
+int
+user_fstat(struct thread *td, int fd, struct stat *sb)
+{
 	struct stat ub;
 	int error;
 
-	error = kern_fstat(td, uap->fd, &ub);
+	error = kern_fstat(td, fd, &ub);
 	if (error == 0)
-		error = copyout(&ub, uap->sb, sizeof(ub));
+		error = copyout(&ub, sb, sizeof(ub));
 	return (error);
 }
 
@@ -2446,6 +2447,7 @@ pdinit(struct pwddesc *pdp, bool keeplock)
 
 	PWDDESC_LOCK_INIT(newpdp);
 	refcount_init(&newpdp->pd_refcount, 1);
+	refcount_init(&newpdp->pd_sharecount, 1);
 	newpdp->pd_cmask = CMASK;
 
 	if (pdp == NULL) {
@@ -2527,6 +2529,7 @@ pddrop(struct pwddesc *pdp)
 		PWDDESC_XUNLOCK(pdp);
 		return;
 	}
+	MPASS(refcount_load(&pdp->pd_sharecount) == 0);
 	pwd = PWDDESC_XLOCKED_LOAD_PWD(pdp);
 	pwd_set(pdp, NULL);
 	PWDDESC_XUNLOCK(pdp);
@@ -2553,7 +2556,11 @@ fdshare(struct filedesc *fdp)
 struct pwddesc *
 pdshare(struct pwddesc *pdp)
 {
+	u_int old __diagused;
+
 	refcount_acquire(&pdp->pd_refcount);
+	old = refcount_acquire(&pdp->pd_sharecount);
+	MPASS(old > 0);
 	return (pdp);
 }
 
@@ -2585,7 +2592,7 @@ pdunshare(struct thread *td)
 
 	p = td->td_proc;
 	/* Not shared. */
-	if (refcount_load(&p->p_pd->pd_refcount) == 1)
+	if (refcount_load(&p->p_pd->pd_sharecount) == 1)
 		return;
 
 	pdp = pdcopy(p->p_pd);
@@ -2644,13 +2651,16 @@ fdcopy(struct filedesc *fdp, struct proc *p1)
 		if ((ops->fo_flags & DFLAG_FORK) != 0 &&
 		    (ofde->fde_flags & UF_FOCLOSE) == 0) {
 			if (ops->fo_fork(newfdp, ofde->fde_file, &fp, p1,
-			    curthread) != 0)
+			    curthread) != 0) {
+				if (newfdp->fd_freefile > i)
+					newfdp->fd_freefile = i;
 				continue;
+			}
 			fork_pass = true;
 		} else if ((ops->fo_flags & DFLAG_PASSABLE) == 0 ||
 		    (ofde->fde_flags & UF_FOCLOSE) != 0 ||
 		    !fhold(ofde->fde_file)) {
-			if (newfdp->fd_freefile == fdp->fd_freefile)
+			if (newfdp->fd_freefile > i)
 				newfdp->fd_freefile = i;
 			continue;
 		}
@@ -2868,6 +2878,7 @@ pdescfree(struct thread *td)
 	atomic_thread_fence_seq_cst();
 	PROC_WAIT_UNLOCKED(p);
 
+	(void)refcount_release(&pdp->pd_sharecount);
 	pddrop(pdp);
 }
 

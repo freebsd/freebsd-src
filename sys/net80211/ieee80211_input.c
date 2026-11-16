@@ -319,8 +319,7 @@ ieee80211_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen,
 	KASSERT(hdrlen <= sizeof(wh),
 	    ("hdrlen %d > max %zd", hdrlen, sizeof(wh)));
 
-	if (m->m_len < hdrlen + sizeof(*llc) &&
-	    (m = m_pullup(m, hdrlen + sizeof(*llc))) == NULL) {
+	if ((m = m_pullup(m, hdrlen + sizeof(*llc))) == NULL) {
 		vap->iv_stats.is_rx_tooshort++;
 		/* XXX msg */
 		return NULL;
@@ -395,7 +394,7 @@ ieee80211_decap1(struct mbuf *m, int *framelen)
 	 * copy the 802.3 header up to where it belongs and
 	 * adjust the mbuf contents to remove the void.
 	 */
-	if (m->m_len < FF_LLC_SIZE && (m = m_pullup(m, FF_LLC_SIZE)) == NULL)
+	if ((m = m_pullup(m, FF_LLC_SIZE)) == NULL)
 		return NULL;
 	eh = mtod(m, struct ether_header *);	/* 802.3 header is first */
 

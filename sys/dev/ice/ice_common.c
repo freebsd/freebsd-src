@@ -5370,6 +5370,44 @@ ice_get_lan_q_ctx(struct ice_hw *hw, u16 vsi_handle, u8 tc, u16 q_handle)
 }
 
 /**
+ * ice_rollback_vsi_txq - undo a successfully added LAN Tx queue
+ * @pi: port information structure
+ * @q_ctx: software queue context
+ * @buf: completed Add Tx LAN Queues command buffer
+ *
+ * This function needs to be called with the scheduler lock held.
+ */
+static int
+ice_rollback_vsi_txq(struct ice_port_info *pi, struct ice_q_ctx *q_ctx,
+		     struct ice_aqc_add_tx_qgrp *buf)
+{
+	/* An allocation failure after the Add command must not prevent cleanup. */
+	u8 qg_buf[sizeof(struct ice_aqc_dis_txq_item) + sizeof(__le16)] = { 0 };
+	struct ice_aqc_dis_txq_item *qg_list;
+	struct ice_sched_node *node;
+	struct ice_hw *hw = pi->hw;
+	int status;
+
+	qg_list = (struct ice_aqc_dis_txq_item *)qg_buf;
+	qg_list->parent_teid = buf->parent_teid;
+	qg_list->num_qs = 1;
+	qg_list->q_id[0] = buf->txqs[0].txq_id;
+
+	status = ice_aq_dis_lan_txq(hw, 1, qg_list, sizeof(qg_buf),
+				    ICE_NO_RESET, 0, NULL);
+	if (status)
+		return status;
+
+	node = ice_sched_find_node_by_teid(pi->root,
+					   LE32_TO_CPU(buf->txqs[0].q_teid));
+	if (node)
+		ice_free_sched_node(pi, node);
+	q_ctx->q_handle = ICE_INVAL_Q_HANDLE;
+	q_ctx->q_teid = 0;
+	return 0;
+}
+
+/**
  * ice_ena_vsi_txq
  * @pi: port information structure
  * @vsi_handle: software VSI handle
@@ -5391,6 +5429,7 @@ ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 q_handle,
 	struct ice_sched_node *parent;
 	struct ice_q_ctx *q_ctx;
 	struct ice_hw *hw;
+	int rollback_status;
 	int status;
 
 	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
@@ -5466,6 +5505,19 @@ ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 q_handle,
 	status = ice_sched_add_node(pi, hw->num_tx_sched_layers - 1, &node, NULL);
 	if (!status)
 		status = ice_sched_replay_q_bw(pi, q_ctx);
+	if (status) {
+		ice_debug(hw, ICE_DBG_SCHED,
+			  "Queue %d post-add setup failed, error %d\n",
+			  LE16_TO_CPU(buf->txqs[0].txq_id), status);
+		rollback_status = ice_rollback_vsi_txq(pi, q_ctx, buf);
+		if (rollback_status) {
+			ice_debug(hw, ICE_DBG_SCHED,
+				  "Failed to roll back queue %d, error %d\n",
+				  LE16_TO_CPU(buf->txqs[0].txq_id),
+				  rollback_status);
+			status = rollback_status;
+		}
+	}
 
 ena_txq_exit:
 	ice_release_lock(&pi->sched_lock);
@@ -6931,4 +6983,3 @@ bool ice_is_fw_auto_drop_supported(struct ice_hw *hw)
 		return true;
 	return false;
 }
-

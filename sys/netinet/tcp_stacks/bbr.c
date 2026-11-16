@@ -540,7 +540,7 @@ bbr_get_persists_timer_val(struct tcpcb *tp, struct tcp_bbr *bbr)
 		var = 0;
 	} else {
 		srtt = ((uint64_t)TICKS_2_USEC(tp->t_srtt) >> TCP_RTT_SHIFT);
-		var = ((uint64_t)TICKS_2_USEC(tp->t_rttvar) >> TCP_RTT_SHIFT);
+		var = ((uint64_t)TICKS_2_USEC(tp->t_rttvar) >> TCP_RTTVAR_SHIFT);
 	}
 	TCPT_RANGESET_NOSLOP(ret_val, ((srtt + var) * tcp_backoff[tp->t_rxtshift]),
 	    bbr_persist_min, bbr_persist_max);
@@ -594,8 +594,7 @@ activate_rxt:
 			if (tp->t_srtt == 0)
 				tov = BBR_INITIAL_RTO;
 			else
-				tov = ((uint64_t)(TICKS_2_USEC(tp->t_srtt) +
-				    ((uint64_t)TICKS_2_USEC(tp->t_rttvar) * (uint64_t)4)) >> TCP_RTT_SHIFT);
+				tov = TICKS_2_USEC(tp->t_srtt + (tp->t_rttvar << (TCP_RTT_SHIFT - TCP_DELTA_SHIFT))) >> TCP_RTT_SHIFT;
 			if (tp->t_rxtshift)
 				tov *= tcp_backoff[tp->t_rxtshift];
 			if (tov > time_since_sent)
@@ -4897,8 +4896,7 @@ bbr_remxt_tmr(struct tcpcb *tp)
 				 * With this option, we will rack out
 				 * in 1ms increments the rest of the packets.
 				 */
-				rsm->r_flags |= BBR_SACK_PASSED | BBR_MARKED_LOST;
-				rsm->r_flags &= ~BBR_WAS_SACKPASS;
+				rsm->r_flags |= BBR_SACK_PASSED;
 			} else {
 				/*
 				 * With this option we only mark them lost
@@ -4907,10 +4905,10 @@ bbr_remxt_tmr(struct tcpcb *tp)
 				 * us to eventually send more based on what
 				 * ack's come in.
 				 */
-				rsm->r_flags |= BBR_MARKED_LOST;
-				rsm->r_flags &= ~BBR_WAS_SACKPASS;
 				rsm->r_flags &= ~BBR_SACK_PASSED;
 			}
+			rsm->r_flags |= BBR_MARKED_LOST;
+			rsm->r_flags &= ~(BBR_WAS_SACKPASS | BBR_RWND_COLLAPSED);
 		}
 		trsm = rsm;
 	}
@@ -5147,15 +5145,13 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	 * move the current srtt into rttvar to keep the current retransmit
 	 * times until then.
 	 */
-	if (tp->t_rxtshift > TCP_MAXRXTSHIFT / 4) {
+	if (tp->t_rxtshift > TCP_RTT_INVALIDATE) {
 #ifdef INET6
 		if (bbr->r_is_v6)
 			in6_losing(inp);
 		else
 #endif
 			in_losing(inp);
-		tp->t_rttvar += (tp->t_srtt >> TCP_RTT_SHIFT);
-		tp->t_srtt = 0;
 	}
 	sack_filter_clear(&bbr->r_ctl.bbr_sf, tp->snd_una);
 	tp->snd_recover = tp->snd_max;
@@ -6311,7 +6307,7 @@ tcp_bbr_xmit_timer_commit(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts)
 	}
 	/* Round it up */
 	rtt_ticks = USEC_2_TICKS((rtt + (USECS_IN_MSEC - 1)));
-	if (tp->t_srtt != 0) {
+	if (tp->t_srtt != 0 && tp->t_rxtshift <= TCP_RTT_INVALIDATE) {
 		/*
 		 * srtt is stored as fixed point with 5 bits after the
 		 * binary point (i.e., scaled by 8).  The following magic is
@@ -8419,7 +8415,6 @@ bbr_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
     uint32_t tiwin, int32_t nxt_pkt)
 {
 	uint16_t nsegs;
-	int32_t newsize = 0;	/* automatic sockbuf scaling */
 	struct tcp_bbr *bbr;
 #ifdef NETFLIX_SB_LIMITS
 	u_int mcnt, appended;
@@ -8499,22 +8494,14 @@ bbr_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	tp->rcv_up = tp->rcv_nxt;
 	KMOD_TCPSTAT_ADD(tcps_rcvpack, (int)nsegs);
 	KMOD_TCPSTAT_ADD(tcps_rcvbyte, tlen);
-	newsize = tcp_autorcvbuf(m, th, so, tp, tlen);
 
 	/* Add data to socket buffer. */
 	SOCK_RECVBUF_LOCK(so);
 	if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 		m_freem(m);
 	} else {
-		/*
-		 * Set new socket buffer size. Give up when limit is
-		 * reached.
-		 */
-		if (newsize)
-			if (!sbreserve_locked(so, SO_RCV, newsize, NULL))
-				so->so_rcv.sb_flags &= ~SB_AUTOSIZE;
+		tcp_autorcvbuf(tp, tlen);
 		m_adj(m, drop_hdrlen);	/* delayed header drop */
-
 #ifdef NETFLIX_SB_LIMITS
 		appended =
 #endif
@@ -12519,7 +12506,7 @@ recheck_resend:
 	}
 	/* len will be >= 0 after this point. */
 	KASSERT(len >= 0, ("[%s:%d]: len < 0", __func__, __LINE__));
-	tcp_sndbuf_autoscale(tp, so, sendwin);
+	tcp_autosndbuf(tp, sendwin);
 	/*
 	 *
 	 */
@@ -13138,7 +13125,7 @@ send:
 		mb = sbsndptr_noadv(sb, sb_offset, &moff);
 		if (len <= MHLEN - hdrlen - max_linkhdr && !hw_tls) {
 			m_copydata(mb, moff, (int)len,
-			    mtod(m, caddr_t)+hdrlen);
+			    mtod(m, char *)+hdrlen);
 			if (rsm == NULL)
 				sbsndptr_adv(sb, mb, len);
 			m->m_len += len;
@@ -13253,7 +13240,8 @@ send:
 	if (isipv6) {
 		ip6 = mtod(m, struct ip6_hdr *);
 		if (tp->t_port) {
-			udp = (struct udphdr *)((caddr_t)ip6 + sizeof(struct ip6_hdr));
+			udp = (struct udphdr *)((char *)ip6 +
+			    sizeof(struct ip6_hdr));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
 			udp->uh_dport = tp->t_port;
 			ulen = hdrlen + len - sizeof(struct ip6_hdr);
@@ -13268,7 +13256,7 @@ send:
 	{
 		ip = mtod(m, struct ip *);
 		if (tp->t_port) {
-			udp = (struct udphdr *)((caddr_t)ip + sizeof(struct ip));
+			udp = (struct udphdr *)((char *)ip + sizeof(struct ip));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
 			udp->uh_dport = tp->t_port;
 			ulen = hdrlen + len - sizeof(struct ip);

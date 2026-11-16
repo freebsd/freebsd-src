@@ -78,9 +78,6 @@
 #define TEXT_SET(set, sym)	__MAKE_SET(set, sym)
 #define DATA_SET(set, sym)	__MAKE_SET(set, sym)
 #define DATA_WSET(set, sym)	__MAKE_SET_QV(set, sym, )
-#define BSS_SET(set, sym)	__MAKE_SET(set, sym)
-#define ABS_SET(set, sym)	__MAKE_SET(set, sym)
-#define SET_ENTRY(set, sym)	__MAKE_SET(set, sym)
 
 /*
  * Initialize before referring to a given linker set.

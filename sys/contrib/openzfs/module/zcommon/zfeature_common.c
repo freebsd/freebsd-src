@@ -29,7 +29,6 @@
 #endif
 #include <sys/debug.h>
 #include <sys/fs/zfs.h>
-#include <sys/inttypes.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/zfs_sysfs.h>
@@ -812,6 +811,10 @@ zpool_feature_init(void)
 		    ZFEATURE_FLAG_READONLY_COMPAT | ZFEATURE_FLAG_PER_DATASET,
 		    ZFEATURE_TYPE_BOOLEAN, physical_rewrite_deps, sfeatures);
 	}
+
+	zfeature_register(SPA_FEATURE_ANYRAID,
+	    "com.klarasystems:anyraid", "anyraid", "Support for anyraid VDEV",
+	    ZFEATURE_FLAG_MOS, ZFEATURE_TYPE_BOOLEAN, NULL, sfeatures);
 
 	zfs_mod_list_supported_free(sfeatures);
 }

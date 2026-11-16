@@ -220,3 +220,93 @@ DEFINE_TEST(test_open_filename_wcs_oob)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+DEFINE_TEST(test_open_filename_stdin_zip)
+{
+#if HAVE_PIPE && (!defined(_WIN32) || defined(__CYGWIN__))
+	struct archive *a, *w;
+	struct archive_entry *entry;
+	char buff[4096];
+	size_t used = 0;
+	int fd[2], saved_stdin, header_result;
+
+	w = archive_write_new();
+	assertEqualIntA(w, ARCHIVE_OK, archive_write_set_format_zip(w));
+	assertEqualIntA(w, ARCHIVE_OK,
+	    archive_write_set_options(w, "zip:compression=store"));
+	assertEqualIntA(w, ARCHIVE_OK, archive_write_add_filter_none(w));
+	assertEqualIntA(w, ARCHIVE_OK,
+	    archive_write_open_memory(w, buff, sizeof(buff), &used));
+	entry = archive_entry_new();
+	archive_entry_set_pathname(entry, "file");
+	archive_entry_set_mode(entry, AE_IFREG | 0644);
+	archive_entry_set_size(entry, 4);
+	assertEqualIntA(w, ARCHIVE_OK, archive_write_header(w, entry));
+	assertEqualIntA(w, 4, archive_write_data(w, "data", 4));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(w));
+
+	saved_stdin = dup(0);
+	if (saved_stdin < 0) {
+		skipping("stdin is unavailable");
+		return;
+	}
+	assertEqualInt(0, pipe(fd));
+	assertEqualInt((ssize_t)used, write(fd[1], buff, used));
+	assertEqualInt(0, close(fd[1]));
+	assertEqualInt(0, dup2(fd[0], 0));
+	assertEqualInt(0, close(fd[0]));
+
+	a = archive_read_new();
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, NULL, 10240));
+	header_result = archive_read_next_header(a, &entry);
+	assertEqualIntA(a, ARCHIVE_OK, header_result);
+	if (header_result == ARCHIVE_OK)
+		assertEqualString("file", archive_entry_pathname(entry));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(0, dup2(saved_stdin, 0));
+	assertEqualInt(0, close(saved_stdin));
+#else
+	skipping("pipe and dup2 are unavailable on this platform");
+#endif
+}
+
+DEFINE_TEST(test_open_filename_proc_einval)
+{
+#if defined(__linux__)
+	struct archive *a;
+	struct archive_entry *entry;
+	char byte;
+	int fd;
+
+	fd = open("/proc/version", O_RDONLY);
+	if (fd < 0) {
+		skipping("/proc/version is unavailable");
+		return;
+	}
+
+	/* This readable file rejects SEEK_END without moving. */
+	if (read(fd, &byte, 1) != 1 ||
+	    lseek(fd, 0, SEEK_END) != (off_t)-1 ||
+	    errno != EINVAL ||
+	    lseek(fd, 0, SEEK_CUR) != 1) {
+		close(fd);
+		skipping("/proc/version does not reject SEEK_END with EINVAL");
+		return;
+	}
+	close(fd);
+
+	a = archive_read_new();
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_raw(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, "/proc/version", 10240));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &entry));
+	assertEqualInt(ARCHIVE_FORMAT_RAW, archive_format(a));
+	assertEqualIntA(a, 1, archive_read_data(a, &byte, 1));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+#else
+	skipping("requires /proc/version");
+#endif
+}

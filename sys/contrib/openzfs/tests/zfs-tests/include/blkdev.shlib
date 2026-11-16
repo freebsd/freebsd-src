@@ -76,8 +76,9 @@ function block_device_wait
 		typeset start=$SECONDS
 		udevadm settle
 		typeset elapsed=$((SECONDS - start))
-		[[ $elapsed > 60 ]] && \
-		    log_note udevadm settle time too long: $elapsed
+		if (( elapsed > 60 )); then
+			log_note udevadm settle time too long: $elapsed
+		fi
 	elif is_freebsd; then
 		if [[ ${#@} -eq 0 ]]; then
 			# Do something that has to go through the geom event
@@ -155,6 +156,18 @@ function is_loop_device #disk
 		lsblk $DEV_RDSKDIR/$disk -o TYPE 2>/dev/null | \
 		    grep -q loop
 	fi
+}
+
+#
+# Check if the given device is a disk that on_off_disk can remove and
+# reinsert (SCSI, SATA, scsi_debug), unlike NVMe, virtio or loop devices.
+#
+function is_scsi_device #disk
+{
+	typeset disk=$1
+	[[ -z $disk ]] && log_fail "No argument for disk given."
+
+	is_linux && [[ -d /sys/block/$disk/device/scsi_device ]]
 }
 
 #

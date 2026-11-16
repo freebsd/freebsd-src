@@ -575,8 +575,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 	    ((etype == ETHERTYPE_VLAN) || (etype == ETHERTYPE_QINQ))) {
 		struct ether_vlan_header *evl;
 
-		if (m->m_len < sizeof(*evl) &&
-		    (m = m_pullup(m, sizeof(*evl))) == NULL) {
+		if ((m = m_pullup(m, sizeof(*evl))) == NULL) {
 #ifdef DIAGNOSTIC
 			if_printf(ifp, "cannot pullup VLAN header\n");
 #endif
@@ -1237,7 +1236,7 @@ ether_vlan_mtap(struct bpf_if *bp, struct mbuf *m, void *data, u_int dlen)
 	 */
 	if (data != NULL) {
 		mv.m_next = m;
-		mv.m_data = (caddr_t)&vlan;
+		mv.m_data = (char *)&vlan;
 		mv.m_len = sizeof(vlan);
 		mb.m_next = &mv;
 		mb.m_data = data;
@@ -1259,11 +1258,8 @@ ether_vlanencap_proto(struct mbuf *m, uint16_t tag, uint16_t proto)
 		return (NULL);
 	/* M_PREPEND takes care of m_len, m_pkthdr.len for us */
 
-	if (m->m_len < sizeof(*evl)) {
-		m = m_pullup(m, sizeof(*evl));
-		if (m == NULL)
-			return (NULL);
-	}
+	if ((m = m_pullup(m, sizeof(*evl))) == NULL)
+		return (NULL);
 
 	/*
 	 * Transform the Ethernet header into an Ethernet header

@@ -112,7 +112,8 @@ typedef enum {
 	CAM_CMD_DEVTYPE,
 	CAM_CMD_AMA,
 	CAM_CMD_DEPOP,
-	CAM_CMD_REQSENSE
+	CAM_CMD_REQSENSE,
+	CAM_CMD_FEATURE
 } cam_cmd;
 
 typedef enum {
@@ -185,7 +186,7 @@ static char pwd_opt;
 static struct camcontrol_opts option_table[] = {
 	{"tur", CAM_CMD_TUR, CAM_ARG_NONE, NULL},
 	{"inquiry", CAM_CMD_INQUIRY, CAM_ARG_NONE, "DSR"},
-	{"identify", CAM_CMD_IDENTIFY, CAM_ARG_NONE, NULL},
+	{"identify", CAM_CMD_IDENTIFY, CAM_ARG_NONE, "N"},
 	{"start", CAM_CMD_STARTSTOP, CAM_ARG_START_UNIT, NULL},
 	{"stop", CAM_CMD_STARTSTOP, CAM_ARG_NONE, NULL},
 	{"load", CAM_CMD_STARTSTOP, CAM_ARG_START_UNIT | CAM_ARG_EJECT, NULL},
@@ -216,7 +217,7 @@ static struct camcontrol_opts option_table[] = {
 	{"negotiate", CAM_CMD_RATE, CAM_ARG_NONE, negotiate_opts},
 	{"rate", CAM_CMD_RATE, CAM_ARG_NONE, negotiate_opts},
 	{"debug", CAM_CMD_DEBUG, CAM_ARG_NONE, "IPTSXcp"},
-	{"format", CAM_CMD_FORMAT, CAM_ARG_NONE, "qrwy"},
+	{"format", CAM_CMD_FORMAT, CAM_ARG_NONE, "e:f:Gl:m:p:qrwy"},
 	{"sanitize", CAM_CMD_SANITIZE, CAM_ARG_NONE, "a:c:IP:qrUwy"},
 	{"idle", CAM_CMD_IDLE, CAM_ARG_NONE, "t:"},
 	{"standby", CAM_CMD_STANDBY, CAM_ARG_NONE, "t:"},
@@ -228,12 +229,13 @@ static struct camcontrol_opts option_table[] = {
 	{"security", CAM_CMD_SECURITY, CAM_ARG_NONE, "d:e:fh:k:l:qs:T:U:y"},
 	{"hpa", CAM_CMD_HPA, CAM_ARG_NONE, "Pflp:qs:U:y"},
 	{"ama", CAM_CMD_AMA, CAM_ARG_NONE, "fqs:"},
-	{"persist", CAM_CMD_PERSIST, CAM_ARG_NONE, "ai:I:k:K:o:ps:ST:U"},
+	{"persist", CAM_CMD_PERSIST, CAM_ARG_NONE, "ac:i:I:k:K:o:ps:ST:U"},
 	{"attrib", CAM_CMD_ATTRIB, CAM_ARG_NONE, "a:ce:F:p:r:s:T:w:V:"},
 	{"opcodes", CAM_CMD_OPCODES, CAM_ARG_NONE, "No:s:T"},
 	{"zone", CAM_CMD_ZONE, CAM_ARG_NONE, "ac:l:No:P:"},
 	{"epc", CAM_CMD_EPC, CAM_ARG_NONE, "c:dDeHp:Pr:sS:T:"},
 	{"timestamp", CAM_CMD_TIMESTAMP, CAM_ARG_NONE, "f:mrsUT:"},
+	{"feature", CAM_CMD_FEATURE, CAM_ARG_NONE, "a:d:f:s:U"},
 	{"depop", CAM_CMD_DEPOP, CAM_ARG_NONE, "ac:de:ls"},
 	{"sense", CAM_CMD_REQSENSE, CAM_ARG_NONE, "Dx"},
 	{"help", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
@@ -779,41 +781,65 @@ print_dev_mmcsd(struct device_match_result *dev_result, char *tmpstr)
 	return (0);
 }
 
-static int
-nvme_get_cdata(struct cam_device *dev, struct nvme_controller_data *cdata)
+int
+nvme_get_data(struct cam_device *dev, int nvme_data_type, void *data,
+	      size_t data_len)
 {
 	union ccb *ccb;
+	struct nvme_controller_data *cdata;
+	struct nvme_namespace_data *nsdata;
 	struct ccb_dev_advinfo *advi;
+
+	switch (nvme_data_type) {
+	case CDAI_TYPE_NVME_CNTRL:
+		if (data_len != sizeof(*cdata)) {
+			warnx("%s: supplied data length %zu != controller data "
+			    "length %zu", __func__, data_len, sizeof(*nsdata));
+			goto bailout_error;
+		}
+		break;
+	case CDAI_TYPE_NVME_NS:
+		if (data_len != sizeof(*nsdata)) {
+			warnx("%s: supplied data length %zu != namespace data "
+			    "length %zu", __func__, data_len, sizeof(*nsdata));
+			goto bailout_error;
+		}
+		break;
+	default:
+		warnx("Unknown NVMe data type %d", nvme_data_type);
+		goto bailout_error;
+	}
 
 	ccb = cam_getccb(dev);
 	if (ccb == NULL) {
 		warnx("couldn't allocate CCB");
-		cam_close_device(dev);
 		return (1);
 	}
 
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cdai);
 	advi = &ccb->cdai;
 	advi->ccb_h.flags = CAM_DIR_IN;
 	advi->ccb_h.func_code = XPT_DEV_ADVINFO;
 	advi->flags = CDAI_FLAG_NONE;
-	advi->buftype = CDAI_TYPE_NVME_CNTRL;
-	advi->bufsiz = sizeof(struct nvme_controller_data);
-	advi->buf = (uint8_t *)cdata;
+	advi->buftype = nvme_data_type;
+	advi->bufsiz = data_len;
+	advi->buf = data;
 
 	if (cam_send_ccb(dev, ccb) < 0) {
-		warn("error sending XPT_DEV_ADVINFO CCB");
+		warn("%s: error sending XPT_DEV_ADVINFO CCB", __func__);
 		cam_freeccb(ccb);
-		cam_close_device(dev);
-		return(1);
+		goto bailout_error;
 	}
-	if (advi->ccb_h.status != CAM_REQ_CMP) {
-		warnx("got CAM error %#x", advi->ccb_h.status);
+	if ((advi->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		cam_error_print(dev, ccb, CAM_ESF_ALL, CAM_EPF_ALL, stderr);
 		cam_freeccb(ccb);
-		cam_close_device(dev);
-		return(1);
+		goto bailout_error;
 	}
 	cam_freeccb(ccb);
 	return 0;
+
+bailout_error:
+	return (1);
 }
 
 static int
@@ -830,8 +856,10 @@ print_dev_nvme(struct device_match_result *dev_result, char *tmpstr)
 		return (1);
 	}
 
-	if (nvme_get_cdata(dev, &cdata))
+	if (nvme_get_data(dev, CDAI_TYPE_NVME_CNTRL, &cdata, sizeof(cdata))) {
+		cam_close_device(dev);
 		return (1);
+	}
 
 	cam_strvis(vendor, cdata.mn, sizeof(cdata.mn), sizeof(vendor));
 	cam_strvis(product, cdata.fr, sizeof(cdata.fr), sizeof(product));
@@ -2470,7 +2498,8 @@ retry:
 
 
 static int
-ataidentify(struct cam_device *device, int retry_count, int timeout)
+ataidentify(struct cam_device *device, int argc __unused, char **argv __unused,
+	    char *combinedopt __unused, int retry_count, int timeout)
 {
 	union ccb *ccb;
 	struct ata_params *ident_buf;
@@ -2515,19 +2544,47 @@ ataidentify(struct cam_device *device, int retry_count, int timeout)
 }
 
 static int
-nvmeidentify(struct cam_device *device, int retry_count __unused, int timeout __unused)
+nvmeidentify(struct cam_device *device, int argc, char **argv,
+	     char *combinedopt, int retry_count __unused, int timeout __unused)
 {
-	struct nvme_controller_data cdata;
+	int ns_identify = 0;
+	int c;
 
-	if (nvme_get_cdata(device, &cdata))
-		return (1);
-	nvme_print_controller(&cdata);
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'N':
+			ns_identify = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (ns_identify == 0) {
+		struct nvme_controller_data cdata;
+
+		if (nvme_get_data(device, CDAI_TYPE_NVME_CNTRL, &cdata,
+				  sizeof(cdata)))
+			return (1);
+
+		nvme_print_controller(&cdata);
+	} else {
+		struct nvme_namespace_data ns_data;
+
+		if (nvme_get_data(device, CDAI_TYPE_NVME_NS, &ns_data,
+				  sizeof(ns_data)))
+			return (1);
+
+		nvme_print_namespace(&ns_data);
+	}
 
 	return (0);
 }
 
 static int
-identify(struct cam_device *device, int retry_count, int timeout)
+identify(struct cam_device *device, int argc, char **argv, char *combinedopt,
+	 int retry_count, int timeout)
 {
 	struct ccb_pathinq cpi;
 
@@ -2537,9 +2594,12 @@ identify(struct cam_device *device, int retry_count, int timeout)
 	}
 
 	if (cpi.protocol == PROTO_NVME) {
-		return (nvmeidentify(device, retry_count, timeout));
+		return (nvmeidentify(device, argc, argv, combinedopt,
+				     retry_count, timeout));
+	} else {
+		return (ataidentify(device, argc, argv, combinedopt,
+				    retry_count, timeout));
 	}
-	return (ataidentify(device, retry_count, timeout));
 }
 
 
@@ -10030,7 +10090,7 @@ usage(int printlong)
 "        camcontrol tur        [dev_id][generic args]\n"
 "        camcontrol sense      [dev_id][generic args][-D][-x]\n"
 "        camcontrol inquiry    [dev_id][generic args] [-D] [-S] [-R]\n"
-"        camcontrol identify   [dev_id][generic args] [-v]\n"
+"        camcontrol identify   [dev_id][generic args] [-N] [-v]\n"
 "        camcontrol reportluns [dev_id][generic args] [-c] [-l] [-r report]\n"
 "        camcontrol readcap    [dev_id][generic args] [-b] [-h] [-H] [-N]\n"
 "                              [-q] [-s] [-l]\n"
@@ -10066,6 +10126,8 @@ usage(int printlong)
 "                              [-q][-R syncrate][-v][-T <enable|disable>]\n"
 "                              [-U][-W bus_width]\n"
 "        camcontrol format     [dev_id][generic args][-q][-r][-w][-y]\n"
+"                              [-e <user|crypto|num>][-G][-f format][-l pil]\n"
+"                              [-m mset][-p pi]\n"
 "        camcontrol sanitize   [dev_id][generic args]\n"
 "                              [-a overwrite|block|crypto|exitfailure]\n"
 "                              [-c passes][-I][-P pattern][-q][-U][-r][-w]\n"
@@ -10086,8 +10148,8 @@ usage(int printlong)
 "                              [-q] [-s max_sectors] [-U pwd] [-y]\n"
 "        camcontrol ama        [dev_id][generic args] [-f] [-q] [-s max_sectors]\n"
 "        camcontrol persist    [dev_id][generic args] <-i action|-o action>\n"
-"                              [-a][-I tid][-k key][-K sa_key][-p][-R rtp]\n"
-"                              [-s scope][-S][-T type][-U]\n"
+"                              [-a][-c state][-I tid][-k key][-K sa_key][-p]\n"
+"                              [-R rtp][-s scope][-S][-T type][-U]\n"
 "        camcontrol attrib     [dev_id][generic args] <-r action|-w attr>\n"
 "                              [-a attr_num][-c][-e elem][-F form1,form1]\n"
 "                              [-p part][-s start][-T type][-V vol]\n"
@@ -10100,6 +10162,8 @@ usage(int printlong)
 "                              [-S power_src] [-T timer]\n"
 "        camcontrol timestamp  [dev_id][generic_args] <-r [-f format|-m|-U]>|\n"
 "                              <-s <-f format -T time | -U >>\n"
+"        camcontrol feature    [dev_id][generic args]<-a action> <-f feature>\n"
+"                              [-d data][-s arg][-U]\n"
 "        camcontrol devtype    [dev_id]\n"
 "        camcontrol depop      [dev_id] [-d | -l | -r] [-e element] [-c capacity]\n"
 "        camcontrol mmcsdcmd   [dev_id] [[-c mmc_opcode] [-a mmc_arg]\n"
@@ -10120,7 +10184,7 @@ usage(int printlong)
 "sense       send a request sense command to the named device\n"
 "tur         send a test unit ready to the named device\n"
 "inquiry     send a SCSI inquiry command to the named device\n"
-"identify    send a ATA identify command to the named device\n"
+"identify    send a ATA or NVMe identify command to the named device\n"
 "reportluns  send a SCSI report luns command to the device\n"
 "readcap     send a SCSI read capacity command to the device\n"
 "start       send a Start Unit command to the device\n"
@@ -10141,7 +10205,7 @@ usage(int printlong)
 "debug       turn debugging on/off for a bus, target, or lun, or all devices\n"
 "tags        report or set the number of transaction slots for a device\n"
 "negotiate   report or set device negotiation parameters\n"
-"format      send the SCSI FORMAT UNIT command to the named device\n"
+"format      send the SCSI FORMAT UNIT or NVMe FORMAT NVM command\n"
 "sanitize    send the SCSI SANITIZE command to the named device\n"
 "idle        send the ATA IDLE command to the named device\n"
 "standby     send the ATA STANDBY command to the named device\n"
@@ -10149,12 +10213,13 @@ usage(int printlong)
 "powermode   send the ATA CHECK POWER MODE command to the named device\n"
 "fwdownload  program firmware of the named device with the given image\n"
 "security    report or send ATA security commands to the named device\n"
-"persist     send the SCSI PERSISTENT RESERVE IN or OUT commands\n"
+"persist     send SCSI PERSISTENT RESERVE or NVMe reservation commands\n"
 "attrib      send the SCSI READ or WRITE ATTRIBUTE commands\n"
 "opcodes     send the SCSI REPORT SUPPORTED OPCODES command\n"
 "zone        manage Zoned Block (Shingled) devices\n"
 "epc         send ATA Extended Power Conditions commands\n"
 "timestamp   report or set the device's timestamp\n"
+"feature     get or set NVMe device features\n"
 "devtype     report the type of device\n"
 "depop       manage drive storage elements\n"
 "mmcsdcmd    send the given MMC command, needs -c and -a as well\n"
@@ -10189,6 +10254,8 @@ usage(int printlong)
 "-D                get the standard inquiry data\n"
 "-S                get the serial number\n"
 "-R                get the transfer rate, etc.\n"
+"identify arguments:\n"
+"-N                send identify to the NVMe namespace\n"
 "reportluns arguments:\n"
 "-c                only report a count of available LUNs\n"
 "-l                only print out luns, and not a count\n"
@@ -10249,9 +10316,15 @@ usage(int printlong)
 "-v                also print a Path Inquiry CCB for the controller\n"
 "format arguments:\n"
 "-q                be quiet, don't print status messages\n"
-"-r                run in report only mode\n"
-"-w                don't send immediate format command\n"
+"-r                run in report only mode (SCSI only)\n"
+"-w                don't send immediate format command (SCSI only)\n"
 "-y                don't ask any questions\n"
+"-e ses            secure erase setting: user, crypto (NVMe only)\n"
+"-G                global format, formats all Namespaces (NVMe only)\n"
+"-f num            specify format number, see Namespace Identify (NVMe only)\n"
+"-l pil            Protection Information Location, 1 = start, 0 = end (NVMe)\n"
+"-m mset           metadata setting, 0 = separate buffer, 1 ext. LBA (NVMe)\n"
+"-p pi             Protection Information type (NVMe only)\n"
 "sanitize arguments:\n"
 "-a operation      operation mode: overwrite, block, crypto or exitfailure\n"
 "-c passes         overwrite passes to perform (1 to 31)\n"
@@ -10369,6 +10442,13 @@ usage(int printlong)
 "-f format         the format of the time string passed into strptime(3)\n"
 "-T time           the time value passed into strptime(3)\n"
 "-U                set the timestamp of the device to UTC time\n"
+"feature arguments:\n"
+"-a get | set      specify get or set features command\n"
+"-d data           specify the data for the feature to set\n"
+"-f feature        specify the feature to get or set\n"
+"-s num            get: select 0=current, 1=default, 2=saved, 3=capabilities\n"
+"                  set: save flag, 1 = persist feature across reset\n"
+"-U                output the hostid attribute as a UUID\n"
 "depop arguments:\n"
 "-d                remove an element from service\n"
 "-l                list status of all elements of drive\n"
@@ -10668,7 +10748,8 @@ main(int argc, char **argv)
 				      task_attr, retry_count, timeout);
 		break;
 	case CAM_CMD_IDENTIFY:
-		error = identify(cam_dev, retry_count, timeout);
+		error = identify(cam_dev, argc, argv, combinedopt, retry_count,
+				 timeout);
 		break;
 	case CAM_CMD_STARTSTOP:
 		error = scsistart(cam_dev, arglist & CAM_ARG_START_UNIT,
@@ -10728,11 +10809,25 @@ main(int argc, char **argv)
 		error = ratecontrol(cam_dev, task_attr, retry_count,
 				    timeout, argc, argv, combinedopt);
 		break;
-	case CAM_CMD_FORMAT:
-		error = scsiformat(cam_dev, argc, argv,
-				   combinedopt, task_attr, retry_count,
-				   timeout);
+	case CAM_CMD_FORMAT: {
+		struct ccb_pathinq cpi;
+
+		if (get_cpi(cam_dev, &cpi) != 0) {
+			warnx("couldn't get CPI");
+			error = 1;
+			break;
+		}
+		if (cpi.protocol == PROTO_NVME)
+			error = nvmeformat(cam_dev, argc, argv, combinedopt,
+			    retry_count, timeout,
+			    arglist & CAM_ARG_VERBOSE,
+			    arglist & CAM_ARG_ERR_RECOVER);
+		else
+			error = scsiformat(cam_dev, argc, argv,
+					   combinedopt, task_attr, retry_count,
+					   timeout);
 		break;
+	}
 	case CAM_CMD_REPORTLUNS:
 		error = scsireportluns(cam_dev, argc, argv,
 				       combinedopt, task_attr,
@@ -10768,12 +10863,26 @@ main(int argc, char **argv)
 		error = sanitize(cam_dev, argc, argv, combinedopt, task_attr,
 				 retry_count, timeout);
 		break;
-	case CAM_CMD_PERSIST:
-		error = scsipersist(cam_dev, argc, argv, combinedopt,
-		    task_attr, retry_count, timeout,
-		    arglist & CAM_ARG_VERBOSE,
-		    arglist & CAM_ARG_ERR_RECOVER);
+	case CAM_CMD_PERSIST: {
+		struct ccb_pathinq cpi;
+
+		if (get_cpi(cam_dev, &cpi) != 0) {
+			warnx("couldn't get CPI");
+			error = 1;
+			break;
+		}
+		if (cpi.protocol == PROTO_NVME)
+			error = nvmepersist(cam_dev, argc, argv, combinedopt,
+			    retry_count, timeout,
+			    arglist & CAM_ARG_VERBOSE,
+			    arglist & CAM_ARG_ERR_RECOVER);
+		else
+			error = scsipersist(cam_dev, argc, argv, combinedopt,
+			    task_attr, retry_count, timeout,
+			    arglist & CAM_ARG_VERBOSE,
+			    arglist & CAM_ARG_ERR_RECOVER);
 		break;
+	}
 	case CAM_CMD_ATTRIB:
 		error = scsiattrib(cam_dev, argc, argv, combinedopt,
 		    task_attr, retry_count, timeout,
@@ -10802,6 +10911,25 @@ main(int argc, char **argv)
 		    task_attr, retry_count, timeout,
 		    arglist & CAM_ARG_VERBOSE);
 		break;
+	case CAM_CMD_FEATURE: {
+		struct ccb_pathinq cpi;
+
+		if (get_cpi(cam_dev, &cpi) != 0) {
+			warnx("couldn't get CPI");
+			error = 1;
+			break;
+		}
+		if (cpi.protocol != PROTO_NVME) {
+			warnx("the feature subcommand is only supported for "
+			    "NVMe devices");
+			error = 1;
+			break;
+		}
+		error = nvmefeature(cam_dev, argc, argv, combinedopt,
+		    retry_count, timeout, arglist & CAM_ARG_VERBOSE,
+		    arglist & CAM_ARG_ERR_RECOVER);
+		break;
+	}
 	case CAM_CMD_DEPOP:
 		error = depop(cam_dev, argc, argv, combinedopt,
 		    task_attr, retry_count, timeout,

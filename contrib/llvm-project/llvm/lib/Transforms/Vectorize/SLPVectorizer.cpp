@@ -6076,6 +6076,12 @@ static bool isStridedLoad(ArrayRef<Value *> VL, ArrayRef<Value *> PointerOps,
       Ptr0 = PointerOps[Order.front()];
       PtrN = PointerOps[Order.back()];
     }
+    // sortPtrAccesses only validates getPointersDiff for pairs relative to
+    // PointerOps[0], so compute every distance through PointerOps[0] (as in
+    // canVectorizeLoads); only differences are used below.
+    std::optional<int64_t> Diff0 =
+        getPointersDiff(ScalarTy, PointerOps[0], ScalarTy, Ptr0, DL, SE);
+    assert(Diff0 && "sortPtrAccesses should have validated this pointer");
     // Iterate through all pointers and check if all distances are
     // unique multiple of Dist.
     SmallSet<int64_t, 4> Dists;
@@ -6083,8 +6089,12 @@ static bool isStridedLoad(ArrayRef<Value *> VL, ArrayRef<Value *> PointerOps,
       int64_t Dist = 0;
       if (Ptr == PtrN)
         Dist = Diff;
-      else if (Ptr != Ptr0)
-        Dist = *getPointersDiff(ScalarTy, Ptr0, ScalarTy, Ptr, DL, SE);
+      else if (Ptr != Ptr0) {
+        std::optional<int64_t> DistN =
+            getPointersDiff(ScalarTy, PointerOps[0], ScalarTy, Ptr, DL, SE);
+        assert(DistN && "sortPtrAccesses should have validated this pointer");
+        Dist = *DistN - *Diff0;
+      }
       // If the strides are not the same or repeated, we can't
       // vectorize.
       if (((Dist / Stride) * Stride) != Dist || !Dists.insert(Dist).second)
@@ -6162,10 +6172,18 @@ BoUpSLP::canVectorizeLoads(ArrayRef<Value *> VL, const Value *VL0,
       Ptr0 = PointerOps[Order.front()];
       PtrN = PointerOps[Order.back()];
     }
-    std::optional<int64_t> Diff =
-        getPointersDiff(ScalarTy, Ptr0, ScalarTy, PtrN, *DL, *SE);
+    // sortPtrAccesses validates getPointersDiff for all pointers relative to
+    // PointerOps[0], so compute the span using PointerOps[0] as intermediate:
+    //   Diff = offset(PtrN) - offset(Ptr0) relative to PointerOps[0]
+    std::optional<int64_t> Diff0 =
+        getPointersDiff(ScalarTy, PointerOps[0], ScalarTy, Ptr0, *DL, *SE);
+    std::optional<int64_t> DiffN =
+        getPointersDiff(ScalarTy, PointerOps[0], ScalarTy, PtrN, *DL, *SE);
+    assert(Diff0 && DiffN &&
+           "sortPtrAccesses should have validated these pointers");
+    int64_t Diff = *DiffN - *Diff0;
     // Check that the sorted loads are consecutive.
-    if (static_cast<uint64_t>(*Diff) == Sz - 1)
+    if (static_cast<uint64_t>(Diff) == Sz - 1)
       return LoadsState::Vectorize;
     if (isMaskedLoadCompress(VL, PointerOps, Order, *TTI, *DL, *SE, *AC, *DT,
                              *TLI, [&](Value *V) {
@@ -6174,7 +6192,7 @@ BoUpSLP::canVectorizeLoads(ArrayRef<Value *> VL, const Value *VL0,
                              }))
       return LoadsState::CompressVectorize;
     // Simple check if not a strided access - clear order.
-    bool IsPossibleStrided = *Diff % (Sz - 1) == 0;
+    bool IsPossibleStrided = Diff % (Sz - 1) == 0;
     // Try to generate strided load node.
     auto IsAnyPointerUsedOutGraph =
         IsPossibleStrided && any_of(PointerOps, [&](Value *V) {
@@ -6184,7 +6202,7 @@ BoUpSLP::canVectorizeLoads(ArrayRef<Value *> VL, const Value *VL0,
         });
     if (IsPossibleStrided &&
         isStridedLoad(VL, PointerOps, Order, *TTI, *DL, *SE,
-                      IsAnyPointerUsedOutGraph, *Diff))
+                      IsAnyPointerUsedOutGraph, Diff))
       return LoadsState::StridedVectorize;
   }
   if (!TTI->isLegalMaskedGather(VecTy, CommonAlignment) ||

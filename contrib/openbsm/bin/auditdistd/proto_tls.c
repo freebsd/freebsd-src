@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2011 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
  * the FreeBSD Foundation.
@@ -680,10 +679,10 @@ tls_exec_server(const char *user, int startfd, const char *privkey,
 	if (ssl == NULL)
 		pjdlog_exitx(EX_TEMPFAIL, "SSL_new() failed.");
 
-	if (SSL_use_RSAPrivateKey_file(ssl, privkey, SSL_FILETYPE_PEM) != 1) {
+	if (SSL_use_PrivateKey_file(ssl, privkey, SSL_FILETYPE_PEM) != 1) {
 		ssl_log_errors();
 		pjdlog_exitx(EX_CONFIG,
-		    "SSL_use_RSAPrivateKey_file(%s) failed.", privkey);
+		    "SSL_use_PrivateKey_file(%s) failed.", privkey);
 	}
 
 	if (SSL_use_certificate_file(ssl, cert, SSL_FILETYPE_PEM) != 1) {
@@ -854,7 +853,7 @@ tls_wrap(int fd, bool client, void **ctxp)
 	if (tlsctx == NULL)
 		return (errno);
 
-	if (proto_wrap("socketpair", client, fd, &sock) == -1) {
+	if (proto_wrap("skp", client, fd, &sock) == -1) {
 		error = errno;
 		free(tlsctx);
 		return (error);
@@ -871,7 +870,7 @@ tls_wrap(int fd, bool client, void **ctxp)
 }
 
 static int
-tls_send(void *ctx, const unsigned char *data, size_t size, int fd)
+tls_send(void *ctx, const void *data, size_t size, int fd)
 {
 	struct tls_ctx *tlsctx = ctx;
 
@@ -890,7 +889,7 @@ tls_send(void *ctx, const unsigned char *data, size_t size, int fd)
 }
 
 static int
-tls_recv(void *ctx, unsigned char *data, size_t size, int *fdp)
+tls_recv(void *ctx, void *data, size_t size, int *fdp)
 {
 	struct tls_ctx *tlsctx = ctx;
 

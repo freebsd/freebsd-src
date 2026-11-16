@@ -92,6 +92,18 @@
       "target_arch": "powerpc64le",
       "kernconf": "GENERIC64LE",
       "timeout": 180
+    },
+    "loongarch64": {
+      "qemu_bin": "qemu-system-loongarch64",
+      "qemu_machine": "-machine virt",
+      "qemu_extra": "-cpu la464,ptw=on -smp 8 -device virtio-rng-pci",
+      "efi_firmware": "/usr/local/share/qemu/edk2-loongarch64-code.fd",
+      "efi_bootname": "bootloongarch64",
+      "caps": ["efi", "zfs", "no_release"],
+      "target": "loongarch",
+      "target_arch": "loongarch64",
+      "timeout": 120,
+      "disabled": true
     }
   }
 }

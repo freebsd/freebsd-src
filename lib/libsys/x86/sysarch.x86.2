@@ -1,0 +1,659 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright 2026 The FreeBSD Foundation.
+.\"
+.\" This documentation was written by Konstantin Belousov <kib@FreeBSD.org>
+.\" under sponsorship of The FreeBSD Foundation.
+.\"
+.Dd September 26, 2026
+.Dt SYSARCH.X86 2 i386
+.Os
+.Sh NAME
+.Nm sysarch.x86
+.Nd architecture-dependent system call on x86
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In machine/sysarch.h
+.Ft int
+.Fn sysarch "int number" "void *args"
+.Sh DESCRIPTION
+The
+manual page describes the functions provided by the
+.Fn sysarch
+system call on x86 architectures, that is i386 and amd64, see
+.Xr arch 7 .
+.Ss Parameter Types
+The following structures are used as the arguments pointed to by the
+.Fa args
+parameter.
+Refer to the description of each request for the meaning of
+individual fields:
+.Pp
+The
+.Dv I386_GET_IOPERM
+and
+.Dv I386_SET_IOPERM
+requests take a
+.Vt struct i386_ioperm_args ,
+which is defined as follows:
+.Bd -literal
+struct i386_ioperm_args {
+	unsigned int start;
+	unsigned int length;
+	int	enable;
+};
+.Ed
+.Pp
+The
+.Dv I386_GET_LDT
+and
+.Dv I386_SET_LDT
+requests take a
+.Vt struct i386_ldt_args ,
+whose definition differs between i386 and amd64.
+The i386 variant is:
+.Bd -literal
+struct i386_ldt_args {
+	unsigned int start;
+	union descriptor *descs;
+	unsigned int num;
+};
+.Ed
+The amd64 variant is:
+.Bd -literal
+struct i386_ldt_args {
+	unsigned int start;
+	struct user_segment_descriptor *descs __packed;
+	unsigned int num;
+};
+.Ed
+.Pp
+The request
+.Dv I386_VM86
+is only supported by i386 kernels and takes a
+.Bd -literal
+struct i386_vm86_args {
+	int	sub_op;
+	char	*sub_args;
+};
+.Ed
+.Pp
+The
+.Dv I386_GET_XFPUSTATE ,
+takes a
+.Vt struct i386_get_xfpustate
+argument, a
+.Dv AMD64_GET_XFPUSTATE
+.Vt struct amd64_get_xfpustate
+argument.
+The structures have the same members, but their layout differs due to
+pointer size differences.
+Only the amd64 variant is listed for clarity.
+.Bd -literal
+struct amd64_get_xfpustate {
+	void *addr;
+	int len;
+};
+.Ed
+.Pp
+The
+.Dv I386_GET_PKRU ,
+.Dv I386_SET_PKRU ,
+take a
+.Vt struct i386_set_pkru
+argument, and
+.Dv AMD64_GET_PKRU
+and
+.Dv AMD64_SET_PKRU
+take a
+.Vt struct amd64_set_pkru
+argument.
+The structures have the same members, but their layout differs due to
+pointer size differences.
+Only the amd64 variant is listed for clarity.
+.Bd -literal
+struct amd64_set_pkru {
+	void *addr;
+	unsigned long len;
+	unsigned int keyidx;
+	int flags;
+};
+.Ed
+.Ss Requests
+The following requests can be specified by the
+.Fa number
+argument:
+.Bl -tag -width AMD64_DISABLE_TLSBASE
+.It Dv I386_GET_LDT
+Queries the specified range of LDT descriptors for the
+calling process.
+.Pp
+The request takes a pointer to the
+.Vt struct i386_ldt_args
+structure as the
+.Fa args
+parameter.
+Its
+.Va start
+member specifies the starting index, and
+.Va num
+the number of descriptors which are queried.
+The LDT descriptors in the requested range are copied into
+the memory specified by the
+.Fa descs
+member.
+.It Dv I386_SET_LDT
+Set the specified range of LDT descriptors for the calling process.
+.Pp
+LDT is process-global, all process threads share the same table.
+On the other hand, if several processes share an address space,
+they still each have their own LDT.
+.Pp
+The request takes a pointer to the
+.Vt struct i386_ldt_args
+structure as the
+.Fa args
+parameter.
+Its
+.Va start
+member specifies the starting index, and
+.Va num
+the number of descriptors which are set.
+The LDT descriptors in the requested range
+are initialized from the structures pointed to by the
+.Fa descs
+member.
+.Pp
+If the
+.Va descs
+member value is
+.Dv NULL,
+the LDT descriptors are reset to null descriptors.
+If the
+.Va start
+starting descriptor index has the special value
+.Dv LDT_AUTO_ALLOC
+and the number of descriptors to allocate is 1, then the system looks for
+a free descriptor index and allocates it.
+The resulting index is returned as the system call return value.
+.Pp
+Only memory read or read/write normal or expand down, and execute only
+or execute read segment types are allowed.
+Any system segments descriptors or memory conforming execute segments
+are rejected with the
+.Ev EACCESS
+error.
+.Pp
+X86 hardware supports LDTs with up to 8192 descriptors.
+This size is excessive for modern applications.
+The
+.Dv machdep.max_ldt_segment
+loader tunable sets a system-global maximum LDT size
+(in number of descriptors).
+.It Dv I386_GET_IOPERM
+Queries the state of userspace access to the specified range of
+I/O ports for the calling thread.
+.Pp
+The function takes a
+.Vt struct i386_ioperm_args
+structure as the
+.Fa args
+argument.
+The
+.Va start
+member is the starting port number to query.
+Upon successful return, the
+.Va enable
+member records the access permissions for the starting port.
+The
+.Va length
+member indicates how many ports after the starting port number
+have the same access permissions.
+.Pp
+For instance, if
+.Va start
+was set to 10,
+and the request set the
+.Va length
+field to 3, with
+.Va enable
+set to 1, then access to ports 10, 11, and 12 is allowed, while
+access to port 13 is disallowed.
+.It Dv I386_SET_IOPERM
+Grants or revokes userspace access to I/O ports by modifying the TSS
+I/O permission bitmap for the calling thread.
+Each thread maintains a separate bitmap.
+.Pp
+The function takes a
+.Vt struct i386_ioperm_args
+structure as the
+.Fa args
+argument.
+Depending on the
+.Va enable
+member value, it either grants (enables) or revokes (disables)
+access to the range of
+I/O ports specified by the
+.Va start
+and
+.Va length
+members.
+.Pp
+There is total of 65536 ports, so the set of ports specified must fit
+into the 0..65535 range.
+.Pp
+The call requires super-user privileges.
+.It Dv I386_VM86
+Execute CPU instructions in virtual 8086 (VM86) mode.
+This function is only supported by i386 kernels as VM86 mode
+is not supported in long mode.
+To use this request, the additional header
+.In machine/vm86.h
+must be included which exists only for i386.
+.Pp
+The request takes a
+.Vt struct i386_vm86_args
+structure as the
+.Fa args
+argument.
+Its
+.Va sub_op
+member specifies one of the following sub-requests:
+.Pp
+.Bl -tag -width VM86_SET_VME
+.It Dv VM86_INIT
+Initialize the VM86 in-kernel extended pcb.
+Without this initialization, VM86 mode cannot be entered.
+.Pp
+The sub-request takes the
+.Vt struct vm86_init_args
+additional argument pointed to by the
+.Fa sub_args
+pointer in the
+.Vt struct i386_vm86_args
+structure.
+.Pp
+Currently only the
+.Va int_map
+member of the structure is implemented.
+Each bit N in the
+.Va int_map
+bit-string set to 1 causes a
+.Dv SIGTRAP
+signal to be delivered to the thread on the execution
+of the
+.Dv INT N
+instruction.
+Otherwise, if the bit is zero, the execution of the
+.Dv INT N
+instruction is reflected to VM86 mode to the interrupt
+handler as designated by the real-mode interrupt table.
+.It Dv VM86_SET_VME
+Reserved but not implemented.
+.It Dv VM86_GET_VME
+Returns the state of the VME extensions.
+The
+.Va sub_args
+must point to a
+.Vt struct vm86_vme_args
+structure.
+.It Dv VM86_INTCALL
+Arrange execution in VM86 mode as if the specified interrupt
+was delivered.
+Takes a
+.Vt struct vm86_intcall_args
+argument as the
+.Va sub_args
+pointer.
+The
+.Va intnum
+member of it provides the interrupt number to emulate delivery of,
+and the
+.Va vmf
+gives the VM86 mode machine context to load for the interrupt
+handler.
+.El
+.Pp
+To switch thread to the VM86 execution mode, several preparations
+must be done:
+.Bl -dash
+.It
+An alternative signal stack must be created, since otherwise signal
+delivery in VM86 mode would try to use VM86 stack.
+See
+.Xr sigaltstack 2 .
+.It
+The VM86 mode kernel state must be initialized with the
+.Dv VM86_INIT
+sub-request.
+.It
+The memory must be mapped in the first megabyte of the user address
+space, which will be accessible to the VM86 mode execution.
+.It
+Signal handlers must be established that can handle VM86 exceptions.
+Most importantly, the
+.Dv SIGSEGV
+handler must be provided to assist VM86 code to handle exits due to
+IOPL-sensitive instructions.
+.It
+Finally, the VM86 mode can be entered by switching to the context
+with %eflags register having the
+.Dv eflags.VM
+bit set.
+This can be done, among other ways, by loading the full
+machine context with the
+.Xr sigreturn 2
+system call.
+.El
+.Pp
+The thread continues to execute in VM86 mode until a signal
+is delivered to it.
+Note that exceptions generate appropriate signals the same as
+for protected execution mode.
+.Pp
+See
+.Pa src:tools/tests/vm86
+for a minimal example for a VM86 monitor and sample code.
+.It Dv I386_GET_FSBASE
+Read the 32-bit fsbase context value for the calling thread into a
+.Vt uint32_t
+variable pointed to by the
+.Fa args
+argument.
+.It Dv I386_SET_FSBASE
+Set the 32-bit fsbase context value for the calling thread.
+The
+.Fa args
+argument must point to a
+.Vt int32_t
+variable that has the new fsbase value stored.
+.Pp
+The fsbase is maintained by writing the fsbase value into the
+base field of the user 32-bit %fs GDT descriptor, which has index 2.
+.It Dv I386_GET_GSBASE
+Read the 32-bit gsbase context value for the calling thread into a
+.Vt int32_t
+variable pointed to by the
+.Fa args
+argument.
+.It Dv I386_SET_GSBASE
+Set the 32-bit gsbase context value for the calling thread.
+The
+.Fa args
+argument must point to a
+.Vt int32_t
+variable that has the new gsbase value stored.
+.Pp
+The gsbase is maintained by writing the gsbase value into the
+base field of the user 32-bit %gs GDT descriptor, which has index 3.
+.It Dv I386_GET_XFPUSTATE
+Same as
+.Dv AMD64_GET_XFPUSTATE ,
+but takes the address of the
+.Vt struct i386_get_xfpustate
+structure as the
+.Fa args
+argument.
+.It Dv I386_SET_PKRU
+Provided only when running i386 binaries on the amd64 host kernel.
+.Pp
+See description of the
+.Dv AMD64_SET_PKRU
+request.
+.It Dv I386_CLEAR_PKRU
+Provided only when running i386 binaries on the amd64 host kernel.
+.Pp
+See description of the
+.Dv AMD64_CLEAR_PKRU
+request.
+.It Dv I386_SET_SPLITLOCK
+Change the requesting thread splitlock detection control.
+For i386 binaries, the function is only available when running
+on the amd64 host kernel.
+.Pp
+The argument must point to the 32bit
+.Vt int
+variable, holding one of the following values:
+.Bl -tag
+.It Dv 0
+Disable detection of split locking.
+.It Dv 1
+Enable detection of split locking.
+.El
+.Pp
+The split lock is the situation where the read-modify-write atomic
+instruction is performed on the memory location that is split over
+more than one CPU cache line.
+Some CPUs can be configured to generate the Alignment Fault exception
+.Ql #AC
+if split locking is detected.
+The request makes it possible for the thread to control the detector.
+.Pp
+The
+.Xr _umtx_op 2
+operations that pass unaligned locks to kernel requests returns
+.Ev EFAULT
+when splitlock detection is enabled.
+.Pp
+Presence of the detector can be queried with the
+.Dv hw.splitlock
+.Xr sysctl 2
+MIB.
+.It Dv I386_GET_SPLITLOCK
+Returns the state of the splitlock detection control.
+For i386 binaries, the function is only available when running
+on the amd64 host kernel.
+.Pp
+The argument must point to the 32bit
+.Vt int
+variable.
+The function writes the value 0 if the control is disabled
+and 1 if enabled.
+.Pp
+.It Dv AMD64_GET_FSBASE
+Returns the value of the
+.Dv fsbase
+register for the calling thread.
+The
+.Fa args
+argument must point to the 64bit
+.Vt unsigned long variable
+where the value is written.
+.Pp
+On CPUs that do not support the
+.Dv RDFSBASE
+instruction, the call is the only
+way to read the current value of fsbase.
+.It Dv AMD64_SET_FSBASE
+Sets the
+.Dv fsbase
+register to the 64bit value pointed to by the
+.Fa args
+argument.
+.Pp
+The value is checked to not point outside of the allowed user address
+space, which is subset of possible canonical addresses.
+If the
+.Dv WRFSBASE
+instruction is supported, the fsbase register can
+be updated either by the call or by the instruction.
+For 64bit processes, the fsbase register is always restored on return
+to user mode from kernel calls or interrupts, regardless of the value
+of the %fs segment register.
+.It Dv AMD64_GET_GSBASE
+Get the
+.Dv gsbase
+register, see description of
+.Dv AMD64_GET_FSBASE .
+.It Dv AMD64_SET_GSBASE
+Set the
+.Dv gsbase
+register, see description of
+.Dv AMD64_GET_GSBASE .
+.It Dv AMD64_GET_XFPUSTATE
+Fills the extended FPU state as defined by the architecture and the
+running CPU hardware into the memory described by the
+.Vt struct amd64_get_xfpustate
+structure.
+The
+.Fa args
+argument must point to the structure, the extended state (that is, full
+XSAVE area excluding the legacy region) is written to the
+.Va addr
+up to the
+.Va len
+bytes.
+If the
+.Va len
+member value is smaller then the XSAVE area size, the result is truncated.
+.It Dv AMD64_SET_PKRU
+Set the 4bit protection key for the page table entries used to map
+the given userspace virtual address range.
+.Pp
+The request takes the
+.Vt struct amd64_set_pkru
+structure pointed to by the
+.Fa args
+parameter.
+The
+.Va addr
+and
+.Va len
+members of the structure specify starting address and the length in bytes
+of the region.
+The
+.Va keyidx
+member value must be between 0 and 15 and provides the protection key
+index applied to the region.
+The
+.Va flags
+member is or-ed with the following flags:
+.Bl -tag -width AMD64_PKRU_PERSIST
+.It Dv AMD64_PKRU_EXCL
+Requires that no protection key was assigned to the specified range,
+or previously assigned key cleared.
+If some key was already applied to any part of the range, the call
+fails with the
+.Ev EBUSY
+error.
+.It Dv AMD64_PKRU_PERSIST
+Makes the assigned key persistent.
+It is automatically re-applied to any new mapping created in the range.
+.El
+.Pp
+Protection keys feature is optional and depends on CPU implementing it.
+Use the
+.Dv CPUID
+instruction to check its availability.
+.Pp
+The request is used to implement the
+.Xr x86_pkru_protect_range 3
+function.
+.It Dv AMD64_CLEAR_PKRU
+Clear any protection keys assigned to the specified region.
+.Pp
+The request takes the
+.Vt struct amd64_set_pkru
+structure pointed to by the
+.Fa args
+parameter.
+The
+.Va addr
+and
+.Va len
+members of the structure specify starting address and the length in bytes
+of the region.
+Other structure members are ignored.
+.Pp
+The request is used to implement the
+.Xr x86_pkru_unprotect_range 3
+function.
+.It Dv AMD64_GET_TLSBASE
+AMD64 only.
+.Pp
+Returns the current TLSBASE value for the calling thread.
+The
+.Fa args
+argument must point to the 64bit
+.Vt unsigned long
+variable where the value is written to.
+.It Dv AMD64_SET_TLSBASE
+Sets the TLSBASE and the fsbase register values for the calling thread.
+The
+.Fa args
+argument must point to the 64bit
+.Vt unsigned long
+variable where the value is taken from.
+.Pp
+The TLSBASE value is written into the
+.Dv fsbase
+register before a signal handler is invoked.
+The current fsbase value is saved, and then restored
+upon return from the signal handler.
+Use of TLSBASE makes it possible for programs that modify
+the fsbase register using the
+.Dv WRFSBASE
+instruction to reliably access
+thread-local variables in signal handlers.
+.Pp
+TLSBASE is set up by the
+.Fx
+C runtime environment on thread startup.
+.It Dv AMD64_DISABLE_TLSBASE
+Disables loading the fsbase register from TLSBASE value on
+a signal handler invocation.
+The argument
+.Fa args
+is ignored.
+.Pp
+The call allows to undo the effect of the
+.Dv AMD64_SET_TLSBASE ,
+making signal handlers retain the value of fsbase from the
+interrupted context.
+By default, tlsbase is disabled after the
+.Xr execve 2
+syscall activated a new image.
+.El
+.Sh RETURN VALUES
+For all requests except
+.Dv I386_GET_LDT
+and
+.Dv I386_SET_LDT ,
+upon successful completion, the value 0 is returned; otherwise the
+value -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Pp
+The
+.Dv I386_SET_LDT
+request returns the starting index of the descriptors range it operated
+on, on success.
+In particular, the index of the automatically allocated descriptor is
+reported this way.
+Otherwise, -1 is returned and
+.Va errno
+is set.
+.Pp
+The
+.Dv I386_GET_LDT
+request returns 0 if the specified descriptors range is completely
+outside the allocated LDT.
+On any other error, -1 is returned and
+.Va errno
+is set.
+Otherwise the number of reported descriptors is returned as the syscall
+return value.
+.Sh SEE ALSO
+.Xr i386_get_ioperm 2 ,
+.Xr i386_get_ldt 2 ,
+.Xr i386_vm86 2 ,
+.Xr sysarch 2 ,
+.Xr pkru 3 ,
+.Xr arch 7
+.Sh HISTORY
+The manual page appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+The manual page was written by
+.An Konstantin Belousov Aq Mt kib@FreeBSD.org .

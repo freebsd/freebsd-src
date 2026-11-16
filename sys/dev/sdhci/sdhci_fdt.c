@@ -388,7 +388,6 @@ sdhci_fdt_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 
 	sc->num_slots = 1;
-	sc->max_clk = 0;
 
 	/* Allow dts to patch quirks, slots, and max-frequency. */
 	if ((OF_getencprop(node, "quirks", &cid, sizeof(cid))) > 0)

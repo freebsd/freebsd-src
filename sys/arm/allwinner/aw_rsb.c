@@ -273,12 +273,31 @@ static int
 rsb_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 {
 	struct rsb_softc *sc;
+	struct iic_msg wrmsgs[2];
 	uint32_t daddr[2], data[2], dlen;
 	uint16_t device_addr;
 	uint8_t cmd;
 	int error;
 
 	sc = device_get_softc(dev);
+
+	/*
+	 * Also accept a write of the offset and of the data in a single
+	 * message, which is how a write is done on an I2C bus.
+	 */
+	if (nmsgs == 1 && (msgs[0].flags & IIC_M_RD) == 0 &&
+	    msgs[0].len >= 2) {
+		wrmsgs[0].slave = msgs[0].slave;
+		wrmsgs[0].flags = IIC_M_WR | IIC_M_NOSTOP;
+		wrmsgs[0].len = 1;
+		wrmsgs[0].buf = msgs[0].buf;
+		wrmsgs[1].slave = msgs[0].slave;
+		wrmsgs[1].flags = IIC_M_WR;
+		wrmsgs[1].len = msgs[0].len - 1;
+		wrmsgs[1].buf = msgs[0].buf + 1;
+		msgs = wrmsgs;
+		nmsgs = 2;
+	}
 
 	/*
 	 * P2WI and RSB are not really I2C or SMBus controllers, so there are
@@ -288,7 +307,8 @@ rsb_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	 * a write, containing a single data byte offset. Data will either
 	 * be read from or written to the corresponding data byte in the
 	 * second message. The slave address in both messages must be the
-	 * same.
+	 * same. A write can also be a single message, the first byte is the
+	 * offset.
 	 */
 	if (nmsgs != 2 || (msgs[0].flags & IIC_M_RD) == IIC_M_RD ||
 	    (msgs[0].slave >> 1) != (msgs[1].slave >> 1) ||

@@ -209,7 +209,11 @@ armv8_crypto_probesession(device_t dev,
 	default:
 		return (EINVAL);
 	}
-	return (CRYPTODEV_PROBE_ACCEL_SOFTWARE);
+	/*
+	 * Prefer other crypto implementations (eg, ossl) to armv8_crypto
+	 * by reducing the probe priority.
+	 */
+	return (CRYPTODEV_PROBE_ACCEL_SOFTWARE - 50);
 }
 
 static int

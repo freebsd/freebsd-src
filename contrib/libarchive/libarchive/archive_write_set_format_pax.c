@@ -864,13 +864,15 @@ archive_write_pax_header(struct archive_write *a,
 		const char *oname;
 		char *name, *bname;
 		size_t name_length;
+		ssize_t written;
 		struct archive_entry *extra = archive_entry_new2(&a->archive);
 
 		oname = archive_entry_pathname(entry_original);
 		name_length = strlen(oname);
 		name = malloc(name_length + 3);
 		if (name == NULL || extra == NULL) {
-			/* XXX error message */
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate pax data");
 			archive_entry_free(extra);
 			free(name);
 			return (ARCHIVE_FAILED);
@@ -881,6 +883,14 @@ archive_write_pax_header(struct archive_write *a,
 		while (bname != NULL && bname[1] == '\0') {
 			*bname = '\0';
 			bname = strrchr(name, '/');
+		}
+		if (*name == '\0') {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Can't set mac metadata for empty pathname");
+			archive_entry_free(extra);
+			free(name);
+			return (ARCHIVE_FAILED);
 		}
 		if (bname == NULL) {
 			memmove(name + 2, name, name_length + 1);
@@ -916,8 +926,9 @@ archive_write_pax_header(struct archive_write *a,
 			return (r);
 		if (r < ret)
 			ret = r;
-		r = (int)archive_write_pax_data(a, mac_metadata,
+		written = archive_write_pax_data(a, mac_metadata,
 		    mac_metadata_size);
+		r = written < 0 ? (int)written : ARCHIVE_OK;
 		if (r < ARCHIVE_WARN)
 			return (r);
 		if (r < ret)

@@ -1,0 +1,6 @@
+prefix=/usr
+Cflags: -isystem /opt/x
+
+Name: sysroot-inject-isystem-separate
+Description: test fixture
+Version: 1.0.0

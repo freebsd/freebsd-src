@@ -1151,6 +1151,9 @@ ure_init(struct usb_ether *ue)
 	/* Set RX EARLY timeout and size */
 	if (sc->sc_flags & URE_FLAG_8153) {
 		switch (usbd_get_speed(sc->sc_ue.ue_udev)) {
+		case USB_SPEED_SUPER_PLUS_GEN2_X2:
+		case USB_SPEED_SUPER_PLUS_X2:
+		case USB_SPEED_SUPER_PLUS:
 		case USB_SPEED_SUPER:
 			reg = URE_COALESCE_SUPER / 8;
 			break;
@@ -1436,6 +1439,7 @@ ure_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 	sc = if_getsoftc(ifp);
 	if (sc->sc_flags & (URE_FLAG_8156 | URE_FLAG_8156B)) {
 		URE_LOCK(sc);
+		ifmr->ifm_active = IFM_ETHER;
 		ifmr->ifm_status = IFM_AVALID;
 		if (ure_get_link_status(sc)) {
 			ifmr->ifm_status |= IFM_ACTIVE;
@@ -1454,6 +1458,8 @@ ure_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 				ifmr->ifm_active |= IFM_1000_T;
 			else if (status & URE_PHYSTATUS_2500MBPS)
 				ifmr->ifm_active |= IFM_2500_T;
+		} else {
+			ifmr->ifm_active |= IFM_NONE;
 		}
 		URE_UNLOCK(sc);
 		return;
@@ -1583,6 +1589,7 @@ ure_ioctl(if_t ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCGIFMEDIA:
+	case SIOCGIFXMEDIA:
 	case SIOCSIFMEDIA:
 		if (sc->sc_flags & (URE_FLAG_8156 | URE_FLAG_8156B))
 			error = ifmedia_ioctl(ifp, ifr, &sc->sc_ifmedia, cmd);
@@ -1700,7 +1707,7 @@ ure_rtl8153_init(struct ure_softc *sc)
 	URE_CLRBIT_2(sc, URE_PLA_LED_FEATURE, URE_MCU_TYPE_PLA, URE_LED_MODE_MASK);
 
 	if ((sc->sc_chip & URE_CHIP_VER_5C10) &&
-	    usbd_get_speed(sc->sc_ue.ue_udev) != USB_SPEED_SUPER)
+	    usbd_get_speed(sc->sc_ue.ue_udev) < USB_SPEED_SUPER)
 		val = URE_LPM_TIMER_500MS;
 	else
 		val = URE_LPM_TIMER_500US;
@@ -1882,7 +1889,7 @@ ure_rtl8153b_init(struct ure_softc *sc)
 	ure_write_1(sc, URE_PLA_CRWECR, URE_MCU_TYPE_PLA, URE_CRWECR_NORAML);
 
 	/* Enable U1U2 */
-	if (usbd_get_speed(sc->sc_ue.ue_udev) == USB_SPEED_SUPER)
+	if (usbd_get_speed(sc->sc_ue.ue_udev) >= USB_SPEED_SUPER)
 		URE_SETBIT_2(sc, URE_USB_LPM_CONFIG, URE_MCU_TYPE_USB, URE_LPM_U1U2_EN);
 
 	if (sc->sc_flags & URE_FLAG_8156B) {
@@ -2049,7 +2056,7 @@ ure_rtl8153b_nic_reset(struct ure_softc *sc)
 	}
 
 	/* Enable U1U2 */
-	if (usbd_get_speed(sc->sc_ue.ue_udev) == USB_SPEED_SUPER)
+	if (usbd_get_speed(sc->sc_ue.ue_udev) >= USB_SPEED_SUPER)
 		URE_SETBIT_2(sc, URE_USB_LPM_CONFIG, URE_MCU_TYPE_USB, URE_LPM_U1U2_EN);
 }
 

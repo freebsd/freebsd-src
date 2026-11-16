@@ -506,8 +506,10 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 				"incoming query.");
 			if(rep->c->use_h2)
 				http2_stream_remove_mesh_state(rep->c->h2_stream);
+#ifdef HAVE_NGTCP2
 			else if(rep->c->type == comm_doq && rep->doq_stream)
-				doq_stream_remove_mesh_state(rep->doq_stream);
+				doq_find_stream_remove_mesh_state(rep);
+#endif
 			comm_point_drop_reply(rep);
 			mesh->stats_dropped++;
 			return;
@@ -521,8 +523,10 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 				"dropping incoming query.");
 			if(rep->c->use_h2)
 				http2_stream_remove_mesh_state(rep->c->h2_stream);
+#ifdef HAVE_NGTCP2
 			else if(rep->c->type == comm_doq && rep->doq_stream)
-				doq_stream_remove_mesh_state(rep->doq_stream);
+				doq_find_stream_remove_mesh_state(rep);
+#endif
 			comm_point_drop_reply(rep);
 			mesh->num_queries_replyaddr_limit++;
 			return;
@@ -598,6 +602,9 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 	if(rep->c->use_h2) {
 		http2_stream_add_meshstate(rep->c->h2_stream, mesh, s);
 	} else if(rep->c->type == comm_doq && rep->doq_stream) {
+		/* The mesh_new_client call is in the worker callback, that
+		 * is called from the doq handler that has the conn locked
+		 * for this stream. It can add directly, without more locks. */
 		doq_stream_add_meshstate(rep->doq_stream, mesh, s);
 	}
 	/* add serve expired timer if required and not already there */
@@ -655,6 +662,9 @@ servfail_mem:
 	if(rep->c->use_h2)
 		http2_stream_remove_mesh_state(rep->c->h2_stream);
 	else if(rep->c->type == comm_doq && rep->doq_stream)
+		/* The mesh_new_client call is in the worker callback, that
+		 * is called from the doq handler that has the conn locked
+		 * for this stream. It can remove without more locks. */
 		doq_stream_remove_mesh_state(rep->doq_stream);
 	comm_point_send_reply(rep);
 	if(added_reply_without_accounting) {
@@ -1145,9 +1155,10 @@ mesh_state_cleanup(struct mesh_state* mstate)
 					mstate);
 			else if(rep->query_reply.c->use_h2)
 				http2_stream_remove_mesh_state(rep->h2_stream);
+#ifdef HAVE_NGTCP2
 			else if(rep->query_reply.doq_stream)
-				doq_stream_remove_mesh_state(
-					rep->query_reply.doq_stream);
+				doq_find_stream_remove_mesh_state(&rep->query_reply);
+#endif
 			comm_point_drop_reply(&rep->query_reply);
 			log_assert(mesh->num_reply_addrs > 0);
 			mesh->num_reply_addrs--;
@@ -1538,7 +1549,7 @@ mesh_send_reply(struct mesh_state* m, int rcode, struct reply_info* rep,
 		r->h2_stream->mesh_state = NULL;
 #ifdef HAVE_NGTCP2
 	} else if(r->query_reply.doq_stream) {
-		r->query_reply.doq_stream->mesh_state = NULL;
+		doq_find_stream_remove_mesh_state(&r->query_reply);
 #endif
 	}
 	/* send the reply */
@@ -1837,8 +1848,10 @@ void mesh_query_done(struct mesh_state* mstate)
 						mstate);
 				else if(r->query_reply.c->use_h2)
 					http2_stream_remove_mesh_state(r->h2_stream);
+#ifdef HAVE_NGTCP2
 				else if(r->query_reply.doq_stream)
-					doq_stream_remove_mesh_state(r->query_reply.doq_stream);
+					doq_find_stream_remove_mesh_state(&r->query_reply);
+#endif
 				comm_point_drop_reply(&r->query_reply);
 				log_assert(mstate->s.env->mesh->num_reply_addrs > 0);
 				mstate->s.env->mesh->num_reply_addrs--;
@@ -1871,8 +1884,10 @@ void mesh_query_done(struct mesh_state* mstate)
 					r->query_reply.c->tcp_req_info, mstate);
 			} else if(r->query_reply.c->use_h2) {
 				http2_stream_remove_mesh_state(r->h2_stream);
+#ifdef HAVE_NGTCP2
 			} else if(r->query_reply.doq_stream) {
-				doq_stream_remove_mesh_state(r->query_reply.doq_stream);
+				doq_find_stream_remove_mesh_state(&r->query_reply);
+#endif
 			}
 			comm_point_drop_reply(&r->query_reply);
 			log_assert(mstate->s.env->mesh->num_reply_addrs > 0);
@@ -2481,8 +2496,11 @@ void mesh_state_remove_reply(struct mesh_area* mesh, struct mesh_state* m,
 			 * don't point back. */
 			if(n->h2_stream) n->h2_stream->mesh_state = NULL;
 #ifdef HAVE_NGTCP2
-			if(n->query_reply.doq_stream)
-				n->query_reply.doq_stream->mesh_state = NULL;
+			/* When doq calls with doq_stream nonNULL, it removes
+			 * the mesh_reply itself, and also already has the conn
+			 * locked, so no need to remove it here */
+			if(!doq_stream && n->query_reply.doq_stream)
+				doq_find_stream_remove_mesh_state(&n->query_reply);
 #endif
 
 			/* prev = prev; */
@@ -2663,8 +2681,10 @@ mesh_serve_expired_callback(void* arg)
 					r->query_reply.c->tcp_req_info, mstate);
 			else if(r->query_reply.c->use_h2)
 				http2_stream_remove_mesh_state(r->h2_stream);
+#ifdef HAVE_NGTCP2
 			else if(r->query_reply.doq_stream)
-				doq_stream_remove_mesh_state(r->query_reply.doq_stream);
+				doq_find_stream_remove_mesh_state(&r->query_reply);
+#endif
 			comm_point_drop_reply(&r->query_reply);
 			log_assert(mstate->s.env->mesh->num_reply_addrs > 0);
 			mstate->s.env->mesh->num_reply_addrs--;

@@ -44,10 +44,12 @@ TESTS_SRCS=	\
 	test_not_exist.c			\
 	test_o.c				\
 	test_p.c				\
+	test_prompt.c				\
 	test_q.c				\
 	test_symlink.c				\
 	test_symlink_dotdot.c			\
 	test_singlefile.c 			\
+	test_stdin.c				\
 	test_t.c				\
 	test_t_bad.c				\
 	test_u.c				\
@@ -75,6 +77,7 @@ ${PACKAGE}FILES+= test_basic.zip.uu
 ${PACKAGE}FILES+= test_encrypted.zip.uu
 ${PACKAGE}FILES+= test_f_new.zip.uu
 ${PACKAGE}FILES+= test_f_old.zip.uu
+${PACKAGE}FILES+= test_prompt.zip.uu
 ${PACKAGE}FILES+= test_singlefile.zip.uu
 ${PACKAGE}FILES+= test_symlink_1.zip.uu
 ${PACKAGE}FILES+= test_symlink_2.zip.uu

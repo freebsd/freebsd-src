@@ -1,4 +1,4 @@
-#	$OpenBSD: rekey.sh,v 1.30 2024/08/28 12:08:26 djm Exp $
+#	$OpenBSD: rekey.sh,v 1.31 2026/07/21 06:18:09 djm Exp $
 #	Placed in the Public Domain.
 
 tid="rekey"
@@ -73,7 +73,7 @@ increase_datafile_size 300
 opts=""
 
 # Filter out duplicate curve algo
-kexs=`${SSH} -Q kex | grep -v curve25519-sha256@libssh.org`
+kexs=`${SSH} -Q kex | grep -v curve25519-sha256@libssh.org | grep -v sntrup761x25519-sha512@openssh.com`
 ciphers=`${SSH} -Q cipher`
 macs=`${SSH} -Q mac`
 
@@ -141,6 +141,26 @@ done
 for s in 16 1k 128k 256k; do
 	verbose "server rekeylimit ${s}"
 	cp $OBJ/sshd_proxy_bak $OBJ/sshd_proxy
+	echo "rekeylimit ${s}" >>$OBJ/sshd_proxy
+	rm -f ${COPY} ${COPY2} ${LOG}
+	dd if=${DATA} of=${COPY} bs=$s count=1 2>/dev/null
+	${SSH} -F $OBJ/ssh_proxy somehost "cat ${COPY}" >${COPY2}
+	if [ $? -ne 0 ]; then
+		fail "ssh failed"
+	fi
+	cmp ${COPY} ${COPY2}		|| fail "corrupted copy"
+	n=`grep 'NEWKEYS sent' ${LOG} | wc -l`
+	n=`expr $n - 1`
+	trace "$n rekeying(s)"
+	if [ $n -lt 1 ]; then
+		fail "no rekeying occurred"
+	fi
+done
+
+for s in 16 1k 128k 256k; do
+	verbose "server match rekeylimit ${s}"
+	cp $OBJ/sshd_proxy_bak $OBJ/sshd_proxy
+	echo "match user *" >>$OBJ/sshd_proxy
 	echo "rekeylimit ${s}" >>$OBJ/sshd_proxy
 	rm -f ${COPY} ${COPY2} ${LOG}
 	dd if=${DATA} of=${COPY} bs=$s count=1 2>/dev/null

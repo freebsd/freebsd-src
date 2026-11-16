@@ -51,6 +51,9 @@
 #include <sys/wait.h>
 #include <err.h>
 #include <errno.h>
+#ifdef HAVE_CAPSICUM_HELPERS_H
+#include <capsicum_helpers.h>
+#endif
 #endif
 
 #include <grp.h>
@@ -181,6 +184,11 @@ main(int argc, char **argv)
 	(void)getpwuid(0);
 	(void)setpassent(1);
 	(void)getauevent();
+
+#ifdef HAVE_CAPSICUM_HELPERS_H
+	if (caph_limit_stdio() < 0)
+		err(EXIT_FAILURE, "caph_limit_stdio");
+#endif
 #endif
 
 	if (oflags & AU_OFLAG_XML)
@@ -213,6 +221,10 @@ main(int argc, char **argv)
 		childpid = fork();
 		if (childpid == 0) {
 			/* Child. */
+#ifdef HAVE_CAPSICUM_HELPERS_H
+			if (caph_limit_stream(fileno(fp), CAPH_READ) < 0)
+				err(EXIT_FAILURE, "caph_limit_stream");
+#endif
 			retval = cap_enter();
 			if (retval != 0 && errno != ENOSYS)
 				err(EXIT_FAILURE, "cap_enter");

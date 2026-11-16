@@ -28,6 +28,7 @@
  * Copyright (c) 2023, Rob Norris <robn@despairlabs.com>
  * Copyright (c) 2026, TrueNAS.
  * Copyright 2026 Edgecast Cloud LLC.
+ * Copyright 2026 Oxide Computer Company
  */
 
 #include <stdio.h>
@@ -49,6 +50,7 @@
 #include <sys/sa_impl.h>
 #include <sys/vdev.h>
 #include <sys/vdev_impl.h>
+#include <sys/vdev_anyraid.h>
 #include <sys/metaslab_impl.h>
 #include <sys/dmu_objset.h>
 #include <sys/dsl_dir.h>
@@ -105,6 +107,7 @@ enum {
 	ARG_ALLOCATED = 256,
 	ARG_BLOCK_BIN_MODE,
 	ARG_BLOCK_CLASSES,
+	ARG_ANYRAID_MAP,
 };
 
 static const char cmdname[] = "zdb";
@@ -696,22 +699,6 @@ livelist_metaslab_validate(spa_t *spa)
 	zfs_btree_destroy(&sv.sv_leftover);
 }
 
-/*
- * These libumem hooks provide a reasonable set of defaults for the allocator's
- * debugging facilities.
- */
-const char *
-_umem_debug_init(void)
-{
-	return ("default,verbose"); /* $UMEM_DEBUG setting */
-}
-
-const char *
-_umem_logging_init(void)
-{
-	return ("fail,contents"); /* $UMEM_LOGGING setting */
-}
-
 static void
 usage(void)
 {
@@ -740,9 +727,11 @@ usage(void)
 	    "\t\t[<poolname>[/<dataset | objset id>] [<object | range> ...]]\n"
 	    "\t%s -E [-A] word0:word1:...:word15\n"
 	    "\t%s -S [-AP] [-e [-V] [-p <path> ...]] [-U <cache>] "
-	    "<poolname>\n\n",
+	    "<poolname>\n"
+	    "\t%s --anyraid-map <poolname> [<vdev> ...]\n\n",
 	    cmdname, cmdname, cmdname, cmdname, cmdname, cmdname, cmdname,
-	    cmdname, cmdname, cmdname, cmdname, cmdname, cmdname, cmdname);
+	    cmdname, cmdname, cmdname, cmdname, cmdname, cmdname, cmdname,
+	    cmdname);
 
 	(void) fprintf(stderr, "    Dataset name must include at least one "
 	    "separator character '/' or '@'\n");
@@ -928,19 +917,19 @@ dump_packed_nvlist(objset_t *os, uint64_t object, void *data, size_t size)
 	(void) size;
 	nvlist_t *nv;
 	size_t nvsize = *(uint64_t *)data;
-	char *packed = umem_alloc(nvsize, UMEM_NOFAIL);
+	char *packed = kmem_alloc(nvsize, KM_SLEEP);
 	int err;
 
 	err = dmu_read(os, object, 0, nvsize, packed, DMU_READ_PREFETCH);
 	if (err != 0) {
 		(void) printf("got error %u from dmu_read\n", err);
-		umem_free(packed, nvsize);
+		kmem_free(packed, nvsize);
 		return;
 	}
 
 	err = nvlist_unpack(packed, nvsize, &nv, 0);
 
-	umem_free(packed, nvsize);
+	kmem_free(packed, nvsize);
 
 	if (err != 0) {
 		(void) printf("got error %u from nvlist_unpack\n", err);
@@ -1191,8 +1180,8 @@ dump_zap(objset_t *os, uint64_t object, void *data, size_t size)
 			(void) printf("\n");
 			continue;
 		}
-		prop = umem_zalloc(attrp->za_num_integers *
-		    attrp->za_integer_length, UMEM_NOFAIL);
+		prop = kmem_zalloc(attrp->za_num_integers *
+		    attrp->za_integer_length, KM_SLEEP);
 
 		if (key64)
 			(void) zap_lookup_uint64(os, object,
@@ -1244,7 +1233,7 @@ dump_zap(objset_t *os, uint64_t object, void *data, size_t size)
 			}
 		}
 		(void) printf("\n");
-		umem_free(prop,
+		kmem_free(prop,
 		    attrp->za_num_integers * attrp->za_integer_length);
 	}
 	zap_cursor_fini(&zc);
@@ -1394,8 +1383,8 @@ dump_sa_layouts(objset_t *os, uint64_t object, void *data, size_t size)
 		}
 
 		VERIFY(attrp->za_integer_length == 2);
-		layout_attrs = umem_zalloc(attrp->za_num_integers *
-		    attrp->za_integer_length, UMEM_NOFAIL);
+		layout_attrs = kmem_zalloc(attrp->za_num_integers *
+		    attrp->za_integer_length, KM_SLEEP);
 
 		VERIFY(zap_lookup(os, object, attrp->za_name,
 		    attrp->za_integer_length,
@@ -1404,7 +1393,7 @@ dump_sa_layouts(objset_t *os, uint64_t object, void *data, size_t size)
 		for (i = 0; i != attrp->za_num_integers; i++)
 			(void) printf(" %d ", (int)layout_attrs[i]);
 		(void) printf("]\n");
-		umem_free(layout_attrs,
+		kmem_free(layout_attrs,
 		    attrp->za_num_integers * attrp->za_integer_length);
 	}
 	zap_cursor_fini(&zc);
@@ -2568,8 +2557,7 @@ dump_history(spa_t *spa)
 		if ((error = spa_history_get(spa, &off, &len, buf)) != 0) {
 			(void) fprintf(stderr, "Unable to read history: "
 			    "error %d\n", error);
-			free(buf);
-			return;
+			goto out;
 		}
 
 		if (zpool_history_unpack(buf, len, &resid, &events, &num) != 0)
@@ -2662,6 +2650,10 @@ next:
 			dump_nvlist(events[i], 2);
 		}
 	}
+out:
+	for (unsigned i = 0; i < num; i++)
+		nvlist_free(events[i]);
+	free(events);
 	free(buf);
 }
 
@@ -3789,6 +3781,9 @@ zdb_derive_key(dsl_dir_t *dd, uint8_t *key_out)
 		    dd->dd_crypto_obj, zfs_prop_to_name(ZFS_PROP_PBKDF2_ITERS),
 		    sizeof (uint64_t), 1, &iters));
 
+		/* libzfs derives the key from the salt in little-endian */
+		salt = LE_64(salt);
+
 		if (PKCS5_PBKDF2_HMAC_SHA1(key_material, strlen(key_material),
 		    ((uint8_t *)&salt), sizeof (uint64_t), iters,
 		    WRAPPING_KEY_LEN, key_out) != 1)
@@ -4109,6 +4104,29 @@ dump_uidgid(objset_t *os, uint64_t uid, uint64_t gid)
 	print_idstr(gid, "gid");
 }
 
+/*
+ * Print an xattr value.  If it contains non-printable bytes, or -P was
+ * specified, print every byte in octal (\ooo).  Otherwise, print as a
+ * string.
+ */
+void
+dump_xattr_value(const uint8_t *value, uint64_t len)
+{
+	boolean_t can_print = !dump_opt['P'];
+
+	for (uint64_t i = 0; can_print && i < len; i++) {
+		if (!isprint(value[i]))
+			can_print = B_FALSE;
+	}
+
+	for (uint64_t i = 0; i < len; i++) {
+		if (can_print)
+			(void) putchar(value[i]);
+		else
+			(void) printf("\\%3.3o", value[i]);
+	}
+}
+
 static void
 dump_znode_sa_xattr(sa_handle_t *hdl)
 {
@@ -4146,26 +4164,12 @@ dump_znode_sa_xattr(sa_handle_t *hdl)
 	(void) printf("\tSA xattrs: %d bytes, %d entries\n\n",
 	    sa_xattr_size, sa_xattr_entries);
 	while ((elem = nvlist_next_nvpair(sa_xattr, elem)) != NULL) {
-		boolean_t can_print = !dump_opt['P'];
 		uchar_t *value;
-		uint_t cnt, idx;
+		uint_t cnt;
 
 		(void) printf("\t\t%s = ", nvpair_name(elem));
 		nvpair_value_byte_array(elem, &value, &cnt);
-
-		for (idx = 0; idx < cnt; ++idx) {
-			if (!isprint(value[idx])) {
-				can_print = B_FALSE;
-				break;
-			}
-		}
-
-		for (idx = 0; idx < cnt; ++idx) {
-			if (can_print)
-				(void) putchar(value[idx]);
-			else
-				(void) printf("\\%3.3o", value[idx]);
-		}
+		dump_xattr_value(value, cnt);
 		(void) putchar('\n');
 	}
 
@@ -5277,7 +5281,7 @@ cksum_record_alloc(zio_cksum_t *cksum, int l)
 {
 	cksum_record_t *rec;
 
-	rec = umem_zalloc(sizeof (*rec), UMEM_NOFAIL);
+	rec = kmem_zalloc(sizeof (*rec), KM_SLEEP);
 	rec->cksum = *cksum;
 	rec->labels[l] = B_TRUE;
 
@@ -6159,11 +6163,11 @@ dump_label(const char *dev)
 
 	cookie = NULL;
 	while ((node = avl_destroy_nodes(&config_tree, &cookie)) != NULL)
-		umem_free(node, sizeof (cksum_record_t));
+		kmem_free(node, sizeof (cksum_record_t));
 
 	cookie = NULL;
 	while ((node = avl_destroy_nodes(&uberblock_tree, &cookie)) != NULL)
-		umem_free(node, sizeof (cksum_record_t));
+		kmem_free(node, sizeof (cksum_record_t));
 
 	avl_destroy(&config_tree);
 	avl_destroy(&uberblock_tree);
@@ -6511,8 +6515,7 @@ dump_size_histograms(zdb_cb_t *zcb)
 }
 
 static void
-zdb_count_block(zdb_cb_t *zcb, zilog_t *zilog, const blkptr_t *bp,
-    dmu_object_type_t type)
+zdb_count_block(zdb_cb_t *zcb, const blkptr_t *bp, dmu_object_type_t type)
 {
 	int i;
 	boolean_t claimed = B_FALSE;
@@ -6520,9 +6523,6 @@ zdb_count_block(zdb_cb_t *zcb, zilog_t *zilog, const blkptr_t *bp,
 	boolean_t brt_block = B_FALSE;
 
 	ASSERT(type < ZDB_OT_TOTAL);
-
-	if (zilog && zil_bp_tree_add(zilog, bp) != 0)
-		return;
 
 	spa_config_enter(zcb->zcb_spa, SCL_CONFIG, FTAG, RW_READER);
 
@@ -6663,8 +6663,8 @@ ddt_done:
 			    brt_entry_get_refcount(zcb->zcb_spa, bp);
 			if (refcnt > 0) {
 				brt_block = B_TRUE;
-				zbre = umem_zalloc(sizeof (zdb_brt_entry_t),
-				    UMEM_NOFAIL);
+				zbre = kmem_zalloc(sizeof (zdb_brt_entry_t),
+				    KM_SLEEP);
 				zbre->zbre_dva = bp->blk_dva[0];
 				zbre->zbre_refcount = refcnt;
 				avl_insert(&zcb->zcb_brt, zbre, where);
@@ -6928,6 +6928,7 @@ static int
 zdb_blkptr_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
     const zbookmark_phys_t *zb, const dnode_phys_t *dnp, void *arg)
 {
+	(void) zilog;
 	zdb_cb_t *zcb = arg;
 	dmu_object_type_t type;
 	boolean_t is_metadata;
@@ -6952,8 +6953,7 @@ zdb_blkptr_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 
 	type = BP_GET_TYPE(bp);
 
-	zdb_count_block(zcb, zilog, bp,
-	    (type & DMU_OT_NEWTYPE) ? ZDB_OT_OTHER : type);
+	zdb_count_block(zcb, bp, (type & DMU_OT_NEWTYPE) ? ZDB_OT_OTHER : type);
 
 	is_metadata = (BP_GET_LEVEL(bp) != 0 || DMU_OT_IS_METADATA(type));
 
@@ -7538,8 +7538,8 @@ zdb_leak_init(spa_t *spa, zdb_cb_t *zcb)
 	spa->spa_special_embedded_log_class->mc_ops = &zdb_metaslab_ops;
 
 	zcb->zcb_vd_obsolete_counts =
-	    umem_zalloc(rvd->vdev_children * sizeof (uint32_t *),
-	    UMEM_NOFAIL);
+	    kmem_zalloc(rvd->vdev_children * sizeof (uint32_t *),
+	    KM_SLEEP);
 
 	/*
 	 * For leak detection, we overload the ms_allocatable trees
@@ -7679,7 +7679,7 @@ zdb_leak_fini(spa_t *spa, zdb_cb_t *zcb)
 				    (u_longlong_t)zbre->zbre_refcount);
 				leaks = B_TRUE;
 			}
-			umem_free(zbre, sizeof (zdb_brt_entry_t));
+			kmem_free(zbre, sizeof (zdb_brt_entry_t));
 		}
 		avl_destroy(&zcb->zcb_brt);
 	}
@@ -7751,6 +7751,9 @@ zdb_leak_fini(spa_t *spa, zdb_cb_t *zcb)
 				zfs_range_tree_vacate(msp->ms_allocatable,
 				    NULL, NULL);
 			} else {
+				if (!zfs_range_tree_is_empty(
+				    msp->ms_allocatable))
+					leaks = B_TRUE;
 				zfs_range_tree_vacate(msp->ms_allocatable,
 				    zdb_leak, vd);
 			}
@@ -7760,7 +7763,7 @@ zdb_leak_fini(spa_t *spa, zdb_cb_t *zcb)
 		}
 	}
 
-	umem_free(zcb->zcb_vd_obsolete_counts,
+	kmem_free(zcb->zcb_vd_obsolete_counts,
 	    rvd->vdev_children * sizeof (uint32_t *));
 	zcb->zcb_vd_obsolete_counts = NULL;
 
@@ -7779,7 +7782,7 @@ count_block_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx)
 		(void) printf("[%s] %s\n",
 		    "deferred free", blkbuf);
 	}
-	zdb_count_block(zcb, NULL, bp, ZDB_OT_DEFERRED);
+	zdb_count_block(zcb, bp, ZDB_OT_DEFERRED);
 	return (0);
 }
 
@@ -7873,7 +7876,7 @@ zdb_count_ddt_log_frees(spa_t *spa, zdb_cb_t *zcb)
 					    v, &blk);
 					/* As ddt_phys_free() does at flush. */
 					BP_SET_DEDUP(&blk, 0);
-					zdb_count_block(zcb, NULL, &blk,
+					zdb_count_block(zcb, &blk,
 					    ZDB_OT_DDT_PENDING);
 				}
 			}
@@ -7965,7 +7968,7 @@ dump_block_stats(spa_t *spa)
 
 	ddt_prefetch_all(spa);
 
-	zcb = umem_zalloc(sizeof (zdb_cb_t), UMEM_NOFAIL);
+	zcb = kmem_zalloc(sizeof (zdb_cb_t), KM_SLEEP);
 
 	if (spa_feature_is_active(spa, SPA_FEATURE_BLOCK_CLONING)) {
 		avl_create(&zcb->zcb_brt, zdb_brt_entry_compare,
@@ -8094,10 +8097,11 @@ dump_block_stats(spa_t *spa)
 		    (u_longlong_t)total_alloc,
 		    (dump_opt['L']) ? "unreachable" : "leaked",
 		    (longlong_t)(total_alloc - total_found));
+		leaks = B_TRUE;
 	}
 
 	if (tzb->zb_count == 0) {
-		umem_free(zcb, sizeof (zdb_cb_t));
+		kmem_free(zcb, sizeof (zdb_cb_t));
 		return (2);
 	}
 
@@ -8207,8 +8211,8 @@ dump_block_stats(spa_t *spa)
 		}
 
 		char mem[32];
-		zdb_nicenum(vdev_indirect_mapping_num_entries(vim),
-		    mem, vdev_indirect_mapping_size(vim));
+		zdb_nicebytes(vdev_indirect_mapping_size(vim),
+		    mem, sizeof (mem));
 
 		(void) printf("\tindirect vdev id %llu has %llu segments "
 		    "(%s in memory)\n",
@@ -8223,8 +8227,8 @@ dump_block_stats(spa_t *spa)
 		(void) printf("\nBlocks\tLSIZE\tPSIZE\tASIZE"
 		    "\t  avg\t comp\t%%Total\tType\n");
 
-		zfs_blkstat_t *mdstats = umem_zalloc(sizeof (zfs_blkstat_t),
-		    UMEM_NOFAIL);
+		zfs_blkstat_t *mdstats = kmem_zalloc(sizeof (zfs_blkstat_t),
+		    KM_SLEEP);
 
 		for (t = 0; t <= ZDB_OT_TOTAL; t++) {
 			const char *typename;
@@ -8347,22 +8351,22 @@ dump_block_stats(spa_t *spa)
 			dump_size_histograms(zcb);
 		}
 
-		umem_free(mdstats, sizeof (zfs_blkstat_t));
+		kmem_free(mdstats, sizeof (zfs_blkstat_t));
 	}
 
 	(void) printf("\n");
 
 	if (leaks) {
-		umem_free(zcb, sizeof (zdb_cb_t));
+		kmem_free(zcb, sizeof (zdb_cb_t));
 		return (2);
 	}
 
 	if (zcb->zcb_haderrors) {
-		umem_free(zcb, sizeof (zdb_cb_t));
+		kmem_free(zcb, sizeof (zdb_cb_t));
 		return (3);
 	}
 
-	umem_free(zcb, sizeof (zdb_cb_t));
+	kmem_free(zcb, sizeof (zdb_cb_t));
 	return (0);
 }
 
@@ -8406,7 +8410,7 @@ zdb_ddt_add_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	zdde = avl_find(t, &zdde_search, &where);
 
 	if (zdde == NULL) {
-		zdde = umem_zalloc(sizeof (*zdde), UMEM_NOFAIL);
+		zdde = kmem_zalloc(sizeof (*zdde), KM_SLEEP);
 		zdde->zdde_key = zdde_search.zdde_key;
 		avl_insert(t, zdde, where);
 	}
@@ -8419,7 +8423,7 @@ zdb_ddt_add_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	return (0);
 }
 
-static void
+static int
 dump_simulated_ddt(spa_t *spa)
 {
 	avl_tree_t t;
@@ -8427,13 +8431,14 @@ dump_simulated_ddt(spa_t *spa)
 	zdb_ddt_entry_t *zdde;
 	ddt_histogram_t ddh_total = {{{0}}};
 	ddt_stat_t dds_total = {0};
+	int err;
 
 	avl_create(&t, ddt_key_compare,
 	    sizeof (zdb_ddt_entry_t), offsetof(zdb_ddt_entry_t, zdde_node));
 
 	spa_config_enter(spa, SCL_CONFIG, FTAG, RW_READER);
 
-	(void) traverse_pool(spa, 0, TRAVERSE_PRE | TRAVERSE_PREFETCH_METADATA |
+	err = traverse_pool(spa, 0, TRAVERSE_PRE | TRAVERSE_PREFETCH_METADATA |
 	    TRAVERSE_NO_DECRYPT, zdb_ddt_add_cb, &t);
 
 	spa_config_exit(spa, SCL_CONFIG, FTAG);
@@ -8454,7 +8459,7 @@ dump_simulated_ddt(spa_t *spa)
 		dds->dds_ref_psize += zdde->zdde_ref_psize;
 		dds->dds_ref_dsize += zdde->zdde_ref_dsize;
 
-		umem_free(zdde, sizeof (*zdde));
+		kmem_free(zdde, sizeof (*zdde));
 	}
 
 	avl_destroy(&t);
@@ -8466,6 +8471,18 @@ dump_simulated_ddt(spa_t *spa)
 	zpool_dump_ddt(&dds_total, &ddh_total, dump_opt['P'] > 0);
 
 	dump_dedup_ratio(&dds_total);
+
+	/*
+	 * The traversal stops at the first block it can't read, so the
+	 * histogram only covers the blocks visited before it.
+	 */
+	if (err != 0) {
+		(void) fprintf(stderr, "zdb: traversing the pool failed: %s; "
+		    "the simulated DDT histogram is incomplete\n",
+		    err == ECKSUM ? "checksum mismatch" : strerror(err));
+	}
+
+	return (err);
 }
 
 static int
@@ -9381,7 +9398,9 @@ dump_zpool(spa_t *spa)
 	}
 
 	if (dump_opt['S']) {
-		dump_simulated_ddt(spa);
+		rc = dump_simulated_ddt(spa);
+		if (rc != 0)
+			zdb_exit(rc);
 		return;
 	}
 
@@ -9747,7 +9766,7 @@ zdb_decompress_block(abd_t *pabd, void *buf, void *lbuf, uint64_t lsize,
 	 * We don't know how the data was compressed, so just try
 	 * every decompress function at every inflated blocksize.
 	 */
-	void *lbuf2 = umem_alloc(SPA_MAXBLOCKSIZE, UMEM_NOFAIL);
+	void *lbuf2 = kmem_alloc(SPA_MAXBLOCKSIZE, KM_SLEEP);
 	int cfuncs[ZIO_COMPRESS_FUNCTIONS] = { 0 };
 	int *cfuncp = cfuncs;
 	uint64_t maxlsize = SPA_MAXBLOCKSIZE;
@@ -9802,7 +9821,7 @@ zdb_decompress_block(abd_t *pabd, void *buf, void *lbuf, uint64_t lsize,
 			}
 		}
 	}
-	umem_free(lbuf2, SPA_MAXBLOCKSIZE);
+	kmem_free(lbuf2, SPA_MAXBLOCKSIZE);
 
 	if (*cfuncp == ZIO_COMPRESS_ZLE) {
 		printf("\nZLE decompression was selected. If you "
@@ -9938,7 +9957,7 @@ zdb_read_block(char *thing, spa_t *spa)
 	}
 
 	pabd = abd_alloc_for_io(SPA_MAXBLOCKSIZE, B_FALSE);
-	lbuf = umem_alloc(SPA_MAXBLOCKSIZE, UMEM_NOFAIL);
+	lbuf = kmem_alloc(SPA_MAXBLOCKSIZE, KM_SLEEP);
 
 	BP_ZERO(bp);
 
@@ -10103,7 +10122,7 @@ zdb_read_block(char *thing, spa_t *spa)
 
 out:
 	abd_free(pabd);
-	umem_free(lbuf, SPA_MAXBLOCKSIZE);
+	kmem_free(lbuf, SPA_MAXBLOCKSIZE);
 done:
 	free(flagstr);
 	free(dup);
@@ -10173,10 +10192,479 @@ dummy_get_file_info(dmu_object_type_t bonustype, const void *data,
 	abort();
 }
 
+static int
+numlen(uint64_t v)
+{
+	char buf[32];
+	snprintf(buf, sizeof (buf), "%llu", (u_longlong_t)v);
+	return (strlen(buf));
+}
+
+static void
+print_separator_line(int cols, int colwidth, boolean_t *print, boolean_t *final)
+{
+	char buf[64];
+	ASSERT3U(colwidth * strlen("─"), <, sizeof (buf) - 2);
+	int len = 0, off = 0;
+	// Create a buffer with the cell separator to make later code simpler.
+	while (len < colwidth) {
+		len++;
+		int n = snprintf(buf + off, sizeof (buf) - off, "─");
+		ASSERT(n > 0 && n < sizeof (buf) - off);
+		off += n;
+	}
+
+	for (int i = 0; i < cols; i++) {
+		/*
+		 * Skip cells that we don't need to print. If the previous cell]
+		 * also wasn't printed, add an extra space for the separator
+		 * column.
+		 */
+		if (!print[i]) {
+			int extra_width = 0;
+			if (i == 0 || !print[i - 1])
+				extra_width++;
+			(void) printf("%*s", colwidth + extra_width, "");
+			continue;
+		}
+
+		// Calculate the right shape for the corner of the cells.
+		const char *left_c, *right_c;
+		if (i == 0 || !print[i - 1]) {
+			left_c = (final[i] && (i == 0 || final[i - 1])) ?
+			    "└" : "├";
+		} else {
+			left_c = "";
+		}
+		if (i == cols - 1 || !print[i + 1]) {
+			right_c =
+			    (final[i] && (i == cols - 1 || final[i + 1])) ?
+			    "┘" : "┤";
+		} else {
+			right_c =
+			    (final[i] && (i == cols - 1 || final[i + 1])) ?
+			    "┴" : "┼";
+		}
+		(void) printf("%s%s%s", left_c, buf, right_c);
+	}
+	(void) printf("\n");
+}
+
+static void
+zdb_print_anyraid_tile_layout(vdev_t *vd)
+{
+	ASSERT3P(vd->vdev_ops, ==, &vdev_anyraid_ops);
+	vdev_anyraid_t *var = vd->vdev_tsd;
+	int cols = vd->vdev_children;
+	int textwidth = MAX(8, numlen(avl_numnodes(&var->vd_tile_map)) +
+	    var->vd_nparity > 0 ? numlen(var->vd_nparity + 1) + 1 : 0);
+	int colwidth = textwidth + 2;
+
+	// Create and populate table with all the values we need to print.
+	char ***table = malloc(sizeof (*table) * cols);
+	for (int i = 0; i < cols; i++) {
+		table[i] = calloc(var->vd_children[i]->van_capacity,
+		    sizeof (**table));
+	}
+
+	anyraid_tile_t *cur = avl_first(&var->vd_tile_map);
+	while (cur) {
+		int p = 0;
+		for (anyraid_tile_node_t *node = list_head(&cur->at_list);
+		    node; node = list_next(&cur->at_list, node)) {
+			ASSERT3U(p, <=, var->vd_nparity + 1);
+			char **next =
+			    &(table[node->atn_disk][node->atn_offset]);
+			*next = malloc(textwidth + 1);
+			int len = snprintf(*next, textwidth, "%d",
+			    cur->at_tile_id);
+			if (var->vd_nparity > 0) {
+				(void) snprintf((*next) + len, textwidth - len,
+				    "-%d", p);
+			}
+			p++;
+		}
+		ASSERT3U(p, ==, var->vd_nparity + 1);
+		cur = AVL_NEXT(&var->vd_tile_map, cur);
+	}
+
+	// These are needed to generate the separator lines
+	boolean_t *printed = malloc(sizeof (*printed) * cols);
+	boolean_t *final = malloc(sizeof (*final) * cols);
+	// Print the header row
+	for (int i = 0; i < cols; i++) {
+		if (i == 0)
+			(void) printf("│");
+		(void) printf(" %*d ", textwidth, i);
+		(void) printf("│");
+		printed[i] = B_TRUE;
+		final[i] = B_FALSE;
+	}
+	(void) printf("\n");
+	print_separator_line(cols, colwidth, printed, final);
+
+	// Print out the actual tile map, one row at a time.
+	for (int i = 0; ; i++) {
+		int last_printed = INT_MAX;
+		for (int v = 0; v < cols; v++) {
+			if (final[v]) {
+				ASSERT3U(i, >=,
+				    var->vd_children[v]->van_capacity);
+				int extra_width = 0;
+				if (v == 0 || !printed[v - 1])
+					extra_width++;
+				(void) printf("%*s",
+				    colwidth + extra_width, "");
+				printed[v] = B_FALSE;
+				continue;
+			}
+			if (i + 1 == var->vd_children[v]->van_capacity)
+				final[v] = B_TRUE;
+			if (v - 1 != last_printed)
+				(void) printf("│");
+			char *value = table[v][i];
+			(void) printf(" %*s │", textwidth, value ? value :
+			    "");
+			last_printed = v;
+		}
+
+		if (last_printed == INT_MAX)
+			break;
+		(void) printf("\n");
+		print_separator_line(cols, colwidth, printed, final);
+	}
+	(void) printf("\n");
+	for (int i = 0; i < cols; i++) {
+		for (int j = 0; j < var->vd_children[i]->van_capacity; j++)
+			if (table[i][j])
+				free(table[i][j]);
+		free(table[i]);
+	}
+	free(table);
+	free(printed);
+	free(final);
+}
+
+static void
+free_header(anyraid_header_t *header, uint64_t header_size)
+{
+	fnvlist_free(header->ah_nvl);
+	abd_return_buf(header->ah_abd, header->ah_buf, header_size);
+	abd_free(header->ah_abd);
+}
+
+/*
+ * Print one of the anyraid maps from the given vdev child. This prints the
+ * mapping entries themselves, rather than the kernel's interpretation of them,
+ * which can be useful for debugging.
+ */
+static void
+print_anyraid_mapping(vdev_t *vd, int child, anyraid_header_t *header)
+{
+	vdev_anyraid_t *var = vd->vdev_tsd;
+	vdev_t *cvd = vd->vdev_child[child];
+	int error = 0;
+	int flags = ZIO_FLAG_CONFIG_WRITER | ZIO_FLAG_CANFAIL |
+	    ZIO_FLAG_SPECULATIVE;
+
+	int mapping = header->ah_mapping;
+	nvlist_t *hnvl = header->ah_nvl;
+	// Look up and print map metadata.
+	uint16_t version;
+	if (nvlist_lookup_uint16(hnvl, VDEV_ANYRAID_HEADER_VERSION,
+	    &version) != 0) {
+		(void) printf("No version\n");
+		return;
+	}
+
+	uint64_t tile_size;
+	if (nvlist_lookup_uint64(hnvl, VDEV_ANYRAID_HEADER_TILE_SIZE,
+	    &tile_size) != 0) {
+		(void) printf("No tile size\n");
+		return;
+	}
+
+	uint32_t map_length;
+	if (nvlist_lookup_uint32(hnvl, VDEV_ANYRAID_HEADER_LENGTH,
+	    &map_length) != 0) {
+		(void) printf("No map length\n");
+		return;
+	}
+
+	uint64_t written_txg = 0;
+	if (nvlist_lookup_uint64(hnvl, VDEV_ANYRAID_HEADER_TXG,
+	    &written_txg) != 0)
+		(void) printf("No valid TXG\n");
+
+	uint8_t disk_id = 0;
+	if (nvlist_lookup_uint8(hnvl, VDEV_ANYRAID_HEADER_DISK,
+	    &disk_id) != 0)
+		(void) printf("No valid disk ID\n");
+
+	(void) printf("version:    %6d\ttile size: %#8llx\ttxg: %llu\n",
+	    version, (u_longlong_t)tile_size, (u_longlong_t)written_txg);
+	(void) printf("map length: %6u\tdisk id: %3u\n", map_length, disk_id);
+
+	// Read in and print the actual mapping data
+	abd_t *map_abds[VDEV_ANYRAID_MAP_SIZE / SPA_MAXBLOCKSIZE] = {0};
+	int i;
+	if ((error = vdev_anyraid_read_map(cvd, mapping, header, map_length,
+	    map_abds, flags))) {
+		(void) printf("Could not read map: %s\n", strerror(error));
+		for (i = 0; i < ARRAY_SIZE(map_abds); i++)
+			abd_free(map_abds[i]);
+		return;
+	}
+
+	uint32_t map = -1, cur_tile = 0;
+	/*
+	 * For now, all entries are the size of a uint32_t. If that
+	 * ever changes, we need better logic here.
+	 */
+	uint32_t size = sizeof (uint32_t);
+	uint8_t *map_buf = NULL;
+	uint8_t par_cnt = 0;
+	for (uint32_t off = 0; off < map_length; off += size) {
+		int next_map = off / SPA_MAXBLOCKSIZE;
+		if (map != next_map) {
+			// switch maps
+			if (map != -1) {
+				abd_return_buf(map_abds[map], map_buf,
+				    abd_get_size(map_abds[map]));
+			}
+			map_buf = abd_borrow_buf(map_abds[next_map],
+			    abd_get_size(map_abds[next_map]));
+			map = next_map;
+		}
+		uint32_t mo = off % SPA_MAXBLOCKSIZE;
+		anyraid_map_entry_t *entry =
+		    (anyraid_map_entry_t *)(map_buf + mo);
+		uint8_t type = ame_get_type(entry);
+		uint8_t *buf;
+		boolean_t allocated = B_FALSE;
+		if (size > SPA_MAXBLOCKSIZE - mo) {
+			buf = kmem_alloc(size, KM_SLEEP);
+			uint8_t rem = SPA_MAXBLOCKSIZE - mo;
+			allocated = B_TRUE;
+			memcpy(buf, map_buf + mo, rem);
+			// switch maps
+			if (map != -1) {
+				abd_return_buf(map_abds[map], map_buf,
+				    abd_get_size(map_abds[map]));
+			}
+			map_buf = abd_borrow_buf(map_abds[next_map],
+			    abd_get_size(map_abds[next_map]));
+			map = next_map;
+			memcpy(buf + rem, map_buf, size - rem);
+		} else {
+			buf = map_buf + mo;
+		}
+		entry = (anyraid_map_entry_t *)buf;
+		switch (type) {
+			case AMET_SKIP: {
+				anyraid_map_skip_entry_t *amse =
+				    &entry->ame_u.ame_amse;
+				ASSERT0(par_cnt);
+				cur_tile += amse_get_skip_count(amse);
+				(void) printf("skip %u\n",
+				    amse_get_skip_count(amse));
+				break;
+			}
+			case AMET_LOC: {
+				anyraid_map_loc_entry_t *amle =
+				    &entry->ame_u.ame_amle;
+				if (par_cnt == 0) {
+					(void) printf("loc %u:", cur_tile);
+					cur_tile++;
+				}
+				(void) printf("\td%u o%u,", amle_get_disk(amle),
+				    amle_get_offset(amle));
+				par_cnt = (par_cnt + 1) % (var->vd_nparity + 1);
+				if (par_cnt == 0)
+					(void) printf("\n");
+				break;
+			}
+			default:
+				(void) printf("Invalid entry type %d, "
+				    "aborting\n", type);
+				break;
+		}
+		if (allocated)
+			kmem_free(buf, size);
+	}
+	if (map_buf)
+		abd_return_buf(map_abds[map], map_buf,
+		    abd_get_size(map_abds[map]));
+
+	var->vd_tile_size = tile_size;
+
+	for (i = 0; i < ARRAY_SIZE(map_abds); i++)
+		abd_free(map_abds[i]);
+
+	return;
+
+}
+
+/*
+ * Print the anyraid maps on disk. With verbosity == 2, we use the normal
+ * mapping-selection logic that we use during import; with higher verbosity, we
+ * print them all.
+ */
+static void
+zdb_print_anyraid_ondisk_maps(vdev_t *vd, int verbosity)
+{
+	int child = 0;
+
+	uint64_t ashift = vd->vdev_ashift;
+	uint64_t header_size = VDEV_ANYRAID_MAP_HEADER_SIZE(ashift);
+	spa_config_enter(spa, SCL_ZIO, FTAG, RW_READER);
+	if (verbosity == 2) {
+		avl_tree_t t;
+		avl_create(&t, vdev_anyraid_header_compar,
+		    sizeof (anyraid_header_t),
+		    offsetof(anyraid_header_t, ah_node));
+		int error = vdev_anyraid_open_mappings(
+		    vd->vdev_child[child], &t);
+		if (error != 0 && avl_numnodes(&t) == 0) {
+			(void) printf("Could not print mapping: %s\n",
+			    strerror(error));
+			spa_config_exit(spa, SCL_ZIO, FTAG);
+			avl_destroy(&t);
+			return;
+		}
+		anyraid_header_t *header = avl_first(&t);
+		(void) printf("anyraid map %d:\n", header->ah_mapping);
+		print_anyraid_mapping(vd, child, header);
+
+		void *cookie = NULL;
+		while ((header = avl_destroy_nodes(&t, &cookie)) != NULL) {
+			free_header(header, header_size);
+			kmem_free(header, sizeof (*header));
+		}
+		avl_destroy(&t);
+	} else if (verbosity == 3) {
+		for (int i = 0; i < VDEV_ANYRAID_MAP_COPIES; i++) {
+			(void) printf("anyraid map %d:\n", i);
+			anyraid_header_t header;
+			int error = vdev_anyraid_open_header(
+			    vd->vdev_child[child], i, &header);
+			if (error != 0) {
+				(void) printf("Could not print mapping: %s\n",
+				    strerror(error));
+				spa_config_exit(spa, SCL_ZIO, FTAG);
+				return;
+			}
+			print_anyraid_mapping(vd, child, &header);
+			free_header(&header, header_size);
+		}
+	} else {
+		for (; child < vd->vdev_children; child++) {
+			for (int i = 0; i < VDEV_ANYRAID_MAP_COPIES; i++) {
+				(void) printf("anyraid map %d %d:\n", child, i);
+				anyraid_header_t header;
+				int error = vdev_anyraid_open_header(
+				    vd->vdev_child[child], i, &header);
+				if (error != 0) {
+					(void) printf("Could not print "
+					    "mapping: %s\n", strerror(error));
+					continue;
+				}
+				print_anyraid_mapping(vd, child, &header);
+				free_header(&header, header_size);
+			}
+		}
+
+	}
+	spa_config_exit(spa, SCL_ZIO, FTAG);
+}
+
+/*
+ * Print the loaded version of the map for the provided anyraid vdev.
+ */
+static void
+zdb_dump_anyraid_map_vdev(vdev_t *vd, int verbosity)
+{
+	ASSERT3P(vd->vdev_ops, ==, &vdev_anyraid_ops);
+	vdev_anyraid_t *var = vd->vdev_tsd;
+
+	(void) printf("\t%-5s%11llu   %s %#16llx\n",
+	    "vdev", (u_longlong_t)vd->vdev_id,
+	    "tile_size", (u_longlong_t)var->vd_tile_size);
+	(void) printf("\t%-8s%8llu", "tiles",
+	    (u_longlong_t)avl_numnodes(&var->vd_tile_map));
+	if (var->vd_checkpoint_tile != INT64_MAX) {
+		(void) printf(".  %-12s %10lld\n", "checkpoint tile",
+		    (longlong_t)var->vd_checkpoint_tile);
+	} else {
+		(void) printf("\n");
+	}
+
+	(void) printf("\t%16s   %12s   %13s\n", "----------------",
+	    "------------", "-------------");
+
+	anyraid_tile_t *cur = avl_first(&var->vd_tile_map);
+	anyraid_tile_node_t *curn = cur != NULL ?
+	    list_head(&cur->at_list) : NULL;
+	while (cur) {
+		(void) printf("\t%-8s%8llu   %-8s%04llx   %-11s%02llx\n",
+		    "tile", (u_longlong_t)cur->at_tile_id,
+		    "offset", (u_longlong_t)curn->atn_offset,
+		    "disk", (u_longlong_t)curn->atn_disk);
+		curn = list_next(&cur->at_list, curn);
+		if (curn == NULL) {
+			cur = AVL_NEXT(&var->vd_tile_map, cur);
+			curn = cur != NULL ? list_head(&cur->at_list) : NULL;
+		}
+	}
+
+	(void) printf("\n");
+	if (verbosity > 0)
+		zdb_print_anyraid_tile_layout(vd);
+
+	if (verbosity > 1)
+		zdb_print_anyraid_ondisk_maps(vd, verbosity);
+}
+
+static int
+zdb_dump_anyraid_map(char *vdev_str, spa_t *spa, int verbosity)
+{
+	vdev_t *rvd, *vd;
+
+	/* A specific vdev. */
+	if (vdev_str != NULL) {
+		vd = zdb_vdev_lookup(spa->spa_root_vdev, vdev_str);
+		if (vd == NULL) {
+			(void) printf("Invalid vdev: %s\n", vdev_str);
+			return (EINVAL);
+		}
+		if (vd->vdev_ops != &vdev_anyraid_ops &&
+		    (vd->vdev_parent == NULL ||
+		    (vd = vd->vdev_parent)->vdev_ops != &vdev_anyraid_ops)) {
+			(void) printf("Not an anyraid vdev: %s\n", vdev_str);
+			return (EINVAL);
+		}
+
+		(void) printf("\nAnyRAID tiles:\n");
+		zdb_dump_anyraid_map_vdev(vd, verbosity);
+		return (0);
+	}
+
+	(void) printf("\nAnyRAID tiles:\n");
+	/* All anyraid vdevs. */
+	rvd = spa->spa_root_vdev;
+	for (uint64_t c = 0; c < rvd->vdev_children; c++) {
+		vd = rvd->vdev_child[c];
+		if (vd->vdev_ops == &vdev_anyraid_ops)
+			zdb_dump_anyraid_map_vdev(vd, verbosity);
+	}
+	return (0);
+}
+
 int
 main(int argc, char **argv)
 {
-	int c;
+	int c, long_index;
+	boolean_t opt_anyraid_map = B_FALSE;
 	int dump_all = 1;
 	int verbose = 0;
 	int error = 0;
@@ -10282,12 +10770,14 @@ main(int argc, char **argv)
 		    ARG_BLOCK_BIN_MODE},
 		{"class",		required_argument,	NULL,
 		    ARG_BLOCK_CLASSES},
+		{"anyraid-map",		no_argument,		NULL,
+		    ARG_ANYRAID_MAP},
 		{0, 0, 0, 0}
 	};
 
 	while ((c = getopt_long(argc, argv,
 	    "AbBcCdDeEfFGhHiI:kK:lLmMNo:Op:PqrRsSt:TuU:vVx:XYyZ",
-	    long_options, NULL)) != -1) {
+	    long_options, &long_index)) != -1) {
 		switch (c) {
 		case 'b':
 		case 'B':
@@ -10357,14 +10847,14 @@ main(int argc, char **argv)
 			break;
 		case 'p':
 			if (searchdirs == NULL) {
-				searchdirs = umem_alloc(sizeof (char *),
-				    UMEM_NOFAIL);
+				searchdirs = kmem_alloc(sizeof (char *),
+				    KM_SLEEP);
 			} else {
-				char **tmp = umem_alloc((nsearch + 1) *
-				    sizeof (char *), UMEM_NOFAIL);
+				char **tmp = kmem_alloc((nsearch + 1) *
+				    sizeof (char *), KM_SLEEP);
 				memcpy(tmp, searchdirs, nsearch *
 				    sizeof (char *));
-				umem_free(searchdirs,
+				kmem_free(searchdirs,
 				    nsearch * sizeof (char *));
 				searchdirs = tmp;
 			}
@@ -10432,7 +10922,7 @@ main(int argc, char **argv)
 					    "--class=\"%s\" must be a "
 					    "comma-separated list of either "
 					    "\"normal\", \"special\", "
-					    "\"asize\" or \"other\"; "
+					    "\"dedup\" or \"other\"; "
 					    "got \"%s\"\n",
 					    optarg, next);
 					usage();
@@ -10443,13 +10933,17 @@ main(int argc, char **argv)
 				(void) fprintf(stderr,
 				    "--class= must be a comma-separated "
 				    "list of either \"normal\", \"special\", "
-				    "\"asize\" or \"other\"; got empty\n");
+				    "\"dedup\" or \"other\"; got empty\n");
 				usage();
 			}
 
 			free(buf);
 			break;
 		}
+		case ARG_ANYRAID_MAP:
+			opt_anyraid_map = B_TRUE;
+			dump_all = 0;
+			break;
 		default:
 			usage();
 			break;
@@ -10471,6 +10965,20 @@ main(int argc, char **argv)
 	 */
 	zfs_arc_min = 2ULL << SPA_MAXBLOCKSHIFT;
 	zfs_arc_max = 256 * 1024 * 1024;
+
+	/*
+	 * The ARC will not evict prefetched data that is too new.  When zdb
+	 * is doing a lot of reads in a short amount of time, it can lead to
+	 * the ARC ballooning past zfs_arc_max, since arc_evict() cannot find
+	 * anything to evict (due to the ARC containing mostly prefetched
+	 * data).  For example, zdb was observed consuming ~1.4GB mem in the
+	 * pool_checkpoint tests, even though zfs_arc_max was set to 256MB.
+	 *
+	 * To get around this, allow the prefetched data to be evicted after
+	 * only 50ms instead of the normal 1 to 6 seconds.
+	 */
+	zfs_arc_min_prefetch_ms = 50;
+	zfs_arc_min_prescient_prefetch_ms = 50;
 #endif
 
 	/*
@@ -10656,7 +11164,7 @@ main(int argc, char **argv)
 		 * If path is not provided, search in /dev
 		 */
 		if (searchdirs == NULL) {
-			searchdirs = umem_alloc(sizeof (char *), UMEM_NOFAIL);
+			searchdirs = kmem_alloc(sizeof (char *), KM_SLEEP);
 			searchdirs[nsearch++] = (char *)ZFS_DEVDIR;
 		}
 
@@ -10694,7 +11202,7 @@ main(int argc, char **argv)
 	}
 
 	if (searchdirs != NULL) {
-		umem_free(searchdirs, nsearch * sizeof (char *));
+		kmem_free(searchdirs, nsearch * sizeof (char *));
 		searchdirs = NULL;
 	}
 
@@ -10874,6 +11382,16 @@ retry_lookup:
 	argc--;
 	if (dump_opt['r']) {
 		error = zdb_copy_object(os, object, argv[1]);
+	} else if (opt_anyraid_map) {
+		if (argc == 0)
+			error = zdb_dump_anyraid_map(NULL, spa, verbose);
+		else
+			for (int i = 0; i < argc; i++) {
+				error = zdb_dump_anyraid_map(argv[i], spa,
+				    verbose);
+				if (error != 0)
+					break;
+			}
 	} else if (!dump_opt['R']) {
 		flagbits['d'] = ZOR_FLAG_DIRECTORY;
 		flagbits['f'] = ZOR_FLAG_PLAIN_FILE;

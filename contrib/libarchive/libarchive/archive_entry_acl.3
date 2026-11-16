@@ -161,11 +161,11 @@ Directories have an additional ACL
 .Pq Dv ARCHIVE_ENTRY_ACL_TYPE_DEFAULT ,
 which controls the initial access ACL for newly-created directory entries.
 .Ss NFSv4 Access Control Lists
-A NFSv4 ACL consists of multiple individual entries called Access Control
+An NFSv4 ACL consists of multiple individual entries called Access Control
 Entries (ACEs).
 .Pp
-There are four possible types of a NFSv4 ACE:
-.Bl -hang -offset indent -compact -width "ARCHIVE_ENTRY_ACL_TYE_ALLOW"
+There are four possible types of an NFSv4 ACE:
+.Bl -hang -offset indent -compact -width "ARCHIVE_ENTRY_ACL_TYPE_ALLOW"
 .It Dv ARCHIVE_ENTRY_ACL_TYPE_ALLOW
 Allow principal to perform actions requiring given permissions.
 .It Dv ARCHIVE_ENTRY_ACL_TYPE_DENY
@@ -338,13 +338,13 @@ character
 are skipped.
 .Pp
 .Fn archive_entry_acl_next
-return the next entry of the ACL list.
-This functions may only be called after
+returns the next entry of the ACL list.
+This function may only be called after
 .Fn archive_entry_acl_reset
 has indicated the presence of extended ACL entries.
 .Pp
 .Fn archive_entry_acl_reset
-prepare reading the list of ACL entries with
+prepares reading the list of ACL entries with
 .Fn archive_entry_acl_next .
 The function returns 0 if no non-extended ACLs are found.
 In this case, the access permissions should be obtained by
@@ -380,7 +380,7 @@ Output POSIX.1e default ACLs.
 Prefix each default ACL entry with the word
 .Dq default: .
 .It Dv ARCHIVE_ENTRY_ACL_STYLE_SOLARIS
-The mask and other ACLs don not contain a double colon.
+The mask and other ACLs do not contain a double colon.
 .El
 .Pp
 The following flags are effective only on NFSv4 ACL:
@@ -399,7 +399,7 @@ Separate ACL entries with comma instead of newline.
 .El
 .Pp
 If the archive entry contains NFSv4 ACLs, all types of NFSv4 ACLs are returned.
-It the entry contains POSIX.1e ACLs and none of the flags
+If the entry contains POSIX.1e ACLs and none of the flags
 .Dv ARCHIVE_ENTRY_ACL_TYPE_ACCESS
 or
 .Dv ARCHIVE_ENTRY_ACL_TYPE_DEFAULT
@@ -408,7 +408,7 @@ are prefixed with
 .Dq default: .
 .Pp
 .Fn archive_entry_acl_types
-get ACL entry types contained in an archive entry's ACL.
+gets ACL entry types contained in an archive entry's ACL.
 As POSIX.1e and NFSv4
 ACL entries cannot be mixed, this function is a very efficient way to detect if
 an ACL already contains POSIX.1e or NFSv4 ACL entries.
@@ -416,7 +416,7 @@ an ACL already contains POSIX.1e or NFSv4 ACL entries.
 .Fn archive_entry_acl_count
 and
 .Fn archive_entry_acl_reset
-returns the number of ACL entries that match the given type mask.
+return the number of ACL entries that match the given type mask.
 For POSIX.1e ACLS if the type mask includes
 .Dv ARCHIVE_ENTRY_ACL_TYPE_ACCESS
 and at least one extended ACL entry exists, the three classic Unix

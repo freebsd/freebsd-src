@@ -19,6 +19,19 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// Rename functions for libarchive namespacing.
+#define blake2s __archive_blake2s
+#define blake2s_final __archive_blake2s_final
+#define blake2s_init __archive_blake2s_init
+#define blake2s_init_key __archive_blake2s_init_key
+#define blake2s_init_param __archive_blake2s_init_param
+#define blake2sp __archive_blake2sp
+#define blake2sp_final __archive_blake2sp_final
+#define blake2sp_init __archive_blake2sp_init
+#define blake2sp_init_key __archive_blake2sp_init_key
+#define blake2sp_update __archive_blake2sp_update
+#define blake2s_update __archive_blake2s_update
+
 #if defined(_MSC_VER)
 #define BLAKE2_PACKED(x) __pragma(pack(push, 1)) x __pragma(pack(pop))
 #elif defined(__GNUC__)

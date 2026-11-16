@@ -2266,10 +2266,10 @@ tcp_log_getlogbuf(struct sockopt *sopt, struct tcpcb *tp)
 		INP_WUNLOCK(inp);
 	} else {
 		/* Sanity check entries */
-		KASSERT(((caddr_t)out_entry - (caddr_t)sopt->sopt_val)  ==
+		KASSERT(((char *)out_entry - (char *)sopt->sopt_val)  ==
 		    outsize, ("%s: Actual output size (%zu) != "
 			"calculated output size (%zu)", __func__,
-			(size_t)((caddr_t)out_entry - (caddr_t)sopt->sopt_val),
+			(size_t)((char *)out_entry - (char *)sopt->sopt_val),
 			outsize));
 
 		/* Free the entries we just copied out. */
@@ -2279,8 +2279,8 @@ tcp_log_getlogbuf(struct sockopt *sopt, struct tcpcb *tp)
 		}
 	}
 
-	sopt->sopt_valsize = (size_t)((caddr_t)out_entry -
-	    (caddr_t)sopt->sopt_val);
+	sopt->sopt_valsize = (size_t)((char *)out_entry -
+	    (char *)sopt->sopt_val);
 	return (error);
 }
 

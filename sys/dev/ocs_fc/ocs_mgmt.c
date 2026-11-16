@@ -2076,7 +2076,8 @@ ocs_mgmt_get_active_profile_cb(int32_t status, uint32_t active_profile, void *ul
 	ocs_sem_v(&(result->semaphore));
 }
 
-#define MAX_PROFILE_LENGTH 5
+/* "0x", up to 8 hex digits and a NUL for a uint32_t id */
+#define MAX_PROFILE_LENGTH 11
 
 /**
  * @brief  Get active profile
@@ -2107,7 +2108,7 @@ get_active_profile(ocs_t *ocs, char *name, ocs_textbuf_t *textbuf)
 		}
 		if (result.status == 0) {
 			/* Success. */
-			sprintf(result_string, "0x%02x", result.active_profile_id);
+			ocs_snprintf(result_string, sizeof(result_string), "0x%02x", result.active_profile_id);
 			ocs_mgmt_emit_string(textbuf, MGMT_MODE_RW, "active_profile", result_string);
 		} else {
 			ocs_log_test(ocs, "getting active profile status 0x%x\n", result.status);
@@ -2225,7 +2226,8 @@ get_nv_wwpn(ocs_t *ocs, char *name, ocs_textbuf_t *textbuf)
 		}
 		if (result.status == 0) {
 			/* Success.  Copy wwpn from result struct to result string */
-			sprintf(result_string, "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
+			ocs_snprintf(result_string, sizeof(result_string),
+					"%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
 					result.wwpn[0], result.wwpn[1], result.wwpn[2],
 					result.wwpn[3], result.wwpn[4], result.wwpn[5],
 					result.wwpn[6], result.wwpn[7]);

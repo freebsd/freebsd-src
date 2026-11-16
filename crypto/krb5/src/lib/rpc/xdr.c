@@ -670,7 +670,7 @@ xdr_string(XDR *xdrs, char **cpp, u_int maxsize)
 bool_t
 xdr_wrapstring(XDR *xdrs, char **cpp)
 {
-	if (xdr_string(xdrs, cpp, LASTUNSIGNED)) {
+	if (xdr_string(xdrs, cpp, GSSRPC_MAX_ELEMENT_SIZE)) {
 		return (TRUE);
 	}
 	return (FALSE);

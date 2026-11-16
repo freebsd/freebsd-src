@@ -123,7 +123,7 @@ mbrtocXX_l(charXX_t * __restrict pc, const char * __restrict s, size_t n,
 			continue;
 
 		/* Illegal sequence. */
-		if (invlen > 0) {
+		if (invlen > 0 || err == EILSEQ) {
 			cs->srcbuf_len = 0;
 			errno = EILSEQ;
 			return ((size_t)-1);

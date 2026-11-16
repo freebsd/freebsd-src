@@ -9,4 +9,4 @@ Version: 1.2.3
 Libs: -L${libdir} -lfoo
 Cflags: -fPIC -I${includedir}/foo
 Cflags.private: -DFOO_STATIC
-Requires: nonexistant
+Requires: nonexistent

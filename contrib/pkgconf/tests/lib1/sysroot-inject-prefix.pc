@@ -1,0 +1,6 @@
+prefix=/usr
+Cflags: -I${prefix}/include
+
+Name: sysroot-inject-prefix
+Description: test fixture
+Version: 1.0.0

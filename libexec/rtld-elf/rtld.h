@@ -314,19 +314,29 @@ typedef struct Struct_SymCache {
 } SymCache;
 
 /*
+ * Heap memory for the DoneList array that is too large for alloca().
+ */
+struct donelist_mem {
+	TAILQ_ENTRY(donelist_mem) next;
+	const Obj_Entry *objs[];
+};
+
+/*
  * This structure provides a reentrant way to keep a list of objects and
  * check which ones have already been processed in some way.
  */
 typedef struct Struct_DoneList {
-    const Obj_Entry **objs;		/* Array of object pointers */
-    struct Struct_SymLook *req;
-    unsigned int num_alloc;		/* Allocated size of the array */
-    unsigned int num_used;		/* Number of array slots used */
+	const Obj_Entry **objs;		/* Array of object pointers */
+	struct donelist_mem *mem;	/* Heap memory for objs */
+	struct Struct_RtldLockState *lockstate; /* Lockstate listing mem */
+	unsigned int num_alloc;		/* Allocated size of the array */
+	unsigned int num_used;		/* Number of array slots used */
 } DoneList;
 
 struct Struct_RtldLockState {
 	int lockstate;
 	sigjmp_buf env;
+	TAILQ_HEAD(, donelist_mem) donelists;
 };
 
 struct fill_search_info_args {
@@ -349,7 +359,6 @@ typedef struct Struct_SymLook {
     const Obj_Entry *defobj_out;
     const Elf_Sym *sym_out;
     struct Struct_RtldLockState *lockstate;
-    void *donelist_mem;
 } SymLook;
 
 enum {

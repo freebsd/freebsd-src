@@ -43,3 +43,9 @@ directory the correct libbsm is used:
     make
     make install
     LD_LIBRARY_PATH=/home/rwatson/openbsm/libbsm ; export LD_LIBRARY_PATH
+
+In order to compile auditdistd it might be necessary to get yacc or a
+compatible program. Also, it is necessary to have a lexical analyser generator
+such as flex. The following appears to work on Ubuntu:
+
+    sudo apt-get install byacc flex

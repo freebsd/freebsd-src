@@ -60,7 +60,7 @@ nextafter(double x, double y)
 	    }
 	}
 	hy = hx&0x7ff00000;
-	if(hy>=0x7ff00000) return x+x;	/* overflow  */
+	if(hy>=0x7ff00000) t = x+x;	/* overflow  */
 	if(hy<0x00100000) {		/* underflow */
 	    t = x*x;
 	    if(t!=x) {		/* raise underflow flag */

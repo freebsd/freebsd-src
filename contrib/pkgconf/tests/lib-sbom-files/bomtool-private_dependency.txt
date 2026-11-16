@@ -12,7 +12,6 @@ Created: test
 PackageName: priv-parent@1.0.0
 SPDXID: SPDXRef-Package-priv-parentC401.0.0
 PackageVersion: 1.0.0
-PackageDownloadLocation: NOASSERTION
 PackageSupplier: Person: Privparent Maintainer
 PackageHomePage: https://example.com/priv-parent
 PackageLicenseDeclared: MIT
@@ -27,7 +26,6 @@ PackageDownloadLocation: NOASSERTION
 PackageName: priv-child@1.0.0
 SPDXID: SPDXRef-Package-priv-childC401.0.0
 PackageVersion: 1.0.0
-PackageDownloadLocation: NOASSERTION
 PackageSupplier: Person: Privchild Maintainer
 PackageHomePage: https://example.com/priv-child
 PackageLicenseDeclared: MIT

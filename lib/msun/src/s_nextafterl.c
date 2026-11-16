@@ -61,7 +61,7 @@ nextafterl(long double x, long double y)
 		    ux.bits.exp += 1;
 	    }
 	}
-	if(ux.bits.exp==0x7fff) return x+x;	/* overflow  */
+	if(ux.bits.exp==0x7fff) t = x+x;	/* overflow  */
 	if(ux.bits.exp==0) {			/* underflow */
 	    mask_nbit_l(ux);
 	    t = ux.e * ux.e;

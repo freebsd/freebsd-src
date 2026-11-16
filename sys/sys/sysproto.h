@@ -2868,6 +2868,12 @@ int	freebsd14_setgroups(struct thread *, struct freebsd14_setgroups_args *);
 
 #endif /* COMPAT_FREEBSD14 */
 
+
+#ifdef COMPAT_FREEBSD15
+
+
+#endif /* COMPAT_FREEBSD15 */
+
 #define	SYS_AUE__exit	AUE_EXIT
 #define	SYS_AUE_fork	AUE_FORK
 #define	SYS_AUE_read	AUE_READ

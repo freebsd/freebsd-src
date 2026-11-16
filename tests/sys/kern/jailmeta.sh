@@ -397,12 +397,28 @@ keyvalue_generic()
 
 	atf_check -sexit:0 -oinline:'""\n'		jls -jj $meta
 
+	# Reject empty keys even when the metadata buffer is empty.
+	atf_check -s exit:1 -o empty -e match:'Invalid argument' \
+	    jls -jj "${meta}."
+	atf_check -s exit:1 -o empty -e match:'Invalid argument' \
+	    jail -m name=j "${meta}.=value"
+	atf_check -s exit:0 -o inline:'""\n' jls -jj "$meta"
+
 	# Note: each sub-case depends on the results of the previous ones
 
 	# Should be able to extract a key added manually
 	atf_check -sexit:0				jail -m name=j $meta="a=1"
 	atf_check -sexit:0 -oinline:'a=1\n'		jls -jj $meta
 	atf_check -sexit:0 -oinline:'1\n'		jls -jj $meta.a
+
+	# Reject empty keys with populated metadata; failed writes preserve it.
+	atf_check -s exit:1 -o empty -e match:'Invalid argument' \
+	    jls -jj "${meta}."
+	atf_check -s exit:1 -o empty -e match:'Invalid argument' \
+	    jail -m name=j "${meta}.=value"
+	atf_check -s exit:0 -o inline:'a=1\n' jls -jj "$meta"
+	atf_check -s exit:0 -o inline:'1\n' jls -jj "${meta}.a"
+
 	atf_check -sexit:0				jail -m name=j $meta="$(printf 'a=2\nb=3')"
 	atf_check -sexit:0 -oinline:'a=2\nb=3\n'	jls -jj $meta
 	atf_check -sexit:0 -oinline:'2\n'		jls -jj $meta.a
@@ -492,6 +508,18 @@ keyvalue_generic()
 
 	# Should respectively support "jls -s" for a missing key
 	atf_check -sexit:0 -oinline:''$meta'.missing\n'	jls -jj -s $meta.missing
+
+	# Preserve the trailing newline despite command substitution.
+	local value
+	value=$(printf 'a=1\nb=2\n.')
+	value=${value%.}
+	atf_check -s exit:0 jail -m name=j "${meta}=$value"
+	atf_check -s exit:0 -o inline:'1\n' jls -jj "${meta}.a"
+	atf_check -s exit:0 -o inline:'2\n' jls -jj "${meta}.b"
+
+	# An empty value on the final line needs only its terminating NUL.
+	atf_check -s exit:0 jail -m name=j "${meta}=a="
+	atf_check -s exit:0 -o inline:'""\n' jls -jj "${meta}.a"
 }
 keyvalue_body()
 {

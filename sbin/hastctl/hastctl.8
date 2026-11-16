@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 8, 2016
+.Dd October 1, 2026
 .Dt HASTCTL 8
 .Os
 .Sh NAME
@@ -38,27 +38,32 @@
 .Op Fl e Ar extentsize
 .Op Fl k Ar keepdirty
 .Op Fl m Ar mediasize
+.Op Fl n Ar nodename
 .Ar name ...
 .Nm
 .Cm role
 .Op Fl d
 .Op Fl c Ar config
+.Op Fl n Ar nodename
 .Aq init | primary | secondary
 .Ar all | name ...
 .Nm
 .Cm list
 .Op Fl d
 .Op Fl c Ar config
+.Op Fl n Ar nodename
 .Op Ar all | name ...
 .Nm
 .Cm status
 .Op Fl d
 .Op Fl c Ar config
+.Op Fl n Ar nodename
 .Op Ar all | name ...
 .Nm
 .Cm dump
 .Op Fl d
 .Op Fl c Ar config
+.Op Fl n Ar nodename
 .Op Ar all | name ...
 .Sh DESCRIPTION
 The
@@ -114,6 +119,11 @@ dirty is
 Size of the smaller provider used as backend storage on both nodes.
 This option can be omitted if node providers have the same size on both
 sides.
+.It Fl n Ar nodename
+Specify a node name to use instead of the current host name as
+returned by
+.Xr gethostname 3 .
+This is mostly useful for testing.
 .El
 .Pp
 If size is suffixed with a k, M, G or T, it is taken as a kilobyte,

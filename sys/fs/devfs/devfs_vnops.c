@@ -59,6 +59,7 @@
 #include <sys/stat.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
 #include <sys/time.h>
 #include <sys/ttycom.h>
 #include <sys/unistd.h>
@@ -716,8 +717,13 @@ devfs_close(struct vop_close_args *ap)
 	 * process' controlling terminal.  In that case,
 	 * if the reference count is 2 (this last descriptor
 	 * plus the session), release the reference from the session.
+	 *
+	 * Some ABIs keep the controlling terminal after the last
+	 * slave descriptor is closed.  A closer with SV_PERSISTENT_CTTY
+	 * leaves the session reference in place.
 	 */
-	if (de->de_usecount == 2 && td != NULL) {
+	if (!SV_PROC_FLAG(curproc, SV_PERSISTENT_CTTY) &&
+	    de->de_usecount == 2 && td != NULL) {
 		p = td->td_proc;
 		PROC_LOCK(p);
 		if (vp == p->p_session->s_ttyvp) {

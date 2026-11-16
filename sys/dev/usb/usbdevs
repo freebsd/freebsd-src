@@ -589,6 +589,7 @@ vendor KONTRON		0x0fe6	Kontron AG
 vendor DVICO		0x0fe9	DViCO
 vendor QUALCOMM		0x1004	Qualcomm
 vendor APACER		0x1005	Apacer
+vendor LUMANATE		0x1009	Lumanate
 vendor MOTOROLA4	0x100d	Motorola
 vendor HP3		0x103c	Hewlett Packard
 vendor AIRPLUS		0x1011  Airplus
@@ -4134,6 +4135,7 @@ product RATOC REXUSB60F		0xb020	USB serial adapter REX-USB60F
 /* Green House and CompUSA OEM this part */
 product REALTEK USB20CRW	0x0158	USB20CRW Card Reader
 product REALTEK RTL8188ETV	0x0179	RTL8188ETV
+product REALTEK RTL8188FTV	0xf179	RTL8188FTV
 product REALTEK RTL8188CTV      0x018a  RTL8188CTV
 product REALTEK RTL8821AU_2	0x0811	RTL8821AU
 product REALTEK RTW8821CU_CD	0x1a2b	RTW8821CU_CD

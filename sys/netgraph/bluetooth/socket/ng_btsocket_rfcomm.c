@@ -1823,13 +1823,10 @@ ng_btsocket_rfcomm_receive_frame(ng_btsocket_rfcomm_session_p s,
 
 	/* Pullup as much as we can into first mbuf (for direct access) */
 	length = min(m0->m_pkthdr.len, MHLEN);
-	if (m0->m_len < length) {
-		if ((m0 = m_pullup(m0, length)) == NULL) {
-			NG_BTSOCKET_RFCOMM_ALERT(
-"%s: m_pullup(%d) failed\n", __func__, length);
-
-			return (ENOBUFS);
-		}
+	if ((m0 = m_pullup(m0, length)) == NULL) {
+		NG_BTSOCKET_RFCOMM_ALERT("%s: m_pullup(%d) failed\n",
+		    __func__, length);
+		return (ENOBUFS);
 	}
 
 	hdr = mtod(m0, struct rfcomm_frame_hdr *);

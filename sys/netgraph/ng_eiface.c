@@ -332,7 +332,7 @@ ng_eiface_print_ioctl(struct ifnet *ifp, int command, caddr_t data)
 	    ifp->if_xname,
 	    str,
 	    IOCGROUP(command),
-	    command & 0xff,
+	    IOCNUM(command),
 	    IOCPARM_LEN(command));
 }
 #endif /* DEBUG */
@@ -584,11 +584,8 @@ ng_eiface_rcvdata(hook_p hook, item_p item)
 		return (ENETDOWN);
 	}
 
-	if (m->m_len < ETHER_HDR_LEN) {
-		m = m_pullup(m, ETHER_HDR_LEN);
-		if (m == NULL)
-			return (EINVAL);
-	}
+	if ((m = m_pullup(m, ETHER_HDR_LEN)) == NULL)
+		return (EINVAL);
 
 	/* Note receiving interface */
 	m->m_pkthdr.rcvif = ifp;

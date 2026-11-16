@@ -175,8 +175,7 @@ nat64clat_handle_icmp6(struct ip_fw_chain *chain, struct nat64clat_cfg *cfg,
 		NAT64STAT_INC(stats, dropped);
 		return (NAT64MFREE);
 	}
-	if (m->m_len < hlen + sizeof(struct ip6_hdr) + ICMP_MINLEN)
-		m = m_pullup(m, hlen + sizeof(struct ip6_hdr) + ICMP_MINLEN);
+	m = m_pullup(m, hlen + sizeof(struct ip6_hdr) + ICMP_MINLEN);
 	if (m == NULL) {
 		NAT64STAT_INC(stats, nomem);
 		return (NAT64RETURN);

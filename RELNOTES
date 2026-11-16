@@ -10,6 +10,13 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+6e575d08a5f5..20b19982545e:
+	The USB stack and xhci(4) now support SuperSpeedPlus links: USB 3.1
+	Gen 2x1 and USB 3.2 Gen 1x2 at 10 Gbps, and USB 3.2 Gen 2x2 at
+	20 Gbps, both on root ports and behind hubs.  Controllers that do
+	not use the default Protocol Speed IDs continue to run at USB 3.0
+	speed.  usbconfig(8) and usbdump(8) report the new speeds.
+
 4523eebc6c18:
 	less(1) has been updated to version 710.  The obsolete lesskey(1)
 	utility has been removed; less(1) reads plain-text lesskey files
@@ -97,7 +104,7 @@ d69fc3a9dc71:
 d14e018024bb,b125c4d13095,1322760fd127,0730a05cd383:
 	Permit both SCHED_ULE and SCHED_4BSD to be compiled into the
 	same kernel.  The scheduler can be selected at boot time by
-	setting the kern.sched_name tunable to the scheduler name
+	setting the kern.sched.name tunable to the scheduler name
 	("4BSD" or "ULE").  The default scheduler is ULE.  This is
 	currently enabled in amd64 kernels by default.
 

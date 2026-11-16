@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd-auth.c,v 1.16 2026/06/14 03:59:34 djm Exp $ */
+/* $OpenBSD: sshd-auth.c,v 1.20 2026/09/16 00:29:44 djm Exp $ */
 /*
  * SSH2 implementation:
  * Privilege Separation:
@@ -703,6 +703,8 @@ main(int ac, char **av)
 	/* Prepare the channels layer */
 	channel_init_channels(ssh);
 	channel_set_af(ssh, options.address_family);
+	channel_set_tcp_keepalives(ssh,
+	    options.tcp_keep_alive == SSH_KEEPALIVES_ALL);
 	server_process_channel_timeouts(ssh);
 	server_process_permitopen(ssh);
 
@@ -773,9 +775,8 @@ do_ssh2_kex(struct ssh *ssh)
 	struct kex *kex;
 	int r;
 
-	if (options.rekey_limit || options.rekey_interval)
-		ssh_packet_set_rekey_limits(ssh, options.rekey_limit,
-		    options.rekey_interval);
+	ssh_packet_set_rekey_limits(ssh, options.rekey_limit,
+	    options.rekey_interval);
 
 	if (options.compression == COMP_NONE)
 		compression = "none";
@@ -800,6 +801,7 @@ do_ssh2_kex(struct ssh *ssh)
 	if ((r = kex_setup(ssh, myproposal)) != 0)
 		fatal_r(r, "kex_setup");
 	kex_set_server_sig_algs(ssh, options.pubkey_accepted_algos);
+	kex_set_warn_weak_crypto(ssh, options.warn_weak_crypto);
 	kex = ssh->kex;
 
 #ifdef WITH_OPENSSL
@@ -810,10 +812,9 @@ do_ssh2_kex(struct ssh *ssh)
 	kex->kex[KEX_DH_GRP18_SHA512] = kex_gen_server;
 	kex->kex[KEX_DH_GEX_SHA1] = kexgex_server;
 	kex->kex[KEX_DH_GEX_SHA256] = kexgex_server;
-# ifdef OPENSSL_HAS_ECC
 	kex->kex[KEX_ECDH_SHA2] = kex_gen_server;
-# endif /* OPENSSL_HAS_ECC */
-#endif /* WITH_OPENSSL */
+	kex->kex[KEX_KEM_MLKEM768ECDH_SHA256] = kex_gen_server;
+#endif
 	kex->kex[KEX_C25519_SHA256] = kex_gen_server;
 	kex->kex[KEX_KEM_SNTRUP761X25519_SHA512] = kex_gen_server;
 	kex->kex[KEX_KEM_MLKEM768X25519_SHA256] = kex_gen_server;

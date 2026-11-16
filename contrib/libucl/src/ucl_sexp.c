@@ -50,7 +50,6 @@
 				break;                        \
 			default:                          \
 				len = 0;                      \
-				mult = 1;                     \
 				state = read_length;          \
 				break;                        \
 			}                                 \
@@ -62,7 +61,8 @@ bool ucl_parse_csexp(struct ucl_parser *parser)
 	const unsigned char *p, *end;
 	ucl_object_t *obj;
 	struct ucl_stack *st;
-	uint64_t len = 0, mult = 1;
+	uint64_t len = 0;
+	unsigned int depth = 0;
 	enum {
 		start_parse,
 		read_obrace,
@@ -96,6 +96,14 @@ bool ucl_parse_csexp(struct ucl_parser *parser)
 			break;
 
 		case read_obrace:
+			if (depth >= UCL_MAX_NESTING) {
+				ucl_create_err(&parser->err,
+							   "csexp nesting too deep (over %d)",
+							   UCL_MAX_NESTING);
+				state = parse_err;
+				continue;
+			}
+
 			st = calloc(1, sizeof(*st));
 
 			if (st == NULL) {
@@ -126,6 +134,7 @@ bool ucl_parse_csexp(struct ucl_parser *parser)
 				LL_PREPEND(parser->stack, st);
 			}
 
+			depth++;
 			p++;
 			NEXT_STATE;
 
@@ -142,8 +151,7 @@ bool ucl_parse_csexp(struct ucl_parser *parser)
 				state = read_value;
 			}
 			else if (*p >= '0' && *p <= '9') {
-				len += (*p - '0') * mult;
-				mult *= 10;
+				len = len * 10 + (*p - '0');
 
 				if (len > UINT32_MAX) {
 					ucl_create_err(&parser->err, "too big length of an "
@@ -163,7 +171,7 @@ bool ucl_parse_csexp(struct ucl_parser *parser)
 			break;
 
 		case read_value:
-			if ((uint64_t) (end - p) > len || len == 0) {
+			if ((uint64_t) (end - p) < len || len == 0) {
 				ucl_create_err(&parser->err, "invalid length: %llu, %ld "
 											 "remain",
 							   (long long unsigned) len, (long) (end - p));
@@ -178,6 +186,13 @@ bool ucl_parse_csexp(struct ucl_parser *parser)
 
 			if (!(parser->flags & UCL_PARSER_ZEROCOPY)) {
 				ucl_copy_value_trash(obj);
+			}
+
+			if (parser->stack == NULL) {
+				ucl_object_unref(obj);
+				ucl_create_err(&parser->err, "value outside of any list");
+				state = parse_err;
+				continue;
 			}
 
 			ucl_array_append(parser->stack->obj, obj);
@@ -198,30 +213,55 @@ bool ucl_parse_csexp(struct ucl_parser *parser)
 			st = parser->stack;
 			parser->stack = st->next;
 
-			if (parser->stack->obj->type == UCL_ARRAY) {
-				ucl_array_append(parser->stack->obj, st->obj);
-			}
-			else {
-				ucl_create_err(&parser->err, "bad container object, array "
-											 "expected");
-				state = parse_err;
-				continue;
+			if (parser->stack != NULL) {
+				if (parser->stack->obj->type == UCL_ARRAY) {
+					ucl_array_append(parser->stack->obj, st->obj);
+				}
+				else {
+					ucl_create_err(&parser->err, "bad container object, array "
+												 "expected");
+					state = parse_err;
+					continue;
+				}
 			}
 
 			free(st);
 			st = NULL;
+			if (depth > 0) {
+				depth--;
+			}
 			p++;
 			NEXT_STATE;
 			break;
 
 		case parse_err:
 		default:
+			/* Clean up orphaned stack objects that were never appended
+			 * to the tree. The outermost frame's obj == parser->top_obj
+			 * and will be freed by ucl_parser_free; all others are
+			 * orphaned and must be explicitly released here. */
+			while (parser->stack != NULL) {
+				struct ucl_stack *st_err = parser->stack;
+				parser->stack = st_err->next;
+				if (st_err->obj != NULL && st_err->obj != parser->top_obj) {
+					ucl_object_unref(st_err->obj);
+				}
+				free(st_err);
+			}
 			return false;
 		}
 	}
 
 	if (state != read_ebrace) {
 		ucl_create_err(&parser->err, "invalid finishing state: %d", state);
+		while (parser->stack != NULL) {
+			struct ucl_stack *st_err = parser->stack;
+			parser->stack = st_err->next;
+			if (st_err->obj != NULL && st_err->obj != parser->top_obj) {
+				ucl_object_unref(st_err->obj);
+			}
+			free(st_err);
+		}
 		return false;
 	}
 

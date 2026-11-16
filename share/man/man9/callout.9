@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd September 18, 2026
+.Dd November 13, 2026
 .Dt CALLOUT 9
 .Os
 .Sh NAME
@@ -455,8 +455,14 @@ functions can be used.
 The callout subsystem provides a softclock thread for each CPU in the system.
 Callouts are assigned to a single CPU and are executed by the softclock thread
 for that CPU.
-Initially,
+By default,
 callouts are assigned to CPU 0.
+If the
+.Va kern.callout_spread
+sysctl is set to a non-zero value,
+callouts initialized after SMP startup are distributed among CPUs.
+This sysctl is also a loader tunable and defaults to zero.
+Changing it does not reassign existing callouts.
 The
 .Fn callout_reset_on ,
 .Fn callout_reset_sbt_on ,

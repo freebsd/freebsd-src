@@ -498,12 +498,14 @@ enum bnxt_phy_type {
 	BNXT_MEDIA_LR,
 	BNXT_MEDIA_SR,
 	BNXT_MEDIA_ER,
+	BNXT_MEDIA_FR,
 	BNXT_MEDIA_KR,
 	BNXT_MEDIA_AC,
 	BNXT_MEDIA_BASECX,
 	BNXT_MEDIA_BASET,
 	BNXT_MEDIA_BASEKX,
 	BNXT_MEDIA_BASESGMII,
+	BNXT_MEDIA_DR,
 	BNXT_MEDIA_END
 };
 
@@ -541,6 +543,7 @@ struct bnxt_pf_info {
 	uint16_t	active_vfs;
 	uint16_t	registered_vfs;
 	uint16_t	max_vfs;
+	bool		iov_attached;
 	uint16_t	max_msix_vfs;
 	uint32_t	max_encap_records;
 	uint32_t	max_decap_records;
@@ -672,8 +675,8 @@ struct bnxt_ring {
 	uint8_t			mpc_chnl_type;	/* valid when queue_id == BNXT_MPC_QUEUE_ID */
 	struct iflib_dma_info	ring_mem;	/* manual DMA alloc for driver-private rings (MPC) */
 	struct bnxt_cp_ring	*cp_ring;	/* completion ring this TX ring reports to (MPC) */
-	uint16_t		prod;		/* MPC TX ring producer index */
-	uint16_t		cons;		/* MPC TX ring consumer index */
+	uint32_t		prod;		/* MPC TX ring producer index */
+	uint32_t		cons;		/* MPC TX ring consumer index */
 	struct mtx		tx_lock;	/* MPC TX ring lock */
 	union {
 		struct bnxt_sw_tx_bd		*tx_buf_ring;
@@ -962,6 +965,8 @@ struct bnxt_ctx_mem_type {
 	};
 	struct bnxt_ctx_pg_info	*pg_info;
 };
+
+#define BNXT_CTX_MRAV_AV_SPLIT_ENTRY	0
 
 #define BNXT_CTX_QP	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_QP
 #define BNXT_CTX_SRQ	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_SRQ
@@ -1252,6 +1257,10 @@ struct bnxt_bs_trace_info {
 
 struct bnxt_logger;
 
+#define BNXT_HWRM_VER_CODE_EXT(maj, mnr, upd, rsv)			\
+	(((uint32_t)(maj) << 24) | ((uint32_t)(mnr) << 16) |		\
+	((uint32_t)(upd) << 8) | (uint32_t)(rsv))
+
 struct bnxt_softc {
 	device_t	dev;
 	if_ctx_t	ctx;
@@ -1325,6 +1334,7 @@ struct bnxt_softc {
 	uint16_t		hwrm_max_req_len;
 	uint16_t		hwrm_max_ext_req_len;
 	uint32_t		hwrm_spec_code;
+	uint32_t		hwrm_spec_code_ext;
 
 #define BNXT_MAX_QUEUE	8
 	uint8_t			max_tc;
@@ -1595,6 +1605,7 @@ struct bnxt_softc {
 	struct sysctl_ctx_list	mpc_cmp_time_stats;
 	struct sysctl_oid	*mpc_cmp_time_stats_oid;
 	uint32_t		max_ktls_entries;
+	bool			disable_hw_ktls;
 
 #define BNXT_CAGR_CQCOAL_OFFSET			0xc00
 #define BNXT_CAGR_NQAGG_MAXTIMER		0x5930000

@@ -75,12 +75,16 @@ std::string capsicum_test_bindir;
 // Adds a directory to $PATH.
 static void AddDirectoryToPath(const char *dir) {
   char *new_path, *old_path;
+  int rc [[maybe_unused]];
 
   old_path = getenv("PATH");
   assert(old_path);
 
-  assert(asprintf(&new_path, "%s:%s", dir, old_path) > 0);
-  assert(setenv("PATH", new_path, 1) == 0);
+  rc = asprintf(&new_path, "%s:%s", dir, old_path);
+  assert(rc != -1);
+  rc = setenv("PATH", new_path, 1);
+  assert(rc == 0);
+  free(new_path);
 }
 
 int main(int argc, char* argv[]) {
@@ -134,6 +138,30 @@ int main(int argc, char* argv[]) {
     if (stat(argv[0], &info) == 0) {
       other_uid = info.st_uid;
     }
+  }
+
+  // Last ditch effort to get an unprivileged user on the fly from /etc/passwd
+  // for testcases that need it.
+  //
+  // This must be done this way because the typical way of handling this (via
+  // the `-u` argument) isn't supported yet with kyua:
+  // https://github.com/freebsd/kyua/issues/354 .
+  //
+  // IMPORTANT:
+  // - this doesn't honor `unprivileged_user` in `kyua.conf`.
+  // - this doesn't fail because doing that could break all testing on systems
+  //   where the `tests` user isn't available.
+  if (other_uid == 0) {
+    const char *test_user = "tests";
+
+    struct passwd *test_user_entry = getpwnam(test_user);
+
+    if (test_user_entry) {
+       other_uid = test_user_entry->pw_uid;
+    } else {
+       std::cerr << "Failed to get entry for " << test_user << ", errno=" << errno << "; some tests may fail" << std::endl;
+    }
+
   }
 
   testing::AddGlobalTestEnvironment(new SetupEnvironment());

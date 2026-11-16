@@ -7,7 +7,7 @@ SUBDIR+=	untrusted
 
 # Set this to an upstream hash or tag
 # https://hg-edge.mozilla.org/projects/nss/tags
-HGVER = NSS_3_123_1_RTM
+HGVER = NSS_3_131_1_RTM
 
 # To be used by secteam@ to update the trusted certificates
 fetchcerts: .PHONY

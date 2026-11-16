@@ -82,7 +82,15 @@ DEFINE_TEST(test_cmdline)
 	assert(0 != systemf("%s -p -o <empty >16.out 2>16.err", testprog));
 	assertEmptyFile("16.out");
 
-	failure("-p with empty input should fail");
+	failure("-p with missing directory should fail");
 	assert(0 != systemf("%s -p <empty >17.out 2>17.err", testprog));
 	assertEmptyFile("17.out");
+
+	failure("-p with more than one argument should fail");
+	assert(0 != systemf("%s -p out abc <empty >18.out 2>18.err", testprog));
+	assertEmptyFile("18.out");
+
+	failure("-o with arguments should fail");
+	assert(0 != systemf("%s -o abc <empty >19.out 2>19.err", testprog));
+	assertEmptyFile("19.out");
 }

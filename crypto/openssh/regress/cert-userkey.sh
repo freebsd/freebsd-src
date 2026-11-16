@@ -1,4 +1,4 @@
-#	$OpenBSD: cert-userkey.sh,v 1.33 2026/06/14 04:08:05 djm Exp $
+#	$OpenBSD: cert-userkey.sh,v 1.34 2026/09/02 00:39:18 djm Exp $
 #	Placed in the Public Domain.
 
 tid="certified user keys"
@@ -35,9 +35,8 @@ kname() {
 	rsa-sha2-*) n="$1" ;;
 	sk-ecdsa-*) n="sk-ecdsa" ;;
 	sk-ssh-ed25519*) n="sk-ssh-ed25519" ;;
-	ssh-mldsa*) n=`echo "$1" | sed 's/@.*//'` ;;
 	# subshell because some seds will add a newline
-	*) n=$(echo $1 | sed 's/^rsa/ssh-rsa/;s/^ed/ssh-ed/') ;;
+	*) n=$(echo $1 | sed 's/^rsa/ssh-rsa/;s/^ed/ssh-ed/;s/^mldsa/ssh-mldsa/') ;;
 	esac
 	if [ -z "$rsa" ]; then
 		echo "$n*,ssh-ed25519*"

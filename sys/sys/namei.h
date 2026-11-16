@@ -216,6 +216,7 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 /*
  * Initialization of a nameidata structure.
  */
+#define	AT_ATVP		(-101)		/* NDINIT_ATVP dirfd */
 #define	NDINIT(ndp, op, flags, segflg, namep)				\
 	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, NULL, &cap_no_rights)
 #define	NDINIT_AT(ndp, op, flags, segflg, namep, dirfd)			\
@@ -223,7 +224,7 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 #define	NDINIT_ATRIGHTS(ndp, op, flags, segflg, namep, dirfd, rightsp) 	\
 	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, rightsp)
 #define	NDINIT_ATVP(ndp, op, flags, segflg, namep, vp)			\
-	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, vp, &cap_no_rights)
+	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_ATVP, vp, &cap_no_rights)
 
 /*
  * Note the constant pattern may *hide* bugs.
@@ -235,19 +236,23 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 #define NDINIT_PREFILL(arg)	memset(arg, 0xff, offsetof(struct nameidata,	\
     ni_dvp_seqc))
 #define NDINIT_DBG(arg)		{ (arg)->ni_debugflags = NAMEI_DBG_INITED; }
-#define NDREINIT_DBG(arg)	{						\
+#define NDRESET_DBG(arg)	{						\
 	if (((arg)->ni_debugflags & NAMEI_DBG_INITED) == 0)			\
 		panic("namei data not inited");					\
-	if (((arg)->ni_debugflags & NAMEI_DBG_HADSTARTDIR) != 0)		\
-		panic("NDREINIT on namei data with NAMEI_DBG_HADSTARTDIR");	\
 	if ((arg)->ni_nctrack_mnt != NULL)			\
 		panic("NDREINIT on namei data with leaked ni_nctrack_mnt");	\
 	if (!TAILQ_EMPTY(&(arg)->ni_cap_tracker))				\
 		panic("NDREINIT on namei data with leaked ni_cap_tracker");	\
+}
+#define NDREINIT_DBG(arg)	{						\
+	NDRESET_DBG(arg);							\
+	if (((arg)->ni_debugflags & NAMEI_DBG_HADSTARTDIR) != 0)		\
+		panic("NDREINIT on namei data with NAMEI_DBG_HADSTARTDIR");	\
 	(arg)->ni_debugflags = NAMEI_DBG_INITED;				\
 }
 #else
 #define NDINIT_PREFILL(arg)	do { } while (0)
+#define NDRESET_DBG(arg)	do { } while (0)
 #define NDINIT_DBG(arg)		do { } while (0)
 #define NDREINIT_DBG(arg)	do { } while (0)
 #endif

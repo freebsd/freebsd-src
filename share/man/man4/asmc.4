@@ -4,16 +4,13 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd September 6, 2026
+.Dd November 10, 2026
 .Dt ASMC 4
 .Os
 .Sh NAME
 .Nm asmc
 .Nd Apple System Management Controller driver
 .Sh SYNOPSIS
-To compile this driver into the kernel, place the following line in your
-kernel configuration file:
-.Bd -ragged -offset indent
 .Cd device asmc
 .Sh DESCRIPTION
 The
@@ -50,7 +47,13 @@ the
 .Va dev.asmc.temp
 sysctl MIB.
 .Pp
-All values are in degrees celsius.
+The sensors are reported in deciKelvin, the convention every other
+temperature source in the kernel follows, so
+.Xr sysctl 8
+displays them in degrees Celsius:
+.Bd -literal -offset indent
+dev.asmc.0.temp.TC0P: 42.1C
+.Ed
 .Sh SYSTEM FANS
 The
 .Va dev.asmc.fan.%d
@@ -157,6 +160,7 @@ Mac Pro
 Keyboard
 .Xr backlight 8
 device node.
+.El
 .Sh SEE ALSO
 .Xr apple_bce 4 ,
 .Xr backlight 8 ,

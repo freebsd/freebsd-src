@@ -81,7 +81,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: debug.sh,v 1.47 2025/08/07 21:59:54 sjg Exp $
+#	$Id: debug.sh,v 1.54 2026/10/13 23:00:48 sjg Exp $
 #
 #	@(#) Copyright (c) 1994-2024 Simon J. Gerraty
 #
@@ -93,7 +93,10 @@
 
 _DEBUG_SH=:
 
-Myname=${Myname:-`basename $0 .sh`}
+case $0 in
+-*) ;;
+*) Myname=${Myname:-`basename $0 .sh`};;
+esac
 
 DEBUGGING=
 DEBUG_DO=:
@@ -134,9 +137,14 @@ if test -z "$isPOSIX_SHELL"; then
 		isPOSIX_SHELL=:
 	else
 		isPOSIX_SHELL=false
-		false() {
-			return 1
-		}
+		case `(type false) 2>&1` in
+		*builtin*) ;;
+		*)
+			false() {
+				return 1
+			}
+			;;
+		esac
 	fi
 fi
 
@@ -231,8 +239,10 @@ _debugOn() {
 # DEBUG_DO so functions can trace if they want
 #
 _debugOff() {
-	DEBUG_OFF=$1
+	$DEBUG_DO set -x	# so we see DEBUG_OFF=something in the trace
+	DEBUG_OFF=${1:-$DEBUG_ON}
 	set +x
+	DEBUG_OFF=$1
 	case "$_HOOKS_SH,$3" in
 	,*|:,|:,*[${CASE_CLASS_NEG:-!}A-Za-z0-9_]*) ;;
 	*)	hooks_run ${3}_debugOff_hooks;;
@@ -404,7 +414,7 @@ DebugOff() {
 	return $_rc
 }
 
-_TTY=${_TTY:-`test -t 0 && tty`}; export _TTY
+_TTY=${_TTY:-`test -t 0 && tty || :`}; export _TTY
 
 # override this if you like
 _debugShell() {

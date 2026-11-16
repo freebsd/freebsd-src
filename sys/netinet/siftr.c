@@ -754,7 +754,7 @@ siftr_chkpkt(struct mbuf **m, struct ifnet *ifp, int flags,
 	 * in 4-byte words, so multiply it to get the size in bytes.
 	 */
 	ip_hl = (ip->ip_hl << 2);
-	th = (struct tcphdr *)((caddr_t)ip + ip_hl);
+	th = (struct tcphdr *)((char *)ip + ip_hl);
 
 	/*
 	 * Only pkts selected by the tcp port filter
@@ -905,7 +905,7 @@ siftr_chkpkt6(struct mbuf **m, struct ifnet *ifp, int flags,
 	 * in the ipv6 packet.
 	 */
 	ip6_hl = sizeof(struct ip6_hdr);
-	th = (struct tcphdr *)((caddr_t)ip6 + ip6_hl);
+	th = (struct tcphdr *)((char *)ip6 + ip6_hl);
 
 	/*
 	 * Only pkts selected by the tcp port filter

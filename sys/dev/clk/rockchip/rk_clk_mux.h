@@ -41,6 +41,8 @@ struct rk_clk_mux_def {
 #define	RK_CLK_MUX_MASK		0xFFFF0000
 #define	RK_CLK_MUX_REPARENT	(1 << 0)
 #define	RK_CLK_MUX_GRF		(1 << 1)
+/* Select the parent with the closest rate, never change a parent rate. */
+#define	RK_CLK_MUX_ROUND_PARENT	(1 << 2)
 
 int rk_clk_mux_register(struct clkdom *clkdom, struct rk_clk_mux_def *clkdef);
 

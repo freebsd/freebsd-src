@@ -330,7 +330,7 @@ man_check_for_so() {
 		case "$line" in
                '.so /'*) break ;; # ignore absolute path
                '.so '*) trim "${line#.so}"
-			decho "$manpage includes $tstri level=$counter_so"
+			decho "$manpage includes $tstr level=$counter_so"
 
 			# Glob and check for the file.
 			if ! check_man "$1/$tstr" ""; then
@@ -747,7 +747,7 @@ man_setup_locale() {
 				man_country="${lang_cc#*_}"
 				man_charset="${locstr#*.}"
 				locpaths="$locstr"
-				locpaths="$locpaths:$man_lang.$man_charset"
+				locpaths="$locpaths:$man_lang.$man_charset:$man_lang"
 				if [ "$man_lang" != "en" ]; then
 					locpaths="$locpaths:en.$man_charset"
 				fi

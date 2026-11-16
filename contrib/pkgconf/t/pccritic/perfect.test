@@ -1,0 +1,5 @@
+Tool: pccritic
+ToolArgs: --quiet perfect
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib-pccritic
+ExpectedStdout: perfect: 100/100 (A)
+ExpectedExitCode: 0

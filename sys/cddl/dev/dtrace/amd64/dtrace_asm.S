@@ -56,7 +56,13 @@
 	swapgs;					\
 1:	addq	$TF_RIP,%rsp;
 
-	ENTRY(dtrace_invop_start)
+doret:	cmpb	$0,fred(%rip)
+	jne	1f
+	iretq
+1:	subq	$8,%rsp		/* fake error code, ignored by ERETS */
+	erets
+
+ENTRY(dtrace_invop_start)
 
 	KMSAN_ENTER
 
@@ -121,7 +127,7 @@ bp_push:
 	movq	32(%rsp), %rax		/* reload calling RSP */
 	movq	%rbp, (%rax)		/* store %rbp there */
 	popq	%rax			/* pop off temp */
-	iretq				/* return from interrupt */
+	jmp	doret
 	/*NOTREACHED*/
 
 bp_call:
@@ -155,7 +161,7 @@ bp_call:
 
 	popq	%rbx			/* pop temp */
 	popq	%rax			/* pop temp */
-	iretq				/* return from interrupt */
+	jmp	doret
 	/*NOTREACHED*/
 
 bp_leave:
@@ -175,13 +181,13 @@ bp_leave:
 	movq	%rbp, 32(%rsp)		/* store new %rsp */
 	movq	%rax, %rbp		/* set new %rbp */
 	popq	%rax			/* pop off temp */
-	iretq				/* return from interrupt */
+	jmp	doret
 	/*NOTREACHED*/
 
 bp_nop:
 	/* We must emulate a "nop". */
 	INTR_POP
-	iretq
+	jmp	doret
 	/*NOTREACHED*/
 
 bp_ret:
@@ -192,7 +198,7 @@ bp_ret:
 	movq	%rax, 8(%rsp)		/* store calling RIP */
 	addq	$8, 32(%rsp)		/* adjust new %rsp */
 	popq	%rax			/* pop off temp */
-	iretq				/* return from interrupt */
+	jmp	doret
 	/*NOTREACHED*/
 
 	END(dtrace_invop_start)

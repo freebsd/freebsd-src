@@ -5937,6 +5937,7 @@ process_tabledef(char *name, struct table_opts *opts, int popts)
 	struct pfr_uktable	*ukt;
 	unsigned long		 maxcount;
 	size_t			 s = sizeof(maxcount);
+	int			 error;
 
 	bzero(&ab, sizeof(ab));
 	ab.pfrb_type = PFRB_ADDRS;
@@ -5982,8 +5983,8 @@ process_tabledef(char *name, struct table_opts *opts, int popts)
 	} else
 		ukt = NULL;
 	if (!(pf->opts & PF_OPT_NOACTION) &&
-	    pfctl_define_table(name, opts->flags, opts->init_addr,
-	    pf->anchor->path, &ab, pf->anchor->ruleset.tticket, ukt)) {
+	    (error = pfctl_define_table(name, opts->flags, opts->init_addr,
+	    pf->anchor->path, &ab, pf->anchor->ruleset.tticket, ukt)) != 0) {
 
 		if (sysctlbyname("net.pf.request_maxcount", &maxcount, &s,
 		    NULL, 0) == -1)
@@ -5995,7 +5996,7 @@ process_tabledef(char *name, struct table_opts *opts, int popts)
 			    name);
 		else
 			yyerror("cannot define table %s: %s", name,
-			    pf_strerror(errno));
+			    pf_strerror(error));
 
 		goto _error;
 	}
@@ -7831,7 +7832,7 @@ mv_tables(struct pfctl *pf, struct pfr_ktablehead *ktables,
 				sz = snprintf(new_path, sizeof (new_path),
 				    "%s", a->path);
 			if (sz >= sizeof (new_path))
-				errx(1, "new path is too long for %s@%s\n",
+				errx(1, "new path is too long for %s@%s",
 				    kt->pfrkt_name, kt->pfrkt_anchor);
 
 			DBGPRINT("%s %s@%s -> %s@%s\n", __func__,
@@ -7849,7 +7850,7 @@ mv_tables(struct pfctl *pf, struct pfr_ktablehead *ktables,
 		SLIST_REMOVE_HEAD(&ukt_list, pfrukt_entry);
 		if (RB_INSERT(pfr_ktablehead, ktables,
 		    (struct pfr_ktable *)ukt) != NULL)
-			errx(1, "%s@%s exists already\n",
+			errx(1, "%s@%s exists already",
 			    ukt->pfrukt_name,
 			    ukt->pfrukt_anchor);
 	}

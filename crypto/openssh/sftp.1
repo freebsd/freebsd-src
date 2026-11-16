@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp.1,v 1.144 2024/12/06 15:12:56 djm Exp $
+.\" $OpenBSD: sftp.1,v 1.145 2026/09/07 20:24:22 job Exp $
 .\"
 .\" Copyright (c) 2001 Damien Miller.  All rights reserved.
 .\"
@@ -22,7 +22,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: December 6 2024 $
+.Dd $Mdocdate: September 7 2026 $
 .Dt SFTP 1
 .Os
 .Sh NAME
@@ -564,9 +564,16 @@ command.
 may contain
 .Xr glob 7
 characters and may match multiple files.
-.It Ic lmkdir Ar path
+.It Xo Ic lmkdir
+.Op Fl p
+.Ar path
+.Xc
 Create local directory specified by
 .Ar path .
+If the
+.Fl p
+flag is specified create intermediate directories as required.
+Do not consider it an error if the argument directory already exists.
 .It Xo Ic ln
 .Op Fl s
 .Ar oldpath
@@ -629,9 +636,16 @@ Sort the listing by last modification time.
 .It Ic lumask Ar umask
 Set local umask to
 .Ar umask .
-.It Ic mkdir Ar path
+.It Xo Ic mkdir
+.Op Fl p
+.Ar path
+.Xc
 Create remote directory specified by
 .Ar path .
+If the
+.Fl p
+flag is specified create intermediate directories as required.
+Do not consider it an error if the argument directory already exists.
 .It Ic progress
 Toggle display of progress meter.
 .It Xo Ic put

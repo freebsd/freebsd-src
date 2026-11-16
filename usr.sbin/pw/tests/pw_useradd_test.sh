@@ -186,6 +186,21 @@ user_add_name_with_spaces_body() {
 	atf_check -s exit:1 -o empty grep "^test user:.*" $HOME/master.passwd
 }
 
+atf_test_case user_add_name_with_quotes
+user_add_name_with_quotes_body() {
+	populate_etc_skel
+	for user_name in 'test`id`' "test'user"; do
+		atf_check -s exit:65 -e match:"invalid character" \
+			  ${PW} useradd "${user_name}"
+		atf_check -s exit:65 -e match:"invalid character" \
+			  ${PW} useradd -n "${user_name}"
+		atf_check -s exit:65 -e match:"invalid character" \
+			  ${PW} groupadd "${user_name}"
+	done
+	atf_check -s exit:1 -o empty grep "^test" $HOME/master.passwd
+	atf_check -s exit:1 -o empty grep "^test" $HOME/group
+}
+
 atf_test_case user_add_name_with_spaces_and_gid_specified
 user_add_name_with_spaces_and_gid_specified_body() {
 	populate_etc_skel
@@ -578,6 +593,7 @@ atf_init_test_cases() {
 	atf_add_test_case user_add_password_expiration_date_relative
 	atf_add_test_case user_add_name_too_long
 	atf_add_test_case user_add_name_with_spaces
+	atf_add_test_case user_add_name_with_quotes
 	atf_add_test_case user_add_name_with_spaces_and_gid_specified
 	atf_add_test_case user_add_expiration
 	atf_add_test_case user_add_invalid_user_entry

@@ -205,8 +205,12 @@ pflow_jail_remove(void *obj, void *data __unused)
 static void
 vnet_pflowdetach(void)
 {
+	struct pflow_softc	*sc, *tmp;
 
-	/* Should have been done by pflow_jail_remove() */
+	/* Left on module unload; drain before the counters are freed. */
+	CK_LIST_FOREACH_SAFE(sc, &V_pflowif_list, sc_next, tmp)
+		pflow_destroy(sc->sc_id, true);
+
 	MPASS(CK_LIST_EMPTY(&V_pflowif_list));
 	delete_unrhdr(V_pflow_unr);
 	mtx_destroy(&V_pflowif_list_mtx);

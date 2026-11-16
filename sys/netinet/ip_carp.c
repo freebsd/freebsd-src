@@ -533,12 +533,10 @@ carp_input(struct mbuf **mp, int *offp, int proto)
 		return (IPPROTO_DONE);
 	}
 
-	if (m->m_len < iplen + sizeof(*vh)) {
-		if ((m = m_pullup(m, iplen + sizeof(*vh))) == NULL) {
-			CARPSTATS_INC(carps_hdrops);
-			CARP_DEBUG("%s():%d: pullup failed\n", __func__, __LINE__);
-			return (IPPROTO_DONE);
-		}
+	if ((m = m_pullup(m, iplen + sizeof(*vh))) == NULL) {
+		CARPSTATS_INC(carps_hdrops);
+		CARP_DEBUG("%s():%d: pullup failed\n", __func__, __LINE__);
+		return (IPPROTO_DONE);
 	}
 	ip = mtod(m, struct ip *);
 	totlen = ntohs(ip->ip_len);
@@ -570,15 +568,13 @@ carp_input(struct mbuf **mp, int *offp, int proto)
 		return (IPPROTO_DONE);
 	}
 
-	if (m->m_len < iplen + minlen) {
-		if ((m = m_pullup(m, iplen + minlen)) == NULL) {
-			CARPSTATS_INC(carps_hdrops);
-			CARP_DEBUG("%s():%d: pullup failed\n", __func__, __LINE__);
-			return (IPPROTO_DONE);
-		}
-		ip = mtod(m, struct ip *);
-		vh = (struct vrrpv3_header *)((char *)ip + iplen);
+	if ((m = m_pullup(m, iplen + minlen)) == NULL) {
+		CARPSTATS_INC(carps_hdrops);
+		CARP_DEBUG("%s():%d: pullup failed\n", __func__, __LINE__);
+		return (IPPROTO_DONE);
 	}
+	ip = mtod(m, struct ip *);
+	vh = (struct vrrpv3_header *)((char *)ip + iplen);
 
 	switch (vh->vrrp_version) {
 	case CARP_VERSION_CARP: {
@@ -620,7 +616,7 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 	struct mbuf *m = *mp;
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	struct vrrpv3_header *vh;
-	u_int len, minlen;
+	u_int minlen;
 
 	CARPSTATS_INC(carps_ipackets6);
 
@@ -638,16 +634,11 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 		return (IPPROTO_DONE);
 	}
 
-	if (m->m_len < *offp + sizeof(*vh)) {
-		len = m->m_len;
-		m = m_pullup(m, *offp + sizeof(*vh));
-		if (m == NULL) {
-			CARPSTATS_INC(carps_badlen);
-			CARP_DEBUG("%s: packet size %u too small\n", __func__, len);
-			return (IPPROTO_DONE);
-		}
-		ip6 = mtod(m, struct ip6_hdr *);
+	if ((m = m_pullup(m, *offp + sizeof(*vh))) == NULL) {
+		CARPSTATS_INC(carps_badlen);
+		return (IPPROTO_DONE);
 	}
+	ip6 = mtod(m, struct ip6_hdr *);
 	vh = (struct vrrpv3_header *)(mtod(m, char *) + *offp);
 
 	switch (vh->vrrp_version) {
@@ -676,15 +667,12 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 		return (IPPROTO_DONE);
 	}
 
-	if (m->m_len < sizeof(*ip6) + minlen) {
-		if ((m = m_pullup(m, sizeof(*ip6) + minlen)) == NULL) {
-			CARPSTATS_INC(carps_hdrops);
-			CARP_DEBUG("%s():%d: pullup failed\n", __func__, __LINE__);
-			return (IPPROTO_DONE);
-		}
-		ip6 = mtod(m, struct ip6_hdr *);
-		vh = (struct vrrpv3_header *)mtodo(m, sizeof(*ip6));
+	if ((m = m_pullup(m, sizeof(*ip6) + minlen)) == NULL) {
+		CARPSTATS_INC(carps_hdrops);
+		return (IPPROTO_DONE);
 	}
+	ip6 = mtod(m, struct ip6_hdr *);
+	vh = (struct vrrpv3_header *)mtodo(m, sizeof(*ip6));
 
 	switch (vh->vrrp_version) {
 	case CARP_VERSION_CARP: {
@@ -1408,7 +1396,7 @@ vrrp_send_ad_locked(struct carp_softc *sc)
 			in = (struct sockaddr_in *)sc->sc_ifas[i]->ifa_addr;
 
 			if (m_append(m, sizeof(in->sin_addr),
-			    (caddr_t)&in->sin_addr) != 1) {
+			    &in->sin_addr) != 1) {
 				m_freem(m);
 				goto resched;
 			}
@@ -2592,16 +2580,17 @@ carp_nl_get(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	if ((error = carp_is_supported_if(ifp)) != 0)
 		goto out;
 
-	if (ifp->if_carp == NULL) {
-		error = ENOENT;
-		goto out;
-	}
-
 	hdr->nlmsg_flags |= NLM_F_MULTI;
 	privileged = (priv_check_cred(nlp_get_cred(npt->nlp),
 	    PRIV_NETINET_CARP) == 0);
 
 	sx_xlock(&carp_sx);
+	if (ifp->if_carp == NULL) {
+		sx_xunlock(&carp_sx);
+		error = ENOENT;
+		goto out;
+	}
+
 	IFNET_FOREACH_CARP(ifp, sc) {
 		struct genlmsghdr *ghdr_new;
 

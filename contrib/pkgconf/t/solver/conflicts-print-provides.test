@@ -1,0 +1,7 @@
+PackageSearchPath: lib1
+Query: conflicts, foo
+WantedFlags: print-provides
+ExpectedStdout: conflicts = 1.2.3
+ExpectedStdout: foo = 1.2.3
+ExpectedExitCode: 0
+MatchStdout: partial

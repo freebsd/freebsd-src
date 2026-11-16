@@ -198,7 +198,8 @@ MALLOC_DECLARE(SCTP_M_MCORE);
 #define SCTP_VRF_IFN_HASH_SIZE	3
 #define	SCTP_INIT_VRF_TABLEID(vrf)
 
-#define SCTP_IFN_IS_IFT_LOOP(ifn) ((ifn)->ifn_type == IFT_LOOP)
+#define SCTP_IFN_IS_IFT_LOOP(ifn)	\
+	((SCTP_BASE_SYSCTL(sctp_ignore_loopback_iftype) == 0) && ((ifn)->ifn_type == IFT_LOOP))
 #define SCTP_ROUTE_IS_REAL_LOOP(ro) ((ro)->ro_nh && (ro)->ro_nh->nh_ifa && (ro)->ro_nh->nh_ifa->ifa_ifp && (ro)->ro_nh->nh_ifa->ifa_ifp->if_type == IFT_LOOP)
 
 /*

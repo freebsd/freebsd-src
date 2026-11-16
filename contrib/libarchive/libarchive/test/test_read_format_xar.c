@@ -25,6 +25,9 @@
  */
 #include "test.h"
 
+#define __LIBARCHIVE_BUILD 1
+#include "archive_xml_private.h"
+
 #define UID	1001
 #define UNAME	"cue"
 #define GID	1001
@@ -1042,6 +1045,100 @@ DEFINE_TEST(test_read_format_xar_atou64_overread)
 }
 
 /*
+ * A valid uncompressed empty xattr makes no decompression progress when no
+ * declared bytes remain.  It must not be rejected as a stalled stream.
+ */
+DEFINE_TEST(test_read_format_xar_empty_xattr)
+{
+	const char *refname = "test_read_format_xar_empty_xattr.xar";
+	const char *name;
+	const void *value;
+	struct archive_entry *ae;
+	struct archive *a;
+	size_t size;
+	char data;
+	int r;
+
+	extract_reference_file(refname);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("XAR reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
+	if (!assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_next_header(a, &ae))) {
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+	assertEqualString("f", archive_entry_pathname(ae));
+	assertEqualInt(1, archive_entry_size(ae));
+	assertEqualInt(1, archive_entry_xattr_reset(ae));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_entry_xattr_next(ae, &name, &value, &size));
+	assertEqualString("user.empty", name);
+	assertEqualInt(0, size);
+	assertEqualIntA(a, 1, archive_read_data(a, &data, 1));
+	assertEqualInt('Z', data);
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_format_xar_toc_premature_stream_end)
+{
+	const char *control =
+	    "test_read_format_xar_toc_premature_stream_end_control.xar";
+	const char *malformed =
+	    "test_read_format_xar_toc_premature_stream_end.xar";
+	struct archive_entry *ae;
+	struct archive *a;
+	int r;
+
+	extract_reference_file(control);
+	extract_reference_file(malformed);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("XAR reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, control, 10240));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+#if defined(ARCHIVE_XML_READER_XMLLITE)
+	skipping("Malformed XAR TOC behavior is not validated with XmlLite");
+#else
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_xar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, malformed, 10240));
+	/* The declared TOC length continues past the end of the zlib stream. */
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assert(archive_errno(a) != 0);
+#if defined(ARCHIVE_XML_READER_EXPAT) || defined(ARCHIVE_XML_READER_BSDXML)
+	assertEqualString("XAR decompressor made no progress",
+	    archive_error_string(a));
+#endif
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+#endif
+}
+
+/*
  * parse_time() reads a fixed 20-byte timestamp and handed atou64() a width
  * of 4 for every field.  The trailing seconds field sits at offset 17, so a
  * value whose last three bytes are all digits (here "...00:00:123") made
@@ -1071,6 +1168,63 @@ DEFINE_TEST(test_read_format_xar_parse_time_overread)
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("num", archive_entry_pathname(ae));
 	assertEqualInt(1234567890, archive_entry_ino64(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+/*
+ * The XAR archive in this test has an xattr entry with an offset of
+ * 18446744073709551377. When offset by the header size, we would
+ * seek back to position 0 and re-read the TOC.
+ *
+ * This has made a lot of people very angry and been widely regarded
+ * as a bad move.
+ *
+ * <toc>
+ *   <file id="1">
+ *     <name>a</name>
+ *     <type link="original">file</type>
+ *     <ea id="1">
+ *       <name>x1</name>
+ *       <offset>18446744073709551377</offset>
+ *       ...
+ *     </ea>
+ *   </file>
+ * </toc>
+ *
+ * The ASan failure can only be triggered by two header reads,
+ * but our fix prevents the first header read from completing.
+ */
+DEFINE_TEST(test_read_format_xar_invalid_seek_offset)
+{
+	const char *reffile = "test_read_format_xar_invalid_seek_offset.xar";
+	struct archive_entry *ae;
+	struct archive *a;
+	int r;
+
+	extract_reference_file(reffile);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("xar reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, reffile, 10240));
+
+	/* The first header positions the file pointer... */
+	r = archive_read_next_header(a, &ae);
+	/* ...so the next header read re-reads the TOC. */
+	assertA(0 != archive_read_next_header(a, &ae));
+	/* Check in reverse order so that either we abort
+	 * with an ASan failure before this assertion _or_
+	 * it passes.
+	 */
+	assertA(0 != r);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));

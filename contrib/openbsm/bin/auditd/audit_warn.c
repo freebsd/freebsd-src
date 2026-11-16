@@ -36,16 +36,52 @@
 
 #include "auditd.h"
 
+#define USE_SCRIPT_RECHECK 10
+
 /*
  * Write an audit-related error to the system log via syslog(3).
  */
 static int
+auditwarnsyslog(char *args[])
+{
+	/*
+	 * Don't waste time and memory assembling a log message in a
+	 * buffer before calling syslog(3); none of our callers pass more
+	 * than two arguments.  Note that main() always calls openlog(3),
+	 * so no additional setup is required.
+	 */
+	// assert(args[0] != NULL);
+	if (args[1] == NULL) {
+		syslog(LOG_WARNING, "audit warning: %s", args[0]);
+	} else {
+		syslog(LOG_WARNING, "audit warning: %s %s", args[0], args[1]);
+		// assert(args[2] == NULL);
+	}
+	return (0);
+}
+
+/*
+ * Log an audit-related error
+ */
+static int
 auditwarnlog(char *args[])
 {
+	static int use_script;
 	char *loc_args[9];
 	pid_t pid;
 	int i;
 
+	if (use_script == 0) {
+		if (eaccess(AUDITWARN_SCRIPT, X_OK) == 0)
+			use_script = USE_SCRIPT_RECHECK;
+		else
+			use_script = -USE_SCRIPT_RECHECK;
+	}
+	if (use_script < 0) {
+		use_script++;
+		return (auditwarnsyslog(args));
+	}
+	use_script--;
 	loc_args[0] = AUDITWARN_SCRIPT;
 	for (i = 0; args[i] != NULL && i < 8; i++)
 		loc_args[i+1] = args[i];
@@ -64,11 +100,13 @@ auditwarnlog(char *args[])
 		execv(AUDITWARN_SCRIPT, loc_args);
 		syslog(LOG_ERR, "Could not exec %s (%m)\n",
 		    AUDITWARN_SCRIPT);
-		exit(1);
+		(void)auditwarnsyslog(args);
+		_Exit(1);
 	}
 	/*
 	 * Parent.
 	 */
+	auditd_check_and_reap();
 	return (0);
 }
 
@@ -118,7 +156,7 @@ audit_warn_auditoff(void)
 }
 
 /*
- * Indicate that a trail file has been closed, so can now be post-processed.
+ * Indicates that a trail file has been closed, so can now be post-processed.
  */
 int
 audit_warn_closefile(char *filename)
@@ -133,7 +171,7 @@ audit_warn_closefile(char *filename)
 }
 
 /*
- * Indicates that the audit deammn is already running
+ * Indicates that the audit daemon is already running
  */
 int
 audit_warn_ebusy(void)
@@ -195,7 +233,7 @@ audit_warn_nostart(void)
 }
 
 /*
- * Indicaes that an error occrred during the orderly shutdown of the audit
+ * Indicates that an error occurred during the orderly shutdown of the audit
  * daemon.
  */
 int
@@ -225,7 +263,7 @@ audit_warn_soft(char *filename)
 }
 
 /*
- * Indicates that the temporary audit file already exists indicating a fatal
+ * Indicates that the temporary audit file already exists resulting in a fatal
  * error.
  */
 int

@@ -15,9 +15,7 @@
 	${LCRYPTO_SRC}/crypto/md5/asm \
 	${LCRYPTO_SRC}/crypto/modes/asm \
 	${LCRYPTO_SRC}/crypto/poly1305/asm \
-	${LCRYPTO_SRC}/crypto/sha/asm \
-	${LCRYPTO_SRC}/crypto/sm3/asm \
-	${LCRYPTO_SRC}/crypto/sm4/asm
+	${LCRYPTO_SRC}/crypto/sha/asm
 
 PERLPATH=	-I${LCRYPTO_SRC}/crypto/perlasm
 
@@ -34,7 +32,7 @@ SRCS+=	armv8-mont.pl
 SRCS+=	chacha-armv8.pl chacha-armv8-sve.pl
 
 # ec
-SRCS+=	ecp_nistz256-armv8.pl ecp_sm2p256-armv8.pl
+SRCS+=	ecp_nistz256-armv8.pl
 
 # md5
 SRCS+=	md5-aarch64.pl
@@ -47,12 +45,6 @@ SRCS+=	poly1305-armv8.pl
 
 # sha
 SRCS+=	keccak1600-armv8.pl sha1-armv8.pl sha512-armv8.pl
-
-# sm3
-SRCS+=	sm3-armv8.pl
-
-# sm4
-SRCS+=	sm4-armv8.pl vpsm4-armv8.pl vpsm4_ex-armv8.pl
 
 ASM=	${SRCS:R:S/$/.S/} sha256-armv8.S
 
@@ -218,7 +210,6 @@ CLEANFILES=	${ASM}
 	${LCRYPTO_SRC}/crypto/bf/asm \
 	${LCRYPTO_SRC}/crypto/bn/asm \
 	${LCRYPTO_SRC}/crypto/camellia/asm \
-	${LCRYPTO_SRC}/crypto/cast/asm \
 	${LCRYPTO_SRC}/crypto/chacha/asm \
 	${LCRYPTO_SRC}/crypto/des/asm \
 	${LCRYPTO_SRC}/crypto/ec/asm \
@@ -226,7 +217,6 @@ CLEANFILES=	${ASM}
 	${LCRYPTO_SRC}/crypto/modes/asm \
 	${LCRYPTO_SRC}/crypto/poly1305/asm \
 	${LCRYPTO_SRC}/crypto/rc4/asm \
-	${LCRYPTO_SRC}/crypto/rc5/asm \
 	${LCRYPTO_SRC}/crypto/ripemd/asm \
 	${LCRYPTO_SRC}/crypto/sha/asm \
 	${LCRYPTO_SRC}/crypto/whrlpool/asm \
@@ -250,9 +240,6 @@ SRCS+=	bn-586.pl co-586.pl x86-gf2m.pl x86-mont.pl
 # camellia
 SRCS+=	cmll-x86.pl
 
-# cast
-SRCS+=	cast-586.pl
-
 # chacha
 SRCS+=	chacha-x86.pl
 
@@ -273,9 +260,6 @@ SRCS+=	poly1305-x86.pl
 
 # rc4
 SRCS+=	rc4-586.pl
-
-# rc5
-SRCS+=	rc5-586.pl
 
 # ripemd
 SRCS+=	rmd-586.pl
@@ -329,7 +313,7 @@ SRCS+=	aes-ppc.pl vpaes-ppc.pl aesp8-ppc.pl
 SRCS+=	sha1-ppc.pl sha512-ppc.pl sha512p8-ppc.pl
 
 #modes
-SRCS+=	aes-gcm-ppc.pl ghashp8-ppc.pl
+SRCS+=	ghashp8-ppc.pl
 
 #chacha
 SRCS+=	chacha-ppc.pl chachap10-ppc.pl

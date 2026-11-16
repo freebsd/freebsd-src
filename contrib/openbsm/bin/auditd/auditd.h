@@ -99,5 +99,6 @@ void	auditd_reap_children(void);
 #ifndef USE_MACH_IPC
 extern sigset_t auditd_origmask;
 #endif /* !USE_MACH_IPC */
+void	auditd_check_and_reap(void);
 
 #endif /* !_AUDITD_H_ */

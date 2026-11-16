@@ -1148,7 +1148,11 @@ uaudio_attach(device_t dev)
 
 	bus_attach_children(dev);
 
-	if (uaudio_handle_hid) {
+	/*
+	 * Gate on mixer_dev, otherwise a device with no audio interfaces, such
+	 * as a MIDI-only keyboard, will end up using an uninitialized mutex.
+	 */
+	if (uaudio_handle_hid && sc->sc_child[0].mixer_dev != NULL) {
 		if (uaudio_hid_attach(sc, uaa) == 0) {
 			device_printf(dev, "HID volume keys found.\n");
 		} else {
@@ -1157,7 +1161,8 @@ uaudio_attach(device_t dev)
 	}
 
 	/* reload all mixer settings */
-	uaudio_mixer_reload_all(sc);
+	if (sc->sc_child[0].mixer_dev != NULL)
+		uaudio_mixer_reload_all(sc);
 
 	/* enable S/PDIF output, if any */
 	if (sc->sc_set_spdif_fn(sc,
@@ -2792,16 +2797,12 @@ uaudio_chan_free(struct uaudio_chan *ch)
 int
 uaudio_chan_set_param_blocksize(struct uaudio_chan *ch, uint32_t blocksize)
 {
-	uint32_t temp = 2 * uaudio_get_buffer_size(ch, ch->set_alt);
-	sndbuf_setup(ch->pcm_buf, ch->buf, temp);
-	return (temp / 2);
-}
+	uint32_t temp;
 
-int
-uaudio_chan_set_param_fragments(struct uaudio_chan *ch, uint32_t blocksize,
-    uint32_t blockcount)
-{
-	return (1);
+	temp = 2 * uaudio_get_buffer_size(ch, ch->set_alt);
+	if (sndbuf_setup(ch->pcm_buf, ch->buf, temp) != 0)
+		return (0);
+	return (temp / 2);
 }
 
 int

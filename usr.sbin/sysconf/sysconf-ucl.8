@@ -1,0 +1,249 @@
+.\" Copyright (c) 2013-2026 Devin Teske <dteske@FreeBSD.org>
+.\" Copyright (c) 2021-2026 Faraz Vahedi <kfv@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd October 25, 2026
+.Dt SYSCONF-UCL 8
+.Os
+.Sh NAME
+.Nm "sysconf ucl"
+.Nd read and modify a UCL file
+.Sh SYNOPSIS
+.Nm sysconf
+.Cm ucl
+.Fl f Ar file
+.Op Fl ceinNqvx
+.Op Fl j Ar jail | Fl R Ar dir
+.Ar name Ns Op Ns = Ns Ar value
+.Ar ...
+.Sh DESCRIPTION
+The
+.Cm ucl
+target of
+.Xr sysconf 8
+reads and rewrites files in the Universal Configuration Language,
+the syntax
+.Xr pkg.conf 5
+documents.
+The files are parsed and emitted by
+.Xr libucl 3 ,
+the same private library
+.Xr pkg 8
+links, so what this target reads is what
+.Xr pkg 8
+reads, including any defect the two then share.
+Like
+.Cm generic ,
+the target has no default files of its own and always requires
+.Fl f .
+The
+.Cm pkg
+target is this format with the
+.Xr pkg 8
+file collection bolted on;
+see
+.Xr sysconf-pkg 8 .
+.Pp
+Each file is parsed on its own, in order, and every scalar is reported
+under its dotted path:
+the key
+.Ql enabled
+inside the object
+.Ql FreeBSD-ports
+is
+.Ql FreeBSD-ports.enabled ,
+and objects nest as
+.Ql a.b.c .
+The last file to define a path is authoritative, as for every other
+target.
+Arrays are leaves and read back as compact JSON.
+On an array,
+.Ar name Ns += Ns Ar word
+and
+.Ar name Ns -= Ns Ar word
+add and strike elements
+.Pq each word parsed as a value, so Ql 3 is a number
+rather than words of a string;
+the survivors keep their order and newcomers follow the last of them,
+one per line when the array is laid out that way.
+On a string they are the word edits of
+.Xr sysconf 8 .
+.Pp
+Under an array a path component is an index rather than a key, as
+.Xr uclcmd 1
+spells it:
+.Ar name Ns \&. Ns Ar i
+is one element, counting from zero
+.Po or from the end when
+.Ar i
+is negative, so
+.Ql -1
+is the last
+.Pc ,
+and
+.Ar name Ns \&.#
+the number of elements
+.Pq reported under the name of the array counted .
+A negative index is reported as the index it resolved to.
+Under an object the same components are keys, so
+.Ql errors.404
+reads the key
+.Ql 404 .
+Indices chain into nested arrays:
+.Ar name Ns \&. Ns Ar i Ns \&. Ns Ar j
+is an element of the array that is element
+.Ar i ,
+and
+.Ar name Ns \&. Ns Ar i Ns \&.#
+its count.
+.Ar name Ns \&. Ns Ar i Ns = Ns Ar value
+changes that element where it stands, or appends when
+.Ar i
+is the count;
+.Ar name Ns \&.#= Ns Ar value
+appends likewise, and reports the index the new element took.
+.Ar name Ns \&. Ns Ar i Ns += Ns Ar word
+and
+.Ar name Ns \&. Ns Ar i Ns -= Ns Ar word
+edit the element as they would a value of its kind,
+words on a string and elements on an array;
+.Fl x Ar name Ns \&. Ns Ar i
+strikes it and, like
+.Ql -= ,
+reports the array before and after.
+Requests in one run see one another's edits, though a path into an
+array is only read as indices once the array exists in a file.
+An index past either end reads as an unknown directive, a value that is
+not an array cannot be indexed, and the count can be neither removed
+nor edited with
+.Ql +=
+or
+.Ql -= .
+A key that itself contains
+.Ql \&.
+cannot be addressed.
+A key the library cannot take bare
+.Po such as
+.Ql *
+or
+.Ql [1m
+.Pc
+is written quoted;
+a file that leaves such a key bare
+.Po as
+.Xr uclcmd 1
+may write
+.Ql *
+.Pc
+is still read.
+Values are shown as the library renders them:
+a boolean written
+.Ql yes
+reads back
+.Ql true ,
+and
+.Ql 1kb
+reads back
+.Ql 1024 .
+.Pp
+A value given on the command line is parsed as UCL,
+so
+.Ql yes ,
+.Ql 10 ,
+.Ql "[ a, b ]" ,
+and
+.Ql "{ k = v }"
+land with the types
+.Xr pkg 8
+would read.
+A value that does not parse to exactly the text given
+.Pq a Ql # the grammar would take for a comment, for instance
+is stored as that literal string, quoted; so is one holding a
+comment, a newline, or a
+.Ql \&.
+where a statement could begin, lest it carry a second statement or a
+macro into the file.
+Missing intermediate objects are created on a write;
+a write through a key that is not an object is an error.
+.Pp
+A write changes only the bytes it must.
+The statement is located in the file and its value replaced in place,
+in the file's own style:
+the separator
+.Pq Ql \&: or Ql = ,
+the terminator
+.Pq Ql \&, or Ql \&; ,
+quoting, indentation, and even the spelling of a boolean
+.Pq a Ql yes becomes Ql no , a Ql true becomes Ql false
+are taken from what is already there.
+A value is written as typed
+.Pq Ql 1kb stays Ql 1kb ;
+a string is quoted when the file quoted it or when it could not stand bare;
+a key that cannot stand bare is quoted even when its neighbours are not.
+A new key is added after its siblings in their style;
+a new object is appended in the style of the objects already in the file.
+An array that only gains or loses elements has those elements added or
+taken out one at a time, in the style of the elements around them;
+one that is reordered is replaced whole.
+Removing a key takes its own lines, a comment trailing it on the last of
+them included, and, when that leaves the enclosing object empty, the
+object too;
+striking an array element does the same with its line.
+A file that nothing changed is not rewritten;
+one that is, is replaced atomically with its mode kept,
+and its owner and group where the caller may set them.
+A symbolic link is followed:
+the file it names is replaced, and the link stays.
+A dangling symbolic link is left in place.
+Anything other than a regular file is refused.
+.Pp
+The library has the last word.
+After an edit the result is parsed again with
+.Xr libucl 3
+and the write is refused, leaving the file untouched,
+unless the parsed contents differ from the original in exactly the
+requested key.
+Macros such as
+.Ql .include
+are not expanded, so a parse never pulls in another file,
+and no variables are defined, so
+.Ql ${ABI}
+stays literal in both directions.
+A file the library rejects, or one holding a null character,
+is an error on a read as on a write.
+A key repeated in one file is an implicit array to the library,
+which presents its first element;
+that is the value reported and the statement a write edits.
+A removal takes every repetition, so none surfaces in its place.
+.Pp
+.Xr libucl 3
+keeps no line numbers; the trails shown by
+.Fl V
+report line 0.
+Shared options are in
+.Xr sysconf 8 .
+.Sh EXAMPLES
+.Dl sysconf ucl -f /tmp/app.conf server.port
+.Dl sysconf ucl -f /tmp/app.conf server.port=8080
+.Dl sysconf ucl -f /tmp/app.conf 'server.hosts=[ a, b ]'
+.Dl sysconf ucl -f /tmp/app.conf server.hosts+=c 'server.hosts.#'
+.Dl sysconf ucl -f /tmp/app.conf 'server.hosts.#=d' server.hosts.-1
+.Dl sysconf ucl -f /tmp/app.conf -x server.hosts.0
+.Dl sysconf ucl -f /tmp/app.conf matrix.1.0=30 'matrix.1.#'
+.Sh SEE ALSO
+.Xr uclcmd 1 Pq Pa ports/textproc/uclcmd ,
+.Xr libucl 3 ,
+.Xr pkg.conf 5 ,
+.Xr sysconf 8 ,
+.Xr sysconf-generic 8 ,
+.Xr sysconf-pkg 8 ,
+.Xr sysconf-targets 8
+.Sh HISTORY
+The
+.Nm sysconf
+utility first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Devin Teske Aq Mt dteske@FreeBSD.org
+.An Faraz Vahedi Aq Mt kfv@FreeBSD.org

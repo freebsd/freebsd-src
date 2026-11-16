@@ -222,7 +222,7 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 		}
 	}
 
-	gzip->crc = crc32(0L, NULL, 0);
+	gzip->crc = __archive_crc32(0L, NULL, 0);
 	gzip->stream.next_out = gzip->compressed;
 	gzip->stream.avail_out = (uInt)gzip->compressed_buffer_size;
 
@@ -263,8 +263,8 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 		}
 		if (ofn_length < ofn_max_length) {
 			gzip->compressed[3] |= 0x8;
-			strcpy((char*)gzip->compressed + 10,
-			       gzip->original_filename);
+			memcpy(gzip->compressed + 10,
+			       gzip->original_filename, ofn_length + 1);
 			gzip->stream.next_out += ofn_length + 1;
 			gzip->stream.avail_out -= ofn_length + 1;
 		} else {
@@ -322,7 +322,7 @@ archive_compressor_gzip_write(struct archive_write_filter *f, const void *buff,
 	int ret;
 
 	/* Update statistics */
-	gzip->crc = crc32(gzip->crc, (const Bytef *)buff, (uInt)length);
+	gzip->crc = __archive_crc32(gzip->crc, (const Bytef *)buff, (uInt)length);
 	gzip->total_in += length;
 
 	/* Compress input data to output buffer */

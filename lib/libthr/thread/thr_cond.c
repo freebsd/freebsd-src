@@ -347,7 +347,7 @@ cond_wait_user(struct pthread_cond *cvp, struct pthread_mutex *mp,
 				_pthread_exit(PTHREAD_CANCELED);
 			else /* this should not happen */
 				return (error2);
-		} else if (error == ETIMEDOUT) {
+		} else if (error != 0 && error != EINTR) {
 			sq = _sleepq_lookup(cvp);
 			cvp->__has_user_waiters =
 			    _sleepq_remove(sq, curthread);
@@ -441,6 +441,8 @@ __pthread_cond_clockwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 
 	if (abstime == NULL || abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
 	    abstime->tv_nsec >= 1000000000)
+		return (EINVAL);
+	if (_thr_check_clockid(clockid) != 0)
 		return (EINVAL);
 
 	return (cond_wait_common(cond, mutex, clockid, abstime, true, true));

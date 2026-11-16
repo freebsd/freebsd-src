@@ -231,7 +231,7 @@ in the process specified by the
 .Fa fd
 process descriptor.
 The returned file descriptor has the
-.Va O_CLOEXEC
+.Dv O_CLOEXEC
 flag set.
 The
 .Fa flags
@@ -357,7 +357,7 @@ The PID of the referenced process is not reused until the process
 descriptor is closed,
 whether or not the zombie process is reaped by
 .Fn pdwait ,
-.Xr wait6 ,
+.Fn wait6 ,
 or similar system calls.
 .Sh RETURN VALUES
 .Fn pdfork

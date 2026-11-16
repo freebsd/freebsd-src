@@ -56,6 +56,7 @@ static const struct timeval iavf_mbx_log_interval = { 60, 0 };
 #define IAVF_MBX_RECOVERY_ASQ_RETRIES	10
 #define IAVF_MBX_RECOVERY_VERSION_RETRIES	3
 #define IAVF_MBX_RECOVERY_CONFIG_RETRIES	10
+#define IAVF_QUEUE_RESET_TIMEOUT		(60 * SBT_1S)
 
 /*********************************************************************
  *  Function prototypes
@@ -85,18 +86,25 @@ static void	 iavf_if_timer(if_ctx_t ctx, uint16_t qid);
 static void	 iavf_if_vlan_register(if_ctx_t ctx, u16 vtag);
 static void	 iavf_if_vlan_unregister(if_ctx_t ctx, u16 vtag);
 static uint64_t	 iavf_if_get_counter(if_ctx_t ctx, ift_counter cnt);
+static int	 iavf_if_get_rss_key(if_ctx_t, struct ifrsskey *);
+static int	 iavf_if_get_rss_hash(if_ctx_t, struct ifrsshash *);
 static void	 iavf_if_init(if_ctx_t ctx);
 static void	 iavf_if_stop(if_ctx_t ctx);
 static bool	 iavf_if_needs_restart(if_ctx_t, enum iflib_restart_event);
 
 static void	iavf_mbx_lost(struct iavf_sc *);
+static void	iavf_update_vlan_filters(struct iavf_sc *);
+static void	iavf_enter_reset_recovery(struct iavf_sc *);
 static void	iavf_mbx_retry_detach(struct iavf_sc *);
 static void	iavf_mbx_retry_failed(if_ctx_t);
+static void	iavf_init_retry(if_ctx_t, bool);
 static void	iavf_mbx_retry_prepare(struct iavf_sc *);
 static void	iavf_mbx_retry_stop(struct iavf_sc *);
 static void	iavf_mbx_retry_succeeded(struct iavf_sc *);
 static int	iavf_reestablish_vc(struct iavf_sc *);
 static void	iavf_replay_filters(struct iavf_sc *);
+static void	iavf_hold_vc_polling(struct iavf_sc *);
+static int	iavf_quiesce_queues(struct iavf_sc *);
 static int	iavf_wait_asq(struct iavf_sc *, u32);
 
 static int	iavf_allocate_pci_resources(struct iavf_sc *);
@@ -195,6 +203,8 @@ static device_method_t iavf_if_methods[] = {
 	DEVMETHOD(ifdi_vlan_register, iavf_if_vlan_register),
 	DEVMETHOD(ifdi_vlan_unregister, iavf_if_vlan_unregister),
 	DEVMETHOD(ifdi_get_counter, iavf_if_get_counter),
+	DEVMETHOD(ifdi_get_rss_key, iavf_if_get_rss_key),
+	DEVMETHOD(ifdi_get_rss_hash, iavf_if_get_rss_hash),
 	DEVMETHOD(ifdi_needs_restart, iavf_if_needs_restart),
 	DEVMETHOD_END
 };
@@ -224,7 +234,8 @@ static struct if_shared_ctx iavf_sctx = {
 	.isc_vendor_info = iavf_vendor_info_array,
 	.isc_driver_version = __DECONST(char *, iavf_driver_version),
 	.isc_driver = &iavf_if_driver,
-	.isc_flags = IFLIB_NEED_SCRATCH | IFLIB_NEED_ZERO_CSUM | IFLIB_TSO_INIT_IP | IFLIB_IS_VF,
+	.isc_flags = IFLIB_NEED_SCRATCH | IFLIB_NEED_ZERO_CSUM |
+		IFLIB_TSO_INIT_IP | IFLIB_IS_VF | IFLIB_SPARSE_TX,
 
 	.isc_nrxd_min = {IAVF_MIN_RING},
 	.isc_ntxd_min = {IAVF_MIN_RING},
@@ -404,7 +415,11 @@ iavf_if_attach_pre(if_ctx_t ctx)
 	if ((sc->vf_res->vf_cap_flags & (VIRTCHNL_VF_OFFLOAD_RSS_REG |
 	    VIRTCHNL_VF_OFFLOAD_RSS_PF)) == VIRTCHNL_VF_OFFLOAD_RSS_PF)
 		scctx->isc_rss_table_size = sc->vf_res->rss_lut_size;
-	scctx->isc_capabilities = scctx->isc_capenable = IAVF_CAPS;
+	scctx->isc_capabilities = IAVF_CAPS;
+	if ((sc->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_VLAN) == 0)
+		scctx->isc_capabilities &=
+		    ~(IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWFILTER);
+	scctx->isc_capenable = scctx->isc_capabilities;
 	scctx->isc_tx_csum_flags = CSUM_OFFLOAD;
 
 	return (0);
@@ -498,7 +513,7 @@ iavf_setup_vc_tq(struct iavf_sc *sc)
 static int
 iavf_if_attach_post(if_ctx_t ctx)
 {
-#ifdef IXL_DEBUG
+#ifdef IAVF_DEBUG
 	device_t dev = iflib_get_dev(ctx);
 #endif
 	struct iavf_sc	*sc;
@@ -525,6 +540,12 @@ iavf_if_attach_post(if_ctx_t ctx)
 	bzero(&sc->vsi.eth_stats, sizeof(struct iavf_eth_stats));
 	iavf_add_device_sysctls(sc);
 
+	/*
+	 * attach_pre completed the initial reset and resource handshake.  Do
+	 * not carry the runtime reset-recovery state into iflib's first
+	 * stop/init cycle.
+	 */
+	iavf_clear_state(&sc->state, IAVF_STATE_RESET_RECOVERY);
 	atomic_store_rel_32(&sc->queues_enabled, 0);
 	atomic_store_rel_32(&sc->mbx_ready, 1);
 	atomic_store_rel_32(&sc->vc_reinit_required, 0);
@@ -762,7 +783,8 @@ iavf_mbx_retry_callout(void *arg)
 
 	sc = arg;
 	if (atomic_readandclear_32(&sc->mbx_retry_pending) == 0 ||
-	    atomic_load_acq_32(&sc->mbx_ready) != 0 ||
+	    (atomic_load_acq_32(&sc->mbx_ready) != 0 &&
+	    atomic_load_acq_32(&sc->vlan_batch_pending) == 0) ||
 	    iflib_in_detach(sc->vsi.ctx))
 		return;
 	ifp = iflib_get_ifp(sc->vsi.ctx);
@@ -819,7 +841,144 @@ iavf_mbx_retry_stop(struct iavf_sc *sc)
 }
 
 static void
+iavf_enter_reset_recovery(struct iavf_sc *sc)
+{
+
+	iavf_set_state(&sc->state, IAVF_STATE_RESET_PENDING);
+	iavf_set_state(&sc->state, IAVF_STATE_RESET_RECOVERY);
+}
+
+/*
+ * Record that a reset has stopped the old LAN queues and invalidated the
+ * current virtchnl connection.  The next initialization must rediscover the
+ * VF resources before it can rebuild and enable the LAN queues.
+ */
+static void
+iavf_reset_queues_stopped(struct iavf_sc *sc)
+{
+
+	iavf_enter_reset_recovery(sc);
+	atomic_store_rel_32(&sc->queues_enabled, 0);
+	atomic_store_rel_32(&sc->mbx_ready, 0);
+	atomic_store_rel_32(&sc->vc_reinit_required, 1);
+}
+
+/* Give synchronous reset/discovery code exclusive ownership of the AdminQ. */
+static void
+iavf_hold_vc_polling(struct iavf_sc *sc)
+{
+
+	iavf_set_state(&sc->state, IAVF_STATE_VC_POLLING);
+	iavf_disable_adminq_irq(&sc->hw);
+	taskqueue_drain(sc->vc_tq, &sc->vc_task);
+	/* A task already running when interrupts were masked can re-enable it. */
+	iavf_disable_adminq_irq(&sc->hw);
+}
+
+/*
+ * Wait for a reset which has already started.  A completed reset proves the
+ * old queues are stopped; a timeout does not establish quiescence.
+ * Allow longer than the retryable attach wait: E830/E825C PFs delay 20 seconds
+ * during EMPR before checking completion and rebuilding VF state.
+ */
+static int
+iavf_wait_for_queue_reset(struct iavf_sc *sc)
+{
+	sbintime_t deadline;
+
+	deadline = sbinuptime() + IAVF_QUEUE_RESET_TIMEOUT;
+	while (!iavf_reset_is_complete(&sc->hw)) {
+		if (sbinuptime() >= deadline)
+			return (EBUSY);
+		iavf_msec_pause(100);
+	}
+	iavf_reset_queues_stopped(sc);
+	return (EAGAIN);
+}
+
+/*
+ * Attempt to quiesce the hardware before queue resources are reused.
+ * Success means the queues are stopped and the current AdminQ is still
+ * usable.  EAGAIN means a reset stopped the queues but virtchnl must be
+ * rediscovered.  Other errors do not prove that queue DMA has stopped.
+ */
+static int
+iavf_quiesce_queues(struct iavf_sc *sc)
+{
+	struct iavf_hw *hw;
+	bool asq_alive;
+	int error;
+
+	hw = &sc->hw;
+	if (iavf_test_state(&sc->state, IAVF_STATE_RESET_RECOVERY)) {
+		if (!iavf_reset_is_complete(hw)) {
+			iavf_hold_vc_polling(sc);
+			return (iavf_wait_for_queue_reset(sc));
+		}
+		atomic_store_rel_32(&sc->queues_enabled, 0);
+		return (EAGAIN);
+	}
+	if (!iavf_reset_is_complete(hw)) {
+		iavf_enter_reset_recovery(sc);
+		iavf_hold_vc_polling(sc);
+		return (iavf_wait_for_queue_reset(sc));
+	}
+	if (atomic_load_acq_32(&sc->queues_enabled) == 0)
+		return (0);
+
+	asq_alive = iavf_check_asq_alive(hw);
+	if (!asq_alive) {
+		/*
+		 * A dead AdminQ does not prove that LAN DMA stopped.  Rebuild
+		 * the virtchnl connection so queue disable or VF reset remains
+		 * available before iflib releases the queue resources.
+		 */
+		error = iavf_reestablish_vc(sc);
+		if (error == 0) {
+			/* A PF reset may have discarded the VF's filters. */
+			atomic_store_rel_32(&sc->vc_reinit_required, 1);
+			atomic_store_rel_32(&sc->mbx_ready, 1);
+			asq_alive = true;
+		}
+	}
+	if (atomic_load_acq_32(&sc->mbx_ready) != 0 && asq_alive)
+		error = iavf_disable_queues_with_retries(sc);
+	else if (asq_alive)
+		error = ENXIO;
+	if (atomic_load_acq_32(&sc->queues_enabled) == 0)
+		return (0);
+
+	/* The PF might have started its advertised reset while we waited. */
+	if (!iavf_reset_is_complete(hw)) {
+		iavf_enter_reset_recovery(sc);
+		iavf_hold_vc_polling(sc);
+		return (iavf_wait_for_queue_reset(sc));
+	}
+
+	if (iavf_mbx_log_allowed(sc))
+		device_printf(sc->dev,
+		    "Queue disable was not confirmed (%d); requesting a VF reset\n",
+		    error);
+	iavf_set_state(&sc->state, IAVF_STATE_RESET_PENDING);
+	iavf_hold_vc_polling(sc);
+	error = iavf_request_reset(sc);
+	if (error != 0)
+		return (error);
+	/* RESET_VF has no reply; allow the PF to begin VFR before polling. */
+	iavf_msec_pause(100);
+	return (iavf_wait_for_queue_reset(sc));
+}
+
+static void
 iavf_mbx_retry_failed(if_ctx_t ctx)
+{
+
+	iavf_init_retry(ctx, false);
+}
+
+/* Retry either a failed mailbox or a bounded, still-healthy filter batch. */
+static void
+iavf_init_retry(if_ctx_t ctx, bool mailbox_ready)
 {
 	struct iavf_sc *sc;
 	struct iavf_vsi *vsi;
@@ -829,7 +988,13 @@ iavf_mbx_retry_failed(if_ctx_t ctx)
 
 	sc = iavf_sc_from_ctx(ctx);
 	vsi = &sc->vsi;
-	atomic_store_rel_32(&sc->mbx_ready, 0);
+	atomic_store_rel_32(&sc->mbx_ready, mailbox_ready);
+	if (mailbox_ready) {
+		atomic_store_rel_32(&sc->vc_reinit_required, 0);
+		iavf_clear_state(&sc->state, IAVF_STATE_RESET_RECOVERY);
+	} else {
+		atomic_store_rel_32(&sc->vlan_batch_pending, 0);
+	}
 	iavf_clear_state(&sc->state, IAVF_STATE_RUNNING);
 	sc->link_up = false;
 	if (vsi->link_active) {
@@ -842,11 +1007,12 @@ iavf_mbx_retry_failed(if_ctx_t ctx)
 	if (!sc->mbx_retry_initialized ||
 	    (if_getflags(ifp) & IFF_UP) == 0)
 		return;
-	stage = sc->mbx_retry_stage;
+	stage = mailbox_ready ? 0 : sc->mbx_retry_stage;
 	if (stage >= nitems(iavf_mbx_retry_delay))
 		stage = nitems(iavf_mbx_retry_delay) - 1;
 	delay = iavf_mbx_retry_delay[stage];
-	if (sc->mbx_retry_stage + 1 < nitems(iavf_mbx_retry_delay))
+	if (!mailbox_ready &&
+	    sc->mbx_retry_stage + 1 < nitems(iavf_mbx_retry_delay))
 		sc->mbx_retry_stage++;
 	atomic_set_32(&sc->mbx_retry_pending, 1);
 	callout_reset_sbt(&sc->mbx_retry, delay, 0,
@@ -869,6 +1035,8 @@ iavf_mbx_retry_succeeded(struct iavf_sc *sc)
 	sc->mbx_last_log.tv_usec = 0;
 	iavf_clear_state(&sc->state, IAVF_STATE_RESET_REQUIRED);
 	iavf_clear_state(&sc->state, IAVF_STATE_RESET_PENDING);
+	iavf_clear_state(&sc->state, IAVF_STATE_RESET_RECOVERY);
+	iavf_clear_state(&sc->state, IAVF_STATE_VC_POLLING);
 	if (recovered)
 		device_printf(sc->dev, "PF mailbox communication restored\n");
 }
@@ -881,6 +1049,7 @@ iavf_mbx_lost(struct iavf_sc *sc)
 	atomic_store_rel_32(&sc->vc_reinit_required, 1);
 	if (atomic_readandclear_32(&sc->mbx_ready) == 0)
 		return;
+	iavf_invalidate_rss(sc);
 	vsi = &sc->vsi;
 	iavf_clear_state(&sc->state, IAVF_STATE_RUNNING);
 	sc->link_up = false;
@@ -922,10 +1091,9 @@ iavf_reestablish_vc(struct iavf_sc *sc)
 
 	hw = &sc->hw;
 	vsi = &sc->vsi;
-	iavf_disable_adminq_irq(hw);
-	taskqueue_drain(sc->vc_tq, &sc->vc_task);
-	/* A task already running when interrupts were masked can re-enable it. */
-	iavf_disable_adminq_irq(hw);
+	/* Keep the ordinary AdminQ task from consuming polled replies. */
+	iavf_set_state(&sc->state, IAVF_STATE_RESET_PENDING);
+	iavf_hold_vc_polling(sc);
 	pci_enable_busmaster(sc->dev);
 
 	status = iavf_shutdown_adminq(hw);
@@ -960,6 +1128,16 @@ iavf_reestablish_vc(struct iavf_sc *sc)
 	if (error != 0)
 		goto fail;
 
+	/* Do not keep advertising an offload that the PF no longer provides. */
+	if ((vsi->shared->isc_capabilities & IFCAP_VLAN_HWTAGGING) != 0 &&
+	    (sc->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_VLAN) == 0) {
+		if (iavf_mbx_log_allowed(sc))
+			device_printf(sc->dev,
+			    "PF VLAN offload capabilities changed; reattach the VF\n");
+		error = ENOTSUP;
+		goto fail;
+	}
+
 	if (vsi->num_tx_queues > sc->vsi_res->num_queue_pairs ||
 	    vsi->num_rx_queues > sc->vsi_res->num_queue_pairs ||
 	    vsi->num_rx_queues + 1 > sc->vf_res->max_vectors) {
@@ -975,12 +1153,20 @@ iavf_reestablish_vc(struct iavf_sc *sc)
 	}
 
 	/*
-	 * RESET_PENDING prevents the ordinary AdminQ task from consuming
-	 * messages while the queue may still belong to the pre-reset device.
-	 * The successful VERSION and GET_VF_RESOURCES exchange above proves
-	 * that the reset has completed and this is the replacement AdminQ.
-	 * Clear the stale indication before normal virtchnl requests resume.
+	 * VC_POLLING prevents the ordinary AdminQ task from consuming the
+	 * replies above.  The successful exchange proves that the reset has
+	 * completed and this is the replacement AdminQ.
+	 * If a reset stopped the old queues, consume that fact now that the
+	 * replacement AdminQ is established.  This permits ordinary AdminQ
+	 * processing while making the following quiesce check a no-op.
 	 */
+	iavf_reset_vlan_filters(sc,
+	    iavf_test_state(&sc->state, IAVF_STATE_RESET_RECOVERY));
+	if (iavf_test_state(&sc->state, IAVF_STATE_RESET_RECOVERY)) {
+		atomic_store_rel_32(&sc->queues_enabled, 0);
+		iavf_clear_state(&sc->state, IAVF_STATE_RESET_RECOVERY);
+	}
+	iavf_clear_state(&sc->state, IAVF_STATE_VC_POLLING);
 	iavf_clear_state(&sc->state, IAVF_STATE_RESET_PENDING);
 	iavf_enable_adminq_irq(hw);
 	return (0);
@@ -994,15 +1180,10 @@ static void
 iavf_replay_filters(struct iavf_sc *sc)
 {
 	struct iavf_mac_filter *mac;
-	struct iavf_vlan_filter *vlan;
 
 	SLIST_FOREACH(mac, sc->mac_filters, next) {
 		if ((mac->flags & IAVF_FILTER_DEL) == 0)
 			mac->flags |= IAVF_FILTER_ADD | IAVF_FILTER_USED;
-	}
-	SLIST_FOREACH(vlan, sc->vlan_filters, next) {
-		if ((vlan->flags & IAVF_FILTER_DEL) == 0)
-			vlan->flags = IAVF_FILTER_ADD;
 	}
 }
 
@@ -1032,10 +1213,12 @@ iavf_if_init(if_ctx_t ctx)
 	INIT_DBG_IF(ifp, "begin");
 
 	sx_assert(iflib_ctx_lock_get(ctx), SA_XLOCKED);
+	iavf_invalidate_rss(sc);
 	iavf_mbx_retry_prepare(sc);
 	replay_filters = atomic_load_acq_32(&sc->vc_reinit_required) != 0;
 
 	if (!iavf_reset_is_complete(hw)) {
+		iavf_enter_reset_recovery(sc);
 		atomic_store_rel_32(&sc->vc_reinit_required, 1);
 		if (iavf_mbx_log_allowed(sc))
 			device_printf(dev,
@@ -1057,10 +1240,12 @@ iavf_if_init(if_ctx_t ctx)
 		}
 	}
 
-	/* Make sure queues are disabled */
-	error = iavf_disable_queues_with_retries(sc);
-	if (error != 0)
-		goto fail;
+	if (!iavf_test_state(&sc->state, IAVF_STATE_RESET_RECOVERY)) {
+		/* Make sure queues are disabled. */
+		error = iavf_quiesce_queues(sc);
+		if (error != 0)
+			goto fail;
+	}
 
 	bcopy(if_getlladdr(ifp), tmpaddr, ETHER_ADDR_LEN);
 	if (!cmp_etheraddr(hw->mac.addr, tmpaddr) &&
@@ -1077,9 +1262,18 @@ iavf_if_init(if_ctx_t ctx)
 		iavf_replay_filters(sc);
 	if (!error || error == EEXIST || replay_filters)
 		iavf_send_vc_msg(sc, IAVF_FLAG_AQ_ADD_MAC_FILTER);
-	if (replay_filters)
-		iavf_send_vc_msg(sc, IAVF_FLAG_AQ_ADD_VLAN_FILTER);
 	iflib_set_mac(ctx, hw->mac.addr);
+
+	/* Finish filter changes before queued traffic can reach PF anti-spoof. */
+	error = iavf_sync_vlans(sc);
+	if (error == EAGAIN) {
+		/* Continue a bounded batch without forgetting acknowledged work. */
+		iavf_init_retry(ctx, true);
+		return;
+	}
+	if (error != 0 && error != EIO)
+		goto fail;
+	/* A completed policy rejection must not reset unrelated traffic forever. */
 
 	/* Prepare the queues for operation */
 	iavf_init_queues(vsi);
@@ -1118,6 +1312,84 @@ iavf_if_init(if_ctx_t ctx)
 fail:
 	atomic_store_rel_32(&sc->vc_reinit_required, 1);
 	iavf_mbx_retry_failed(ctx);
+}
+
+/* Query only a complete configuration from the current running instance. */
+static int
+iavf_rss_query_status(struct iavf_sc *sc)
+{
+
+	sx_assert(iflib_ctx_lock_get(sc->vsi.ctx), SA_XLOCKED);
+	IAVF_VC_LOCK_ASSERT(sc);
+	if (sc->vf_res == NULL)
+		return (ENXIO);
+	if ((sc->vf_res->vf_cap_flags & (VIRTCHNL_VF_OFFLOAD_RSS_REG |
+	    VIRTCHNL_VF_OFFLOAD_RSS_PF)) == 0)
+		return (EOPNOTSUPP);
+	if (!iavf_test_state(&sc->state, IAVF_STATE_RUNNING) ||
+	    iavf_test_state(&sc->state, IAVF_STATE_RESET_PENDING) ||
+	    iavf_test_state(&sc->state, IAVF_STATE_RESET_REQUIRED) ||
+	    iavf_test_state(&sc->state, IAVF_STATE_RESET_RECOVERY) ||
+	    atomic_load_acq_32(&sc->mbx_ready) == 0 ||
+	    atomic_load_acq_32(&sc->vc_reinit_required) != 0 ||
+	    sc->rss_configured != (IAVF_FLAG_AQ_CONFIG_RSS_KEY |
+	    IAVF_FLAG_AQ_SET_RSS_HENA))
+		return (ENXIO);
+	return (0);
+}
+
+static int
+iavf_if_get_rss_key(if_ctx_t ctx, struct ifrsskey *ifrk)
+{
+	struct iavf_sc *sc = iavf_sc_from_ctx(ctx);
+	int error;
+
+	IAVF_VC_LOCK(sc);
+	error = iavf_rss_query_status(sc);
+	if (error == 0) {
+		ifrk->ifrk_func = sc->rss_hena == 0 ? RSS_FUNC_NONE :
+		    RSS_FUNC_TOEPLITZ;
+		ifrk->ifrk_keylen = sc->rss_hena == 0 ? 0 : sc->rss_key_size;
+		_Static_assert(sizeof(ifrk->ifrk_key) >= sizeof(sc->rss_key),
+		    "RSS query buffer too small");
+		bzero(ifrk->ifrk_key, sizeof(ifrk->ifrk_key));
+		memcpy(ifrk->ifrk_key, sc->rss_key, ifrk->ifrk_keylen);
+	}
+	IAVF_VC_UNLOCK(sc);
+	return (error);
+}
+
+static int
+iavf_if_get_rss_hash(if_ctx_t ctx, struct ifrsshash *ifrh)
+{
+	struct iavf_sc *sc = iavf_sc_from_ctx(ctx);
+	u64 hena;
+	int error;
+
+	IAVF_VC_LOCK(sc);
+	error = iavf_rss_query_status(sc);
+	if (error == 0) {
+		hena = sc->rss_hena;
+		ifrh->ifrh_func = hena == 0 ? RSS_FUNC_NONE : RSS_FUNC_TOEPLITZ;
+		ifrh->ifrh_types = 0;
+		/* Fragment PCTYPEs are not IPv6 extension-header selections. */
+		if (hena & (BIT_ULL(IAVF_FILTER_PCTYPE_NONF_IPV4_OTHER) |
+		    BIT_ULL(IAVF_FILTER_PCTYPE_FRAG_IPV4)))
+			ifrh->ifrh_types |= RSS_TYPE_IPV4;
+		if (hena & BIT_ULL(IAVF_FILTER_PCTYPE_NONF_IPV4_TCP))
+			ifrh->ifrh_types |= RSS_TYPE_TCP_IPV4;
+		if (hena & BIT_ULL(IAVF_FILTER_PCTYPE_NONF_IPV4_UDP))
+			ifrh->ifrh_types |= RSS_TYPE_UDP_IPV4;
+		if (hena & (BIT_ULL(IAVF_FILTER_PCTYPE_NONF_IPV6_OTHER) |
+		    BIT_ULL(IAVF_FILTER_PCTYPE_FRAG_IPV6)))
+			ifrh->ifrh_types |= RSS_TYPE_IPV6;
+		if (hena & BIT_ULL(IAVF_FILTER_PCTYPE_NONF_IPV6_TCP))
+			ifrh->ifrh_types |= RSS_TYPE_TCP_IPV6;
+		if (hena & BIT_ULL(IAVF_FILTER_PCTYPE_NONF_IPV6_UDP))
+			ifrh->ifrh_types |= RSS_TYPE_UDP_IPV6;
+	}
+	IAVF_VC_UNLOCK(sc);
+	return (error);
 }
 
 /**
@@ -1516,9 +1788,10 @@ iavf_process_adminq(struct iavf_sc *sc, u16 *pending)
 	int error = 0, loop = 0;
 	u32 reg;
 
-	if (iavf_test_state(&sc->state, IAVF_STATE_RESET_PENDING)) {
-		status = IAVF_ERR_ADMIN_QUEUE_ERROR;
-		goto reenable_interrupt;
+	if (iavf_test_state(&sc->state, IAVF_STATE_VC_POLLING) ||
+	    iavf_test_state(&sc->state, IAVF_STATE_RESET_RECOVERY)) {
+		*pending = 0;
+		return (IAVF_ERR_ADMIN_QUEUE_ERROR);
 	}
 
 	error = iavf_check_aq_errors(sc);
@@ -1583,6 +1856,8 @@ iavf_if_update_admin_status(if_ctx_t ctx)
 	}
 
 	iavf_process_adminq(sc, &pending);
+	if (atomic_load_acq_32(&sc->vlan_batch_pending) != 0)
+		iavf_update_vlan_filters(sc);
 	iavf_update_link_status(sc);
 
 	/*
@@ -1700,6 +1975,8 @@ iavf_if_timer(if_ctx_t ctx, uint16_t qid)
 {
 	struct iavf_sc *sc = iavf_sc_from_ctx(ctx);
 	struct iavf_hw *hw = &sc->hw;
+	bool asq_alive;
+	bool reset_active;
 	u32 val;
 
 	if (qid != 0)
@@ -1708,21 +1985,48 @@ iavf_if_timer(if_ctx_t ctx, uint16_t qid)
 	/* Check for a PF-triggered VF reset or a dead admin send queue. */
 	val = rd32(hw, IAVF_VFGEN_RSTAT) &
 	    IAVF_VFGEN_RSTAT_VFR_STATE_MASK;
-	if (iavf_test_state(&sc->state, IAVF_STATE_RESET_PENDING) ||
-	    !iavf_check_asq_alive(hw) ||
-	    (val != VIRTCHNL_VFR_VFACTIVE &&
-	    val != VIRTCHNL_VFR_COMPLETED)) {
+	reset_active = val != VIRTCHNL_VFR_VFACTIVE &&
+	    val != VIRTCHNL_VFR_COMPLETED;
+	asq_alive = iavf_check_asq_alive(hw);
+	if (reset_active)
+		iavf_enter_reset_recovery(sc);
+	if (!asq_alive || reset_active) {
 		iavf_dbg_info(sc, "PF mailbox unavailable (reset state %d)\n",
 		    val);
 		iavf_mbx_lost(sc);
 		return;
 	}
 
+	/*
+	 * RESET_IMPENDING is only a warning.  Preserve the running queues until
+	 * RSTAT proves that the PF started the reset.
+	 */
+	if (iavf_test_state(&sc->state, IAVF_STATE_RESET_PENDING))
+		return;
+
 	/* Fire off the adminq task */
 	iflib_admin_intr_deferred(ctx);
 
 	/* Update stats */
 	iavf_request_stats(sc);
+}
+
+/* Reconcile live memberships without restarting otherwise healthy queues. */
+static void
+iavf_update_vlan_filters(struct iavf_sc *sc)
+{
+	int error;
+
+	/* Down and recovering VFs replay their desired state at initialization. */
+	if (!iflib_is_running(sc->vsi.ctx) ||
+	    atomic_load_acq_32(&sc->mbx_ready) == 0 ||
+	    atomic_load_acq_32(&sc->vc_reinit_required) != 0)
+		return;
+	error = iavf_sync_vlans(sc);
+	if (error == EAGAIN)
+		iflib_admin_intr_deferred(sc->vsi.ctx);
+	else if (error != 0 && error != EIO)
+		iavf_mbx_lost(sc);
 }
 
 /**
@@ -1738,6 +2042,8 @@ iavf_if_vlan_register(if_ctx_t ctx, u16 vtag)
 	struct iavf_sc *sc = iavf_sc_from_ctx(ctx);
 	struct iavf_vsi *vsi = &sc->vsi;
 
+	if ((vsi->shared->isc_capabilities & IFCAP_VLAN_HWFILTER) == 0)
+		return;
 	if ((vtag == 0) || (vtag > 4095))	/* Invalid */
 		return;
 
@@ -1745,11 +2051,10 @@ iavf_if_vlan_register(if_ctx_t ctx, u16 vtag)
 	if (vsi->num_vlans == 0)
 		iavf_add_vlan_filter(sc, 0);
 
-	iavf_add_vlan_filter(sc, vtag);
+	if (iavf_add_vlan_filter(sc, vtag))
+		++vsi->num_vlans;
 
-	++vsi->num_vlans;
-
-	iavf_send_vc_msg(sc, IAVF_FLAG_AQ_ADD_VLAN_FILTER);
+	iavf_update_vlan_filters(sc);
 }
 
 /**
@@ -1766,6 +2071,8 @@ iavf_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
 	struct iavf_vsi *vsi = &sc->vsi;
 	int i = 0;
 
+	if ((vsi->shared->isc_capabilities & IFCAP_VLAN_HWFILTER) == 0)
+		return;
 	if ((vtag == 0) || (vtag > 4095) || (vsi->num_vlans == 0))	/* Invalid */
 		return;
 
@@ -1777,7 +2084,7 @@ iavf_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
 		i += iavf_mark_del_vlan_filter(sc, 0);
 
 	if (i > 0)
-		iavf_send_vc_msg(sc, IAVF_FLAG_AQ_DEL_VLAN_FILTER);
+		iavf_update_vlan_filters(sc);
 }
 
 /**
@@ -1840,7 +2147,8 @@ iavf_if_needs_restart(if_ctx_t ctx __unused, enum iflib_restart_event event)
 {
 	switch (event) {
 	case IFLIB_RESTART_VLAN_CONFIG:
-		return (true);
+		/* Membership changes use the mailbox without resetting queues. */
+		return (false);
 	default:
 		return (false);
 	}
@@ -2125,19 +2433,25 @@ iavf_stop(struct iavf_sc *sc)
 {
 	struct iavf_vsi *vsi;
 	bool mailbox_ready;
+	int error;
 
 	vsi = &sc->vsi;
 	iavf_mbx_retry_stop(sc);
 	iavf_clear_state(&sc->state, IAVF_STATE_RUNNING);
+	iavf_invalidate_rss(sc);
 
 	iavf_disable_intr(vsi);
 
-	mailbox_ready = atomic_load_acq_32(&sc->mbx_ready) != 0;
-	if (mailbox_ready && iavf_reset_is_complete(&sc->hw) &&
-	    iavf_disable_queues_with_retries(sc) != 0)
-		mailbox_ready = false;
-	atomic_store_rel_32(&sc->mbx_ready, 0);
+	error = iavf_quiesce_queues(sc);
+	/* IFDI_STOP cannot report failure; failed shutdown remains best effort. */
+	if (error != 0 && error != EAGAIN && iavf_mbx_log_allowed(sc))
+		device_printf(sc->dev,
+		    "Unable to confirm VF queue shutdown: %d\n", error);
+	mailbox_ready = error == 0 &&
+	    atomic_load_acq_32(&sc->mbx_ready) != 0 &&
+	    !iavf_test_state(&sc->state, IAVF_STATE_RESET_RECOVERY);
 	if (!mailbox_ready) {
+		atomic_store_rel_32(&sc->mbx_ready, 0);
 		atomic_store_rel_32(&sc->vc_reinit_required, 1);
 		iavf_dbg_vc(sc, "PF mailbox unavailable while stopping\n");
 	}

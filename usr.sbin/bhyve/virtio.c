@@ -48,6 +48,8 @@
 #endif
 #include "virtio.h"
 
+#define WPRINTF(params) PRINTLN params
+
 /*
  * Functions for dealing with generalized "virtual devices" as
  * defined by <https://www.google.com/#output=search&q=virtio+spec>
@@ -230,6 +232,11 @@ _vq_record(int i, struct vring_desc *vd, struct vmctx *ctx, struct iovec *iov,
 	addr = atomic_load_64(&vd->addr);
 	iov[i].iov_len = len;
 	iov[i].iov_base = paddr_guest2host(ctx, addr, len);
+	if (iov[i].iov_base == NULL) {
+		WPRINTF(("%s: invalid guest address 0x%lx len %u\n",
+		    __func__, addr, len));
+		return;
+	}
 	if ((vd->flags & VRING_DESC_F_WRITE) == 0)
 		reqp->readable++;
 	else

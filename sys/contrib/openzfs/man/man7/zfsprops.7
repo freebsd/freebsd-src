@@ -29,7 +29,7 @@
 .\" Copyright (c) 2019, Kjeld Schouten-Lebbing
 .\" Copyright (c) 2022 Hewlett Packard Enterprise Development LP.
 .\"
-.Dd September 9, 2026
+.Dd October 30, 2026
 .Dt ZFSPROPS 7
 .Os
 .
@@ -93,6 +93,19 @@ there is no other activity in the pool.
 Because space is shared within a pool, availability can be limited by any number
 of factors, including physical pool size, quotas, reservations, or other
 datasets within the pool.
+.Pp
+On RAID-Z pools, space is converted with a ratio computed for a 128 KiB block
+on the original layout of each RAID-Z vdev.
+The value is accurate for datasets that store 128 KiB blocks on a vdev that has
+not been expanded.
+A dataset with smaller blocks, such as one with a small
+.Sy recordsize
+or
+.Sy volblocksize ,
+or one holding many small files, can store less data than shown, because parity
+and padding take a larger share of each block.
+Datasets with larger blocks can store more.
+Compression changes the amount further.
 .Pp
 This property can also be referred to by its shortened column name,
 .Sy avail .
@@ -835,6 +848,16 @@ The
 and
 .Sy blake3
 checksum algorithms require enabling the appropriate features on the pool.
+The
+.Sy chksum_bench
+kstat
+.Po Pa /proc/spl/kstat/zfs/chksum_bench
+on Linux,
+.Sy kstat.zfs.misc.chksum_bench
+on FreeBSD
+.Pc
+reports the speed of the implementations of the cryptographic checksum
+algorithms on the running system.
 .Pp
 Please see
 .Xr zpool-features 7
@@ -1290,6 +1313,7 @@ The current default is
 .Sy 350000
 and the minimum is
 .Sy 100000 .
+The value is a decimal number; size suffixes are not accepted.
 This property may be changed with
 .Nm zfs Cm change-key .
 .It Sy exec Ns = Ns Sy on Ns | Ns Sy off
@@ -2166,6 +2190,10 @@ This property enables rootless container support with native ZFS storage.
 For example, setting
 .Sy zoned_uid Ns = Ns 1000
 allows user 1000's rootless Podman containers to use ZFS for storage layers.
+The
+.Ar uid
+must be a decimal number less than 4294967295;
+size suffixes are not accepted.
 This is a Linux-only feature.
 .Pp
 Authorization uses an additive three-layer model where all layers must pass:

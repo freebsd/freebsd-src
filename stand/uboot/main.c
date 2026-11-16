@@ -229,20 +229,14 @@ get_load_device(int *type, int *unit, int *slice, int *partition)
 	 * of the string contains spaces, dots, or a colon in any location other
 	 * than the last char, it's legacy format.  Otherwise it might be
 	 * standard loader(8) format (e.g., disk0s2a or mmc1p12), so try to
-	 * parse the remainder of the string as such, and if it works, return
-	 * those results. Otherwise we'll fall through to the code that parses
-	 * the legacy format.
-	 *
-	 * disk_parsedev now assumes that it points to the start of the device
-	 * name, but since it doesn't know about uboot's usage, just subtract 4
-	 * since it always adds 4. This is the least-bad solution since it makes
-	 * all the other loader code easier (might be better to create a fake
-	 * 'disk...' string, but that's more work than uboot is worth).
+	 * parse the string as such, and if it works, return those results.
+	 * Otherwise we'll fall through to the code that parses the legacy
+	 * format.
 	 */
 	if (*type & DEV_TYP_STOR) {
 		size_t len = strlen(p);
 		if (strcspn(p, " .") == len && strcspn(p, ":") >= len - 1 &&
-		    disk_parsedev((struct devdesc **)&dev, p - 4, NULL) == 0) { /* Hack */
+		    disk_parsedev((struct devdesc **)&dev, devstr, NULL) == 0) {
 			*unit = dev->dd.d_unit;
 			*slice = dev->d_slice;
 			*partition = dev->d_partition;

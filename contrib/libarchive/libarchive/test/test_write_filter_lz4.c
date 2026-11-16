@@ -410,3 +410,57 @@ XXXDEFINE_TEST(test_write_filter_lz4_block_dependence_hc)
 	test_options("lz4:block-dependence,lz4:compression-level=9");
 }
 */
+
+/*
+ * An archive with no entries whose format writes nothing at
+ * close (mtree, shar) closes the lz4 filter without any data
+ * having been written through it.  The close used to compute
+ * the stream checksum of a stream descriptor that had never
+ * been written, dereferencing a null checksum state.
+ */
+DEFINE_TEST(test_write_filter_lz4_empty_archive)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	char *buff;
+	size_t buffsize, used1;
+	int r;
+
+	buffsize = 2000000;
+	assert(NULL != (buff = malloc(buffsize)));
+
+	/* Write an empty mtree archive through the lz4 filter. */
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_mtree(a));
+	r = archive_write_add_filter_lz4(a);
+	if (r != ARCHIVE_OK) {
+		assertEqualInt(ARCHIVE_WARN, r);
+		skipping("lz4 writing not supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+		free(buff);
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, buffsize, &used1));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* The result is a valid empty lz4 stream: the 7-byte stream
+	 * descriptor, the 4-byte end mark and the 4-byte stream
+	 * checksum. */
+	failure("empty lz4 stream is %d bytes", (int)used1);
+	assertEqualInt(15, used1);
+	assertEqualMem(buff, "\x04\x22\x4d\x18", 4);
+
+	/* Read it back. */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_lz4(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_empty(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, buff, used1));
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+	free(buff);
+}

@@ -538,6 +538,8 @@ verify_pac_checksums(krb5_context context, const krb5_pac pac,
         /* Verify the server checksum over the PAC copy. */
         ret = verify_checksum(context, pac, KRB5_PAC_SERVER_CHECKSUM, server,
                               KRB5_KEYUSAGE_APP_DATA_CKSUM, &copy);
+        if (ret)
+            goto cleanup;
     }
 
     if (privsvr != NULL && expect_full_checksum) {
@@ -711,15 +713,17 @@ krb5_pac_verify_ext(krb5_context context,
 {
     krb5_error_code ret;
 
-    if (server != NULL || privsvr != NULL) {
-        ret = verify_pac_checksums(context, pac, FALSE, server, privsvr);
+    /* Validate the client first, so that the PAC is only marked as verified
+     * if all of the requested checks pass. */
+    if (principal != NULL) {
+        ret = k5_pac_validate_client(context, pac, authtime,
+                                     principal, with_realm);
         if (ret)
             return ret;
     }
 
-    if (principal != NULL) {
-        ret = k5_pac_validate_client(context, pac, authtime,
-                                     principal, with_realm);
+    if (server != NULL || privsvr != NULL) {
+        ret = verify_pac_checksums(context, pac, FALSE, server, privsvr);
         if (ret)
             return ret;
     }
@@ -1196,24 +1200,23 @@ mspac_internalize(krb5_context context, krb5_authdata_context actx,
     krb5_error_code ret;
     int32_t ibuf;
     uint8_t *bp;
-    size_t remain;
+    size_t remain, len;
     krb5_pac pac = NULL;
 
     bp = *buffer;
     remain = *lenremain;
 
-    /* length */
-    ret = krb5_ser_unpack_int32(&ibuf, &bp, &remain);
+    ret = k5_ser_unpack_len(&len, &bp, &remain);
     if (ret)
         return ret;
 
-    if (ibuf != 0) {
-        ret = krb5_pac_parse(context, bp, ibuf, &pac);
+    if (len > 0) {
+        ret = krb5_pac_parse(context, bp, len, &pac);
         if (ret)
             return ret;
 
-        bp += ibuf;
-        remain -= ibuf;
+        bp += len;
+        remain -= len;
     }
 
     /* verified */

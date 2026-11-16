@@ -480,7 +480,8 @@ static struct rk_clk rk3568_clks[] = {
 	/* 7 Reserved */
 	MUX(0, "bclk_emmc_sel", gpll200_gpll150_cpll125_p, 0, 28, 8, 2),
 	/* 10:11 Reserved */
-	MUX(0, "cclk_emmc_sel", cclk_emmc_p, 0, 28, 12, 3),
+	MUX(0, "cclk_emmc_sel", cclk_emmc_p,
+	    RK_CLK_MUX_ROUND_PARENT, 28, 12, 3),
 	/* 15 Reserved */
 
 	/*  CRU_CLKSEL_CON29 */
@@ -497,9 +498,11 @@ static struct rk_clk rk3568_clks[] = {
 	MUX(0, "aclk_php_sel", gpll300_gpll200_gpll100_xin24m_p, 0, 30, 0, 2),
 	MUX(0, "hclk_php_sel", gpll150_gpll100_gpll75_xin24m_p, 0, 30, 2, 2),
 	CDIV(0, "pclk_php_div", "aclk_php", 0, 30, 4, 4),
-	MUX(0, "clk_sdmmc0_sel", clk_sdmmc_p, 0, 30, 8, 3),
+	MUX(0, "clk_sdmmc0_sel", clk_sdmmc_p,
+	    RK_CLK_MUX_ROUND_PARENT, 30, 8, 3),
 	/* 11 Reserved */
-	MUX(0, "clk_sdmmc1_sel", clk_sdmmc_p, 0, 30, 12, 3),
+	MUX(0, "clk_sdmmc1_sel", clk_sdmmc_p,
+	    RK_CLK_MUX_ROUND_PARENT, 30, 12, 3),
 	/* 15 Reserved */
 
 	/*  CRU_CLKSEL_CON31 */
@@ -523,7 +526,8 @@ static struct rk_clk rk3568_clks[] = {
 	MUX(0, "aclk_usb_sel", gpll300_gpll200_gpll100_xin24m_p, 0, 32, 0, 2),
 	MUX(0, "hclk_usb_sel", gpll150_gpll100_gpll75_xin24m_p, 0, 32, 4, 2),
 	CDIV(0, "pclk_usb_div", "aclk_usb", 0, 32, 4, 4),
-	MUX(0, "clk_sdmmc2_sel", clk_sdmmc_p, 0, 32, 8, 3),
+	MUX(0, "clk_sdmmc2_sel", clk_sdmmc_p,
+	    RK_CLK_MUX_ROUND_PARENT, 32, 8, 3),
 	/* 11:15 Reserved */
 
 	/*  CRU_CLKSEL_CON33 */

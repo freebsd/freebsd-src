@@ -49,6 +49,12 @@
 #include <dev/rtwn/rtl8192c/r92c_tx_desc.h>
 
 void
+r92c_init_beacon_timer(struct rtwn_softc *sc)
+{
+	rtwn_write_1(sc, R92C_DRVERLYINT, 0x05);
+}
+
+void
 r92c_beacon_init(struct rtwn_softc *sc, void *buf, int id)
 {
 	struct r92c_tx_desc *txd = (struct r92c_tx_desc *)buf;

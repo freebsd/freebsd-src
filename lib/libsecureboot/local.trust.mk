@@ -11,7 +11,8 @@
 #VE_DEBUG_LEVEL?=3
 #VE_VERBOSE_DEFAULT?=2
 
-VE_HASH_LIST?= \
+# just to be sure
+VE_HASH_LIST+= \
 	SHA256 \
 	SHA384 \
 
@@ -21,49 +22,55 @@ VE_SELF_TESTS?= yes
 SIGNER?= /opt/sigs/sign.py
 
 .if exists(${SIGNER})
-OPENPGP_SIGNER?= ${SIGNER:H}/openpgp-sign.py
-OPENPGP_SIGN_FLAGS= -a
-OPENPGP_SIGN_HOST?= localhost
+SIGNER_asc?= ${SIGNER:H}/openpgp-sign.py
+SIGN_FLAGS_asc= -a
+SIGN_HOST_asc?= localhost
 SIGN_HOST ?= localhost
 
-# A list of name/ext/url tuples.
-# name should be one of ECDSA, OPENPGP or RSA, they can be repeated
+# A list of ext/method/hash/flags/url tuples.
+# method should include one of ECDSA, OPENPGP or RSA, they can be repeated
 # Order of ext list implies runtime preference so do not sort!
 VE_SIGN_URL_LIST?= \
-	ECDSA/esig/${SIGN_HOST}:${133%y:L:localtime} \
-	RSA/rsig/${SIGN_HOST}:${163%y:L:localtime} \
-	OPENPGP/asc/${OPENPGP_SIGN_HOST}:1234 \
+	esig/ECDSA/sha256/1/${SIGN_HOST}:${133%y:L:localtime} \
+	rsig/RSA/sha256/0/${SIGN_HOST}:${163%y:L:localtime} \
+	asc/OPENPGP/sha256/0/${SIGN_HOST_asc}:1234 \
 
-.for sig ext url in ${VE_SIGN_URL_LIST:@x@${x:H:H} ${x:H:T} ${x:T}@}
-SIGN_${sig}:= ${PYTHON} ${${sig}_SIGNER:U${SIGNER}} -u ${url} ${${sig}_SIGN_FLAGS:U-h sha256}
+# Same as VE_SIGN_URL_LIST minus the url
+VE_SIGNATURE_LIST += ${VE_SIGN_URL_LIST:H}
 
-VE_SIGNATURE_LIST+= ${sig}
-VE_SIGNATURE_EXT_LIST+= ${ext}
+.if !target(_SIGN_USE)
+_SIGN_USE:      .USE
+        @${SIGN_${.TARGET:E}} -o ${.TARGET} ${.ALLSRC:M*${.TARGET:T:R}:u}
+.endif
 
-_SIGN_${sig}_USE:	.USE
-	${SIGN_${sig}} ${.ALLSRC}
+.if !target(_TA_USE)
+_TA_USE:       .USE
+	@if test ${.TARGET:E} = pem; then \
+		${SIGN_${.TARGET:R:S,certs,sig,}} -C ${.TARGET}; \
+	else \
+		${SIGN_${.TARGET:E}} -C ${.TARGET}; \
+	fi
+.endif
 
-_TA_${sig}_USE:       .USE
-	${SIGN_${sig}} -C ${.TARGET}
+# we define SIGN_esig etc for use by _SIGN_USE and _TA_USE
+.for sig method hash flags url in ${VE_SIGN_URL_LIST:S,/, ,g}
+SIGN_${sig}?= ${PYTHON} ${SIGNER_${sig}:U${SIGNER}} -h ${hash} -u ${url} ${SIGN_FLAGS_${sig}:U}
 
-.if ${sig} == "OPENPGP"
-ta_${sig:tl}.${ext}: _TA_${sig}_USE
-ta_${ext}.h: ta_${sig:tl}.${ext}
+.if ${sig} == "asc"
+ta_${method:tl}.${sig}: _TA_USE
+ta_${sig}.h: ta_${method:tl}.${sig}
 .else
-${ext:S/sig/certs/}.pem: _TA_${sig}_USE
+${sig:S/sig/certs/}.pem: _TA_USE
 # the last cert in the chain is the one we want
-ta_${ext}.pem: ${ext:S/sig/certs/}.pem _LAST_PEM_USE
-ta.h: ta_${ext}.pem
+ta_${sig}.pem: ${sig:S/sig/certs/}.pem _LAST_PEM_USE
+ta.h: ta_${sig}.pem
 .if ${VE_SELF_TESTS} != "no"
 # we use the 2nd last cert to test verification
-vc_${ext}.pem: ${ext:S/sig/certs/}.pem _2ndLAST_PEM_USE
-ta.h: vc_${ext}.pem
+vc_${sig}.pem: ${sig:S/sig/certs/}.pem _2ndLAST_PEM_USE
+ta.h: vc_${sig}.pem
 .endif
 .endif
 .endfor
-
-# cleanup duplicates
-VE_SIGNATURE_LIST:= ${VE_SIGNATURE_LIST:O:u}
 
 .if target(ta_asc.h)
 XCFLAGS.opgp_key+= -DHAVE_TA_ASC_H
@@ -71,7 +78,7 @@ XCFLAGS.opgp_key+= -DHAVE_TA_ASC_H
 .if ${VE_SELF_TESTS} != "no"
 # for self test
 vc_openpgp.asc: ta_openpgp.asc
-	${SIGN_OPENPGP} ${.ALLSRC:M*.asc}
+	${SIGN_asc} ${.ALLSRC:M*.asc}
 	mv ta_openpgp.asc.asc ${.TARGET}
 
 ta_asc.h: vc_openpgp.asc
@@ -79,7 +86,6 @@ ta_asc.h: vc_openpgp.asc
 .endif
 
 .else
-VE_SIGNATURE_LIST?= RSA
 
 # you need to provide t*.pem or t*.asc files for each trust anchor
 # below assumes they are named ta_${ext}.pem eg ta_esig.pem for ECDSA
@@ -93,16 +99,21 @@ TRUST_ANCHORS!= cd ${.CURDIR} && 'ls' -1 *.pem t*.asc 2> /dev/null || echo
 .if ${TRUST_ANCHORS:T:Mt*.pem} != ""
 ta.h: ${TRUST_ANCHORS:M*.pem}
 VE_SIGNATURE_EXT_LIST?= ${TRUST_ANCHORS:T:Mt*.pem:R:S/ta_//}
-.if ${VE_SIGNATURE_EXT_LIST:Mesig} != ""
-VE_SIGNATURE_LIST+= ECDSA
-.endif
 .endif
 
 .if ${TRUST_ANCHORS:T:Mt*.asc} != ""
-VE_SIGNATURE_LIST+= OPENPGP
 VE_SIGNATURE_EXT_LIST+= asc
 ta_asc.h: ${TRUST_ANCHORS:M*.asc}
 .endif
+
+.if empty(VE_SIGNATURE_LIST)
+method.asc?= OPENPGP/sha256/0
+method.esig?= ECDSA/sha256/0
+.for ext in ${VE_SIGNATURE_EXT_LIST}
+VE_SIGNATURE_LIST+= ${ext}/${method.${ext}:URSA/sha256/0}
+.endfor
+.endif
+
 # we take the mtime of this as our baseline time
 BUILD_UTC_FILE?= ${TRUST_ANCHORS:[1]}
 .endif

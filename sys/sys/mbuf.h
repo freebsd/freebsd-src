@@ -157,13 +157,6 @@ struct pkthdr {
 			uint16_t rcvgen;	/* ... and generation count */
 		};
 	};
-	union {
-		struct ifnet	*leaf_rcvif;	/* leaf rcv interface */
-		struct {
-			uint16_t leaf_rcvidx;	/* leaf rcv interface index ... */
-			uint16_t leaf_rcvgen;	/* ... and generation count */
-		};
-	};
 	SLIST_HEAD(packet_tags, m_tag) tags; /* list of packet tags */
 	int32_t		 len;		/* total packet length */
 
@@ -176,6 +169,13 @@ struct pkthdr {
 #if !defined(__LP64__)
 	uint32_t	 pad;		/* pad for 64bit alignment */
 #endif
+	union {
+		struct ifnet	*leaf_rcvif;	/* leaf rcv interface */
+		struct {
+			uint16_t leaf_rcvidx;	/* leaf rcv interface index ... */
+			uint16_t leaf_rcvgen;	/* ... and generation count */
+		};
+	};
 	union {
 		uint64_t	rcv_tstmp;	/* timestamp in ns */
 		struct {
@@ -344,7 +344,7 @@ struct mbuf {
 		SLIST_ENTRY(mbuf)	m_slistpkt;
 		STAILQ_ENTRY(mbuf)	m_stailqpkt;
 	};
-	caddr_t		 m_data;	/* location of data */
+	char		*m_data;	/* location of data */
 	int32_t		 m_len;		/* amount of data in this mbuf */
 	uint32_t	 m_type:8,	/* type of data in this mbuf */
 			 m_flags:24;	/* flags; see below */
@@ -579,10 +579,23 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
 #define	M_HASHTYPE_TEST(m, v)	(M_HASHTYPE_GET(m) == (v))
 #define	M_HASHTYPE_ISHASH(m)	\
     (((m)->m_pkthdr.rsstype & M_HASHTYPE_HASHPROP) != 0)
-#define	M_HASHTYPE_ISHASH_TCP(m)				\
-    (((m)->m_pkthdr.rsstype & (M_HASHTYPE_RSS_TCP_IPV4 |		\
-				M_HASHTYPE_RSS_TCP_IPV6 |		\
-				M_HASHTYPE_RSS_TCP_IPV6_EX)) != 0)
+
+static inline int
+m_hashtype_ishash_tcp(const struct mbuf *m)
+{
+
+	/* Hash types are encoded values, not independent bits. */
+	switch (M_HASHTYPE_GET(m)) {
+	case M_HASHTYPE_RSS_TCP_IPV4:
+	case M_HASHTYPE_RSS_TCP_IPV6:
+	case M_HASHTYPE_RSS_TCP_IPV6_EX:
+		return (1);
+	default:
+		return (0);
+	}
+}
+
+#define	M_HASHTYPE_ISHASH_TCP(m)	m_hashtype_ishash_tcp(m)
 #define	M_HASHTYPE_SETINNER(m)	do {			\
 	(m)->m_pkthdr.rsstype |= M_HASHTYPE_INNER;	\
     } while (0)
@@ -823,14 +836,14 @@ void		 m_adj(struct mbuf *, int);
 void		 m_adj_decap(struct mbuf *, int);
 int		 m_apply(struct mbuf *, int, int,
 		    int (*)(void *, void *, u_int), void *);
-int		 m_append(struct mbuf *, int, c_caddr_t);
+int		 m_append(struct mbuf *, int, const void *);
 void		 m_cat(struct mbuf *, struct mbuf *);
 void		 m_catpkt(struct mbuf *, struct mbuf *);
 int		 m_clget(struct mbuf *m, int how);
 void 		*m_cljget(struct mbuf *m, int how, int size);
 struct mbuf	*m_collapse(struct mbuf *, int, int);
-void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
-void		 m_copydata(const struct mbuf *, int, int, caddr_t);
+void		 m_copyback(struct mbuf *, int, int, const void *);
+void		 m_copydata(const struct mbuf *, int, int, void *);
 struct mbuf	*m_copym(struct mbuf *, int, int, int);
 struct mbuf	*m_copypacket(struct mbuf *, int);
 void		 m_copy_pkthdr(struct mbuf *, struct mbuf *);
@@ -839,7 +852,7 @@ struct mbuf	*m_defrag(struct mbuf *, int);
 void		 m_demote_pkthdr(struct mbuf *);
 void		 m_demote(struct mbuf *, int, int);
 struct mbuf	*m_devget(char *, int, int, struct ifnet *,
-		    void (*)(char *, caddr_t, u_int));
+		    void (*)(char *, char *, u_int));
 void		 m_dispose_extcontrolm(struct mbuf *m);
 struct mbuf	*m_dup(const struct mbuf *, int);
 int		 m_dup_pkthdr(struct mbuf *, const struct mbuf *, int);
@@ -862,7 +875,7 @@ int		 m_pkthdr_init(struct mbuf *, int);
 struct mbuf	*m_prepend(struct mbuf *, int, int);
 void		 m_print(const struct mbuf *, int);
 struct mbuf	*m_pulldown(struct mbuf *, int, int, int *);
-struct mbuf	*m_pullup(struct mbuf *, int);
+struct mbuf	*__m_pullup(struct mbuf *, int);
 int		 m_sanity(struct mbuf *, int);
 struct mbuf	*m_split(struct mbuf *, int, int);
 struct mbuf	*m_uiotombuf(struct uio *, int, int, int, int);
@@ -876,6 +889,15 @@ void		 m_snd_tag_init(struct m_snd_tag *, struct ifnet *,
 void		 m_snd_tag_destroy(struct m_snd_tag *);
 void		 m_rcvif_serialize(struct mbuf *);
 struct ifnet	*m_rcvif_restore(struct mbuf *);
+
+static __inline struct mbuf *
+m_pullup(struct mbuf *m, int len)
+{
+	if (__predict_false(m->m_len < len))
+		return (__m_pullup(m, len));
+	else
+		return (m);
+}
 
 static __inline int
 m_gettype(int size)
@@ -1523,8 +1545,6 @@ m_free(struct mbuf *m)
 	struct mbuf *n = m->m_next;
 
 	MBUF_PROBE1(m__free, m);
-	if ((m->m_flags & (M_PKTHDR|M_NOFREE)) == (M_PKTHDR|M_NOFREE))
-		m_tag_delete_chain(m, NULL);
 	if (m->m_flags & M_PKTHDR && m->m_pkthdr.csum_flags & CSUM_SND_TAG)
 		m_snd_tag_rele(m->m_pkthdr.snd_tag);
 	if (m->m_flags & M_EXTPG)

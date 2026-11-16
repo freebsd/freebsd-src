@@ -94,6 +94,11 @@ aw_clk_nmm_set_gate(struct clknode *clk, bool enable)
 	WRITE4(clk, sc->offset, val);
 	DEVICE_UNLOCK(clk);
 
+	if (enable && (sc->flags & AW_CLK_HAS_LOCK) != 0) {
+		aw_clk_wait_for_lock(clk, sc->offset, sc->lock_shift,
+		    sc->lock_retries);
+	}
+
 	return (0);
 }
 
@@ -101,7 +106,7 @@ static uint64_t
 aw_clk_nmm_find_best(struct aw_clk_nmm_sc *sc, uint64_t fparent, uint64_t *fout,
   uint32_t *factor_n, uint32_t *factor_m0, uint32_t *factor_m1)
 {
-	uint64_t cur, best;
+	uint64_t cur, best = 0;
 	uint32_t n, m0, m1;
 	uint32_t max_n, max_m0, max_m1;
 	uint32_t min_n, min_m0, min_m1;
@@ -119,7 +124,8 @@ aw_clk_nmm_find_best(struct aw_clk_nmm_sc *sc, uint64_t fparent, uint64_t *fout,
 		for (m1 = min_m1; m1 <= max_m1; ) {
 			for (n = min_n; n <= max_n; ) {
 				cur = fparent * n / m0 / m1;
-				if (abs(*fout - cur) < abs(*fout - best)) {
+				if (best == 0 || clk_freq_diff(*fout, cur) <
+				    clk_freq_diff(*fout, best)) {
 					best = cur;
 					*factor_n = n;
 					*factor_m0 = m0;
@@ -142,7 +148,6 @@ aw_clk_nmm_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	struct aw_clk_nmm_sc *sc;
 	uint64_t cur, best;
 	uint32_t val, n, m0, m1, best_n, best_m0, best_m1;
-	int retry;
 
 	sc = clknode_get_softc(clk);
 
@@ -184,13 +189,9 @@ aw_clk_nmm_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	WRITE4(clk, sc->offset, val);
 	DEVICE_UNLOCK(clk);
 
-	if ((sc->flags & AW_CLK_HAS_LOCK) != 0) {
-		for (retry = 0; retry < sc->lock_retries; retry++) {
-			READ4(clk, sc->offset, &val);
-			if ((val & (1 << sc->lock_shift)) != 0)
-				break;
-			DELAY(1000);
-		}
+	if (aw_clk_has_lock_to_wait(sc->flags, sc->gate_shift, val)) {
+		aw_clk_wait_for_lock(clk, sc->offset, sc->lock_shift,
+		    sc->lock_retries);
 	}
 
 	*fout = best;
@@ -251,6 +252,7 @@ aw_clk_nmm_register(struct clkdom *clkdom, struct aw_clk_nmm_def *clkdef)
 	sc->n.mask = ((1 << sc->n.width) - 1) << sc->n.shift;
 	sc->n.value = clkdef->n.value;
 	sc->n.flags = clkdef->n.flags;
+	sc->n.min_value = clkdef->n.min_value;
 
 	sc->m0.shift = clkdef->m0.shift;
 	sc->m0.width = clkdef->m0.width;

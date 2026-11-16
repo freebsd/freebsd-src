@@ -50,6 +50,7 @@
 #define	D_BRIEF		6	/* Say if the files differ */
 #define	D_GFORMAT	7	/* Diff with defined changed group format */
 #define D_SIDEBYSIDE    8	/* Side by side */
+#define	D_QUIET		9	/* Don't output anything */
 
 #define	D_UNSET		-2
 

@@ -124,15 +124,14 @@ parse_number(const nvlist_t *nvl, const char *key, uint64_t def, uint64_t minv,
     uint64_t maxv)
 {
 	const char *value;
-	int64_t val;
+	uint64_t val;
 
 	if (!nvlist_exists_string(nvl, key))
 		return def;
 
 	value = nvlist_get_string(nvl, key);
-	if (expand_number(value, &val) == 0 && val >= 0 &&
-	    (uint64_t)val >= minv && (uint64_t)val <= maxv)
-		return (uint64_t)val;
+	if (expand_unsigned(value, &val) == 0 && val >= minv && val <= maxv)
+		return val;
 
 	log_warnx("Invalid value \"%s\" for numeric option %s", value, key);
 	return def;
@@ -413,9 +412,9 @@ nvmf_controller::start_namespace(u_int id)
 		return nullptr;
 	}
 
-	std::string lun_label = "namespace ID " + std::to_string(id - 1);
+	std::string lun_label = "namespace ID " + std::to_string(id);
 	std::string lun_name = freebsd::stringf("%s,nsid,%u", name(), id);
-	return target::start_lun(id, lun_label.c_str(), lun_name.c_str());
+	return target::start_lun(id - 1, lun_label.c_str(), lun_name.c_str());
 }
 
 struct portal_group *

@@ -124,5 +124,84 @@
                 "valid": false
             }
         ]
+    },
+    {
+        "description": "ref to itself",
+        "schema": {"$ref": "#"},
+        "tests": [
+            {
+                "description": "a cycle that consumes no data is an invalid schema",
+                "data": 1,
+                "valid": false
+            }
+        ]
+    },
+    {
+        "description": "refs pointing at each other",
+        "schema": {
+            "definitions": {
+                "a": {"$ref": "#/definitions/b"},
+                "b": {"$ref": "#/definitions/a"}
+            },
+            "properties": {
+                "foo": {"$ref": "#/definitions/a"}
+            }
+        },
+        "tests": [
+            {
+                "description": "the cycle is not reached",
+                "data": {"bar": 1},
+                "valid": true
+            },
+            {
+                "description": "the cycle is reached",
+                "data": {"foo": 1},
+                "valid": false
+            }
+        ]
+    },
+    {
+        "description": "integer ref",
+        "schema": {"$ref": 1},
+        "tests": [
+            {
+                "description": "a ref that is not a string is an invalid schema",
+                "data": 1,
+                "valid": false
+            }
+        ]
+    },
+    {
+        "description": "null ref",
+        "schema": {"$ref": null},
+        "tests": [
+            {
+                "description": "a ref that is not a string is an invalid schema",
+                "data": 1,
+                "valid": false
+            }
+        ]
+    },
+    {
+        "description": "object ref",
+        "schema": {"$ref": {}},
+        "tests": [
+            {
+                "description": "a ref that is not a string is an invalid schema",
+                "data": 1,
+                "valid": false
+            }
+        ]
+    },
+    {
+        "description": "array ref",
+        "schema": {"$ref": ["#"]},
+        "tests": [
+            {
+                "description": "a ref that is not a string is an invalid schema",
+                "data": 1,
+                "valid": false
+            }
+        ]
     }
 ]

@@ -222,7 +222,7 @@ archive_filter_uuencode_write(struct archive_write_filter *f, const void *buff,
 {
 	struct uuencode *uuencode = f->data;
 	const unsigned char *p = buff;
-	int ret = ARCHIVE_OK;
+	int r, ret = ARCHIVE_OK;
 
 	if (length == 0)
 		return (ret);
@@ -247,12 +247,16 @@ archive_filter_uuencode_write(struct archive_write_filter *f, const void *buff,
 		uuencode->hold_len = length;
 	}
 	while (archive_strlen(&uuencode->encoded_buff) >= uuencode->bs) {
-		ret = __archive_write_filter(f->next_filter,
+		r = __archive_write_filter(f->next_filter,
 		    uuencode->encoded_buff.s, uuencode->bs);
 		memmove(uuencode->encoded_buff.s,
 		    uuencode->encoded_buff.s + uuencode->bs,
 		    uuencode->encoded_buff.length - uuencode->bs);
 		uuencode->encoded_buff.length -= uuencode->bs;
+		if (r < ret)
+			ret = r;
+		if (ret < ARCHIVE_WARN)
+			break;
 	}
 
 	return (ret);

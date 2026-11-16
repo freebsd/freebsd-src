@@ -24,12 +24,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 24, 2026
+.Dd November 11, 2026
 .Dt ARCH 7
 .Os
 .Sh NAME
 .Nm arch
-.Nd Architecture-specific details
+.Nd architecture-specific details
 .Sh DESCRIPTION
 Differences between CPU architectures and platforms supported by
 .Fx .
@@ -271,7 +271,7 @@ is 8 bytes on all supported architectures except i386.
 .It riscv64c    Ta 4K, 2M, 1G
 .El
 .Ss User Address Space Layout
-.Bl -column -offset indent "riscv64 (Sv48)" "0x0001000000000000" "NNNU"
+.Bl -column -offset indent "powerpc64le (LA48)" "0x0001000000000000" "NNNU"
 .It Sy Architecture Ta Sy Maximum Address Ta Sy Address Space Size
 .It aarch64        Ta 0x0001000000000000 Ta 256TiB
 .It aarch64c       Ta 0x0001000000000000 Ta 256TiB
@@ -280,8 +280,10 @@ is 8 bytes on all supported architectures except i386.
 .It armv7          Ta 0xbfc00000         Ta 3GiB
 .It i386           Ta 0xffc00000         Ta 4GiB
 .It powerpc        Ta 0xfffff000         Ta 4GiB
-.It powerpc64      Ta 0x000fffffc0000000 Ta 4PiB
-.It powerpc64le    Ta 0x000fffffc0000000 Ta 4PiB
+.It powerpc64 (LA48)   Ta 0x0001000000000000 Ta 256TiB
+.It powerpc64 (LA52)   Ta 0x000fffffc0000000 Ta 4PiB
+.It powerpc64le (LA48) Ta 0x0001000000000000 Ta 256TiB
+.It powerpc64le (LA52) Ta 0x000fffffc0000000 Ta 4PiB
 .It riscv64 (Sv39) Ta 0x0000004000000000 Ta 256GiB
 .It riscv64c (Sv39) Ta 0x0000004000000000 Ta 256GiB
 .It riscv64 (Sv48) Ta 0x0000800000000000 Ta 128TiB
@@ -298,12 +300,12 @@ Newer CPUs support 5-level page tables, which extend the significant bits of
 addresses to 57 bits (LA57 mode).
 The address space layout is determined by the CPU's support for LA57.
 Setting the
-.Sy vm.pmap.la57
+.Va vm.pmap.la57
 tunable to 0 forces the system into 4-level paging mode, even on hardware that
 supports 5-level paging.
 In this mode, all processes get a 48-bit address space.
 The
-.Sy vm.pmap.prefer_la48_uva
+.Va vm.pmap.prefer_uva_la48
 tunable determines whether processes running on a LA57 system are limited to
 a 48-bit address space by default.
 Some applications make use of unused upper bits in pointer values to store
@@ -316,13 +318,26 @@ Similarly,
 .Xr proccontrol 1
 can be used to configure the address space layout when executing a process.
 .Pp
+On powerpc64 the radix MMU provides a 52-bit user address space, but for the
+same reason processes are limited to 48 bits (256TiB) by default, as they are
+on aarch64.
+The
+.Va vm.pmap.prefer_uva_la48
+tunable,
+.Xr elfctl 1
+and
+.Xr proccontrol 1
+work as on amd64, with
+.Dq la52
+requesting the full 52-bit address space.
+.Pp
 The RISC-V specification permits 3-level (Sv39), 4-level (Sv48), and
 5-level (Sv57) page tables.
 Hardware is only required to implement Sv39; implementations which support
 Sv48 must also support Sv39, and implementations which support Sv57 must also
 support Sv48.
 The
-.Sy vm.pmap.mode
+.Va vm.pmap.mode
 tunable can be used to select the layout.
 .Fx
 currently supports Sv39 and Sv48 and defaults to using Sv39.
@@ -499,7 +514,8 @@ If we ever were to support the so-called x32 ABI (using 32-bit
 pointers on the amd64 architecture), it would most likely be encoded
 as amd64-x32.
 It is unfortunate that amd64 specifies the 64-bit evolution of the x86 platform
-(it matches the 'first rule') as almost everybody else uses x86_64.
+.Pq it matches the Sq first rule
+as almost everybody else uses x86_64.
 The
 .Fx
 port was so early, it predated processor name standardization after Intel joined
@@ -517,8 +533,9 @@ The
 .Fx
 source base supports amd64 and i386 with two
 distinct source bases living in subdirectories named amd64 and i386
-(though behind the scenes there's some sharing that fits into this
-framework).
+.Po though behind the scenes there's some sharing that fits into this
+framework
+.Pc .
 .It Dv CPUTYPE
 Sets the flavor of
 .Dv MACHINE_ARCH

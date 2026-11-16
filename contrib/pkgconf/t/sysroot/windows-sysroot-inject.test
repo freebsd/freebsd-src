@@ -1,0 +1,6 @@
+SkipPlatforms: unix haiku lite
+Environment: PKG_CONFIG_SYSROOT_DIR=C:\sr
+PackageSearchPath: lib1
+Query: windows-sysroot-inject
+WantedFlags: cflags libs
+ExpectedStdout: -IC:/sr/opt/include -LC:/sr/opt/lib -linject

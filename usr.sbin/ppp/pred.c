@@ -63,8 +63,8 @@ struct pred1_state {
   u_char dict[GUESS_TABLE_SIZE];
 };
 
-static int
-compress(struct pred1_state *state, u_char *source, u_char *dest, int len)
+static size_t
+compress(struct pred1_state *state, u_char *source, u_char *dest, size_t len)
 {
   int i, bitmask;
   unsigned char *flagdest, flags, *orgdest;
@@ -98,7 +98,8 @@ SyncTable(struct pred1_state *state, u_char *source, u_char *dest, int len)
 }
 
 static int
-decompress(struct pred1_state *state, u_char *source, u_char *dest, int len)
+decompress(struct pred1_state *state, u_char *source, u_char *dest, size_t len,
+	   size_t destlen)
 {
   int i, bitmask;
   unsigned char flags, *orgdest;
@@ -108,11 +109,13 @@ decompress(struct pred1_state *state, u_char *source, u_char *dest, int len)
     flags = *source++;
     len--;
     for (i = 0, bitmask = 1; i < 8; i++, bitmask <<= 1) {
+      if (!(flags & bitmask) && !len)
+	break;		/* we seem to be really done -- cabo */
+      if ((size_t)(dest - orgdest) >= destlen)
+	return -1;				/* Output overrun */
       if (flags & bitmask) {
 	*dest = state->dict[state->hash];	/* Guess correct */
       } else {
-	if (!len)
-	  break;		/* we seem to be really done -- cabo */
 	state->dict[state->hash] = *source;	/* Guess wrong */
 	*dest = *source++;	/* Read from source */
 	len--;
@@ -177,7 +180,7 @@ Pred1Output(void *v, struct ccp *ccp, struct link *l __unused,
   struct pred1_state *state = (struct pred1_state *)v;
   struct mbuf *mwp;
   u_char *cp, *wp, *hp;
-  int orglen, len;
+  size_t orglen, len;
   u_char bufp[MAX_MTU + 2];
   u_short fcs;
 
@@ -194,7 +197,7 @@ Pred1Output(void *v, struct ccp *ccp, struct link *l __unused,
   fcs = ~fcs;
 
   len = compress(state, bufp + 2, wp, orglen);
-  log_Printf(LogDEBUG, "Pred1Output: orglen (%d) --> len (%d)\n", orglen, len);
+  log_Printf(LogDEBUG, "Pred1Output: orglen (%zu) --> len (%zu)\n", orglen, len);
   ccp->uncompout += orglen;
   if (len < orglen) {
     *hp |= 0x80;
@@ -218,7 +221,8 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
 {
   struct pred1_state *state = (struct pred1_state *)v;
   u_char *cp, *pp;
-  int len, olen, len1;
+  int len, len1;
+  size_t olen;
   struct mbuf *wp;
   u_char *bufp;
   u_short fcs;
@@ -226,6 +230,13 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
   wp = m_get(MAX_MRU + 2, MB_CCPIN);
   cp = MBUF_CTOP(bp);
   olen = m_length(bp);
+  if (olen < 4 || olen > wp->m_size) {
+    log_Printf(LogCCP, "Pred1: Bad input length %zu\n", olen);
+    fsm_Reopen(&ccp->fsm);
+    m_freem(bp);
+    m_freem(wp);
+    return NULL;
+  }
   pp = bufp = MBUF_CTOP(wp);
   *pp++ = *cp & 0177;
   len = *cp++ << 8;
@@ -233,7 +244,7 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
   len += *cp++;
   ccp->uncompin += len & 0x7fff;
   if (len & 0x8000) {
-    len1 = decompress(state, cp, pp, olen - 4);
+    len1 = decompress(state, cp, pp, olen - 4, wp->m_size - 4);
     ccp->compin += olen;
     len &= 0x7fff;
     if (len != len1) {		/* Error is detected. Send reset request */
@@ -245,8 +256,8 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
     }
     cp += olen - 4;
     pp += len1;
-  } else if (len + 4 != olen) {
-    log_Printf(LogCCP, "Pred1: Length error (got %d, not %d)\n", len + 4, olen);
+  } else if ((size_t)(len + 4) != olen) {
+    log_Printf(LogCCP, "Pred1: Length error (got %d, not %zu)\n", len + 4, olen);
     fsm_Reopen(&ccp->fsm);
     m_freem(wp);
     m_freem(bp);
@@ -278,7 +289,7 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
   } else {
     const char *pre = *MBUF_CTOP(bp) & 0x80 ? "" : "un";
     log_Printf(LogDEBUG, "Pred1Input: fcs = 0x%04x (%scompressed), len = 0x%x,"
-	      " olen = 0x%x\n", fcs, pre, len, olen);
+	      " olen = 0x%zx\n", fcs, pre, len, olen);
     log_Printf(LogCCP, "%s: Bad %scompressed CRC-16\n",
                ccp->fsm.link->name, pre);
     fsm_Reopen(&ccp->fsm);

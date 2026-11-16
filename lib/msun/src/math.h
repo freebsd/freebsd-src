@@ -114,6 +114,37 @@ extern const union __nan_un {
 #define	isunordered(x, y)	(isnan(x) || isnan(y))
 #endif /* __MATH_BUILTIN_RELOPS */
 
+#if __ISO_C_VISIBLE >= 2023
+/*
+ * Dispatch on the common type of the arguments widened to float_t, so that
+ * an argument evaluated in a format wider than its semantic type is not
+ * narrowed before it is compared (C23 §F.10.14.1).  The selector is never
+ * evaluated.
+ */
+#if __STDC_VERSION__ >= 201112L || __has_extension(c_generic_selections)
+#define	iseqsig(x, y) __extension__ _Generic((x) + (y) + (__float_t)0,	\
+    float: __iseqsigf,							\
+    double: __iseqsig,							\
+    long double: __iseqsigl)((x), (y))
+#elif !defined(__cplusplus)
+#define	iseqsig(x, y) __builtin_choose_expr(				\
+    __builtin_types_compatible_p(__typeof((x) + (y) + (__float_t)0),	\
+    long double), __iseqsigl((x), (y)),					\
+    __builtin_choose_expr(						\
+    __builtin_types_compatible_p(__typeof((x) + (y) + (__float_t)0),	\
+    double), __iseqsig((x), (y)),					\
+    __builtin_choose_expr(						\
+    __builtin_types_compatible_p(__typeof((x) + (y) + (__float_t)0),	\
+    float), __iseqsigf((x), (y)), (void)0)))
+#else
+#define	iseqsig(x, y)							\
+    ((sizeof((x) + (y) + (__float_t)0) == sizeof(float)) ?		\
+    __iseqsigf((x), (y)) :						\
+    (sizeof((x) + (y) + (__float_t)0) == sizeof(double)) ?		\
+    __iseqsig((x), (y)) : __iseqsigl((x), (y)))
+#endif
+#endif /* __ISO_C_VISIBLE >= 2023 */
+
 #define	signbit(x) __fp_type_select(x, __signbitf, __signbit, __signbitl)
 
 typedef	__double_t	double_t;
@@ -556,6 +587,11 @@ long double	fminimum_numl(long double, long double);
 double		rsqrt(double);
 float		rsqrtf(float);
 long double	rsqrtl(long double);
+
+/* Not __pure2: these raise "invalid" on a NaN argument. */
+int		__iseqsig(double, double);
+int		__iseqsigf(float, float);
+int		__iseqsigl(long double, long double);
 #endif /* __ISO_C_VISIBLE >= 2023 */
 
 __END_DECLS

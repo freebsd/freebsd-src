@@ -362,9 +362,11 @@ struct rack_pcm_info {
 	uint16_t cnt;
 	/* Maximum acks present */
 	uint16_t cnt_alloc;
+#define	RACK_DEFAULT_PCM_ARRAY	16
+#define	RACK_MAX_PCM_ARRAY	1024
 };
-
-#define RACK_DEFAULT_PCM_ARRAY 16
+_Static_assert(RACK_MAX_PCM_ARRAY <= UINT16_MAX,
+    "RACK_MAX_PCM_ARRAY must fit in 16 bits");
 
 struct rack_pcm_stats {
 	uint32_t sseq;

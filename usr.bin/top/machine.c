@@ -1042,7 +1042,8 @@ cmd_matches(struct kinfo_proc *proc, const char *term)
 }
 
 char *
-format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags)
+format_next_process(struct handle *xhandle, char *(*get_userid)(int), int flags,
+    pid_t *pid)
 {
 	struct kinfo_proc *pp;
 	const struct kinfo_proc *oldp;
@@ -1066,6 +1067,8 @@ format_next_process(struct handle * xhandle, char *(*get_userid)(int), int flags
 	/* find and remember the next proc structure */
 	pp = *(xhandle->next_proc++);
 	xhandle->remaining--;
+
+	*pid = pp->ki_pid;
 
 	/* get the process's command name */
 	if ((pp->ki_flag & P_INMEM) == 0) {

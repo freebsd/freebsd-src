@@ -39,6 +39,10 @@ setup_fixtures(void)
 	write_pc("qbar.pc", "Name: qbar\nDescription: bar\nVersion: 2.0\n");
 	write_pc("qfoo.pc",
 		"Name: qfoo\nDescription: foo\nVersion: 1.0\nRequires: qbar >= 1.0\n");
+	write_pc("qdirect.pc",
+		"Name: qdirect\nDescription: direct\nVersion: 1.0\n"
+		"Cflags: -I/direct/include\n"
+		"Libs: -L/direct/lib -ldirect\n");
 }
 
 static void
@@ -46,6 +50,7 @@ teardown_fixtures(void)
 {
 	remove(FIXTURE_DIR "/qfoo.pc");
 	remove(FIXTURE_DIR "/qbar.pc");
+	remove(FIXTURE_DIR "/qdirect.pc");
 	rmdir(FIXTURE_DIR);
 }
 
@@ -88,6 +93,18 @@ contains_dep(const pkgconf_pkg_t *world, const char *name)
 	}
 
 	return false;
+}
+
+static size_t
+fragment_count(const pkgconf_list_t *list)
+{
+	size_t n = 0;
+	const pkgconf_node_t *iter;
+
+	PKGCONF_FOREACH_LIST_ENTRY(list->head, iter)
+		n++;
+
+	return n;
 }
 
 static void
@@ -227,6 +244,28 @@ test_queue_apply_missing_package(void)
 	pkgconf_client_free(client);
 }
 
+static void
+test_direct_pkg_helpers_traverse_each_call(void)
+{
+	pkgconf_client_t *client = fixture_client();
+	pkgconf_pkg_t *pkg = pkgconf_pkg_find(client, "qdirect");
+	pkgconf_list_t cflags = PKGCONF_LIST_INITIALIZER;
+	pkgconf_list_t libs = PKGCONF_LIST_INITIALIZER;
+
+	TEST_ASSERT_NONNULL(pkg);
+
+	TEST_ASSERT_EQ(pkgconf_pkg_cflags(client, pkg, &cflags, -1), PKGCONF_PKG_ERRF_OK);
+	TEST_ASSERT_GT(fragment_count(&cflags), 0);
+
+	TEST_ASSERT_EQ(pkgconf_pkg_libs(client, pkg, &libs, -1), PKGCONF_PKG_ERRF_OK);
+	TEST_ASSERT_GT(fragment_count(&libs), 0);
+
+	pkgconf_fragment_free(&cflags);
+	pkgconf_fragment_free(&libs);
+	pkgconf_pkg_unref(client, pkg);
+	pkgconf_client_free(client);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -243,6 +282,7 @@ main(int argc, char *argv[])
 	TEST_RUN(basename, test_queue_apply_success);
 	TEST_RUN(basename, test_queue_apply_callback_failure);
 	TEST_RUN(basename, test_queue_apply_missing_package);
+	TEST_RUN(basename, test_direct_pkg_helpers_traverse_each_call);
 
 	teardown_fixtures();
 

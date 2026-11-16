@@ -255,8 +255,7 @@ k5_internalize_auth_context(krb5_auth_context *argp,
     krb5_auth_context   auth_context;
     krb5_int32          ibuf;
     krb5_octet          *bp;
-    size_t              remain;
-    krb5_int32          cstate_len;
+    size_t              remain, cstate_len;
     krb5_int32          tag;
 
     bp = *buffer;
@@ -294,7 +293,7 @@ k5_internalize_auth_context(krb5_auth_context *argp,
             auth_context->safe_cksumtype = (krb5_cksumtype) ibuf;
 
             /* Get length of cstate */
-            (void) krb5_ser_unpack_int32(&cstate_len, &bp, &remain);
+            (void) k5_ser_unpack_len(&cstate_len, &bp, &remain);
 
             if (cstate_len) {
                 kret = alloc_data(&auth_context->cstate, cstate_len);

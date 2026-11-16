@@ -159,7 +159,6 @@ test_winzip_aes_large(const char *refname, const char *compression_name)
 
 DEFINE_TEST(test_read_format_zip_winzip_aes256_large)
 {
-	// Deflate is always supported, no need to test for it
 	test_winzip_aes_large("test_read_format_zip_winzip_aes256_large.zip", NULL);
 }
 
@@ -176,7 +175,11 @@ DEFINE_TEST(test_read_format_zip_winzip_aes256_large_lzma)
 
 DEFINE_TEST(test_read_format_zip_winzip_aes256_large_ppmd)
 {
+#ifdef HAVE_LIBZ
 	test_winzip_aes_large("test_read_format_zip_winzip_aes256_large_ppmd.zip", NULL);
+#else
+	skipping("zlib not available");
+#endif
 }
 
 DEFINE_TEST(test_read_format_zip_winzip_aes256_large_xz)

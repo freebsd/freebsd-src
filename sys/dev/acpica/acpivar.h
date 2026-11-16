@@ -456,6 +456,11 @@ EVENTHANDLER_DECLARE(acpi_video_event, acpi_event_handler_t);
 EVENTHANDLER_DECLARE(acpi_post_dev_suspend, acpi_event_handler_t);
 EVENTHANDLER_DECLARE(acpi_pre_dev_resume, acpi_event_handler_t);
 
+/* Lid state changes.  The int argument is 1 for open, 0 for closed. */
+typedef void (*acpi_lid_event_handler_t)(void *, int);
+
+EVENTHANDLER_DECLARE(acpi_lid_event, acpi_lid_event_handler_t);
+
 void		acpi_invoke_sleep_eventhandler(const enum power_stype *stype);
 void		acpi_invoke_wake_eventhandler(const enum power_stype *stype);
 
@@ -612,11 +617,12 @@ acpi_set_prepare_sleep(
 /*
  * ARM specific ACPI interfaces, relating to IORT table.
  */
-int	acpi_iort_map_pci_msi(u_int seg, u_int rid, u_int *xref, u_int *devid);
+int	acpi_iort_map_pci_msi(u_int seg, u_int rid, intptr_t *xref,
+	    u_int *devid);
 int	acpi_iort_map_pci_smmuv3(u_int seg, u_int rid, uint64_t *xref,
 	    u_int *devid);
-int	acpi_iort_its_lookup(u_int its_id, u_int *xref, int *pxm);
-int	acpi_iort_map_named_msi(const char *devname, u_int rid, u_int *xref,
+int	acpi_iort_its_lookup(u_int its_id, intptr_t *xref, int *pxm);
+int	acpi_iort_map_named_msi(const char *devname, u_int rid, intptr_t *xref,
 	    u_int *devid);
 int	acpi_iort_map_named_smmuv3(const char *devname, u_int rid,
 	    uint64_t *xref, u_int *devid);

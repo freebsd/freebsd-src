@@ -62,6 +62,7 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/refcount.h>
+#include <sys/sysent.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -128,7 +129,8 @@ VNET_DEFINE(u_int, ipport_reservedhigh) = IPPORT_RESERVED - 1;	/* 1023 */
 VNET_DEFINE(u_int, ipport_reservedlow);
 
 /* Enable random ephemeral port allocation by default. */
-VNET_DEFINE(bool, ipport_randomized) = true;
+VNET_DEFINE_STATIC(bool, ipport_randomized) = true;
+#define	V_ipport_randomized	VNET(ipport_randomized)
 
 #ifdef INET
 static struct inpcb	*in_pcblookup_internal(struct inpcbinfo_ctx *ipictx,
@@ -1149,7 +1151,7 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred)
 	KASSERT(sin->sin_len == sizeof(*sin),
 	    ("%s: invalid address length for %p", __func__, sin));
 
-	if (sin->sin_port == 0)
+	if (sin->sin_port == 0 && !SV_CURPROC_FLAG(SV_CONN_PORT0))
 		return (EADDRNOTAVAIL);
 
 	anonport = (inp->inp_lport == 0);

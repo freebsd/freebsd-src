@@ -269,3 +269,20 @@ auditd_relay_signal(int signo)
 {
 	signaled[signo] = 1;
 }
+
+/*
+ * We call auditd_check_and_reap() after the calls to fork() and exec()
+ * when running the audit_warn script to make sure we do not get a huge
+ * backlog of zombie processes when expiring large volumes of audit trails.
+ *
+ * Since this occurs upon reception of the signal in darwin, we only need to
+ * implement this for freebsd. In darwin it's a no-op
+ */
+void
+auditd_check_and_reap(void)
+{
+	if (signaled[SIGCHLD]) {
+		signaled[SIGCHLD] = 0;
+		auditd_reap_children();
+	}
+}

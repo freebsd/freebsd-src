@@ -252,24 +252,28 @@ snl_clear_lb(struct snl_state *ss)
 static void
 snl_free(struct snl_state *ss)
 {
-	if (ss->init_done)
+	if (ss->init_done) {
 		close(ss->fd);
-	if (ss->buf != NULL)
+		ss->fd = -1;
+		ss->init_done = false;
+	}
+	if (ss->buf != NULL) {
 		free(ss->buf);
+		ss->buf = NULL;
+	}
 	if (ss->lb != NULL) {
 		snl_clear_lb(ss);
 		lb_free(ss->lb);
+		ss->lb = NULL;
 	}
 }
 
 static inline bool
-snl_init(struct snl_state *ss, int netlink_family)
+snl_init_fd(struct snl_state *ss, int fd)
 {
 	memset(ss, 0, sizeof(*ss));
 
-	ss->fd = socket(AF_NETLINK, SOCK_RAW, netlink_family);
-	if (ss->fd == -1)
-		return (false);
+	ss->fd = fd;
 	ss->init_done = true;
 
 	int val = 1;
@@ -299,6 +303,16 @@ snl_init(struct snl_state *ss, int netlink_family)
 	}
 
 	return (true);
+}
+
+static inline bool
+snl_init(struct snl_state *ss, int netlink_family)
+{
+	memset(ss, 0, sizeof(*ss));
+	ss->fd = socket(AF_NETLINK, SOCK_RAW, netlink_family);
+	if (ss->fd == -1)
+		return (false);
+	return (snl_init_fd(ss, ss->fd));
 }
 
 static inline bool

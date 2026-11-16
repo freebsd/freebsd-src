@@ -42,6 +42,7 @@
 #include "utils/format/macros.hpp"
 #include "utils/fs/auto_cleaners.hpp"
 #include "utils/optional.ipp"
+#include "utils/sanity.hpp"
 
 namespace config = utils::config;
 namespace fs = utils::fs;
@@ -103,6 +104,8 @@ drivers::debug_test::drive(engine::debugger_ptr debugger,
     const scheduler::test_result_handle* test_result_handle =
         dynamic_cast< const scheduler::test_result_handle* >(
             result_handle.get());
+    if (test_result_handle == nullptr)
+        UNREACHABLE_MSG("Expected a test result handle from the scheduler");
     const model::test_result test_result = test_result_handle->test_result();
     result_handle->cleanup();
 

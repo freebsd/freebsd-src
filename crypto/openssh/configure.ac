@@ -200,6 +200,7 @@ if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 
 	OSSH_CHECK_CFLAG_COMPILE([-pipe])
 	OSSH_CHECK_CFLAG_COMPILE([-Wunknown-warning-option])
+	OSSH_CHECK_CFLAG_COMPILE([-Wno-error=discarded-qualifiers])
 	OSSH_CHECK_CFLAG_COMPILE([-Wno-error=format-truncation])
 	OSSH_CHECK_CFLAG_COMPILE([-Qunused-arguments])
 	OSSH_CHECK_CFLAG_COMPILE([-Wall])
@@ -217,7 +218,6 @@ if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 	OSSH_CHECK_CFLAG_COMPILE([-Wbitwise-instead-of-logical])
 	OSSH_CHECK_CFLAG_COMPILE([-fno-strict-aliasing])
     if test "x$use_toolchain_hardening" = "x1"; then
-	OSSH_CHECK_CFLAG_COMPILE([-D_FORTIFY_SOURCE=2])
 	OSSH_CHECK_LDFLAG_LINK([-Wl,-z,relro])
 	OSSH_CHECK_LDFLAG_LINK([-Wl,-z,now])
 	OSSH_CHECK_LDFLAG_LINK([-Wl,-z,noexecstack])
@@ -588,18 +588,6 @@ for include in sys/queue.h sys/tree.h; do
 	esac >"$header"
 done
 
-AC_CHECK_DECLS([le32toh, le64toh, htole64, htobe32], [], [], [
-#ifdef HAVE_SYS_TYPES_H
-# include <sys/types.h>
-#endif
-#ifdef HAVE_STDINT_H
-# include <stdint.h>
-#endif
-#ifdef HAVE_ENDIAN_H
-# include <endian.h>
-#endif
-])
-
 # On some platforms (eg SunOS4) sys/audit.h requires sys/[time|types|label.h]
 # to be included first.
 AC_CHECK_HEADERS([sys/audit.h], [], [], [
@@ -789,6 +777,7 @@ case "$host" in
 	AC_DEFINE([DISABLE_WTMP], [1], [Define if you don't want to use wtmp])
 	;;
 *-*-cygwin*)
+	is_cygwin=1
 	LIBS="$LIBS /usr/lib/textreadmode.o"
 	AC_DEFINE([HAVE_CYGWIN], [1], [Define if you are on Cygwin])
 	AC_DEFINE([USE_PIPES], [1], [Use PIPES instead of a socketpair()])
@@ -798,6 +787,7 @@ case "$host" in
 		[Define if you want to disable shadow passwords])
 	AC_DEFINE([NO_X11_UNIX_SOCKETS], [1],
 		[Define if X11 doesn't support AF_UNIX sockets on that system])
+	no_fd_passing=1
 	AC_DEFINE([DISABLE_FD_PASSING], [1],
 		[Define if your platform needs to skip post auth
 		file descriptor passing])
@@ -859,6 +849,7 @@ int main(void) { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	AC_CHECK_LIB([sandbox], [sandbox_apply], [
 	    SSHDLIBS="$SSHDLIBS -lsandbox"
 	])
+	AC_CHECK_DECLS(kSBXProfilePureComputation, [], [], [#include <sandbox.h>])
 	# proc_pidinfo()-based closefrom() replacement.
 	AC_CHECK_HEADERS([libproc.h])
 	AC_CHECK_FUNCS([proc_pidinfo])
@@ -1144,8 +1135,6 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE([SSH_TUN_PREPEND_AF], [1],
 	    [Prepend the address family to IP tunnel traffic])
 	TEST_MALLOC_OPTIONS="AJRX"
-	AC_DEFINE([BROKEN_READ_COMPARISON], [1],
-	    [NetBSD read function is sometimes redirected, breaking atomicio comparisons against it])
 	;;
 *-*-freebsd*)
 	SKIP_DISABLE_LASTLOG_DEFINE=yes
@@ -1370,6 +1359,7 @@ if (setsockopt(s, IPPROTO_IP, IP_TOS, &one, sizeof(one)) == -1)
 	AC_DEFINE([USE_PIPES])
 	AC_DEFINE([HAVE_SECUREWARE])
 	AC_DEFINE([DISABLE_SHADOW])
+	no_fd_passing=1
 	AC_DEFINE([DISABLE_FD_PASSING])
 	AC_DEFINE([SETEUID_BREAKS_SETUID])
 	AC_DEFINE([BROKEN_GETADDRINFO])
@@ -1404,6 +1394,7 @@ if (setsockopt(s, IPPROTO_IP, IP_TOS, &one, sizeof(one)) == -1)
 			AC_DEFINE([DISABLE_LOGIN], [1],
 				[Define if you don't want to use your
 				system's login() call])
+			no_fd_passing=1
 			AC_DEFINE([DISABLE_FD_PASSING])
 			LIBS="$LIBS -lsecurity -ldb -lm -laud"
 			SIA_MSG="yes"
@@ -1429,6 +1420,7 @@ if (setsockopt(s, IPPROTO_IP, IP_TOS, &one, sizeof(one)) == -1)
 	enable_etc_default_login=no	# has incompatible /etc/default/login
 	case "$host" in
 	*-*-nto-qnx6*)
+		no_fd_passing=1
 		AC_DEFINE([DISABLE_FD_PASSING])
 		;;
 	esac
@@ -1441,6 +1433,7 @@ if (setsockopt(s, IPPROTO_IP, IP_TOS, &one, sizeof(one)) == -1)
 	AC_DEFINE([DISABLE_UTMPX], [1], [Disable utmpx])
 	# DISABLE_FD_PASSING so that we call setpgrp as root, otherwise we
 	# don't get a controlling tty.
+	no_fd_passing=1
 	AC_DEFINE([DISABLE_FD_PASSING], [1], [Need to call setpgrp as root])
 	# On Ultrix some headers are not protected against multiple includes,
 	# so we create wrappers and put it where the compiler will find it.
@@ -1530,6 +1523,18 @@ int main(int argc, char **argv) {
 			AC_CHECK_HEADERS([libgen.h])
 		fi
 	])
+])
+
+AC_CHECK_DECLS([le32toh, le64toh, htole64, htobe32], [], [], [
+#ifdef HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#ifdef HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#ifdef HAVE_ENDIAN_H
+# include <endian.h>
+#endif
 ])
 
 AC_CHECK_FUNC([getspnam], ,
@@ -2192,6 +2197,7 @@ AC_CHECK_FUNCS([ \
 	getaddrinfo \
 	getcwd \
 	getentropy \
+	getexecpath \
 	getgrouplist \
 	getline \
 	getnameinfo \
@@ -2223,6 +2229,7 @@ AC_CHECK_FUNCS([ \
 	nlist \
 	nsleep \
 	ogetaddrinfo \
+	openat \
 	openlog_r \
 	pledge \
 	poll \
@@ -3169,8 +3176,9 @@ if test "x$openssl" = "xyes" ; then
 			100*|10100*) # 1.0.x, 1.1.0x
 				AC_MSG_ERROR([OpenSSL >= 1.1.1 required (have "$ssl_showver")])
 				;;
-			101*)   ;; # 1.1.x
-			200*)   # LibreSSL
+			101*)   openssl_impl="openssl" # 1.1.x
+				;;
+			200*)   openssl_impl="libressl"
 				lver=`echo "$sslver" | sed 's/.*libressl-//'`
 				case "$lver" in
 				2*|300*) # 2.x, 3.0.0
@@ -3179,7 +3187,7 @@ if test "x$openssl" = "xyes" ; then
 				*) ;;	# Assume all other versions are good.
 				esac
 				;;
-			30*|40*)
+			30*|40*) openssl_impl="openssl"
 				# OpenSSL 3 & 4; we use the 1.1x API
 				# https://openssl.org/policies/general/versioning-policy.html
 				CPPFLAGS="$CPPFLAGS -DOPENSSL_API_COMPAT=0x10100000L"
@@ -3267,6 +3275,18 @@ if test "x$openssl" = "xyes" ; then
 		]
 	)
 
+	AC_CHECK_DECL([OPENSSL_IS_AWSLC],
+	    [openssl_impl="aws-lc"], [],
+	    [#include <openssl/base.h>]
+	)
+	AC_CHECK_DECL([OPENSSL_IS_BORINGSSL],
+	    [openssl_impl="boringssl"], [],
+	    [#include <openssl/base.h>]
+	)
+
+	AC_MSG_CHECKING([OpenSSL implementation])
+	AC_MSG_RESULT([$openssl_impl])
+
 	AC_CHECK_FUNCS([ \
 		BN_is_prime_ex \
 		DES_crypt \
@@ -3345,7 +3365,7 @@ if test "x$openssl" = "xyes" ; then
 	AC_CHECK_FUNCS([EVP_sha256 EVP_sha384 EVP_sha512 EVP_chacha20])
 
 	# Check complete ECC support in OpenSSL
-	AC_MSG_CHECKING([whether OpenSSL has NID_X9_62_prime256v1])
+	AC_MSG_CHECKING([whether OpenSSL has ECC support])
 	AC_LINK_IFELSE(
 		[AC_LANG_PROGRAM([[
 	#include <openssl/ec.h>
@@ -3356,102 +3376,15 @@ if test "x$openssl" = "xyes" ; then
 	#include <openssl/opensslv.h>
 		]], [[
 		EC_KEY *e = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+		EC_KEY *f = EC_KEY_new_by_curve_name(NID_secp384r1);
+		EC_KEY *g = EC_KEY_new_by_curve_name(NID_secp521r1);
 		const EVP_MD *m = EVP_sha256(); /* We need this too */
 		]])],
-		[ AC_MSG_RESULT([yes])
-		  enable_nistp256=1 ],
-		[ AC_MSG_RESULT([no]) ]
+		[ AC_MSG_RESULT([yes]) ],
+		[ AC_MSG_ERROR([libcrypto does not have required ECC support]) ]
 	)
-
-	AC_MSG_CHECKING([whether OpenSSL has NID_secp384r1])
-	AC_LINK_IFELSE(
-		[AC_LANG_PROGRAM([[
-	#include <openssl/ec.h>
-	#include <openssl/ecdh.h>
-	#include <openssl/ecdsa.h>
-	#include <openssl/evp.h>
-	#include <openssl/objects.h>
-	#include <openssl/opensslv.h>
-		]], [[
-		EC_KEY *e = EC_KEY_new_by_curve_name(NID_secp384r1);
-		const EVP_MD *m = EVP_sha384(); /* We need this too */
-		]])],
-		[ AC_MSG_RESULT([yes])
-		  enable_nistp384=1 ],
-		[ AC_MSG_RESULT([no]) ]
-	)
-
-	AC_MSG_CHECKING([whether OpenSSL has NID_secp521r1])
-	AC_LINK_IFELSE(
-		[AC_LANG_PROGRAM([[
-	#include <openssl/ec.h>
-	#include <openssl/ecdh.h>
-	#include <openssl/ecdsa.h>
-	#include <openssl/evp.h>
-	#include <openssl/objects.h>
-	#include <openssl/opensslv.h>
-		]], [[
-		EC_KEY *e = EC_KEY_new_by_curve_name(NID_secp521r1);
-		const EVP_MD *m = EVP_sha512(); /* We need this too */
-		]])],
-		[ AC_MSG_RESULT([yes])
-		  AC_MSG_CHECKING([if OpenSSL's NID_secp521r1 is functional])
-		  AC_RUN_IFELSE(
-			[AC_LANG_PROGRAM([[
-	#include <stdlib.h>
-	#include <openssl/ec.h>
-	#include <openssl/ecdh.h>
-	#include <openssl/ecdsa.h>
-	#include <openssl/evp.h>
-	#include <openssl/objects.h>
-	#include <openssl/opensslv.h>
-			]],[[
-			EC_KEY *e = EC_KEY_new_by_curve_name(NID_secp521r1);
-			const EVP_MD *m = EVP_sha512(); /* We need this too */
-			exit(e == NULL || m == NULL);
-			]])],
-			[ AC_MSG_RESULT([yes])
-			  enable_nistp521=1 ],
-			[ AC_MSG_RESULT([no]) ],
-			[ AC_MSG_WARN([cross-compiling: assuming yes])
-			  enable_nistp521=1 ]
-		  )],
-		AC_MSG_RESULT([no])
-	)
-
-	if test x$enable_nistp256 = x1 || test x$enable_nistp384 = x1 || \
-	    test x$enable_nistp521 = x1; then
-		AC_DEFINE(OPENSSL_HAS_ECC, [1], [OpenSSL has ECC])
-		AC_CHECK_FUNCS([EC_KEY_METHOD_new])
-		openssl_ecc=yes
-	else
-		openssl_ecc=no
-	fi
-	if test x$enable_nistp256 = x1; then
-		AC_DEFINE([OPENSSL_HAS_NISTP256], [1],
-		    [libcrypto has NID_X9_62_prime256v1])
-	else
-		unsupported_algorithms="$unsupported_algorithms \
-			ecdsa-sha2-nistp256 \
-			ecdh-sha2-nistp256 \
-			ecdsa-sha2-nistp256-cert-v01@openssh.com"
-	fi
-	if test x$enable_nistp384 = x1; then
-		AC_DEFINE([OPENSSL_HAS_NISTP384], [1], [libcrypto has NID_secp384r1])
-	else
-		unsupported_algorithms="$unsupported_algorithms \
-			ecdsa-sha2-nistp384 \
-			ecdh-sha2-nistp384 \
-			ecdsa-sha2-nistp384-cert-v01@openssh.com"
-	fi
-	if test x$enable_nistp521 = x1; then
-		AC_DEFINE([OPENSSL_HAS_NISTP521], [1], [libcrypto has NID_secp521r1])
-	else
-		unsupported_algorithms="$unsupported_algorithms \
-			ecdh-sha2-nistp521 \
-			ecdsa-sha2-nistp521 \
-			ecdsa-sha2-nistp521-cert-v01@openssh.com"
-	fi
+	# Check for EC_KEY_METHOD support for ECDSA PKCS#11
+	AC_CHECK_FUNCS([EC_KEY_METHOD_new])
 
 	# Check libcrypto ED25519 support
 	AC_CHECK_FUNCS([EVP_PKEY_get_raw_public_key])
@@ -3480,17 +3413,30 @@ if test "x$openssl" = "xyes" ; then
 			AC_MSG_RESULT([no])
 		]
 	)
+
+	case "$openssl_impl" in
+	aws-lc|boringssl)
+		# Brainpool does not work with AWC-LS or BoringSSL.
+		unsupported_algorithms="$unsupported_algorithms mlkem768brainpoolp256r1-sha256"
+		;;
+	*)
+		AC_CHECK_DECL([NID_brainpoolP256r1],
+		    [AC_DEFINE([USE_BRAINPOOLP256R1], [1], [Enable brainpool])],
+		    [],
+		    [[#include <openssl/evp.h>]]
+		)
+		;;
+	esac
+
 fi
 
 # PKCS11/U2F depend on OpenSSL and dlopen().
 enable_pkcs11=yes
 enable_sk=yes
 
-AC_CHECK_DECL([OPENSSL_IS_AWSLC],
-	[enable_pkcs11="disabled; PKCS#11 not supported with AWS-LC"],
-	[],
-	[#include <openssl/base.h>]
-)
+if test "x$openssl_impl" = "xaws-lc"; then
+	enable_pkcs11="disabled; PKCS#11 not supported with AWS-LC"
+fi
 if test "x$ac_cv_func_dlopen" != "xyes" ; then
 	enable_pkcs11="disabled; missing dlopen(3)"
 	enable_sk="disabled; missing dlopen(3)"
@@ -4021,10 +3967,12 @@ fi
 
 if test "x$sandbox_arg" = "xdarwin" || \
      ( test -z "$sandbox_arg" && test "x$ac_cv_func_sandbox_init" = "xyes" && \
-       test "x$ac_cv_header_sandbox_h" = "xyes") ; then
+       test "x$ac_cv_header_sandbox_h" = "xyes" && \
+       test "x$ac_cv_have_decl_kSBXProfilePureComputation" = "xyes") ; then
 	test "x$ac_cv_func_sandbox_init" != "xyes" -o \
-	     "x$ac_cv_header_sandbox_h" != "xyes" && \
-		AC_MSG_ERROR([Darwin seatbelt sandbox requires sandbox.h and sandbox_init function])
+	     "x$ac_cv_header_sandbox_h" != "xyes" -o \
+	     "x$ac_cv_have_decl_kSBXProfilePureComputation" != "xyes" && \
+		AC_MSG_ERROR([Darwin seatbelt sandbox requires sandbox.h, sandbox_init() and kSBXProfilePureComputation])
 	SANDBOX_STYLE="darwin"
 	AC_DEFINE([SANDBOX_DARWIN], [1], [Sandbox using Darwin sandbox_init(3)])
 elif test "x$sandbox_arg" = "xseccomp_filter" || \
@@ -5628,16 +5576,6 @@ AC_DEFINE_UNQUOTED([_PATH_SSH_PIDDIR], ["$piddir"],
 	[Specify location of ssh.pid])
 AC_SUBST([piddir])
 
-
-AC_ARG_ENABLE([fd-passing],
-	[  --disable-fd-passing    disable file descriptor passsing [no]],
-	[
-		if test "x$enableval" = "xno" ; then
-			AC_DEFINE([DISABLE_FD_PASSING])
-		fi
-	]
-)
-
 dnl allow user to disable some login recording features
 AC_ARG_ENABLE([lastlog],
 	[  --disable-lastlog       disable use of lastlog even if detected [no]],
@@ -6053,3 +5991,10 @@ if test "$AUDIT_MODULE" = "bsm" ; then
 	echo "WARNING: BSM audit support is currently considered EXPERIMENTAL."
 	echo "See the Solaris section in README.platform for details."
 fi
+
+if test "x$no_fd_passing" = "x1" -a "x$is_cygwin" != "x1" ; then
+	echo "WARNING: support for platforms that lack file descriptor passing"
+	echo "and that also require root privileges for PTY allocation will be "
+	echo "deprecated in a future OpenSSH release."
+fi
+

@@ -107,7 +107,7 @@ struct pfctl {
 	struct pfioc_pooladdr paddr;
 	struct pfioc_altq *paltq;
 	struct pfioc_queue *pqueue;
-	struct pfr_buffer *trans;
+	struct pfctl_trans *trans;
 	struct pfctl_anchor *anchor, *alast;
 	struct pfr_ktablehead pfr_ktlast;
 	int eth_nr;
@@ -306,7 +306,7 @@ struct pfr_uktable;
 
 void	copy_satopfaddr(struct pf_addr *, struct sockaddr *);
 
-int	pfctl_rules(int, char *, int, int, char *, struct pfr_buffer *);
+int	pfctl_rules(int, char *, int, int, char *, struct pfctl_trans *);
 int	pfctl_optimize_ruleset(struct pfctl *, struct pfctl_ruleset *);
 
 void	pfctl_init_rule(struct pfctl_rule *r);

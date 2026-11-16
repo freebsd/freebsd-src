@@ -486,7 +486,17 @@ setup_xattr(struct archive_read_disk *a,
 		return (ARCHIVE_WARN);
 	}
 
-	if (size > 0 && (value = malloc(size)) == NULL) {
+	/*
+	 * Do not query an empty value again: if it has grown in the
+	 * meantime, the second call would return the new size without
+	 * storing anything.
+	 */
+	if (size == 0) {
+		archive_entry_xattr_add_entry(entry, name, "", 0);
+		return (ARCHIVE_OK);
+	}
+
+	if ((value = malloc(size)) == NULL) {
 		archive_set_error(&a->archive, errno, "Out of memory");
 		return (ARCHIVE_FATAL);
 	}
@@ -682,7 +692,17 @@ setup_xattr(struct archive_read_disk *a, struct archive_entry *entry,
 		return (ARCHIVE_WARN);
 	}
 
-	if (size > 0 && (value = malloc(size)) == NULL) {
+	/*
+	 * Do not query an empty value again: if it has grown in the
+	 * meantime, the second call would return the new size without
+	 * storing anything.
+	 */
+	if (size == 0) {
+		archive_entry_xattr_add_entry(entry, fullname, "", 0);
+		return (ARCHIVE_OK);
+	}
+
+	if ((value = malloc(size)) == NULL) {
 		archive_set_error(&a->archive, errno, "Out of memory");
 		return (ARCHIVE_FATAL);
 	}

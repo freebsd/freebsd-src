@@ -639,12 +639,16 @@ static void
 modify_bar_registration(struct pci_devinst *pi, int idx, int registration)
 {
 	struct pci_devemu *pe;
+	struct pcibar *bar;
 	int error;
-	enum pcibar_type type;
 
 	pe = pi->pi_d;
-	type = pi->pi_bar[idx].type;
-	switch (type) {
+	bar = &pi->pi_bar[idx];
+
+	if (!registration && !bar->registered)
+		return;
+
+	switch (bar->type) {
 	case PCIBAR_IO:
 	{
 #ifdef __amd64__
@@ -652,30 +656,34 @@ modify_bar_registration(struct pci_devinst *pi, int idx, int registration)
 
 		bzero(&iop, sizeof(struct inout_port));
 		iop.name = pi->pi_name;
-		iop.port = pi->pi_bar[idx].addr;
-		iop.size = pi->pi_bar[idx].size;
+		iop.port = bar->addr;
+		iop.size = bar->size;
 		if (registration) {
 			iop.flags = IOPORT_F_INOUT;
 			iop.handler = pci_emul_io_handler;
 			iop.arg = pi;
 			error = register_inout(&iop);
-		} else
+		} else {
 			error = unregister_inout(&iop);
+			assert(error == 0);
+		}
 #else
 		struct mem_range mr;
 
 		bzero(&mr, sizeof(struct mem_range));
 		mr.name = pi->pi_name;
-		mr.base = pi->pi_bar[idx].addr;
-		mr.size = pi->pi_bar[idx].size;
+		mr.base = bar->addr;
+		mr.size = bar->size;
 		if (registration) {
 			mr.flags = MEM_F_RW;
 			mr.handler = pci_emul_iomem_handler;
 			mr.arg1 = pi;
 			mr.arg2 = idx;
 			error = register_mem(&mr);
-		} else
+		} else {
 			error = unregister_mem(&mr);
+			assert(error == 0);
+		}
 #endif
 		break;
 	}
@@ -686,16 +694,18 @@ modify_bar_registration(struct pci_devinst *pi, int idx, int registration)
 
 		bzero(&mr, sizeof(struct mem_range));
 		mr.name = pi->pi_name;
-		mr.base = pi->pi_bar[idx].addr;
-		mr.size = pi->pi_bar[idx].size;
+		mr.base = bar->addr;
+		mr.size = bar->size;
 		if (registration) {
 			mr.flags = MEM_F_RW;
 			mr.handler = pci_emul_mem_handler;
 			mr.arg1 = pi;
 			mr.arg2 = idx;
 			error = register_mem(&mr);
-		} else
+		} else {
 			error = unregister_mem(&mr);
+			assert(error == 0);
+		}
 		break;
 	}
 	case PCIBAR_ROM:
@@ -705,10 +715,16 @@ modify_bar_registration(struct pci_devinst *pi, int idx, int registration)
 		error = EINVAL;
 		break;
 	}
-	assert(error == 0);
 
-	if (pe->pe_baraddr != NULL)
-		(*pe->pe_baraddr)(pi, idx, registration, pi->pi_bar[idx].addr);
+	/*
+	 * An error may legitimately occur if the guest is probing BARs and
+	 * leaves decoding enabled.  Keep track of this if it happens so that we
+	 * can skip unregistration.
+	 */
+	bar->registered = (registration && error == 0);
+
+	if (error == 0 && pe->pe_baraddr != NULL)
+		(*pe->pe_baraddr)(pi, idx, registration, bar->addr);
 }
 
 static void
@@ -2495,6 +2511,48 @@ INOUT_PORT(pci_cfgdata, CONF1_DATA_PORT+3, IOPORT_F_INOUT, pci_emul_cfgdata);
 
 #ifdef BHYVE_SNAPSHOT
 /*
+ * Register or unregister the regions of the BARs that the device decodes.
+ */
+static void
+pci_restore_register_bars(struct pci_devinst *pi, int registration)
+{
+	int decode, i;
+
+	for (i = 0; i <= PCI_BARMAX; i++) {
+		switch (pi->pi_bar[i].type) {
+		case PCIBAR_IO:
+			decode = porten(pi);
+			break;
+		case PCIBAR_MEM32:
+		case PCIBAR_MEM64:
+			decode = memen(pi);
+			break;
+		default:
+			continue;
+		}
+		if (decode && pi->pi_bar[i].size != 0)
+			modify_bar_registration(pi, i, registration);
+	}
+}
+
+/*
+ * To be called before the devices are restored.  The regions of the BARs are
+ * registered at the addresses pci_emul_alloc_bar() chose; the restore of a
+ * device registers them at the addresses the guest had given them.  All
+ * devices give up their regions first, because a restored BAR may be where
+ * the BAR of another device is now.
+ */
+void
+pci_restore_prepare(void)
+{
+	struct pci_devinst *pi;
+
+	pi = NULL;
+	while ((pi = pci_next(pi)) != NULL)
+		pci_restore_register_bars(pi, 0);
+}
+
+/*
  * Saves/restores PCI device emulated state. Returns 0 on success.
  */
 static int
@@ -2528,6 +2586,8 @@ pci_snapshot_pci_dev(struct vm_snapshot_meta *meta)
 		SNAPSHOT_VAR_OR_LEAVE(pi->pi_bar[i].size, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(pi->pi_bar[i].addr, meta, ret, done);
 	}
+	if (meta->op == VM_SNAPSHOT_RESTORE)
+		pci_restore_register_bars(pi, 1);
 
 	/* Restore MSI-X table. */
 	for (i = 0; i < pi->pi_msix.table_count; i++) {

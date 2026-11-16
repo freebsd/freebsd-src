@@ -46,8 +46,11 @@ test_read_format_tar_filename_KOI8R_CP866(const char *refname)
  	* Read filename in ru_RU.CP866 with "hdrcharset=KOI8-R" option.
  	* We should correctly read two filenames.
 	*/
-	if (NULL == setlocale(LC_ALL, "Russian_Russia.866") &&
-	    NULL == setlocale(LC_ALL, "ru_RU.CP866")) {
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Russian_Russia.866") &&
+#endif
+	    !setCheckedLocale("ru_RU.CP866", "\x80", L'\x0410')) {
 		skipping("ru_RU.CP866 locale not available on this system.");
 		return;
 	}
@@ -164,7 +167,7 @@ test_read_format_tar_filename_KOI8R_UTF8(const char *refname)
 	 * Read filename in en_US.UTF-8 with "hdrcharset=KOI8-R" option.
 	 * We should correctly read two filenames.
 	 */
-	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+	if (!setCheckedLocale("en_US.UTF-8", "\xC3\xA4", L'\x00E4')) {
 		skipping("en_US.UTF-8 locale not available on this system.");
 		return;
 	}
@@ -275,8 +278,11 @@ test_read_format_tar_filename_KOI8R_CP1251(const char *refname)
  	* Read filename in CP1251 with "hdrcharset=KOI8-R" option.
  	* We should correctly read two filenames.
 	*/
-	if (NULL == setlocale(LC_ALL, "Russian_Russia") &&
-	    NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
+	if (
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	    NULL == setlocale(LC_ALL, "Russian_Russia") &&
+#endif
+	    !setCheckedLocale("ru_RU.CP1251", "\xC0", L'\x0410')) {
 		skipping("CP1251 locale not available on this system.");
 		return;
 	}

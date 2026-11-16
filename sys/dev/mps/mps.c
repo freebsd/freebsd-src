@@ -55,6 +55,7 @@
 #include <sys/eventhandler.h>
 #include <sys/sbuf.h>
 #include <sys/priv.h>
+#include <sys/linker.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -78,6 +79,8 @@
 #include <dev/mps/mps_table.h>
 
 static int mps_diag_reset(struct mps_softc *sc, int sleep_flag);
+static int mps_diag_unlock(struct mps_softc *sc, int sleep_flag);
+static int mps_hostboot_from_preload(struct mps_softc *sc);
 static int mps_init_queues(struct mps_softc *sc);
 static void mps_resize_queues(struct mps_softc *sc);
 static int mps_message_unit_reset(struct mps_softc *sc, int sleep_flag);
@@ -110,6 +113,12 @@ SYSCTL_NODE(_hw, OID_AUTO, mps, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 
 MALLOC_DEFINE(M_MPT2, "mps", "mpt2 driver memory");
 MALLOC_DECLARE(M_MPSUSER);
+
+/*
+ * The "Host Code and Data Window" (HCDW/HCB) the image is staged in is
+ * a fixed 2MB window.
+ */
+#define	MPS_HCB_SIZE			(2 * 1024 * 1024)
 
 /*
  * Do a "Diagnostic Reset" aka a hard reset.  This should get the chip out of
@@ -145,27 +154,11 @@ static struct timeval mps_chainfail_interval = { 60, 0 };
  *
  */
 static int
-mps_diag_reset(struct mps_softc *sc,int sleep_flag)
+mps_diag_unlock(struct mps_softc *sc, int sleep_flag)
 {
 	uint32_t reg;
 	int i, error, tries = 0;
-	uint8_t first_wait_done = FALSE;
 
-	mps_dprint(sc, MPS_INIT, "%s entered\n", __func__);
-
-	/* Clear any pending interrupts */
-	mps_regwrite(sc, MPI2_HOST_INTERRUPT_STATUS_OFFSET, 0x0);
-
-	/*
-	 * Force NO_SLEEP for threads prohibited to sleep
- 	 * e.a Thread from interrupt handler are prohibited to sleep.
- 	 */
-	if (curthread->td_no_sleeping != 0)
-		sleep_flag = NO_SLEEP;
-
-	mps_dprint(sc, MPS_INIT, "sequence start, sleep_flag= %d\n", sleep_flag);
-
-	/* Push the magic sequence */
 	error = ETIMEDOUT;
 	while (tries++ < 20) {
 		for (i = 0; i < sizeof(mpt2_reset_magic); i++)
@@ -186,13 +179,41 @@ mps_diag_reset(struct mps_softc *sc,int sleep_flag)
 			break;
 		}
 	}
+
+	return (error);
+}
+
+static int
+mps_diag_reset(struct mps_softc *sc,int sleep_flag)
+{
+	uint32_t reg;
+	int i, error;
+	uint8_t first_wait_done = FALSE;
+
+	mps_dprint(sc, MPS_INIT, "%s entered\n", __func__);
+
+	/* Clear any pending interrupts */
+	mps_regwrite(sc, MPI2_HOST_INTERRUPT_STATUS_OFFSET, 0x0);
+
+	/*
+	 * Force NO_SLEEP for threads prohibited to sleep
+	 * e.a Thread from interrupt handler are prohibited to sleep.
+	 */
+	if (curthread->td_no_sleeping != 0)
+		sleep_flag = NO_SLEEP;
+
+	mps_dprint(sc, MPS_INIT, "sequence start, sleep_flag= %d\n", sleep_flag);
+
+	/* Push the magic sequence */
+	error = mps_diag_unlock(sc, sleep_flag);
 	if (error) {
 		mps_dprint(sc, MPS_INIT, "sequence failed, error=%d, exit\n",
 		    error);
 		return (error);
 	}
 
-	/* Send the actual reset.  XXX need to refresh the reg? */
+	/* Send the actual reset. */
+	reg = mps_regread(sc, MPI2_HOST_DIAGNOSTIC_OFFSET);
 	reg |= MPI2_DIAG_RESET_ADAPTER;
 	mps_dprint(sc, MPS_INIT, "sequence success, sending reset, reg= 0x%x\n",
 		reg);
@@ -895,7 +916,209 @@ mps_reinit(struct mps_softc *sc)
 	return 0;
 }
 
-/* Wait for the chip to ACK a word that we've put into its FIFO 
+/*
+ * Boot the IOC directly from a firmware image staged in host memory,
+ * bypassing flash.  This is a recovery mechanism for an IOC whose flash
+ * firmware is corrupt or missing and can't otherwise be brought up.
+ * It forces the IOC into HCB (Host Code Boot) mode across a diag reset,
+ * points the HCDW (Host Code Data Window) at a DMA buffer holding the
+ * firmware image, then selects HCDW as the boot device and release the IOC
+ * from reset.
+ */
+int
+mps_hostboot(struct mps_softc *sc, uint8_t *fw_image, uint32_t fw_len)
+{
+	bus_dma_template_t t;
+	bus_dma_tag_t hcb_dmat;
+	bus_dmamap_t hcb_map;
+	uint8_t *hcb_buf;
+	bus_addr_t hcb_busaddr;
+	uint32_t reg;
+	int i, error, sleep_flag;
+
+	sleep_flag = (sc->mps_flags & MPS_FLAGS_ATTACH_DONE)
+	    ? CAN_SLEEP : NO_SLEEP;
+
+	if (curthread->td_no_sleeping != 0)
+		sleep_flag = NO_SLEEP;
+
+	MPS_FUNCTRACE(sc);
+	mtx_assert(&sc->mps_mtx, MA_OWNED);
+
+	if (fw_len > MPS_HCB_SIZE) {
+		mps_dprint(sc, MPS_FAULT, "%s: firmware image (%u bytes) is "
+		    "larger than the %u byte HCB window\n", __func__, fw_len,
+		    MPS_HCB_SIZE);
+		return (EFBIG);
+	}
+
+	bus_dma_template_init(&t, sc->mps_parent_dmat);
+	BUS_DMA_TEMPLATE_FILL(&t, BD_ALIGNMENT(PAGE_SIZE),
+	    BD_MAXSIZE(MPS_HCB_SIZE), BD_MAXSEGSIZE(MPS_HCB_SIZE),
+	    BD_NSEGMENTS(1), BD_LOWADDR(BUS_SPACE_MAXADDR_32BIT));
+	if (bus_dma_template_tag(&t, &hcb_dmat)) {
+		mps_dprint(sc, MPS_ERROR, "%s: cannot allocate HCB DMA tag\n",
+		    __func__);
+		return (ENOMEM);
+	}
+	if (bus_dmamem_alloc(hcb_dmat, (void **)&hcb_buf, BUS_DMA_NOWAIT,
+	    &hcb_map)) {
+		mps_dprint(sc, MPS_ERROR, "%s: cannot allocate HCB memory\n",
+		    __func__);
+		bus_dma_tag_destroy(hcb_dmat);
+		return (ENOMEM);
+	}
+	bus_dmamap_load(hcb_dmat, hcb_map, hcb_buf, MPS_HCB_SIZE,
+	    mps_memaddr_cb, &hcb_busaddr, 0);
+
+	/* Right-justify the image at the end of the window. */
+	bzero(hcb_buf, MPS_HCB_SIZE);
+	bcopy(fw_image, hcb_buf + MPS_HCB_SIZE - fw_len, fw_len);
+	bus_dmamap_sync(hcb_dmat, hcb_map, BUS_DMASYNC_PREWRITE);
+
+	mps_dprint(sc, MPS_INIT|MPS_INFO, "hostboot: HCB busaddr=%#016jx "
+	    "size=%d fw_len=%d\n", (uintmax_t)hcb_busaddr, MPS_HCB_SIZE,
+	    fw_len);
+
+	mps_mask_intr(sc);
+	mps_regwrite(sc, MPI2_HOST_INTERRUPT_STATUS_OFFSET, 0x0);
+
+	/* Force HCB mode across a diag reset. */
+	mps_dprint(sc, MPS_INIT, "hostboot: resetting adapter in HCB mode\n");
+	reg = mps_regread(sc, MPI2_HOST_DIAGNOSTIC_OFFSET);
+	reg |= MPI2_DIAG_FORCE_HCB_ON_RESET;
+	mps_regwrite(sc, MPI2_HOST_DIAGNOSTIC_OFFSET, reg);
+	reg |= MPI2_DIAG_RESET_ADAPTER;
+	mps_regwrite(sc, MPI2_HOST_DIAGNOSTIC_OFFSET, reg);
+
+	DELAY(1000000);
+
+	/* The reset re-locks the diag register; unlock it again. */
+	error = mps_diag_unlock(sc, sleep_flag);
+	if (error != 0) {
+		mps_dprint(sc, MPS_FAULT, "hostboot: failed to re-unlock "
+		    "diag write access after HCB reset, error= %d\n", error);
+		goto out;
+	}
+
+	reg = mps_regread(sc, MPI2_HOST_DIAGNOSTIC_OFFSET);
+	reg &= ~MPI2_DIAG_FORCE_HCB_ON_RESET;
+	mps_regwrite(sc, MPI2_HOST_DIAGNOSTIC_OFFSET, reg);
+
+	reg = mps_regread(sc, MPI2_DOORBELL_OFFSET);
+	if ((reg & MPI2_IOC_STATE_MASK) != MPI2_IOC_STATE_RESET) {
+		mps_dprint(sc, MPS_FAULT, "hostboot: IOC failed to stay in "
+		    "reset, Doorbell= 0x%x\n", reg);
+		error = EIO;
+		goto out;
+	}
+
+	/* Prep the diag register for an HCDW boot. */
+	reg = mps_regread(sc, MPI2_HOST_DIAGNOSTIC_OFFSET);
+	reg |= MPI2_DIAG_CLEAR_FLASH_BAD_SIG;
+	reg &= ~MPI2_DIAG_BOOT_DEVICE_SELECT_MASK;
+	reg &= ~MPI2_DIAG_FORCE_HCB_ON_RESET;
+	reg &= ~MPI2_DIAG_RESET_HISTORY;
+	mps_regwrite(sc, MPI2_HOST_DIAGNOSTIC_OFFSET, reg);
+
+	/* Point the HCB window at the DMA buffer. */
+	mps_regwrite(sc, MPI2_HCB_SIZE_OFFSET,
+	    (MPI2_HCB_SIZE_SIZE_MASK & ~(MPS_HCB_SIZE - 1)) |
+	    MPI2_HCB_SIZE_HCB_ENABLE);
+	mps_regwrite(sc, MPI2_HCB_ADDRESS_LOW_OFFSET,
+	    (uint32_t)(hcb_busaddr & 0xffffffff));
+	mps_regwrite(sc, MPI2_HCB_ADDRESS_HIGH_OFFSET,
+	    (uint32_t)(hcb_busaddr >> 32));
+
+	/* Select HCDW as the boot device, then release the IOC from reset. */
+	mps_dprint(sc, MPS_INIT, "hostboot: booting IOC from host memory\n");
+	reg = mps_regread(sc, MPI2_HOST_DIAGNOSTIC_OFFSET);
+	reg |= MPI2_DIAG_BOOT_DEVICE_SELECT_HCDW;
+	mps_regwrite(sc, MPI2_HOST_DIAGNOSTIC_OFFSET, reg);
+
+	reg &= ~MPI2_DIAG_HOLD_IOC_RESET;
+	reg &= ~MPI2_DIAG_FORCE_HCB_ON_RESET;
+	mps_regwrite(sc, MPI2_HOST_DIAGNOSTIC_OFFSET, reg);
+
+	error = ETIMEDOUT;
+	for (i = 0; i < 200; i++) {
+		DELAY(10000);
+		reg = mps_regread(sc, MPI2_DOORBELL_OFFSET);
+		if ((reg & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_READY) {
+			error = 0;
+			break;
+		}
+	}
+
+	if (error != 0) {
+		mps_dprint(sc, MPS_FAULT, "hostboot: IOC failed to become "
+		    "ready, Doorbell= 0x%x\n", reg);
+		goto out;
+	}
+
+	/* Extra settle time */
+	DELAY(500000);
+	mps_dprint(sc, MPS_INIT|MPS_INFO, "hostboot: IOC host boot "
+	    "successful, Doorbell= 0x%x\n", reg);
+
+out:
+	/* Tear down the HCB window regardless of outcome. */
+	mps_regwrite(sc, MPI2_HCB_SIZE_OFFSET, 0);
+	mps_regwrite(sc, MPI2_HCB_ADDRESS_LOW_OFFSET, 0);
+	mps_regwrite(sc, MPI2_HCB_ADDRESS_HIGH_OFFSET, 0);
+
+	bus_dmamap_unload(hcb_dmat, hcb_map);
+	bus_dmamem_free(hcb_dmat, hcb_buf, hcb_map);
+	bus_dma_tag_destroy(hcb_dmat);
+
+	mps_unmask_intr(sc);
+
+	return (error);
+}
+
+/*
+ * If a firmware image was preloaded for this unit via loader.conf
+ * (see mps(4)), boot it directly from host memory, bypassing flash.
+ * loader.conf marks the preloaded file with a type of
+ * "<nameunit>:firmware", e.g. "mps0:firmware", so that units without a
+ * configured recovery image are left alone.
+ *
+ * Returns 0 if an image was found and the hostboot succeeded, ENOENT
+ * if no image was preloaded for this unit, or another errno if an
+ * image was found but the hostboot itself failed.  Must be called
+ * with sc->mps_mtx held.
+ */
+static int
+mps_hostboot_from_preload(struct mps_softc *sc)
+{
+	char type[64];
+	caddr_t mod;
+	void *fw_image;
+	size_t fw_len;
+
+	snprintf(type, sizeof(type), "%s:firmware",
+	    device_get_nameunit(sc->mps_dev));
+
+	mod = preload_search_by_type(type);
+	if (mod == NULL)
+		return (ENOENT);
+
+	fw_image = preload_fetch_addr(mod);
+	fw_len = preload_fetch_size(mod);
+	if (fw_image == NULL || fw_len == 0) {
+		mps_dprint(sc, MPS_FAULT, "hostboot: preloaded module '%s' "
+		    "has no data\n", type);
+		return (ENOENT);
+	}
+
+	mps_dprint(sc, MPS_INIT|MPS_INFO,
+	    "hostboot: booting preloaded recovery image '%s' (%zu bytes) "
+	    "from host memory\n", type, fw_len);
+
+	return (mps_hostboot(sc, fw_image, (uint32_t)fw_len));
+}
+
+/* Wait for the chip to ACK a word that we've put into its FIFO
  * Wait for <timeout> seconds. In single loop wait for busy loop
  * for 500 microseconds.
  * Total is [ 0.5 * (2000 * <timeout>) ] in miliseconds.
@@ -2010,6 +2233,15 @@ mps_attach(struct mps_softc *sc)
 	callout_init_mtx(&sc->device_check_callout, &sc->mps_mtx, 0);
 	TAILQ_INIT(&sc->event_list);
 	timevalclear(&sc->lastfail);
+
+	error = mps_hostboot_from_preload(sc);
+	if (error == ENOENT) {
+		error = 0;
+	} else if (error != 0) {
+		/* Non-fatal */
+		mps_dprint(sc, MPS_INIT|MPS_FAULT,
+		    "failed to apply preloaded firmware\n");
+	}
 
 	if ((error = mps_transition_ready(sc)) != 0) {
 		mps_dprint(sc, MPS_INIT|MPS_FAULT, "failed to transition "

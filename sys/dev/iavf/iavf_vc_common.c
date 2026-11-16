@@ -376,134 +376,203 @@ iavf_disable_queues(struct iavf_sc *sc)
 	    (u8 *)&vqs, sizeof(vqs)));
 }
 
-/**
- * iavf_add_vlans - Add VLAN filters
- * @sc: device softc
- *
- * Scan the Filter List looking for vlans that need
- * to be added, then create the data to hand to the AQ
- * for handling.
- *
- * @returns zero on success, or an error code on failure.
- */
-int
-iavf_add_vlans(struct iavf_sc *sc)
+/* Bound control-plane work even when the PF acknowledges slowly. */
+#define IAVF_VLAN_SYNC_BATCH	32
+#define IAVF_VLAN_SYNC_TIMEOUT	SBT_1S
+
+/* The VC task owns no filter-list pointers and must not acquire CTX. */
+static void
+iavf_vlan_completion(struct iavf_sc *sc, enum virtchnl_ops op,
+    enum virtchnl_status_code status)
 {
-	struct virtchnl_vlan_filter_list *v;
-	struct iavf_vlan_filter *f, *ftmp;
-	device_t dev = sc->dev;
-	int i = 0, cnt = 0;
-	u32 len;
 
-	/* Get count of VLAN filters to add */
-	SLIST_FOREACH(f, sc->vlan_filters, next) {
-		if (f->flags & IAVF_FILTER_ADD)
-			cnt++;
-	}
-
-	if (!cnt) /* no work... */
-		return (ENOENT);
-
-	len = sizeof(struct virtchnl_vlan_filter_list) +
-	      (cnt * sizeof(u16));
-
-	if (len > IAVF_AQ_BUF_SZ) {
-		device_printf(dev, "%s: Exceeded Max AQ Buf size\n",
-			__func__);
-		return (EFBIG);
-	}
-
-	v = (struct virtchnl_vlan_filter_list *)malloc(len, M_IAVF, M_NOWAIT | M_ZERO);
-	if (!v) {
-		device_printf(dev, "%s: unable to allocate memory\n",
-			__func__);
-		return (ENOMEM);
-	}
-
-	v->vsi_id = sc->vsi_res->vsi_id;
-	v->num_elements = cnt;
-
-	/* Scan the filter array */
-	SLIST_FOREACH_SAFE(f, sc->vlan_filters, next, ftmp) {
-                if (f->flags & IAVF_FILTER_ADD) {
-                        bcopy(&f->vlan, &v->vlan_id[i], sizeof(u16));
-			f->flags = IAVF_FILTER_USED;
-                        i++;
-                }
-                if (i == cnt)
-                        break;
-	}
-
-	iavf_send_pf_msg(sc, VIRTCHNL_OP_ADD_VLAN, (u8 *)v, len);
-	free(v, M_IAVF);
-	/* add stats? */
-	return (0);
+	IAVF_VC_LOCK_ASSERT(sc);
+	if (sc->vlan_op != op || sc->vlan_done)
+		return;
+	sc->vlan_status = status;
+	sc->vlan_done = true;
+	wakeup(&sc->vlan_op);
 }
 
-/**
- * iavf_del_vlans - Delete VLAN filters
- * @sc: device softc
+/* Apply an acknowledgement to its original VID and direction, under CTX. */
+static int
+iavf_vlan_result(struct iavf_sc *sc)
+{
+	struct iavf_vlan_filter *f;
+	int error;
+
+	IAVF_VC_LOCK_ASSERT(sc);
+	if (sc->vlan_op == VIRTCHNL_OP_UNKNOWN)
+		return (0);
+	if (!sc->vlan_done)
+		return (ETIMEDOUT);
+
+	error = sc->vlan_status == VIRTCHNL_STATUS_SUCCESS ? 0 : EIO;
+	SLIST_FOREACH(f, sc->vlan_filters, next) {
+		if (f->vlan != sc->vlan_id)
+			continue;
+		if (error == 0) {
+			f->applied = sc->vlan_op == VIRTCHNL_OP_ADD_VLAN;
+			f->uncertain = false;
+		} else {
+			/* The PF need not have rolled back every internal step. */
+			f->uncertain = true;
+			f->rejected = true;
+		}
+		break;
+	}
+	KASSERT(f != NULL, ("VLAN transaction lost its filter"));
+	if (error == 0 && !f->desired && !f->applied) {
+		SLIST_REMOVE(sc->vlan_filters, f, iavf_vlan_filter, next);
+		free(f, M_IAVF);
+	}
+	sc->vlan_op = VIRTCHNL_OP_UNKNOWN;
+	return (error);
+}
+
+/*
+ * Discard transactions only after replacing the AdminQ and completing resource
+ * discovery.  An AdminQ-only restart does not prove that PF filters vanished;
+ * preserve deletion tombstones in that case.  A completed VF reset does.
+ */
+void
+iavf_reset_vlan_filters(struct iavf_sc *sc, bool reset)
+{
+	struct iavf_vlan_filter *f, *tmp;
+
+	sx_assert(iflib_ctx_lock_get(sc->vsi.ctx), SA_XLOCKED);
+	IAVF_VC_LOCK(sc);
+	sc->vlan_op = VIRTCHNL_OP_UNKNOWN;
+	sc->vlan_done = false;
+	IAVF_VC_UNLOCK(sc);
+	atomic_store_rel_32(&sc->vlan_batch_pending, 0);
+	SLIST_FOREACH_SAFE(f, sc->vlan_filters, next, tmp) {
+		f->rejected = false;
+		f->uncertain = !reset;
+		if (!reset)
+			continue;
+		f->applied = false;
+		if (!f->desired) {
+			SLIST_REMOVE(sc->vlan_filters, f, iavf_vlan_filter, next);
+			free(f, M_IAVF);
+		}
+	}
+}
+
+/*
+ * Keep one VID per request so a partial batch failure cannot hide which
+ * memberships were acknowledged.  The caller serializes membership changes
+ * under CTX; the independent VC task can deliver replies while we wait.
  *
- * Scan the Filter Table looking for vlans that need
- * to be removed, then create the data to hand to the AQ
- * for handling.
- *
- * @returns zero on success, or an error code on failure.
+ * EIO is a completed PF rejection, retained for a later control-plane pass.
+ * EAGAIN leaves a bounded batch's tail pending without losing prior progress.
+ * An incomplete transaction must prevent queue enable: virtchnl replies carry
+ * only an opcode, so a retry cannot safely be matched after a timeout.
+ * Live callers enter mailbox recovery rather than submit an ambiguous retry.
  */
 int
-iavf_del_vlans(struct iavf_sc *sc)
+iavf_sync_vlans(struct iavf_sc *sc)
 {
-	struct virtchnl_vlan_filter_list *v;
-	struct iavf_vlan_filter *f, *ftmp;
-	device_t dev = sc->dev;
-	int i = 0, cnt = 0;
-	u32 len;
+	struct {
+		struct virtchnl_vlan_filter_list list;
+		u16 pad;	/* The legacy message validator counts the array twice. */
+	} msg;
+	struct iavf_vlan_filter *f, *tmp;
+	sbintime_t deadline;
+	unsigned int pass, sent;
+	int error, first_error;
 
-	/* Get count of VLAN filters to delete */
-	SLIST_FOREACH(f, sc->vlan_filters, next) {
-		if (f->flags & IAVF_FILTER_DEL)
-			cnt++;
+	sx_assert(iflib_ctx_lock_get(sc->vsi.ctx), SA_XLOCKED);
+	/* Software VLANs need no PF filter configuration. */
+	if ((sc->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_VLAN) == 0) {
+		atomic_store_rel_32(&sc->vlan_batch_pending, 0);
+		return (0);
 	}
+	if (iavf_test_state(&sc->state, IAVF_STATE_RESET_PENDING) ||
+	    iavf_test_state(&sc->state, IAVF_STATE_RESET_RECOVERY) ||
+	    iavf_test_state(&sc->state, IAVF_STATE_VC_POLLING) ||
+	    !iavf_reset_is_complete(&sc->hw) ||
+	    !iavf_check_asq_alive(&sc->hw))
+		return (ENXIO);
 
-	if (!cnt) /* no work... */
-		return (ENOENT);
-
-	len = sizeof(struct virtchnl_vlan_filter_list) +
-	      (cnt * sizeof(u16));
-
-	if (len > IAVF_AQ_BUF_SZ) {
-		device_printf(dev, "%s: Exceeded Max AQ Buf size\n",
-			__func__);
-		return (EFBIG);
+	deadline = getsbinuptime() + IAVF_VLAN_SYNC_TIMEOUT;
+	if (atomic_load_acq_32(&sc->vlan_batch_pending) == 0) {
+		SLIST_FOREACH(f, sc->vlan_filters, next)
+			f->rejected = false;
 	}
+	atomic_store_rel_32(&sc->vlan_batch_pending, 0);
+	IAVF_VC_LOCK(sc);
+	error = iavf_vlan_result(sc);
+	if (error != 0 && error != EIO)
+		goto out;
+	first_error = error;
 
-	v = (struct virtchnl_vlan_filter_list *)
-	    malloc(len, M_IAVF, M_NOWAIT | M_ZERO);
-	if (!v) {
-		device_printf(dev, "%s: unable to allocate memory\n",
-			__func__);
-		return (ENOMEM);
+	sent = 0;
+	/*
+	 * Free nonzero VLAN capacity before adding desired memberships.  VID 0
+	 * stays at the head of the list, so it is still the first addition.
+	 * Delete it last, preserving untagged admission if other work failed.
+	 */
+	for (pass = 0; pass < 3; pass++) {
+		if (pass == 2 && first_error != 0)
+			break;
+		SLIST_FOREACH_SAFE(f, sc->vlan_filters, next, tmp) {
+			if (f->desired) {
+				if (pass != 1)
+					continue;
+			} else if (pass != (f->vlan == 0 ? 2 : 0))
+				continue;
+			if (f->rejected) {
+				first_error = EIO;
+				continue;
+			}
+			if (!f->uncertain && f->desired == f->applied) {
+				if (!f->desired) {
+					SLIST_REMOVE(sc->vlan_filters, f,
+					    iavf_vlan_filter, next);
+					free(f, M_IAVF);
+				}
+				continue;
+			}
+			if (sent == IAVF_VLAN_SYNC_BATCH ||
+			    getsbinuptime() >= deadline) {
+				atomic_store_rel_32(&sc->vlan_batch_pending, 1);
+				error = EAGAIN;
+				goto out;
+			}
+			bzero(&msg, sizeof(msg));
+			msg.list.vsi_id = sc->vsi_res->vsi_id;
+			msg.list.num_elements = 1;
+			msg.list.vlan_id[0] = f->vlan;
+			sc->vlan_id = f->vlan;
+			sc->vlan_op = f->desired ? VIRTCHNL_OP_ADD_VLAN :
+			    VIRTCHNL_OP_DEL_VLAN;
+			sc->vlan_done = false;
+			sent++;
+			error = iavf_send_pf_msg(sc, sc->vlan_op, (u8 *)&msg,
+			    sizeof(msg));
+			if (error != 0) {
+				/* A send timeout can occur after posting the command. */
+				error = ETIMEDOUT;
+				goto out;
+			}
+			while (!sc->vlan_done) {
+				error = msleep_sbt(&sc->vlan_op, &sc->vc_mtx, 0,
+				    "iavfvlan", deadline, 0, C_ABSOLUTE);
+				if (error != 0 && !sc->vlan_done) {
+					error = ETIMEDOUT;
+					goto out;
+				}
+			}
+			error = iavf_vlan_result(sc);
+			if (error != 0)
+				first_error = error;
+		}
 	}
-
-	v->vsi_id = sc->vsi_res->vsi_id;
-	v->num_elements = cnt;
-
-	/* Scan the filter array */
-	SLIST_FOREACH_SAFE(f, sc->vlan_filters, next, ftmp) {
-                if (f->flags & IAVF_FILTER_DEL) {
-                        bcopy(&f->vlan, &v->vlan_id[i], sizeof(u16));
-                        i++;
-                        SLIST_REMOVE(sc->vlan_filters, f, iavf_vlan_filter, next);
-                        free(f, M_IAVF);
-                }
-                if (i == cnt)
-                        break;
-	}
-
-	iavf_send_pf_msg(sc, VIRTCHNL_OP_DEL_VLAN, (u8 *)v, len);
-	free(v, M_IAVF);
-	/* add stats? */
-	return (0);
+	error = first_error;
+out:
+	IAVF_VC_UNLOCK(sc);
+	return (error);
 }
 
 /**
@@ -638,19 +707,32 @@ iavf_del_ether_filters(struct iavf_sc *sc)
  *
  * Request that the PF reset this VF. No response is expected.
  *
- * @returns zero
+ * @returns zero on success, or an error code if the request could not be
+ * submitted.
  */
 int
 iavf_request_reset(struct iavf_sc *sc)
 {
+	struct iavf_hw *hw;
+	u32 old_rstat;
+	int error;
+
+	hw = &sc->hw;
+	old_rstat = rd32(hw, IAVF_VFGEN_RSTAT) &
+	    IAVF_VFGEN_RSTAT_VFR_STATE_MASK;
 	/*
-	** Set the reset status to "in progress" before
-	** the request, this avoids any possibility of
-	** a mistaken early detection of completion.
-	*/
-	wr32(&sc->hw, IAVF_VFGEN_RSTAT, VIRTCHNL_VFR_INPROGRESS);
-	iavf_send_pf_msg(sc, VIRTCHNL_OP_RESET_VF, NULL, 0);
-	return (0);
+	 * The VF must publish INPROGRESS before asking the PF to reset it.  This
+	 * also prevents a stale VFACTIVE value from looking like completion.
+	 */
+	wr32(hw, IAVF_VFGEN_RSTAT, VIRTCHNL_VFR_INPROGRESS);
+	iavf_flush(hw);
+	error = iavf_send_pf_msg(sc, VIRTCHNL_OP_RESET_VF, NULL, 0);
+	if (error != 0) {
+		/* No reset was submitted; do not leave a synthetic reset behind. */
+		wr32(hw, IAVF_VFGEN_RSTAT, old_rstat);
+		iavf_flush(hw);
+	}
+	return (error);
 }
 
 /**
@@ -723,8 +805,10 @@ int
 iavf_config_rss_key(struct iavf_sc *sc)
 {
 	struct virtchnl_rss_key *rss_key_msg;
-	int msg_len, key_length;
+	int error, msg_len, key_length;
 	u32		rss_seed[IAVF_RSS_KEY_SIZE_REG] = {0};
+
+	mtx_assert(&sc->vc_mtx, MA_NOTOWNED);
 
 	/* Fetch the configured RSS key */
 	rss_getkey((uint8_t *) &rss_seed);
@@ -746,11 +830,21 @@ iavf_config_rss_key(struct iavf_sc *sc)
 	iavf_dbg_vc(sc, "%s: vsi_id %d, key_len %d\n", __func__,
 	    rss_key_msg->vsi_id, rss_key_msg->key_len);
 
-	iavf_send_pf_msg(sc, VIRTCHNL_OP_CONFIG_RSS_KEY,
+	IAVF_VC_LOCK(sc);
+	sc->rss_configured &= ~IAVF_FLAG_AQ_CONFIG_RSS_KEY;
+	sc->rss_pending |= IAVF_FLAG_AQ_CONFIG_RSS_KEY;
+	/* Standard IPv4/IPv6 tuples use the first 40 bytes of the 52-byte key. */
+	sc->rss_key_size = MIN(key_length, sizeof(sc->rss_key));
+	bzero(sc->rss_key, sizeof(sc->rss_key));
+	memcpy(sc->rss_key, rss_seed, sc->rss_key_size);
+	error = iavf_send_pf_msg(sc, VIRTCHNL_OP_CONFIG_RSS_KEY,
 			  (u8 *)rss_key_msg, msg_len);
+	if (error != 0)
+		sc->rss_pending &= ~IAVF_FLAG_AQ_CONFIG_RSS_KEY;
+	IAVF_VC_UNLOCK(sc);
 
 	free(rss_key_msg, M_IAVF);
-	return (0);
+	return (error);
 }
 
 /**
@@ -761,13 +855,16 @@ iavf_config_rss_key(struct iavf_sc *sc)
  *
  * @remark the reply from the PF is not checked by this function.
  *
- * @returns zero
+ * @returns zero on success, or an error code on failure.
  */
 int
 iavf_set_rss_hena(struct iavf_sc *sc)
 {
 	struct virtchnl_rss_hena hena;
 	struct iavf_hw *hw = &sc->hw;
+	int error;
+
+	mtx_assert(&sc->vc_mtx, MA_NOTOWNED);
 
 	if (hw->mac.type == IAVF_MAC_VF)
 		hena.hena = IAVF_DEFAULT_RSS_HENA_AVF;
@@ -776,9 +873,16 @@ iavf_set_rss_hena(struct iavf_sc *sc)
 	else
 		hena.hena = IAVF_DEFAULT_RSS_HENA_BASE;
 
-	iavf_send_pf_msg(sc, VIRTCHNL_OP_SET_RSS_HENA,
+	IAVF_VC_LOCK(sc);
+	sc->rss_configured &= ~IAVF_FLAG_AQ_SET_RSS_HENA;
+	sc->rss_pending |= IAVF_FLAG_AQ_SET_RSS_HENA;
+	sc->rss_hena = hena.hena;
+	error = iavf_send_pf_msg(sc, VIRTCHNL_OP_SET_RSS_HENA,
 	    (u8 *)&hena, sizeof(hena));
-	return (0);
+	if (error != 0)
+		sc->rss_pending &= ~IAVF_FLAG_AQ_SET_RSS_HENA;
+	IAVF_VC_UNLOCK(sc);
+	return (error);
 }
 
 /**
@@ -882,13 +986,13 @@ iavf_vc_send_cmd(struct iavf_sc *sc, uint32_t request)
 		return iavf_add_ether_filters(sc);
 
 	case IAVF_FLAG_AQ_ADD_VLAN_FILTER:
-		return iavf_add_vlans(sc);
+		return iavf_sync_vlans(sc);
 
 	case IAVF_FLAG_AQ_DEL_MAC_FILTER:
 		return iavf_del_ether_filters(sc);
 
 	case IAVF_FLAG_AQ_DEL_VLAN_FILTER:
-		return iavf_del_vlans(sc);
+		return iavf_sync_vlans(sc);
 
 	case IAVF_FLAG_AQ_CONFIGURE_QUEUES:
 		return iavf_configure_queues(sc);
@@ -1207,6 +1311,9 @@ iavf_vc_completion(struct iavf_sc *sc,
     enum virtchnl_status_code v_retval, u8 *msg, u16 msglen __unused)
 {
 	device_t	dev = sc->dev;
+	u32 rss_op;
+
+	IAVF_VC_LOCK_ASSERT(sc);
 
 	if (v_opcode != VIRTCHNL_OP_GET_STATS)
 		iavf_dbg_vc(sc, "%s: opcode %s\n", __func__,
@@ -1223,6 +1330,8 @@ iavf_vc_completion(struct iavf_sc *sc,
 		case VIRTCHNL_EVENT_RESET_IMPENDING:
 			device_printf(dev, "PF initiated reset!\n");
 			iavf_set_state(&sc->state, IAVF_STATE_RESET_PENDING);
+			sc->rss_pending = 0;
+			sc->rss_configured = 0;
 			break;
 		default:
 			iavf_dbg_vc(sc, "Unknown event %d from AQ\n",
@@ -1231,6 +1340,21 @@ iavf_vc_completion(struct iavf_sc *sc,
 		}
 
 		return;
+	}
+
+	if (v_opcode == VIRTCHNL_OP_ADD_VLAN ||
+	    v_opcode == VIRTCHNL_OP_DEL_VLAN)
+		iavf_vlan_completion(sc, v_opcode, v_retval);
+
+	rss_op = 0;
+	if (v_opcode == VIRTCHNL_OP_CONFIG_RSS_KEY)
+		rss_op = IAVF_FLAG_AQ_CONFIG_RSS_KEY;
+	else if (v_opcode == VIRTCHNL_OP_SET_RSS_HENA)
+		rss_op = IAVF_FLAG_AQ_SET_RSS_HENA;
+	if (sc->rss_pending & rss_op) {
+		sc->rss_pending &= ~rss_op;
+		if (v_retval == VIRTCHNL_STATUS_SUCCESS)
+			sc->rss_configured |= rss_op;
 	}
 
 	/* Catch-all error response */

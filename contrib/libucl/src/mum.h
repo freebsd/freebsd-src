@@ -202,6 +202,26 @@ _mum_le32(uint32_t v)
 #endif
 }
 
+/* Loads through memcpy are defined for any alignment of the data, and
+   compilers turn them into single loads where unaligned access works.  */
+static inline uint64_t
+_mum_load64(const unsigned char *p)
+{
+	uint64_t v;
+
+	memcpy(&v, p, sizeof(v));
+	return v;
+}
+
+static inline uint32_t
+_mum_load32(const unsigned char *p)
+{
+	uint32_t v;
+
+	memcpy(&v, p, sizeof(v));
+	return v;
+}
+
 /* Macro defining how many times the most nested loop in
    _mum_hash_aligned will be unrolled by the compiler (although it can
    make an own decision:).  Use only a constant here to help a
@@ -243,7 +263,7 @@ static inline uint64_t _MUM_OPTIMIZE("unroll-loops")
        64x64->128-bit multiplication.  AVX2 currently only have a
        vector insn for 4 32x32->64-bit multiplication.  */
 		for (i = 0; i < _MUM_UNROLL_FACTOR; i++)
-			result ^= _mum(_mum_le(((uint64_t *) str)[i]), _mum_primes[i]);
+			result ^= _mum(_mum_le(_mum_load64(str + i * sizeof(uint64_t))), _mum_primes[i]);
 		len -= _MUM_UNROLL_FACTOR * sizeof(uint64_t);
 		str += _MUM_UNROLL_FACTOR * sizeof(uint64_t);
 		/* We will use the same prime numbers on the next iterations --
@@ -252,27 +272,27 @@ static inline uint64_t _MUM_OPTIMIZE("unroll-loops")
 	}
 	n = len / sizeof(uint64_t);
 	for (i = 0; i < (int) n; i++)
-		result ^= _mum(_mum_le(((uint64_t *) str)[i]), _mum_primes[i]);
+		result ^= _mum(_mum_le(_mum_load64(str + i * sizeof(uint64_t))), _mum_primes[i]);
 	len -= n * sizeof(uint64_t);
 	str += n * sizeof(uint64_t);
 	switch (len) {
 	case 7:
-		u64 = _mum_le32(*(uint32_t *) str);
+		u64 = _mum_le32(_mum_load32(str));
 		u64 |= (uint64_t) str[4] << 32;
 		u64 |= (uint64_t) str[5] << 40;
 		u64 |= (uint64_t) str[6] << 48;
 		return result ^ _mum(u64, _mum_tail_prime);
 	case 6:
-		u64 = _mum_le32(*(uint32_t *) str);
+		u64 = _mum_le32(_mum_load32(str));
 		u64 |= (uint64_t) str[4] << 32;
 		u64 |= (uint64_t) str[5] << 40;
 		return result ^ _mum(u64, _mum_tail_prime);
 	case 5:
-		u64 = _mum_le32(*(uint32_t *) str);
+		u64 = _mum_le32(_mum_load32(str));
 		u64 |= (uint64_t) str[4] << 32;
 		return result ^ _mum(u64, _mum_tail_prime);
 	case 4:
-		u64 = _mum_le32(*(uint32_t *) str);
+		u64 = _mum_le32(_mum_load32(str));
 		return result ^ _mum(u64, _mum_tail_prime);
 	case 3:
 		u64 = str[0];

@@ -173,8 +173,7 @@ ng_UI_rcvdata(hook_p hook, item_p item)
 	if (hook == priv->downlink) {
 		u_char *start, *ptr;
 
-		if (m->m_len < MAX_ENCAPS_HDR
-		    && !(m = m_pullup(m, MAX_ENCAPS_HDR)))
+		if ((m = m_pullup(m, MAX_ENCAPS_HDR)) == NULL)
 			ERROUT(ENOBUFS);
 		ptr = start = mtod(m, u_char *);
 

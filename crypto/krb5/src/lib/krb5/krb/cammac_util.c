@@ -44,6 +44,8 @@ check_svcver(krb5_context context, const krb5_cammac *cammac,
 
     if (ver == NULL)
         return EINVAL;
+    if (!krb5_c_is_keyed_cksum(ver->checksum.checksum_type))
+        return KRB5KRB_AP_ERR_BAD_INTEGRITY;
 
     ret = encode_krb5_authdata(cammac->elements, &der_authdata);
     if (ret)

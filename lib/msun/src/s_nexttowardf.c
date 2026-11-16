@@ -42,7 +42,7 @@ nexttowardf(float x, long double y)
 	else					/* x += ulp */
 	    hx += 1;
 	ix = hx&0x7f800000;
-	if(ix>=0x7f800000) return x+x;	/* overflow  */
+	if(ix>=0x7f800000)t = x+x;	/* overflow  */
 	if(ix<0x00800000) {		/* underflow */
 	    t = x*x;
 	    if(t!=x) {		/* raise underflow flag */

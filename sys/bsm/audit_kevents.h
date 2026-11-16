@@ -447,6 +447,7 @@
 #define	AUE_PIDFORTASK		43049	/* Darwin-specific. */
 #define	AUE_SYSCTL_NONADMIN	43050
 #define	AUE_COPYFILE		43051	/* Darwin-specific. */
+#define	AUE_DBGPORTFORPID	43052   /* Darwin-specific. */
 
 /*
  * Events added to OpenBSM for FreeBSD and Linux; may also be used by Darwin
@@ -668,6 +669,11 @@
 #define	AUE_PDOPENPID		43274	/* FreeBSD-specific. */
 #define	AUE_PDPTRACE		43275	/* FreeBSD-specific. */
 
+#define	AUE_SESSION_START	44901   /* Darwin. */
+#define	AUE_SESSION_UPDATE	44902   /* Darwin. */
+#define	AUE_SESSION_END		44903   /* Darwin. */
+#define	AUE_SESSION_CLOSE	44904   /* Darwin. */
+
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the
  * normal Solaris BSM identifiers.  _O_ refers to it being an old, or compat
@@ -852,5 +858,11 @@
 #define	AUE_WATCHEVENT		AUE_NULL
 #define	AUE_WORKQOPEN		AUE_NULL
 #define	AUE_WORKQOPS		AUE_NULL
+#define	AUE_WORKLOOPCTL		AUE_NULL
+#define	AUE_PERSONA		AUE_NULL
+#define	AUE_USRCTL		AUE_NULL
+#define	AUE_NEXUS		AUE_NULL
+#define	AUE_CHANNEL		AUE_NULL
+#define	AUE_NET			AUE_NULL
 
 #endif /* !_BSM_AUDIT_KEVENTS_H_ */

@@ -163,18 +163,20 @@ struct sysentvec {
 	struct regset	**sv_regset_end;
 };
 
-#define	SV_ILP32	0x000100	/* 32-bit executable. */
-#define	SV_LP64		0x000200	/* 64-bit executable. */
-#define	SV_RESERVED0	0x004000	/* Formerly SV_IA32 */
-#define	SV_AOUT		0x008000	/* a.out executable. */
-#define	SV_SHP		0x010000	/* Shared page. */
-#define	SV_SIGSYS	0x020000	/* SIGSYS for non-existing syscall */
-#define	SV_TIMEKEEP	0x040000	/* Shared page timehands. */
-#define	SV_ASLR		0x080000	/* ASLR allowed. */
-#define	SV_RNG_SEED_VER	0x100000	/* random(4) reseed generation. */
-#define	SV_SIG_DISCIGN	0x200000	/* Do not discard ignored signals */
-#define	SV_SIG_WAITNDQ	0x400000	/* Wait does not dequeue SIGCHLD */
-#define	SV_DSO_SIG	0x800000	/* Signal trampoline packed in dso */
+#define	SV_ILP32	0x00000100	/* 32-bit executable. */
+#define	SV_LP64		0x00000200	/* 64-bit executable. */
+#define	SV_RESERVED0	0x00004000	/* Formerly SV_IA32 */
+#define	SV_AOUT		0x00008000	/* a.out executable. */
+#define	SV_SHP		0x00010000	/* Shared page. */
+#define	SV_SIGSYS	0x00020000	/* SIGSYS for non-existing syscall */
+#define	SV_TIMEKEEP	0x00040000	/* Shared page timehands. */
+#define	SV_ASLR		0x00080000	/* ASLR allowed. */
+#define	SV_RNG_SEED_VER	0x00100000	/* random(4) reseed generation. */
+#define	SV_SIG_DISCIGN	0x00200000	/* Do not discard ignored signals */
+#define	SV_SIG_WAITNDQ	0x00400000	/* Wait does not dequeue SIGCHLD */
+#define	SV_DSO_SIG	0x00800000	/* Signal trampoline packed in dso */
+#define	SV_PERSISTENT_CTTY 0x01000000	/* Keep ctty after the last close */
+#define	SV_CONN_PORT0	0x02000000	/* Allow connect() with port 0 */
 
 #define	SV_ABI_MASK	0xff
 #define	SV_PROC_FLAG(p, x)	((p)->p_sysent->sv_flags & (x))
@@ -185,6 +187,11 @@ struct sysentvec {
 #define	SV_ABI_LINUX	3
 #define	SV_ABI_FREEBSD 	9
 #define	SV_ABI_UNDEF	255
+
+#define	SV_ABI_FREEBSD_FLAGS	(SV_ABI_FREEBSD | SV_ASLR | SV_SHP | \
+    SV_TIMEKEEP | SV_RNG_SEED_VER | SV_SIGSYS)
+#define	SV_ABI_LINUX_FLAGS	(SV_ABI_LINUX | SV_SHP | SV_SIG_DISCIGN | \
+    SV_SIG_WAITNDQ | SV_TIMEKEEP | SV_PERSISTENT_CTTY | SV_CONN_PORT0)
 
 /* sv_coredump flags */
 #define	SVC_PT_COREDUMP	0x00000001	/* dump requested by ptrace(2) */

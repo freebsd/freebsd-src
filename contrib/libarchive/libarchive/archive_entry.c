@@ -121,15 +121,6 @@ static const wchar_t	*ae_wcstofflags(const wchar_t *stringp,
 static const char	*ae_strtofflags(const char *stringp, size_t length,
 		    unsigned long *setp, unsigned long *clrp);
 
-#ifndef HAVE_WCSCPY
-static wchar_t * wcscpy(wchar_t *s1, const wchar_t *s2)
-{
-	wchar_t *dest = s1;
-	while ((*s1 = *s2) != L'\0')
-		++s1, ++s2;
-	return dest;
-}
-#endif
 #ifndef HAVE_WCSLEN
 static size_t wcslen(const wchar_t *s)
 {
@@ -469,7 +460,7 @@ archive_entry_gname_w(struct archive_entry *entry)
 }
 
 int
-_archive_entry_gname_l(struct archive_entry *entry,
+archive_entry_gname_l(struct archive_entry *entry,
     const char **p, size_t *len, struct archive_string_conv *sc)
 {
 	return (archive_mstring_get_mbs_l(entry->archive, &entry->ae_gname, p, len, sc));
@@ -533,7 +524,7 @@ archive_entry_hardlink_is_set(struct archive_entry *entry)
 }
 
 int
-_archive_entry_hardlink_l(struct archive_entry *entry,
+archive_entry_hardlink_l(struct archive_entry *entry,
     const char **p, size_t *len, struct archive_string_conv *sc)
 {
 	if ((entry->ae_set & AE_SET_HARDLINK) == 0) {
@@ -643,7 +634,7 @@ archive_entry_pathname_w(struct archive_entry *entry)
 }
 
 int
-_archive_entry_pathname_l(struct archive_entry *entry,
+archive_entry_pathname_l(struct archive_entry *entry,
     const char **p, size_t *len, struct archive_string_conv *sc)
 {
 	return (archive_mstring_get_mbs_l(entry->archive, &entry->ae_pathname, p, len, sc));
@@ -799,7 +790,7 @@ archive_entry_symlink_w(struct archive_entry *entry)
 }
 
 int
-_archive_entry_symlink_l(struct archive_entry *entry,
+archive_entry_symlink_l(struct archive_entry *entry,
     const char **p, size_t *len, struct archive_string_conv *sc)
 {
 	if ((entry->ae_set & AE_SET_SYMLINK) == 0) {
@@ -856,7 +847,7 @@ archive_entry_uname_w(struct archive_entry *entry)
 }
 
 int
-_archive_entry_uname_l(struct archive_entry *entry,
+archive_entry_uname_l(struct archive_entry *entry,
     const char **p, size_t *len, struct archive_string_conv *sc)
 {
 	return (archive_mstring_get_mbs_l(entry->archive, &entry->ae_uname, p, len, sc));
@@ -974,7 +965,7 @@ archive_entry_update_gname_utf8(struct archive_entry *entry, const char *name)
 }
 
 int
-_archive_entry_copy_gname_l(struct archive_entry *entry,
+archive_entry_copy_gname_l(struct archive_entry *entry,
     const char *name, size_t len, struct archive_string_conv *sc)
 {
 	return (archive_mstring_copy_mbs_len_l(&entry->ae_gname, name, len, sc));
@@ -1075,7 +1066,7 @@ archive_entry_update_hardlink_utf8(struct archive_entry *entry, const char *targ
 }
 
 int
-_archive_entry_copy_hardlink_l(struct archive_entry *entry,
+archive_entry_copy_hardlink_l(struct archive_entry *entry,
     const char *target, size_t len, struct archive_string_conv *sc)
 {
 	int r;
@@ -1225,7 +1216,7 @@ archive_entry_update_link_utf8(struct archive_entry *entry, const char *target)
 }
 
 int
-_archive_entry_copy_link_l(struct archive_entry *entry,
+archive_entry_copy_link_l(struct archive_entry *entry,
     const char *target, size_t len, struct archive_string_conv *sc)
 {
 	int r;
@@ -1306,7 +1297,7 @@ archive_entry_update_pathname_utf8(struct archive_entry *entry, const char *name
 }
 
 int
-_archive_entry_copy_pathname_l(struct archive_entry *entry,
+archive_entry_copy_pathname_l(struct archive_entry *entry,
     const char *name, size_t len, struct archive_string_conv *sc)
 {
 	return (archive_mstring_copy_mbs_len_l(&entry->ae_pathname,
@@ -1460,7 +1451,7 @@ archive_entry_update_symlink_utf8(struct archive_entry *entry, const char *linkn
 }
 
 int
-_archive_entry_copy_symlink_l(struct archive_entry *entry,
+archive_entry_copy_symlink_l(struct archive_entry *entry,
     const char *linkname, size_t len, struct archive_string_conv *sc)
 {
 	int r;
@@ -1544,7 +1535,7 @@ archive_entry_set_is_metadata_encrypted(struct archive_entry *entry, char is_enc
 }
 
 int
-_archive_entry_copy_uname_l(struct archive_entry *entry,
+archive_entry_copy_uname_l(struct archive_entry *entry,
     const char *name, size_t len, struct archive_string_conv *sc)
 {
 	return (archive_mstring_copy_mbs_len_l(&entry->ae_uname,
@@ -1748,7 +1739,7 @@ archive_entry_acl_to_text(struct archive_entry *entry, la_ssize_t *len,
 }
 
 char *
-_archive_entry_acl_to_text_l(struct archive_entry *entry, ssize_t *len,
+archive_entry_acl_to_text_l(struct archive_entry *entry, ssize_t *len,
    int flags, struct archive_string_conv *sc)
 {
 	return (archive_acl_to_text_l(&entry->acl, len, flags, sc));
@@ -1772,7 +1763,7 @@ archive_entry_acl_from_text(struct archive_entry *entry,
 }
 
 int
-_archive_entry_acl_from_text_l(struct archive_entry *entry, const char *text,
+archive_entry_acl_from_text_l(struct archive_entry *entry, const char *text,
     int type, struct archive_string_conv *sc)
 {
 	return (archive_acl_from_text_l(&entry->acl, text, type, sc));
@@ -1825,7 +1816,7 @@ archive_entry_acl_text(struct archive_entry *entry, int flags)
 
 /* Deprecated */
 int
-_archive_entry_acl_text_l(struct archive_entry *entry, int flags,
+archive_entry_acl_text_l(struct archive_entry *entry, int flags,
     const char **acl_text, size_t *len, struct archive_string_conv *sc)
 {
 	free(entry->acl.acl_text);

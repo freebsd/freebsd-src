@@ -402,6 +402,7 @@ static void	iwm_nic_umac_error(struct iwm_softc *);
 static void	iwm_handle_rxb(struct iwm_softc *, struct mbuf *);
 static void	iwm_notif_intr(struct iwm_softc *);
 static void	iwm_intr(void *);
+static void	iwm_intr_msix(void *);
 static int	iwm_attach(device_t);
 static int	iwm_is_valid_ether_addr(uint8_t *);
 static void	iwm_preinit(void *);
@@ -560,6 +561,21 @@ iwm_fw_info_free(struct iwm_fw_info *fw)
 	firmware_put(fw->fw_fp, FIRMWARE_UNLOAD);
 	fw->fw_fp = NULL;
 	memset(fw->img, 0, sizeof(fw->img));
+}
+
+static uint8_t
+iwm_lookup_cmd_ver(struct iwm_softc *sc, uint8_t grp, uint8_t cmd)
+{
+	const struct iwm_fw_cmd_version *entry;
+	int i;
+
+	for (i = 0; i < sc->n_cmd_versions; i++) {
+		entry = &sc->cmd_versions[i];
+		if (entry->group == grp && entry->cmd == cmd)
+			return entry->cmd_ver;
+	}
+
+	return IWM_FW_CMD_VER_UNKNOWN;
 }
 
 static int
@@ -817,6 +833,22 @@ iwm_read_firmware(struct iwm_softc *sc)
 		}
 
 		case IWM_UCODE_TLV_CMD_VERSIONS:
+			if (tlv_len % sizeof(struct iwm_fw_cmd_version)) {
+				tlv_len /= sizeof(struct iwm_fw_cmd_version);
+				tlv_len *= sizeof(struct iwm_fw_cmd_version);
+			}
+			if (sc->n_cmd_versions != 0) {
+				error = EINVAL;
+				goto parse_out;
+			}
+			if (tlv_len > sizeof(sc->cmd_versions)) {
+				error = EINVAL;
+				goto parse_out;
+			}
+			memcpy(&sc->cmd_versions[0], tlv_data, tlv_len);
+			sc->n_cmd_versions = tlv_len / sizeof(struct iwm_fw_cmd_version);
+			break;
+
 		case IWM_UCODE_TLV_SDIO_ADMA_ADDR:
 		case IWM_UCODE_TLV_FW_GSCAN_CAPA:
 			/* ignore, not used by current driver */
@@ -1115,10 +1147,25 @@ iwm_alloc_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring, int qid)
 	ring->desc = ring->desc_dma.vaddr;
 
 	/*
-	 * We only use rings 0 through 9 (4 EDCA + cmd) so there is no need
-	 * to allocate commands space for other rings.
+	 * There is no need to allocate DMA buffers for unused rings.
+	 * 7k/8k/9k hardware supports up to 31 Tx rings which is more
+	 * than we currently need.
+	 *
+	 * In DQA mode we use 1 command queue + 4 DQA mgmt/data queues.
+	 * The command is queue 0 (sc->txq[0]), and 4 mgmt/data frame queues
+	 * are sc->tqx[IWM_DQA_MIN_MGMT_QUEUE + ac], i.e. sc->txq[5:8],
+	 * in order to provide one queue per EDCA category.
+	 * Tx aggregation requires additional queues, one queue per TID for
+	 * which aggregation is enabled. We map TID 0-7 to sc->txq[10:17].
+	 *
+	 * In non-DQA mode, we use rings 0 through 9 (0-3 are EDCA, 9 is cmd),
+	 * and Tx aggregation is not supported.
+	 *
+	 * Unfortunately, we cannot tell if DQA will be used until the
+	 * firmware gets loaded later, so just allocate sufficient rings
+	 * in order to satisfy both cases.
 	 */
-	if (qid > IWM_CMD_QUEUE)
+	if (qid > IWM_LAST_AGG_TX_QUEUE)
 		return 0;
 
 	size = IWM_TX_RING_COUNT * sizeof(struct iwm_device_cmd);
@@ -1130,8 +1177,13 @@ iwm_alloc_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring, int qid)
 	}
 	ring->cmd = ring->cmd_dma.vaddr;
 
-	/* FW commands may require more mapped space than packets. */
-	if (qid == IWM_CMD_QUEUE) {
+	/*
+	 * FW commands may require more mapped space than packets.  The
+	 * DQA command queue is ring 0 and we can't tell at allocation
+	 * time which command queue id will be used, so give both the
+	 * command-sized DMA tag.
+	 */
+	if (qid == IWM_CMD_QUEUE || qid == IWM_DQA_CMD_QUEUE) {
 		maxsize = IWM_RBUF_SIZE;
 		nsegments = 1;
 	} else {
@@ -1192,10 +1244,11 @@ iwm_reset_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring)
 	bus_dmamap_sync(ring->desc_dma.tag, ring->desc_dma.map,
 	    BUS_DMASYNC_PREWRITE);
 	sc->qfullmsk &= ~(1 << ring->qid);
+	sc->qenablemsk &= ~(1 << ring->qid);
 	ring->queued = 0;
 	ring->cur = 0;
 
-	if (ring->qid == IWM_CMD_QUEUE && sc->cmd_hold_nic_awake)
+	if (ring->qid == sc->cmdqid && sc->cmd_hold_nic_awake)
 		iwm_pcie_clear_cmd_in_flight(sc);
 }
 
@@ -1235,8 +1288,21 @@ iwm_free_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring)
 static void
 iwm_enable_interrupts(struct iwm_softc *sc)
 {
-	sc->sc_intmask = IWM_CSR_INI_SET_MASK;
-	IWM_WRITE(sc, IWM_CSR_INT_MASK, sc->sc_intmask);
+	if (!sc->sc_msix) {
+		sc->sc_intmask = IWM_CSR_INI_SET_MASK;
+		IWM_WRITE(sc, IWM_CSR_INT_MASK, sc->sc_intmask);
+	} else {
+		/*
+		 * fh/hw_mask keeps all the unmasked causes.
+		 * Unlike msi, in msix cause is enabled when it is unset.
+		 */
+		sc->sc_hw_mask = sc->sc_hw_init_mask;
+		sc->sc_fh_mask = sc->sc_fh_init_mask;
+		IWM_WRITE(sc, IWM_CSR_MSIX_FH_INT_MASK_AD,
+		    ~sc->sc_fh_mask);
+		IWM_WRITE(sc, IWM_CSR_MSIX_HW_INT_MASK_AD,
+		    ~sc->sc_hw_mask);
+	}
 }
 
 static void
@@ -1248,12 +1314,19 @@ iwm_restore_interrupts(struct iwm_softc *sc)
 static void
 iwm_disable_interrupts(struct iwm_softc *sc)
 {
-	/* disable interrupts */
-	IWM_WRITE(sc, IWM_CSR_INT_MASK, 0);
+	if (!sc->sc_msix) {
+		/* disable interrupts */
+		IWM_WRITE(sc, IWM_CSR_INT_MASK, 0);
 
-	/* acknowledge all interrupts */
-	IWM_WRITE(sc, IWM_CSR_INT, ~0);
-	IWM_WRITE(sc, IWM_CSR_FH_INT_STATUS, ~0);
+		/* acknowledge all interrupts */
+		IWM_WRITE(sc, IWM_CSR_INT, ~0);
+		IWM_WRITE(sc, IWM_CSR_FH_INT_STATUS, ~0);
+	} else {
+		IWM_WRITE(sc, IWM_CSR_MSIX_FH_INT_MASK_AD,
+		    sc->sc_fh_init_mask);
+		IWM_WRITE(sc, IWM_CSR_MSIX_HW_INT_MASK_AD,
+		    sc->sc_hw_init_mask);
+	}
 }
 
 static void
@@ -1368,7 +1441,17 @@ iwm_stop_device(struct iwm_softc *sc)
 	DELAY(5000);
 
 	/*
+	 * Upon stop, the IVAR table gets erased, so msi-x won't
+	 * work. This causes a bug in RF-KILL flows, since the interrupt
+	 * that enables radio won't fire on the correct irq, and the
+	 * driver won't be able to handle the interrupt.
+	 * Configure the IVAR table again after reset.
+	 */
+	iwm_conf_msix_hw(sc, 1);
+
+	/*
 	 * Upon stop, the APM issues an interrupt if HW RF kill is set.
+	 * Clear the interrupt again.
 	 */
 	iwm_disable_interrupts(sc);
 
@@ -1387,7 +1470,7 @@ static void
 iwm_nic_config(struct iwm_softc *sc)
 {
 	uint8_t radio_cfg_type, radio_cfg_step, radio_cfg_dash;
-	uint32_t reg_val = 0;
+	uint32_t mask, val, reg_val = 0;
 	uint32_t phy_config = iwm_get_phy_config(sc);
 
 	radio_cfg_type = (phy_config & IWM_FW_PHY_CFG_RADIO_TYPE) >>
@@ -1408,15 +1491,18 @@ iwm_nic_config(struct iwm_softc *sc)
 	reg_val |= radio_cfg_step << IWM_CSR_HW_IF_CONFIG_REG_POS_PHY_STEP;
 	reg_val |= radio_cfg_dash << IWM_CSR_HW_IF_CONFIG_REG_POS_PHY_DASH;
 
-	IWM_WRITE(sc, IWM_CSR_HW_IF_CONFIG_REG,
-	    IWM_CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH |
+	mask = IWM_CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH |
 	    IWM_CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP |
 	    IWM_CSR_HW_IF_CONFIG_REG_MSK_PHY_STEP |
 	    IWM_CSR_HW_IF_CONFIG_REG_MSK_PHY_DASH |
 	    IWM_CSR_HW_IF_CONFIG_REG_MSK_PHY_TYPE |
 	    IWM_CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
-	    IWM_CSR_HW_IF_CONFIG_REG_BIT_MAC_SI |
-	    reg_val);
+	    IWM_CSR_HW_IF_CONFIG_REG_BIT_MAC_SI;
+
+	val = IWM_READ(sc, IWM_CSR_HW_IF_CONFIG_REG);
+	val &= ~mask;
+	val |= reg_val;
+	IWM_WRITE(sc, IWM_CSR_HW_IF_CONFIG_REG, val);
 
 	IWM_DPRINTF(sc, IWM_DEBUG_RESET,
 	    "Radio type=0x%x-0x%x-0x%x\n", radio_cfg_type,
@@ -1616,6 +1702,62 @@ iwm_nic_init(struct iwm_softc *sc)
 }
 
 int
+iwm_enable_ac_txq(struct iwm_softc *sc, int qid, int fifo)
+{
+	int err;
+
+	if (!iwm_nic_lock(sc)) {
+		device_printf(sc->sc_dev, "%s: cannot enable txq %d\n",
+		    __func__, qid);
+		return EBUSY;
+	}
+
+	IWM_WRITE(sc, IWM_HBUS_TARG_WRPTR, qid << 8 | 0);
+
+	iwm_write_prph(sc, IWM_SCD_QUEUE_STATUS_BITS(qid),
+	    (0 << IWM_SCD_QUEUE_STTS_REG_POS_ACTIVE)
+	    | (1 << IWM_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
+
+	err = iwm_clear_bits_prph(sc, IWM_SCD_AGGR_SEL, (1 << qid));
+	if (err) {
+		iwm_nic_unlock(sc);
+		device_printf(sc->sc_dev,
+		    "%s: cannot clear aggr_sel for txq %d\n",
+		    __func__, qid);
+		return err;
+	}
+
+	iwm_write_prph(sc, IWM_SCD_QUEUE_RDPTR(qid), 0);
+
+	iwm_write_mem32(sc,
+	    sc->scd_base_addr + IWM_SCD_CONTEXT_QUEUE_OFFSET(qid), 0);
+
+	/* Set scheduler window size and frame limit. */
+	iwm_write_mem32(sc,
+	    sc->scd_base_addr + IWM_SCD_CONTEXT_QUEUE_OFFSET(qid) +
+	    sizeof(uint32_t),
+	    ((IWM_FRAME_LIMIT << IWM_SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
+	    IWM_SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
+	    ((IWM_FRAME_LIMIT
+		<< IWM_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
+	    IWM_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
+
+	iwm_write_prph(sc, IWM_SCD_QUEUE_STATUS_BITS(qid),
+	    (1 << IWM_SCD_QUEUE_STTS_REG_POS_ACTIVE) |
+	    (fifo << IWM_SCD_QUEUE_STTS_REG_POS_TXF) |
+	    (1 << IWM_SCD_QUEUE_STTS_REG_POS_WSL) |
+	    IWM_SCD_QUEUE_STTS_REG_MSK);
+
+	if (qid == sc->cmdqid)
+		iwm_write_prph(sc, IWM_SCD_EN_CTRL,
+		    iwm_read_prph(sc, IWM_SCD_EN_CTRL) | (1 << qid));
+
+	iwm_nic_unlock(sc);
+
+	return 0;
+}
+
+int
 iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo)
 {
 	int qmsk;
@@ -1630,9 +1772,11 @@ iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo)
 
 	IWM_WRITE(sc, IWM_HBUS_TARG_WRPTR, qid << 8 | 0);
 
-	if (qid == IWM_CMD_QUEUE) {
+	if (qid == sc->cmdqid) {
+#if 0
 		/* Disable the scheduler. */
 		iwm_write_prph(sc, IWM_SCD_EN_CTRL, 0);
+#endif
 
 		/* Stop the TX queue prior to configuration. */
 		iwm_write_prph(sc, IWM_SCD_QUEUE_STATUS_BITS(qid),
@@ -1675,7 +1819,8 @@ iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo)
 		    IWM_SCD_QUEUE_STTS_REG_MSK);
 
 		/* Enable the scheduler for this queue. */
-		iwm_write_prph(sc, IWM_SCD_EN_CTRL, qmsk);
+		iwm_write_prph(sc, IWM_SCD_EN_CTRL,
+		    iwm_read_prph(sc, IWM_SCD_EN_CTRL) | qmsk);
 	} else {
 		struct iwm_scd_txq_cfg_cmd cmd;
 		int error;
@@ -1707,6 +1852,7 @@ iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo)
 	IWM_DPRINTF(sc, IWM_DEBUG_XMIT, "%s: enabled txq %d FIFO %d\n",
 	    __func__, qid, fifo);
 
+	sc->qenablemsk |= (1 << qid);
 	return 0;
 }
 
@@ -1751,7 +1897,7 @@ iwm_trans_pcie_fw_alive(struct iwm_softc *sc, uint32_t scd_base_addr)
 	iwm_nic_unlock(sc);
 
 	/* enable command channel */
-	error = iwm_enable_txq(sc, 0 /* unused */, IWM_CMD_QUEUE, 7);
+	error = iwm_enable_ac_txq(sc, sc->cmdqid, IWM_TX_FIFO_CMD);
 	if (error)
 		return error;
 
@@ -2003,6 +2149,11 @@ iwm_add_channel_band(struct iwm_softc *sc, struct ieee80211_channel chans[],
 	}
 }
 
+/* TODO: HT20 */
+/* TODO: HT40 */
+/* TODO: VHT20 */
+/* TODO: VHT40, VHT80 */
+
 static void
 iwm_init_channel_map(struct ieee80211com *ic, int maxchans, int *nchans,
     struct ieee80211_channel chans[])
@@ -2034,6 +2185,86 @@ iwm_init_channel_map(struct ieee80211com *ic, int maxchans, int *nchans,
 		iwm_add_channel_band(sc, chans, maxchans, nchans,
 		    IWM_NUM_2GHZ_CHANNELS, ch_num, bands);
 	}
+}
+
+static int
+iwm_mimo_enabled(struct iwm_softc *sc)
+{
+	return (!sc->nvm_data->sku_cap_mimo_disable);
+}
+
+static void
+iwm_setup_ht_rates(struct iwm_softc *sc)
+{
+	/* XXX TODO MCS0..7 */
+
+	if (!iwm_mimo_enabled(sc))
+		return;
+
+	/* XXX TODO: MCS8..15 if >1 antenna and mimo enabled */
+}
+
+static void
+iwm_vap_update_slot(struct ieee80211vap *vap)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+	struct iwm_softc *sc = ic->ic_softc;
+
+	IWM_LOCK_ASSERT_UNLOCKED(sc);
+
+	IWM_LOCK(sc);
+	if ((sc->sc_flags & IWM_FLAG_STOPPED) == 0) {
+		taskqueue_enqueue(sc->sc_tq, &sc->mac_ctxt_task);
+	}
+	IWM_UNLOCK(sc);
+}
+
+static void
+iwm_vap_update_preamble(struct ieee80211vap *vap)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+	struct iwm_softc *sc = ic->ic_softc;
+
+	IWM_LOCK_ASSERT_UNLOCKED(sc);
+
+	IWM_LOCK(sc);
+	if ((sc->sc_flags & IWM_FLAG_STOPPED) == 0) {
+		taskqueue_enqueue(sc->sc_tq, &sc->mac_ctxt_task);
+	}
+	IWM_UNLOCK(sc);
+}
+
+static int
+iwm_vap_update_wme(struct ieee80211vap *vap,
+    const struct wmeParams *wme_params)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+	struct iwm_softc *sc = ic->ic_softc;
+
+	IWM_LOCK_ASSERT_UNLOCKED(sc);
+
+	IWM_LOCK(sc);
+	if ((sc->sc_flags & IWM_FLAG_STOPPED) == 0) {
+		taskqueue_enqueue(sc->sc_tq, &sc->mac_ctxt_task);
+	}
+	IWM_UNLOCK(sc);
+
+	return (0);
+}
+
+static void
+iwm_vap_update_erp_protmode(struct ieee80211vap *vap)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+	struct iwm_softc *sc = ic->ic_softc;
+
+	IWM_LOCK_ASSERT_UNLOCKED(sc);
+
+	IWM_LOCK(sc);
+	if ((sc->sc_flags & IWM_FLAG_STOPPED) == 0) {
+		taskqueue_enqueue(sc->sc_tq, &sc->mac_ctxt_task);
+	}
+	IWM_UNLOCK(sc);
 }
 
 static void
@@ -2224,6 +2455,12 @@ iwm_parse_nvm_data(struct iwm_softc *sc,
 	data->sku_cap_mimo_disable = sku & IWM_NVM_SKU_CAP_MIMO_DISABLE;
 
 	data->n_hw_addrs = iwm_get_n_hw_addrs(sc, nvm_sw);
+
+	data->calib_version = 255;	/* TODO:
+					this value will prevent some checks from
+					failing, we need to check if this
+					field is still needed, and if it does,
+					where is it in the NVM */
 
 	if (sc->cfg->device_family >= IWM_DEVICE_FAMILY_8000) {
 		/* TODO: use IWL_NVM_EXT */
@@ -2650,8 +2887,17 @@ static inline void
 iwm_enable_fw_load_int(struct iwm_softc *sc)
 {
 	IWM_DPRINTF(sc, IWM_DEBUG_INTR, "Enabling FW load interrupt\n");
-	sc->sc_intmask = IWM_CSR_INT_BIT_FH_TX;
-	IWM_WRITE(sc, IWM_CSR_INT_MASK, sc->sc_intmask);
+
+	if (!sc->sc_msix) {
+		sc->sc_intmask = IWM_CSR_INT_BIT_FH_TX;
+		IWM_WRITE(sc, IWM_CSR_INT_MASK, sc->sc_intmask);
+	} else {
+		IWM_WRITE(sc, IWM_CSR_MSIX_HW_INT_MASK_AD,
+		    sc->sc_hw_init_mask);
+		IWM_WRITE(sc, IWM_CSR_MSIX_FH_INT_MASK_AD,
+		    ~IWM_MSIX_FH_INT_CAUSES_D2S_CH0_NUM);
+		sc->sc_fh_mask = IWM_MSIX_FH_INT_CAUSES_D2S_CH0_NUM;
+	}
 }
 
 /* XXX Add proper rfkill support code */
@@ -2829,6 +3075,11 @@ iwm_load_ucode_wait_alive(struct iwm_softc *sc,
 	fw = &sc->sc_fw.img[ucode_type];
 	sc->cur_ucode = ucode_type;
 	sc->ucode_loaded = FALSE;
+
+	if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_DQA_SUPPORT))
+		sc->cmdqid = IWM_DQA_CMD_QUEUE;
+	else
+		sc->cmdqid = IWM_CMD_QUEUE;
 
 	memset(&alive_data, 0, sizeof(alive_data));
 	iwm_init_notification_wait(sc->sc_notif_wait, &alive_wait,
@@ -3573,10 +3824,10 @@ iwm_rx_tx_cmd(struct iwm_softc *sc, struct iwm_rx_packet *pkt)
 static void
 iwm_cmd_done(struct iwm_softc *sc, struct iwm_rx_packet *pkt)
 {
-	struct iwm_tx_ring *ring = &sc->txq[IWM_CMD_QUEUE];
+	struct iwm_tx_ring *ring = &sc->txq[sc->cmdqid];
 	struct iwm_tx_data *data;
 
-	if (pkt->hdr.qid != IWM_CMD_QUEUE) {
+	if (pkt->hdr.qid != sc->cmdqid) {
 		return;	/* Not a command ack. */
 	}
 
@@ -3752,13 +4003,22 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 	int nsegs;
 	uint8_t tid, type;
 	int i, totlen, error, pad;
+	int qid;
 
 	wh = mtod(m, struct ieee80211_frame *);
 	hdrlen = ieee80211_anyhdrsize(wh);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 	tid = 0;
-	ring = &sc->txq[ac];
+
+	/* Map EDCA categories to Tx data queues. */
+	if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_DQA_SUPPORT))
+		qid = IWM_DQA_MIN_MGMT_QUEUE + ac;
+	else
+		qid = ac;
+
+	ring = &sc->txq[qid];
 	desc = &ring->desc[ring->cur];
+	memset(desc, 0, sizeof(*desc));
 	data = &ring->data[ring->cur];
 
 	/* Fill out iwm_tx_cmd to send to the firmware */
@@ -4511,7 +4771,7 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	    (nstate == IEEE80211_S_INIT ||
 	     nstate == IEEE80211_S_SCAN ||
 	     nstate == IEEE80211_S_AUTH)) {
-		iwm_stop_session_protection(sc, ivp);
+		iwm_unprotect_session(sc, ivp);
 	}
 
 	if ((vap->iv_state == IEEE80211_S_RUN ||
@@ -4628,6 +4888,80 @@ iwm_send_bt_init_conf(struct iwm_softc *sc)
 	    &bt_cmd);
 }
 
+static int
+iwm_send_soc_conf(struct iwm_softc *sc)
+{
+	struct iwm_soc_configuration_cmd cmd;
+	int err;
+	uint32_t cmd_id, flags = 0;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	/*
+	 * In VER_1 of this command, the discrete value is considered
+	 * an integer; In VER_2, it's a bitmask.  Since we have only 2
+	 * values in VER_1, this is backwards-compatible with VER_2,
+	 * as long as we don't set any other flag bits.
+	 */
+	if (!sc->cfg->integrated) { /* VER_1 */
+		flags = IWM_SOC_CONFIG_CMD_FLAGS_DISCRETE;
+	} else { /* VER_2 */
+		uint8_t scan_cmd_ver;
+		if (sc->cfg->ltr_delay != IWM_SOC_FLAGS_LTR_APPLY_DELAY_NONE)
+			flags |= (sc->cfg->ltr_delay &
+			    IWM_SOC_FLAGS_LTR_APPLY_DELAY_MASK);
+		scan_cmd_ver = iwm_lookup_cmd_ver(sc, IWM_LONG_GROUP,
+		    IWM_SCAN_REQ_UMAC);
+		if (scan_cmd_ver != IWM_FW_CMD_VER_UNKNOWN &&
+		    scan_cmd_ver >= 2 && sc->cfg->low_latency_xtal)
+			flags |= IWM_SOC_CONFIG_CMD_FLAGS_LOW_LATENCY;
+	}
+	cmd.flags = htole32(flags);
+
+	cmd.latency = htole32(sc->cfg->xtal_latency);
+
+	cmd_id = iwm_cmd_id(IWM_SOC_CONFIGURATION_CMD, IWM_SYSTEM_GROUP, 0);
+	err = iwm_send_cmd_pdu(sc, cmd_id, 0, sizeof(cmd), &cmd);
+	if (err)
+		device_printf(sc->sc_dev, "failed to set soc latency: %d\n",
+		    err);
+	return err;
+}
+
+static int
+iwm_send_dqa_cmd(struct iwm_softc *sc)
+{
+	struct iwm_dqa_enable_cmd dqa_cmd;
+	uint32_t cmd_id;
+
+	dqa_cmd.cmd_queue = htole32(IWM_DQA_CMD_QUEUE);
+	cmd_id = iwm_cmd_id(IWM_DQA_ENABLE_CMD, IWM_DATA_PATH_GROUP, 0);
+	return iwm_send_cmd_pdu(sc, cmd_id, 0, sizeof(dqa_cmd), &dqa_cmd);
+}
+
+static int
+iwm_send_temp_report_ths_cmd(struct iwm_softc *sc)
+{
+	struct iwm_temp_report_ths_cmd cmd;
+	int err;
+
+	/*
+	 * In order to give responsibility for critical-temperature-kill
+	 * and TX backoff to FW we need to send an empty temperature
+	 * reporting command at init time.
+	 */
+	memset(&cmd, 0, sizeof(cmd));
+
+	err = iwm_send_cmd_pdu(sc,
+	    IWM_WIDE_ID(IWM_PHY_OPS_GROUP, IWM_TEMP_REPORTING_THRESHOLDS_CMD),
+	    0, sizeof(cmd), &cmd);
+	if (err)
+		device_printf(sc->sc_dev,
+		    "TEMP_REPORT_THS_CMD command failed (error %d)\n", err);
+
+	return err;
+}
+
 static boolean_t
 iwm_is_lar_supported(struct iwm_softc *sc)
 {
@@ -4671,7 +5005,7 @@ iwm_send_update_mcc_cmd(struct iwm_softc *sc, const char *alpha2)
 	int n_channels;
 	uint16_t mcc;
 #endif
-	int resp_v2 = iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_LAR_SUPPORT_V2);
+	int resp_v3 = iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_LAR_SUPPORT_V3);
 
 	if (!iwm_is_lar_supported(sc)) {
 		IWM_DPRINTF(sc, IWM_DEBUG_LAR, "%s: no LAR support\n",
@@ -4686,7 +5020,7 @@ iwm_send_update_mcc_cmd(struct iwm_softc *sc, const char *alpha2)
 	else
 		mcc_cmd.source_id = IWM_MCC_SOURCE_OLD_FW;
 
-	if (resp_v2)
+	if (resp_v3)
 		hcmd.len[0] = sizeof(struct iwm_mcc_update_cmd);
 	else
 		hcmd.len[0] = sizeof(struct iwm_mcc_update_cmd_v1);
@@ -4703,7 +5037,7 @@ iwm_send_update_mcc_cmd(struct iwm_softc *sc, const char *alpha2)
 	pkt = hcmd.resp_pkt;
 
 	/* Extract MCC response */
-	if (resp_v2) {
+	if (resp_v3) {
 		mcc_resp = (void *)pkt->data;
 		mcc = mcc_resp->mcc;
 		n_channels =  le32toh(mcc_resp->n_channels);
@@ -4745,7 +5079,7 @@ static int
 iwm_init_hw(struct iwm_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	int error, i, ac;
+	int error, i, ac, qid;
 
 	sc->sf_state = IWM_SF_UNINIT;
 
@@ -4786,6 +5120,16 @@ iwm_init_hw(struct iwm_softc *sc)
 		goto error;
 	}
 
+	if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_SOC_LATENCY_SUPPORT)) {
+		if ((error = iwm_send_soc_conf(sc)) != 0)
+			goto error;
+	}
+
+	if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_CT_KILL_BY_FW)) {
+		if ((error = iwm_send_temp_report_ths_cmd(sc)) != 0)
+			goto error;
+	}
+
 	error = iwm_send_tx_ant_cfg(sc, iwm_get_valid_tx_ant(sc));
 	if (error != 0) {
 		device_printf(sc->sc_dev, "antenna config failed\n");
@@ -4801,6 +5145,11 @@ iwm_init_hw(struct iwm_softc *sc)
 		goto error;
 	}
 
+	if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_DQA_SUPPORT)) {
+		if ((error = iwm_send_dqa_cmd(sc)) != 0)
+			goto error;
+	}
+
 	/* Add auxiliary station for scanning */
 	if ((error = iwm_add_aux_sta(sc)) != 0) {
 		device_printf(sc->sc_dev, "add_aux_sta failed\n");
@@ -4813,8 +5162,11 @@ iwm_init_hw(struct iwm_softc *sc)
 		 * going to be overwritten in the other flows.
 		 * For now use the first channel we have.
 		 */
-		if ((error = iwm_phy_ctxt_add(sc,
-		    &sc->sc_phyctxt[i], &ic->ic_channels[1], 1, 1)) != 0)
+		sc->sc_phyctxt[i].id = i;
+		sc->sc_phyctxt[i].channel = &ic->ic_channels[1];
+		error = iwm_phy_ctxt_cmd(sc, &sc->sc_phyctxt[i], 1, 1,
+		    IWM_FW_CTXT_ACTION_ADD, 0, IEEE80211_HTINFO_2NDCHAN_NONE);
+		if (error)
 			goto error;
 	}
 
@@ -4839,7 +5191,12 @@ iwm_init_hw(struct iwm_softc *sc)
 
 	/* Enable Tx queues. */
 	for (ac = 0; ac < WME_NUM_AC; ac++) {
-		error = iwm_enable_txq(sc, IWM_STATION_ID, ac,
+		if (iwm_fw_has_capa(sc, IWM_UCODE_TLV_CAPA_DQA_SUPPORT))
+			qid = ac + IWM_DQA_MIN_MGMT_QUEUE;
+		else
+			qid = ac;
+
+		error = iwm_enable_txq(sc, IWM_STATION_ID, qid,
 		    iwm_ac_to_tx_fifo[ac]);
 		if (error)
 			goto error;
@@ -4892,6 +5249,8 @@ iwm_init(struct iwm_softc *sc)
 {
 	int error;
 
+	IWM_LOCK_ASSERT_LOCKED(sc);
+
 	if (sc->sc_flags & IWM_FLAG_HW_INITED) {
 		return;
 	}
@@ -4903,6 +5262,9 @@ iwm_init(struct iwm_softc *sc)
 		iwm_stop(sc);
 		return;
 	}
+
+	if (sc->nvm_data->sku_cap_11n_enable)
+		iwm_setup_ht_rates(sc);
 
 	/*
 	 * Ok, firmware loaded and we are jogging
@@ -4965,9 +5327,20 @@ iwm_start(struct iwm_softc *sc)
 static void
 iwm_stop(struct iwm_softc *sc)
 {
+	IWM_LOCK_ASSERT_LOCKED(sc);
 
 	sc->sc_flags &= ~IWM_FLAG_HW_INITED;
 	sc->sc_flags |= IWM_FLAG_STOPPED;
+
+	/*
+	 * Attempt to cancel; but if we can't, then don't call drain as
+	 * that can't be done with the lock held.
+	 */
+	if (sc->sc_tq != NULL) {
+		taskqueue_cancel(sc->sc_tq, &sc->mac_ctxt_task, NULL);
+		taskqueue_cancel(sc->sc_tq, &sc->phy_ctxt_task, NULL);
+	}
+
 	sc->sc_generation++;
 	iwm_led_blink_stop(sc);
 	sc->sc_tx_timer = 0;
@@ -5005,6 +5378,8 @@ iwm_parent(struct ieee80211com *ic)
 	int startall = 0;
 	int rfkill = 0;
 
+	IWM_LOCK_ASSERT_UNLOCKED(sc);
+
 	IWM_LOCK(sc);
 	if (ic->ic_nrunning > 0) {
 		if (!(sc->sc_flags & IWM_FLAG_HW_INITED)) {
@@ -5029,6 +5404,8 @@ iwm_rftoggle_task(void *arg, int npending __unused)
 	struct ieee80211com *ic = &sc->sc_ic;
 	int rfkill;
 
+	IWM_LOCK_ASSERT_UNLOCKED(sc);
+
 	IWM_LOCK(sc);
 	rfkill = iwm_check_rfkill(sc);
 	IWM_UNLOCK(sc);
@@ -5043,6 +5420,68 @@ iwm_rftoggle_task(void *arg, int npending __unused)
 		ieee80211_resume_all(ic);
 		ieee80211_notify_radio(ic, 1);
 	}
+}
+
+/*
+ * Deferred MAC related task updates.
+ *
+ * This is scheduled whenever something in the STA MAC
+ * config has changed.  This driver currently only supports
+ * a single STA interface, so that's the assumption made
+ * here.
+ */
+static void
+iwm_mac_ctxt_task(void *arg, int npending __unused)
+{
+	struct iwm_softc *sc = arg;
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	const struct iwm_vap *iv;
+	int error;
+
+	IWM_LOCK_ASSERT_UNLOCKED(sc);
+
+	if (vap == NULL)
+		return;
+
+	iv = IWM_VAP(vap);
+
+	IWM_LOCK(sc);
+
+	/* Don't scheduled work if the driver is stopped */
+	if (sc->sc_flags & IWM_FLAG_STOPPED) {
+		IWM_UNLOCK(sc);
+		return;
+	}
+
+	/*
+	 * Only trigger an update if we've already programmed in a
+	 * MAC context.
+	 */
+	if (iv->is_uploaded) {
+		if ((error = iwm_mac_ctxt_changed(sc, vap)) != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: failed to update MAC\n", __func__);
+		}
+	}
+	IWM_UNLOCK(sc);
+}
+
+/*
+ * Deferred PHY related task updates.
+ *
+ * This is scheduled whenever something in the STA PHY
+ * config has changed.  This driver currently only supports
+ * a single STA interface, so that's the assumption made
+ * here.
+ */
+static void
+iwm_phy_ctxt_task(void *arg, int npending __unused)
+{
+	struct iwm_softc *sc = arg;
+	/* TODO */
+
+	device_printf(sc->sc_dev, "%s: called\n", __func__);
 }
 
 /*
@@ -5644,6 +6083,8 @@ iwm_notif_intr(struct iwm_softc *sc)
 	}
 
 	hw = le16toh(sc->rxq.stat->closed_rb_num) & 0xfff;
+	/* Mask the returned value to the hardware ring size */
+	hw &= (count - 1);
 
 	/*
 	 * Process responses
@@ -5820,6 +6261,95 @@ iwm_intr(void *arg)
 	return;
 }
 
+static void
+iwm_intr_msix(void *arg)
+{
+	struct iwm_softc *sc = arg;
+	uint32_t inta_fh, inta_hw;
+	int vector = 0;
+
+	IWM_LOCK(sc);
+
+	inta_fh = IWM_READ(sc, IWM_CSR_MSIX_FH_INT_CAUSES_AD);
+	inta_hw = IWM_READ(sc, IWM_CSR_MSIX_HW_INT_CAUSES_AD);
+	/* acknowledge all interrupts */
+	IWM_WRITE(sc, IWM_CSR_MSIX_FH_INT_CAUSES_AD, inta_fh);
+	IWM_WRITE(sc, IWM_CSR_MSIX_HW_INT_CAUSES_AD, inta_hw);
+	inta_fh &= sc->sc_fh_mask;
+	inta_hw &= sc->sc_hw_mask;
+
+	if (inta_fh & IWM_MSIX_FH_INT_CAUSES_Q0 ||
+	    inta_fh & IWM_MSIX_FH_INT_CAUSES_Q1)
+		iwm_notif_intr(sc);
+
+	/* firmware chunk loaded */
+	if (inta_fh & IWM_MSIX_FH_INT_CAUSES_D2S_CH0_NUM) {
+		sc->sc_fw_chunk_done = 1;
+		wakeup(&sc->sc_fw);
+	}
+
+	if ((inta_fh & IWM_MSIX_FH_INT_CAUSES_FH_ERR) ||
+	    (inta_hw & IWM_MSIX_HW_INT_CAUSES_REG_SW_ERR) ||
+	    (inta_hw & IWM_MSIX_HW_INT_CAUSES_REG_SW_ERR_V2)) {
+		struct ieee80211com *ic = &sc->sc_ic;
+		struct ieee80211vap *vap;
+		int i;
+
+#ifdef IWM_DEBUG
+		iwm_nic_error(sc);
+#endif
+		/* Dump driver status (TX and RX rings) while we're here. */
+		device_printf(sc->sc_dev, "driver status:\n");
+		for (i = 0; i < IWM_MAX_QUEUES; i++) {
+			struct iwm_tx_ring *ring = &sc->txq[i];
+			device_printf(sc->sc_dev,
+			    "  tx ring %2d: qid=%-2d cur=%-3d "
+			    "queued=%-3d\n",
+			    i, ring->qid, ring->cur, ring->queued);
+		}
+		device_printf(sc->sc_dev, "  rx ring: cur=%d\n", sc->rxq.cur);
+
+		/* Reset our firmware state tracking. */
+		sc->sc_firmware_state = 0;
+		IWM_UNLOCK(sc);
+
+		vap = TAILQ_FIRST(&ic->ic_vaps);
+		if (vap == NULL) {
+			printf("%s: null vap\n", __func__);
+			return;
+		}
+
+		device_printf(sc->sc_dev,
+		    "%s: controller panicked, iv_state = %d; restarting\n",
+		    __func__, vap->iv_state);
+
+		ieee80211_restart_all(ic);
+		return;
+	}
+
+	if (inta_hw & IWM_MSIX_HW_INT_CAUSES_REG_RF_KILL)
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_rftoggle_task);
+
+	if (inta_hw & IWM_MSIX_HW_INT_CAUSES_REG_HW_ERR) {
+		device_printf(sc->sc_dev, "hardware error, stopping device\n");
+		iwm_stop(sc);
+		goto out;
+	}
+
+	/*
+	 * Before sending the interrupt the HW disables it to prevent
+	 * a nested interrupt. This is done by writing 1 to the
+	 * corresponding bit in the mask register. After handling the
+	 * interrupt, it should be re-enabled by clearing this bit.
+	 * This register is defined as a write 1 clear (W1C) register,
+	 * meaning that it's being cleared by writing 1 to the bit.
+	 */
+	IWM_WRITE(sc, IWM_CSR_MSIX_AUTOMASK_ST_AD, 1 << vector);
+
+ out:
+	IWM_UNLOCK(sc);
+}
+
 /*
  * Autoconf glue-sniffing
  */
@@ -5937,8 +6467,12 @@ iwm_pci_attach(device_t dev)
 	/* Install interrupt handler. */
 	count = 1;
 	rid = 0;
-	if (pci_alloc_msi(dev, &count) == 0)
+	if (pci_alloc_msix(dev, &count) == 0) {
 		rid = 1;
+		sc->sc_msix = 1;
+	} else if (pci_alloc_msi(dev, &count) == 0) {
+		rid = 1;
+	}
 	sc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE |
 	    (rid != 0 ? 0 : RF_SHAREABLE));
 	if (sc->sc_irq == NULL) {
@@ -5946,7 +6480,7 @@ iwm_pci_attach(device_t dev)
 			return (ENXIO);
 	}
 	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, iwm_intr, sc, &sc->sc_ih);
+	    NULL, sc->sc_msix ? iwm_intr_msix : iwm_intr, sc, &sc->sc_ih);
 	if (error != 0) {
 		device_printf(dev, "can't establish interrupt");
 		return (error);
@@ -5988,6 +6522,14 @@ iwm_attach(device_t dev)
 	callout_init_mtx(&sc->sc_led_blink_to, &sc->sc_mtx, 0);
 	TASK_INIT(&sc->sc_es_task, 0, iwm_endscan_cb, sc);
 	TASK_INIT(&sc->sc_rftoggle_task, 0, iwm_rftoggle_task, sc);
+
+	/*
+	 * Note: these would be per-ctx, but right now the driver
+	 * only knows about a single VAP.  This mirrors what
+	 * OpenBSD iwm does to make porting/updating easier.
+	 */
+	TASK_INIT(&sc->mac_ctxt_task, 0, iwm_mac_ctxt_task, sc);
+	TASK_INIT(&sc->phy_ctxt_task, 0, iwm_phy_ctxt_task, sc);
 
 	sc->sc_tq = taskqueue_create("iwm_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->sc_tq);
@@ -6150,6 +6692,7 @@ iwm_attach(device_t dev)
 	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
 	for (i = 0; i < nitems(sc->sc_phyctxt); i++) {
 		sc->sc_phyctxt[i].id = i;
+		sc->sc_phyctxt[i].sco = IEEE80211_HTINFO_2NDCHAN_NONE;
 		sc->sc_phyctxt[i].color = 0;
 		sc->sc_phyctxt[i].ref = 0;
 		sc->sc_phyctxt[i].channel = NULL;
@@ -6188,6 +6731,11 @@ iwm_attach(device_t dev)
 
 	IWM_DPRINTF(sc, IWM_DEBUG_RESET | IWM_DEBUG_TRACE,
 	    "<-%s\n", __func__);
+
+	device_printf(dev, "%s: TX ant=0x%x, RX ant=0x%x\n",
+	    __func__,
+	    iwm_get_valid_tx_ant(sc),
+	    iwm_get_valid_rx_ant(sc));
 
 	return 0;
 
@@ -6285,6 +6833,9 @@ iwm_preinit(void *arg)
 	    sc->sc_hw_rev & IWM_CSR_HW_REV_TYPE_MSK,
 	    sc->sc_fwver, ether_sprintf(sc->nvm_data->hw_addr));
 
+	if (sc->nvm_data->sku_cap_11n_enable)
+		iwm_setup_ht_rates(sc);
+
 	/* not all hardware can do 5GHz band */
 	if (!sc->nvm_data->sku_cap_band_52GHz_enable)
 		memset(&ic->ic_sup_rates[IEEE80211_MODE_11A], 0,
@@ -6364,6 +6915,11 @@ iwm_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	/* Override with driver methods. */
 	ivp->iv_newstate = vap->iv_newstate;
 	vap->iv_newstate = iwm_newstate;
+
+	vap->iv_updateslot = iwm_vap_update_slot;
+	vap->iv_erp_protmode_update = iwm_vap_update_erp_protmode;
+	vap->iv_preamble_update = iwm_vap_update_preamble;
+	vap->iv_wme_update = iwm_vap_update_wme;
 
 	ivp->id = IWM_DEFAULT_MACID;
 	ivp->color = IWM_DEFAULT_COLOR;
@@ -6557,15 +7113,35 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 	device_t dev = sc->sc_dev;
 	int i;
 
-	if (!sc->sc_attached)
+	/*
+	 * Note: this is called during detach where the attach path
+	 * didn't entirely attach all state.  Thus mutexes may not
+	 * be initialised here.
+	 */
+	if (!sc->sc_attached) {
 		return 0;
+	}
+
+	IWM_LOCK_ASSERT_UNLOCKED(sc);
+	IWM_LOCK(sc);
 	sc->sc_attached = 0;
+	sc->sc_flags |= IWM_FLAG_STOPPED;
+	IWM_UNLOCK(sc);
+
 	if (do_net80211) {
 		ieee80211_draintask(&sc->sc_ic, &sc->sc_es_task);
 	}
 	iwm_stop_device(sc);
+
+	while (taskqueue_cancel(sc->sc_tq, &sc->mac_ctxt_task, NULL) != 0)
+		taskqueue_drain(sc->sc_tq, &sc->mac_ctxt_task);
+	while (taskqueue_cancel(sc->sc_tq, &sc->phy_ctxt_task, NULL) != 0)
+		taskqueue_drain(sc->sc_tq, &sc->phy_ctxt_task);
+
 	taskqueue_drain_all(sc->sc_tq);
 	taskqueue_free(sc->sc_tq);
+	sc->sc_tq = NULL;
+
 	if (do_net80211) {
 		IWM_LOCK(sc);
 		iwm_xmit_queue_drain(sc);

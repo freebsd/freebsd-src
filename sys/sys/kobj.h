@@ -33,7 +33,7 @@
 
 /* XXX workaround for bool type for tools/build/test-includes */
 #if !defined(_KERNEL) && !defined(_STANDALONE)
-#include <stdbool.h> 
+#include <stdbool.h>
 #endif
 
 /*
@@ -62,7 +62,7 @@ struct kobj_method {
 	const char	*name;		/* class name */		\
 	kobj_method_t	*methods;	/* method table */		\
 	size_t		size;		/* object size */		\
-	kobj_class_t	*baseclasses;	/* base classes */		\
+	const kobj_class_t *baseclasses;/* base classes */		\
 	u_int		refs;		/* reference count */		\
 	kobj_ops_t	ops;		/* compiled method table */	\
 	size_t		total_size;	/* total object size */		\
@@ -128,10 +128,12 @@ DEFINE_CLASS_0(name, name ## _class, methods, size)
  *
  * DEFINE_CLASS_0(foo, foo_class, foo_methods, sizeof(foo_softc));
  */
-#define DEFINE_CLASS_0(name, classvar, methods, size)	\
-							\
-struct kobj_class classvar = {				\
-	#name, methods, size, NULL, 0, false		\
+#define DEFINE_CLASS_0(_name, classvar, _methods, _size)	\
+								\
+struct kobj_class classvar = {					\
+	.name = #_name,						\
+	.methods = _methods,					\
+	.size = _size,						\
 }
 
 /*
@@ -140,14 +142,16 @@ struct kobj_class classvar = {				\
  * DEFINE_CLASS_1(foo, foo_class, foo_methods, sizeof(foo_softc),
  *			  bar);
  */
-#define DEFINE_CLASS_1(name, classvar, methods, size,	\
-		       base1)				\
-							\
-static kobj_class_t name ## _baseclasses[] =		\
-	{ &base1, NULL };				\
-struct kobj_class classvar = {				\
-	#name, methods, size, name ## _baseclasses, 0,	\
-	false						\
+#define DEFINE_CLASS_1(_name, classvar, _methods, _size,	\
+		       base1)					\
+								\
+static const kobj_class_t _name ## _baseclasses[] =		\
+	{ &base1, NULL };					\
+struct kobj_class classvar = {					\
+	.name = #_name,						\
+	.methods = _methods,					\
+	.size = _size,						\
+	.baseclasses = _name ## _baseclasses,			\
 }
 
 /*
@@ -156,15 +160,16 @@ struct kobj_class classvar = {				\
  * DEFINE_CLASS_2(foo, foo_class, foo_methods, sizeof(foo_softc),
  *			  bar, baz);
  */
-#define DEFINE_CLASS_2(name, classvar, methods, size,	\
-	               base1, base2)			\
-							\
-static kobj_class_t name ## _baseclasses[] =		\
-	{ &base1,					\
-	  &base2, NULL };				\
-struct kobj_class classvar = {				\
-	#name, methods, size, name ## _baseclasses, 0,	\
-	false						\
+#define DEFINE_CLASS_2(_name, classvar, _methods, _size,	\
+	               base1, base2)				\
+								\
+static const kobj_class_t _name ## _baseclasses[] =		\
+	{ &base1, &base2, NULL };				\
+struct kobj_class classvar = {					\
+	.name = #_name,						\
+	.methods = _methods,					\
+	.size = _size,						\
+	.baseclasses = _name ## _baseclasses,			\
 }
 
 /*
@@ -173,16 +178,16 @@ struct kobj_class classvar = {				\
  * DEFINE_CLASS_3(foo, foo_class, foo_methods, sizeof(foo_softc),
  *			  bar, baz, foobar);
  */
-#define DEFINE_CLASS_3(name, classvar, methods, size,	\
-		       base1, base2, base3)		\
-							\
-static kobj_class_t name ## _baseclasses[] =		\
-	{ &base1,					\
-	  &base2,					\
-	  &base3, NULL };				\
-struct kobj_class classvar = {				\
-	#name, methods, size, name ## _baseclasses, 0,	\
-	false						\
+#define DEFINE_CLASS_3(_name, classvar, _methods, _size,	\
+		       base1, base2, base3)			\
+								\
+static const kobj_class_t _name ## _baseclasses[] =		\
+	{ &base1, &base2, &base3, NULL };			\
+struct kobj_class classvar = {					\
+	.name = #_name,						\
+	.methods = _methods,					\
+	.size = _size,						\
+	.baseclasses = _name ## _baseclasses,			\
 }
 
 /*

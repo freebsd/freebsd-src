@@ -453,9 +453,9 @@ ip_srcroute(struct mbuf *m0)
 	 */
 	opts->ip_srcrt.nop = IPOPT_NOP;
 	opts->ip_srcrt.srcopt[IPOPT_OFFSET] = IPOPT_MINOFF;
-	(void)memcpy(mtod(m, caddr_t) + sizeof(struct in_addr),
+	(void)memcpy(mtod(m, char *) + sizeof(struct in_addr),
 	    &(opts->ip_srcrt.nop), OPTSIZ);
-	q = (struct in_addr *)(mtod(m, caddr_t) +
+	q = (struct in_addr *)(mtod(m, char *) +
 	    sizeof(struct in_addr) + OPTSIZ);
 #undef OPTSIZ
 	/*
@@ -675,7 +675,7 @@ ip_pcbopts(struct inpcb *inp, int optname, struct mbuf *m)
 			/*
 			 * Move first hop before start of options.
 			 */
-			bcopy((caddr_t)&cp[IPOPT_OFFSET+1], mtod(m, caddr_t),
+			bcopy(&cp[IPOPT_OFFSET+1], mtod(m, void *),
 			    sizeof(struct in_addr));
 			/*
 			 * Then copy rest of options back

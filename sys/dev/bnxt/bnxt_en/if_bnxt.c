@@ -368,6 +368,7 @@ static device_method_t bnxt_iflib_methods[] = {
 	DEVMETHOD(ifdi_iov_init, bnxt_iov_init),
 	DEVMETHOD(ifdi_iov_uninit, bnxt_iov_uninit),
 	DEVMETHOD(ifdi_iov_vf_add, bnxt_iov_vf_add),
+	DEVMETHOD(ifdi_vf_status, bnxt_vf_status),
 #endif
 	DEVMETHOD_END
 };
@@ -379,7 +380,7 @@ static driver_t bnxt_iflib_driver = {
 /*
  * iflib shared context
  */
-#define BNXT_DRIVER_VERSION	"230.0.133.0"
+#define BNXT_DRIVER_VERSION	"239.1.153.0"
 const char bnxt_driver_version[] = BNXT_DRIVER_VERSION;
 
 static char drv_version_msg[] =
@@ -1479,7 +1480,6 @@ bnxt_backing_store_cfg_v2(struct bnxt_softc *softc, u32 ena)
 
 static int bnxt_alloc_ctx_mem(struct bnxt_softc *softc)
 {
-	struct bnxt_ctx_pg_info *ctx_pg;
 	struct bnxt_ctx_mem_type *ctxm;
 	struct bnxt_ctx_mem_info *ctx;
 	u32 l2_qps, qp1_qps, max_qps;
@@ -1557,21 +1557,22 @@ static int bnxt_alloc_ctx_mem(struct bnxt_softc *softc)
 		goto skip_rdma;
 
 	ctxm = &ctx->ctx_arr[BNXT_CTX_MRAV];
-	ctx_pg = ctxm->pg_info;
-	/* 128K extra is needed to accomodate static AH context
-	 * allocation by f/w.
-	 */
-	num_mr = min_t(u32, ctxm->max_entries / 2, 1024 * 256);
-	num_ah = min_t(u32, num_mr, 1024 * 128);
+	if (BNXT_SW_RES_LMT(softc) &&
+	    ctxm->split_entry_cnt == BNXT_CTX_MRAV_AV_SPLIT_ENTRY + 1) {
+		num_ah = ctxm->mrav_av_entries;
+		num_mr = ctxm->max_entries - num_ah;
+	} else {
+		/* 128K extra for static AH contexts allocated by f/w. */
+		num_mr = min_t(u32, ctxm->max_entries / 2, 1024 * 256);
+		num_ah = min_t(u32, num_mr, 1024 * 128);
+		ctxm->split_entry_cnt = BNXT_CTX_MRAV_AV_SPLIT_ENTRY + 1;
+		if (!ctxm->mrav_av_entries || ctxm->mrav_av_entries > num_ah)
+			ctxm->mrav_av_entries = num_ah;
+	}
 	rc = bnxt_setup_ctxm_pg_tbls(softc, ctxm, num_mr + num_ah, 2);
 	if (rc)
 		return rc;
-	ctx_pg->entries = num_mr + num_ah;
 	ena = HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_MRAV;
-	if (ctxm->mrav_num_entries_units)
-		ctx_pg->entries =
-			((num_mr / ctxm->mrav_num_entries_units) << 16) |
-			 (num_ah / ctxm->mrav_num_entries_units);
 
 	ctxm = &ctx->ctx_arr[BNXT_CTX_TIM];
 	rc = bnxt_setup_ctxm_pg_tbls(softc, ctxm, l2_qps + qp1_qps + extra_qps, 1);
@@ -2949,7 +2950,8 @@ bnxt_attach_pre(if_ctx_t ctx)
 	if (BNXT_CHIP_P7(softc)) {
 		rc = bnxt_ktls_sysctls(softc);
 		if (rc) {
-			device_printf(softc->dev, "attach: max_ktls_entries sysctl creation failed\n");
+			device_printf(softc->dev,
+			    "attach: kTLS sysctl creation failed\n");
 			goto failed;
 		}
 
@@ -4351,6 +4353,8 @@ bnxt_media_change(if_ctx_t ctx)
 
 		break;
 
+	case IFM_400G_CR8:
+	case IFM_400G_SR8:
 	case IFM_400G_FR8:
 	case IFM_400G_LR8:
 	case IFM_400G_AUI8:
@@ -4365,6 +4369,7 @@ bnxt_media_change(if_ctx_t ctx)
 
 	case IFM_400G_AUI8_AC:
 	case IFM_400G_DR4:
+	case IFM_400G_FR4:
 		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
 
 		if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_400GB_PAM4_112) {
@@ -5247,7 +5252,7 @@ add_media(struct bnxt_softc *softc, u8 media_type, u16 supported_NRZ_speeds,
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_50GB_PAM4_56, IFM_50G_CP);
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_56, IFM_100G_CP2);
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_56, IFM_200G_CR4_PAM4);
-			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_56, IFM_400G_AUI8);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_56, IFM_400G_CR8);
 			/* thor2 PAM112 */
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_112, IFM_100G_CR_PAM4);
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_112, IFM_200G_AUI4);
@@ -5257,6 +5262,7 @@ add_media(struct bnxt_softc *softc, u8 media_type, u16 supported_NRZ_speeds,
 
 		case BNXT_MEDIA_LR:
 			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_50G, IFM_50G_LR);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_100G, IFM_100G_AUI2);
 			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_200G, IFM_200G_LR4);
 			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_100GB, IFM_100G_LR4);
 			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_50GB, IFM_50G_LR2);
@@ -5302,11 +5308,12 @@ add_media(struct bnxt_softc *softc, u8 media_type, u16 supported_NRZ_speeds,
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_50GB_PAM4_56, IFM_50G_SR);
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_56, IFM_100G_SR2);
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_56, IFM_200G_SR4);
-			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_56, IFM_400G_AUI8);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_56, IFM_400G_SR8);
 			/* thor2 PAM112 */
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_112, IFM_100G_AUI2_AC);
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_112, IFM_200G_AUI4);
-			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_112, IFM_400G_DR4);
+			/* No IFM_400G_SR4; use the generic media type. */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_112, IFM_400G_AUI8_AC);
 			break;
 
 		case BNXT_MEDIA_ER:
@@ -5321,6 +5328,16 @@ add_media(struct bnxt_softc *softc, u8 media_type, u16 supported_NRZ_speeds,
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_112, IFM_100G_AUI2_AC);
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_112, IFM_200G_AUI4_AC);
 			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_112, IFM_400G_AUI8_AC);
+			break;
+
+		case BNXT_MEDIA_DR:
+			/* thor2 PAM112 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_112, IFM_400G_DR4);
+			break;
+
+		case BNXT_MEDIA_FR:
+			/* thor2 PAM112 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_112, IFM_400G_FR4);
 			break;
 
 		case BNXT_MEDIA_KR:
@@ -5477,6 +5494,14 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 		media_type = BNXT_MEDIA_KR;
 		break;
 
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASEDR4:
+		media_type = BNXT_MEDIA_DR;
+		break;
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASEFR4:
+		media_type = BNXT_MEDIA_FR;
+		break;
+
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_ACTIVE_CABLE:
 		media_type = BNXT_MEDIA_AC;
 		break;
@@ -5501,12 +5526,12 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_UNKNOWN:
 		/* Only Autoneg is supported for TYPE_UNKNOWN */
-		break;
+		return;
 
         default:
 		/* Only Autoneg is supported for new phy type values */
 		device_printf(softc->dev, "phy type %d not supported by driver\n", phy_type);
-		break;
+		return;
 	}
 
 	switch (link_info->sig_mode) {

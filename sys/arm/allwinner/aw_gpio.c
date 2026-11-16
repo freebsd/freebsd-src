@@ -972,11 +972,11 @@ aw_gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent, int gcells,
 		if (sc->conf->padconf->pins[i].port == gpios[0] &&
 		    sc->conf->padconf->pins[i].pin == gpios[1]) {
 			*pin = i;
-			break;
+			*flags = gpios[gcells - 1];
+			return (0);
 		}
-	*flags = gpios[gcells - 1];
 
-	return (0);
+	return (EINVAL);
 }
 
 static int
@@ -1413,7 +1413,7 @@ aw_gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
 
 	if (err == 0)
 		*isrcp = &sc->gpio_pic_irqsrc[irq].isrc;
-	return (0);
+	return (err);
 }
 
 static int

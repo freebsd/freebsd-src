@@ -96,7 +96,7 @@ static fdt_platform_def_t VAR_NAME ## _fdt_platform = {			\
 	.methods = fdt_platform_methods,				\
 	.fdt_compatible = _compatible,					\
 };									\
-static kobj_class_t VAR_NAME ## _baseclasses[] =			\
+static const kobj_class_t VAR_NAME ## _baseclasses[] =			\
 	{ (kobj_class_t)&VAR_NAME ## _fdt_platform, NULL };		\
 static platform_def_t VAR_NAME ## _platform = {				\
 	.name = NAME_STR,						\

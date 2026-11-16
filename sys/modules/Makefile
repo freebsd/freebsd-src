@@ -257,7 +257,7 @@ SUBDIR=	\
 	${_mana} \
 	md \
 	mdio \
-	${_mgb} \
+	mgb \
 	mem \
 	mfi \
 	mii \
@@ -785,7 +785,6 @@ _ixv=		ixv
 _lio=		lio
 .endif
 _mana=		mana
-_mgb=		mgb
 _nctgpio=	nctgpio
 _ncthwm=	ncthwm
 _ntb=		ntb

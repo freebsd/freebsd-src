@@ -275,6 +275,7 @@ cpu_init_small_core(void)
 void
 initializecpu(void)
 {
+	uint64_t irperf1, irperf2;
 	uint64_t msr;
 	uint64_t cr4;
 
@@ -360,6 +361,40 @@ initializecpu(void)
 	    (cpu_stdext_feature2 & CPUID_STDEXT2_RDPID) != 0)
 		wrmsr(MSR_TSC_AUX, cpu_auxmsr());
 
+	/*
+	 * According to erratum #1054 "Instructions Retired Performance
+	 * Counter May Be Inaccurate", the IRPERF feature should be
+	 * enabled only for a subset of Zen 1 (Family 17h Models 30h and above)
+	 * and all later processors.
+	 *
+	 * Separately, verify IRPERF is actually incrementing across two
+	 * back-to-back reads. This only catches a dead/non-functional MSR
+	 * (e.g. a hypervisor or emulator exposing the CPUID feature bit
+	 * without real MSR support behind it) -- it cannot detect the
+	 * erratum's actual failure mode, a counter that increments but
+	 * returns inaccurate values. That case is handled entirely by the
+	 * family/model check above.
+	 *
+	 * Released versions of vmm erroneously advertise IRPERF support, so
+	 * ignore it when running under bhyve.
+	 *
+	 * This runs on every core (BSP and each AP) via initializecpu();
+	 * pmc_amd_initialize() later assumes IRPERF's enabled/disabled state
+	 * is consistent across all cores.
+	 */
+	if ((amd_extended_feature_extensions & AMDFEID_IRPERF) &&
+	    vm_guest != VM_GUEST_BHYVE &&
+	    ((CPUID_TO_FAMILY(cpu_id) > 0x17) ||
+	    (CPUID_TO_FAMILY(cpu_id) == 0x17 && CPUID_TO_MODEL(cpu_id) >= 0x30))) {
+		wrmsr(MSR_HWCR, rdmsr(MSR_HWCR) | HWCR_IRPERFEN);
+
+		irperf1 = rdmsr(MSR_IRPERF);
+		irperf2 = rdmsr(MSR_IRPERF);
+
+		if (irperf2 <= irperf1)
+			wrmsr(MSR_HWCR, rdmsr(MSR_HWCR) & ~HWCR_IRPERFEN);
+	}
+
 	if (!IS_BSP())
 		cpu_init_small_core();
 	TSEXIT();
@@ -416,14 +451,14 @@ amd64_cpu_init_fred(void)
 	/*
 	 * With FRED, there is no need for workarounds requiring
 	 * dedicated stack for #DB.  Also, there is no need to have
-	 * separate stacks for #NM and #MC, because CSL rules ensure
+	 * separate stacks for NMI and #MC, because CSL rules ensure
 	 * that interrupted frame is safe even if NMI was interrupted
 	 * by machine check or vice versa.
 	 *
 	 * Still, we need to provide a stack for events that can occur
 	 * with the interrupts disabled, to avoid caring about the
 	 * ordering of the context update in cpu_switch.S.  Use CSL 1
-	 * for #NM and #MC.
+	 * for NMI and #MC.
 	 *
 	 * Since double fault handler is used to handle stack
 	 * overflow, it gets the dedicated stack, of the highest used
@@ -432,7 +467,7 @@ amd64_cpu_init_fred(void)
 	 * CSL 3 is unused, and we have some space to re-arrange this
 	 * if a need in the future appears.
 	 */
-	wrmsr(MSR_FRED_STKLVLS, (1ul << (IDT_NM * 2)) |
+	wrmsr(MSR_FRED_STKLVLS, (1ul << (IDT_NMI * 2)) |
 	    (1ul << (IDT_MC * 2)) | (2ul << (IDT_DF * 2)));
 	wrmsr(MSR_FRED_RSP3, 0);
 	load_cr4(rcr4() | CR4_FRED);

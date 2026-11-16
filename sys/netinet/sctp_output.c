@@ -1883,6 +1883,11 @@ sctp_is_address_in_scope(struct sctp_ifa *ifa,
 				/* not in scope , unspecified */
 				return (0);
 			}
+			if (scope->loopback_scope == 0 &&
+			    ifa->src_is_loop == 1) {
+				/* not in scope , loopback */
+				return (0);
+			}
 			if ((scope->ipv4_local_scope == 0) &&
 			    (IN4_ISPRIVATE_ADDRESS(&sin->sin_addr))) {
 				/* private address not in scope */
@@ -1912,6 +1917,11 @@ sctp_is_address_in_scope(struct sctp_ifa *ifa,
 			sin6 = &ifa->address.sin6;
 			if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 				/* skip unspecified addresses */
+				return (0);
+			}
+			if (scope->loopback_scope == 0 &&
+			    ifa->src_is_loop == 1) {
+				/* not in scope , loopback */
 				return (0);
 			}
 			if (	/* (local_scope == 0) && */

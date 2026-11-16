@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 28, 2023
+.Dd August 21, 2026
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -67,6 +67,7 @@
 .Ic identify
 .Op device id
 .Op generic args
+.Op Fl N
 .Op Fl v
 .Nm
 .Ic reportluns
@@ -222,6 +223,12 @@
 .Op Fl r
 .Op Fl w
 .Op Fl y
+.Op Fl e Ar ses
+.Op Fl G
+.Op Fl f Ar lbaf
+.Op Fl l Ar pil
+.Op Fl m Ar mset
+.Op Fl p Ar pi
 .Nm
 .Ic sanitize
 .Op device id
@@ -311,6 +318,7 @@
 .Op generic args
 .Aq Fl i Ar action | Fl o Ar action
 .Op Fl a
+.Op Fl c Ar state
 .Op Fl I Ar trans_id
 .Op Fl k Ar key
 .Op Fl K Ar sa_key
@@ -366,6 +374,15 @@
 .Op device id
 .Op generic args
 .Ao Fl r Oo Ns Fl f Ar format | Fl m | Fl U Oc | Fl s Ao Fl f Ar format Fl T Ar time | Fl U Ac Ac
+.Nm
+.Ic feature
+.Op device id
+.Op generic args
+.Aq Fl a Cm get | set
+.Fl f Ar feature
+.Op Fl d Ar data
+.Op Fl s Ar arg
+.Op Fl U
 .Nm
 .Ic devtype
 .Op device id
@@ -524,7 +541,15 @@ This is to aid in script writing.
 Print out transfer rate information.
 .El
 .It Ic identify
-Send an ATA identify command (0xec) to a device.
+Send a ATA identify command (0xec) or NVMe identify command to a device.
+For NVMe devices, this displays Identify data cached in the kernel, and
+does not send commands to the drive.
+.Bl -tag -width 8n
+.It Fl N
+Display NVMe Identify Namespace data.
+This shows the capacity of the namespace (CAM peripheral drivers are attached
+to a NVMe namespace) as opposed to the entire drive.
+.El
 .It Ic reportluns
 Send the SCSI REPORT LUNS (0xA0) command to the given device.
 By default,
@@ -1219,7 +1244,17 @@ negotiation parameters will take effect.
 .It Ic format
 Issue the
 .Tn SCSI
-FORMAT UNIT command to the named device.
+FORMAT UNIT command or the
+.Tn NVMe
+FORMAT NVM command to the named device;
+.Nm
+issues the command appropriate for the device given.
+For
+.Tn NVMe
+devices, the format applies to the namespace addressed by the command,
+unless the
+.Fl G
+option is given.
 .Pp
 .Em WARNING! WARNING! WARNING!
 .Pp
@@ -1249,6 +1284,17 @@ This is often because the drive
 does not really support the FORMAT UNIT command -- it just accepts the
 command, waits a few minutes and then returns it.
 .Pp
+For
+.Tn NVMe
+devices, the default timeout is 30 seconds for a cryptographic erase, and
+30 minutes otherwise.
+Most
+.Tn NVMe
+devices format very quickly, but for drives that take longer, you can see
+format progress in the
+.Tn NVMe
+namespace Identify data if the drive supports it.
+.Pp
 The
 .Sq format
 subcommand takes several arguments that modify its default behavior.
@@ -1270,6 +1316,9 @@ Run in
 .Dq report only
 mode.
 This will report status on a format that is already running on the drive.
+Not supported for
+.Tn NVMe
+devices.
 .It Fl w
 Issue a non-immediate format command.
 By default,
@@ -1291,6 +1340,10 @@ argument is specified,
 will issue a non-immediate format command, and will be unable to print any
 information to let the user know what percentage of the disk has been
 formatted.
+For
+.Tn NVMe
+devices, the format command does not complete until the format is
+finished, so this option has no effect.
 .It Fl y
 Do not ask any questions.
 By default,
@@ -1300,6 +1353,85 @@ and also if the default format command timeout is acceptable.
 The user
 will not be asked about the timeout if a timeout is specified on the
 command line.
+For
+.Tn NVMe
+devices, only the first question is asked.
+.It Fl e Ar ses
+Specify the
+.Tn NVMe
+Secure Erase Setting.
+Only supported for
+.Tn NVMe
+devices.
+.Bl -tag -width 8n
+.It none
+This is the default.
+It indicates that no specific erase option is requested.
+.It user
+This requests that all user data be erased.
+The controller can use any method to erase the user data.
+.It crypto
+This requests that the controller erase the data cryptographically by
+deleting the encryption key.
+.It num
+Specify a numeric (decimal or hexadecimal) value
+.El
+.It Fl G
+Some
+.Tn NVMe
+controllers only allow formatting all namespaces attached to the
+controller.
+By default,
+.Nm
+will format the
+.Tn NVMe
+namespace addressed by the command.
+If you get an error message saying that the controller doesn't support
+per-NS format, you can try this option.
+Only supported for
+.Tn NVMe
+devices.
+.It Fl f Ar lbaf
+Use the specified LBA format number.
+Only supported for
+.Tn NVMe
+devices.
+You can use this option to change the sector size of the drive.
+To see a list of allowed LBA formats (combination of sector size and
+metadata size), and the current LBA format, look at
+the NVMe Namespace Identify data.
+You can see it with:
+.Pp
+.Dl camcontrol identify ndaX -N
+.It Fl l Ar pil
+Specify the protection information location.
+Only supported for
+.Tn NVMe
+devices.
+If set to 1, and protection information is enabled (see the
+.Fl p
+option), protection information is transferred as the first 8 bytes of
+metadata.
+If set to 0 (the default) and protection information is enabled, protection
+information is transferred as the last 8 bytes of metadata.
+.It Fl m Ar mset
+If set to 1, metadata is transferred as part of an extended LBA.
+If set to 0 (the default), metadata is transferred as part of a separate
+buffer.
+Only supported for
+.Tn NVMe
+devices.
+.It Fl p Ar pi
+This specifies whether protection information is enabled, and if so, the
+type of protection information.
+Only supported for
+.Tn NVMe
+devices.
+The default is 0, no protection information enabled.
+You may specify Type 1, 2 or 3 protection with a numeric argument of 1, 2
+or 3 respectively.
+Other types are allowed up to 7, but the only values currently defined in
+the NVMe 1.4 specification are 0-3.
 .El
 .It Ic sanitize
 Issue the SANITIZE command to the named device.
@@ -1792,12 +1924,23 @@ register values that would be used for the firmware download command.
 Do not ask for confirmation.
 .El
 .It Ic persist
-Persistent reservation support.
+Persistent reservation support for
+.Tn SCSI
+and
+.Tn NVMe
+devices.
 Persistent reservations are a way to reserve a particular
 .Tn SCSI
-LUN for use by one or more
+LUN or
+.Tn NVMe
+namespace for use by one or more initiators (hosts).
+The
+.Tn NVMe
+reservation model is closely patterned after
 .Tn SCSI
-initiators.
+Persistent Reservations, so the two share this interface;
+.Nm
+issues the commands appropriate for the device given.
 If the
 .Fl i
 option is specified,
@@ -1805,7 +1948,9 @@ option is specified,
 will issue the
 .Tn SCSI
 PERSISTENT RESERVE IN
-command using the requested service action.
+command using the requested service action, or the
+.Tn NVMe
+Reservation Report command.
 If the
 .Fl o
 option is specified,
@@ -1813,18 +1958,25 @@ option is specified,
 will issue the
 .Tn SCSI
 PERSISTENT RESERVE OUT
-command using the requested service action.
+command using the requested service action, or the corresponding
+.Tn NVMe
+reservation command.
 One of those two options is required.
 .Pp
 Persistent reservations are complex, and fully explaining them is outside
 the scope of this manual.
 Please visit
 https://www.t10.org
-and download the latest SPC spec for a full explanation of persistent
-reservations.
+and download the latest SPC spec, or visit
+https://www.nvmexpress.org
+and download the latest NVMe Base Specification, for a full explanation of
+persistent reservations.
 .Bl -tag -width 8n
 .It Fl i Ar mode
 Specify the service action for the PERSISTENT RESERVE IN command.
+For
+.Tn NVMe
+devices, all of the supported modes issue the Reservation Report command.
 Supported service actions:
 .Bl -tag -width 19n
 .It read_keys
@@ -1834,11 +1986,24 @@ registered keys.
 Report the persistent reservation, if any.
 .It report_capabilities
 Report the persistent reservation capabilities of the LUN.
+Not supported for
+.Tn NVMe
+devices; the reservation capabilities of a namespace are in the Identify
+Namespace data.
 .It read_full_status
 Report the full status of persistent reservations on the LUN.
+For
+.Tn NVMe
+devices, this requests the extended data structure, which contains 128-bit
+Host Identifiers.
 .El
 .It Fl o Ar mode
 Specify the service action for the PERSISTENT RESERVE OUT command.
+For
+.Tn NVMe
+devices, each service action maps to the corresponding
+.Tn NVMe
+reservation operation.
 For service actions like register that are components of other service
 action names, the entire name must be specified.
 Otherwise, enough of the service action name must be specified to
@@ -1858,6 +2023,19 @@ This is similar to the register subcommand, except that the Reservation Key
 is ignored.
 The Service Action Reservation Key will overwrite any previous key
 registered for the initiator.
+.It unregister
+Unregister the key specified as the Reservation Key.
+This action is only supported for
+.Tn NVMe
+devices; on
+.Tn SCSI
+devices a key is unregistered with the register action.
+.It replace
+Replace the key specified as the Reservation Key with the key specified as
+the Service Action Reservation Key.
+This action is only supported for
+.Tn NVMe
+devices.
 .It reserve
 Create a reservation.
 A key must be registered with the LUN before the LUN can be reserved, and
@@ -1885,16 +2063,39 @@ operation being performed.
 Register another initiator with the LUN, and establish a reservation on the
 LUN for that initiator.
 The Reservation Key and Service Action Reservation Key must be specified.
+Not supported for
+.Tn NVMe
+devices.
 .It replace_lost
 Replace Lost Reservation information.
+Not supported for
+.Tn NVMe
+devices.
 .El
 .It Fl a
 Set the All Target Ports (ALL_TG_PT) bit.
 This requests that the key registration be applied to all target ports and
 not just the particular target port that receives the command.
 This only applies to the register and register_ignore actions.
+Not supported for
+.Tn NVMe
+devices.
+.It Fl c Ar state
+Change the Persist Through Power Loss State for the namespace.
+The state may be set to
+.Dq enable
+or
+.Dq disable .
+By default, no change is made to the current setting.
+This option is only supported for
+.Tn NVMe
+devices, and only applies to the register, register_ignore, unregister and
+replace actions.
 .It Fl I Ar tid
 Specify a Transport ID.
+Not supported for
+.Tn NVMe
+devices.
 This only applies to the Register and Register and Move service actions for
 Persistent Reserve Out.
 Multiple Transport IDs may be specified with multiple
@@ -1984,12 +2185,25 @@ Specify the Service Action Reservation Key.
 This may be in decimal, octal or hexadecimal format.
 The value is zero by default if not otherwise specified.
 The value must be between 0 and 2^64 - 1, inclusive.
+For
+.Tn NVMe
+devices, this is the new reservation key for the register, register_ignore
+and replace actions, and the key to preempt for the preempt and
+preempt_abort actions.
 .It Fl p
 Enable the Activate Persist Through Power Loss bit.
 This is only used for the register and register_ignore actions.
 This requests that the reservation persist across power loss events.
+For
+.Tn NVMe
+devices, this enables Persist Through Power Loss State, and is equivalent
+to specifying
+.Fl c Cm enable .
 .It Fl s Ar scope
 Specify the scope of the reservation.
+Not supported for
+.Tn NVMe
+devices.
 The scope may be specified by name or by number.
 The scope is ignored for register, register_ignore and clear.
 If the desired scope isn't available by name, you may specify the number.
@@ -2009,6 +2223,9 @@ Reserve Out command.
 .It Fl S
 Enable the SPEC_I_PT bit.
 This only applies to the Register service action of Persistent Reserve Out.
+Not supported for
+.Tn NVMe
+devices.
 You must also specify at least one Transport ID with
 .Fl I
 if this option is set.
@@ -2020,10 +2237,18 @@ Specify the reservation type.
 The reservation type may be specified by name or by number.
 If the desired reservation type isn't available by name, you may specify
 the number.
+The same names are used for
+.Tn SCSI
+and
+.Tn NVMe
+devices.
 Supported reservation type names:
 .Bl -tag -width 11n
 .It read_shared
 Read Shared mode.
+Not supported for
+.Tn NVMe
+devices.
 .It wr_ex
 Write Exclusive mode.
 May also be specified as
@@ -2032,6 +2257,9 @@ May also be specified as
 Read Exclusive mode.
 May also be specified as
 .Dq read_exclusive .
+Not supported for
+.Tn NVMe
+devices.
 .It ex_ac
 Exclusive access mode.
 May also be specified as
@@ -2060,6 +2288,9 @@ By default, the target will not unregister the initiator that sends the
 Register and Move request.
 This option only applies to the Register and Move service action of the
 Persistent Reserve Out command.
+Not supported for
+.Tn NVMe
+devices.
 .El
 .It Ic attrib
 Issue the
@@ -2587,6 +2818,179 @@ option.
 Set the timestamp to the host system's time in UTC.
 .El
 .El
+.It Ic feature
+Issue
+.Tn NVMe
+Get Features and Set Features commands.
+Only supported for
+.Tn NVMe
+devices.
+.Bl -tag -width 10n
+.It Fl a Ar action
+Specify the action to perform.
+.Bl -tag -width 8n
+.It Cm get
+Issue a Get Features command.
+.It Cm set
+Issue a Set Features command.
+.El
+.It Fl d Ar data
+Specify the data for the feature being set.
+.It Fl f Ar feature
+Specify the feature to get or set.
+.Bl -tag -width 15n
+.It Cm arbitration
+(not yet implemented)
+.Pp
+Command arbitration.
+.It Cm powermgmt
+(not yet implemented)
+.Pp
+Power management.
+.It Cm lbaranget
+(not yet implemented)
+.Pp
+LBA range type.
+.It Cm tempthresh
+(not yet implemented)
+.Pp
+Temperature threshold.
+.It Cm erecover
+(not yet implemented)
+.Pp
+Error recovery.
+.It Cm volatilewc
+(not yet implemented)
+.Pp
+Volatile write cache.
+.It Cm nqueues
+(not yet implemented)
+.Pp
+Number of queues.
+.It Cm intrcoalesc
+(not yet implemented)
+.Pp
+Interrupt coalescing.
+.It Cm intrvectcfg
+(not yet implemented)
+.Pp
+Interrupt vector configuration.
+.It Cm wratomicity
+(not yet implemented)
+.Pp
+Write atomicity normal.
+.It Cm asyncevcfg
+(not yet implemented)
+.Pp
+Asynchronous event configuration.
+.It Cm autopwrstate
+(not yet implemented)
+.Pp
+Autonomous power state transition.
+.It Cm hostmem
+(not yet implemented)
+.Pp
+Host memory buffer.
+.It Cm timestamp
+(not yet implemented)
+.Pp
+Timestamp.
+.It Cm keepalive
+(not yet implemented)
+.Pp
+Keep alive timer.
+.It Cm hctherm
+(not yet implemented)
+.Pp
+Host controlled thermal management.
+.It Cm noppwrstate
+(not yet implemented)
+.Pp
+Non-operational power state config.
+.It Cm rdreclvl
+(not yet implemented)
+.Pp
+Read recovery level config.
+.It Cm prdlatencycfg
+(not yet implemented)
+.Pp
+Predictable latency mode config.
+.It Cm prdlatencywin
+(not yet implemented)
+.Pp
+Predictable latency mode window.
+.It Cm lbastatinfattrs
+(not yet implemented)
+.Pp
+LBA status information attributes.
+.It Cm hostbehavior
+(not yet implemented)
+.Pp
+Host behavior support.
+.It Cm sanitizecfg
+(not yet implemented)
+.Pp
+Sanitize config.
+.It Cm egroupevcfg
+(not yet implemented)
+.Pp
+Endurance group event configuration.
+.It Cm swprogmarker
+(not yet implemented)
+.Pp
+Software progress marker.
+.It Cm hostid
+Host identifier.
+The hostid value is specified with
+.Fl d Ar data
+as a UUID or an integer in decimal, hex, or octal.
+.It Cm rsvnotmask
+(not yet implemented)
+.Pp
+Reservation notification mask.
+.It Cm rsvpersist
+(not yet implemented)
+.Pp
+Reservation persistence.
+.It Cm nswpcfg
+(not yet implemented)
+.Pp
+Namespace write protection config.
+.It Cm raw
+(not yet implemented)
+.Pp
+Raw feature identified by id and represented in hex.
+.El
+.It Fl s Ar arg
+Specifies an optional, numeric argument for feature get and set.
+Not all features or implementations support these options.
+.Bl -tag -width 4n
+.It Cm get
+When getting a feature value, specifies the feature select mask as follows:
+.Bl -tag -width 4n
+.It Cm 0x0
+Get the feature's current value.
+.It Cm 0x1
+Get the feature's default value.
+.It Cm 0x2
+Get the feature's saved value.
+.It Cm 0x3
+Get the feature's capability mask.
+.El
+.It Cm set
+When setting a feature value, specifies the feature save flag as follows:
+.Bl -tag -width 4n
+.It Cm 0x0
+Do not set the feature's save flag; this modifies the current feature value
+if the feature's capabilities allow.
+.It Cm 0x1
+Set the feature's save flag; this modifies the saved and current feature
+values if the feature's capabilities allow.
+.El
+.El
+.It Fl U
+Output the hostid feature as a UUID.
+.El
 .It Ic devtype
 Print out the device type for specified device.
 .Bl -tag -width 10n
@@ -2935,6 +3339,7 @@ camcontrol timestamp sa0 -s -f "%a, %d %b %Y %T %z" \e
 .Xr pass 4 ,
 .Xr xpt 4 ,
 .Xr diskinfo 8 ,
+.Xr nvmecontrol 8 ,
 .Xr trim 8 ,
 .Xr zonectl 8
 .Sh HISTORY

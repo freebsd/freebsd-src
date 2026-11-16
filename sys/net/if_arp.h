@@ -71,10 +71,10 @@ struct	arphdr {
 #endif
 };
 
-#define ar_sha(ap)	(((caddr_t)((ap)+1)) +   0)
-#define ar_spa(ap)	(((caddr_t)((ap)+1)) +   (ap)->ar_hln)
-#define ar_tha(ap)	(((caddr_t)((ap)+1)) +   (ap)->ar_hln + (ap)->ar_pln)
-#define ar_tpa(ap)	(((caddr_t)((ap)+1)) + 2*(ap)->ar_hln + (ap)->ar_pln)
+#define ar_sha(ap)	(((char *)((ap)+1)) +   0)
+#define ar_spa(ap)	(((char *)((ap)+1)) +   (ap)->ar_hln)
+#define ar_tha(ap)	(((char *)((ap)+1)) +   (ap)->ar_hln + (ap)->ar_pln)
+#define ar_tpa(ap)	(((char *)((ap)+1)) + 2*(ap)->ar_hln + (ap)->ar_pln)
 
 #define arphdr_len2(ar_hln, ar_pln)					\
 	(sizeof(struct arphdr) + 2*(ar_hln) + 2*(ar_pln))

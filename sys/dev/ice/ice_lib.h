@@ -965,6 +965,7 @@ void ice_configure_txq_interrupt(struct ice_hw *hw, u16 txqid, u16 vector, u8 it
 void ice_configure_all_txq_interrupts(struct ice_vsi *vsi);
 void ice_flush_rxq_interrupts(struct ice_vsi *vsi);
 void ice_flush_txq_interrupts(struct ice_vsi *vsi);
+int  ice_cfg_tx_queue(struct ice_tx_queue *txq);
 int  ice_cfg_vsi_for_tx(struct ice_vsi *vsi);
 int  ice_cfg_vsi_for_rx(struct ice_vsi *vsi);
 int  ice_control_rx_queue(struct ice_vsi *vsi, u16 qidx, bool enable);

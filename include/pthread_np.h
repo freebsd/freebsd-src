@@ -34,6 +34,34 @@
 #include <sys/param.h>
 #include <sys/cpuset.h>
 
+enum pthread_state_np {
+	PTHREAD_STATE_RUNNING_NP = 100,
+	PTHREAD_STATE_SUSPENDED_NP,
+	PTHREAD_STATE_DEAD_NP,
+};
+
+#define	PTHREAD_INFO_DETACHED_NP	0x0001
+#define	PTHREAD_INFO_INITIAL_NP		0x0002
+
+#define	PTHREAD_INFO_CANCEL_ENABLED_NP	0x0001
+#define	PTHREAD_INFO_CANCEL_ASYNC_NP	0x0002
+#define	PTHREAD_INFO_CANCEL_PENDING_NP	0x0004
+#define	PTHREAD_INFO_CANCEL_AT_POINT_NP	0x0008
+#define	PTHREAD_INFO_CANCEL_IN_PROG_NP	0x0010
+
+struct pthread_info_np {
+	size_t pthread_info_size;
+	pthread_t thread;
+	long lwpid;
+	enum pthread_state_np state;
+	int flags;
+	int cancel_state;
+	int *errno_location;
+	struct tcb *tcb;
+	struct uexterror *exterr;
+	char name[128];
+};
+
 /*
  * Non-POSIX thread function prototype definitions:
  */
@@ -57,6 +85,8 @@ int pthread_mutex_isowned_np(pthread_mutex_t *mutex);
 void pthread_resume_all_np(void);
 int pthread_resume_np(pthread_t);
 int pthread_peekjoin_np(pthread_t, void **);
+int pthread_query_np(pthread_t, struct pthread_info_np *, size_t);
+int pthread_query_all_np(struct pthread_info_np *, size_t *);
 void pthread_set_name_np(pthread_t, const char *);
 int pthread_setaffinity_np(pthread_t, size_t, const cpuset_t *);
 void pthread_signals_block_np(void);

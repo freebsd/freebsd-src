@@ -227,7 +227,7 @@ uds_accept(void *ctx, void **newctxp)
 }
 
 static int
-uds_send(void *ctx, const unsigned char *data, size_t size, int fd)
+uds_send(void *ctx, const void *data, size_t size, int fd)
 {
 	struct uds_ctx *uctx = ctx;
 
@@ -239,7 +239,7 @@ uds_send(void *ctx, const unsigned char *data, size_t size, int fd)
 }
 
 static int
-uds_recv(void *ctx, unsigned char *data, size_t size, int *fdp)
+uds_recv(void *ctx, void *data, size_t size, int *fdp)
 {
 	struct uds_ctx *uctx = ctx;
 

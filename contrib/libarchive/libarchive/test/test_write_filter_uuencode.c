@@ -170,3 +170,51 @@ DEFINE_TEST(test_write_filter_uuencode)
 	free(data);
 	free(buff);
 }
+
+/*
+ * A write callback that fails once, on its third call.  The block that
+ * could not be written must not be dropped silently.
+ */
+static ssize_t
+fail_once_write(struct archive *a, void *client_data, const void *buff,
+    size_t length)
+{
+	int *calls = client_data;
+
+	(void)buff; /* UNUSED */
+	if (++*calls == 3) {
+		archive_set_error(a, EIO, "Simulated write error");
+		return (-1);
+	}
+	return ((ssize_t)length);
+}
+
+DEFINE_TEST(test_write_filter_uuencode_write_error)
+{
+	struct archive_entry *ae;
+	struct archive *a;
+	char *data;
+	size_t datasize = 500000;
+	int calls = 0;
+
+	assert(NULL != (data = malloc(datasize)));
+	memset(data, 'a', datasize);
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_uuencode(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open2(a, &calls, NULL, fail_once_write, NULL, NULL));
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_filetype(ae, AE_IFREG);
+	archive_entry_set_size(ae, datasize);
+	archive_entry_copy_pathname(ae, "file");
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, ARCHIVE_FATAL,
+	    archive_write_data(a, data, datasize));
+	assert(calls >= 3);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	free(data);
+}

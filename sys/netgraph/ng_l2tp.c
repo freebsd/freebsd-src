@@ -784,7 +784,7 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 		NG_FREE_M(m);
 		ERROUT(EINVAL);
 	}
-	if (m->m_len < 2 && (m = m_pullup(m, 2)) == NULL) {
+	if ((m = m_pullup(m, 2)) == NULL) {
 		priv->stats.memoryFailures++;
 		NG_FREE_ITEM(item);
 		ERROUT(EINVAL);
@@ -813,7 +813,7 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 
 	/* Get and validate length field if present */
 	if ((hdr & L2TP_HDR_LEN) != 0) {
-		if (m->m_len < 2 && (m = m_pullup(m, 2)) == NULL) {
+		if ((m = m_pullup(m, 2)) == NULL) {
 			priv->stats.memoryFailures++;
 			NG_FREE_ITEM(item);
 			ERROUT(EINVAL);
@@ -831,7 +831,7 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 	}
 
 	/* Get tunnel ID and session ID */
-	if (m->m_len < 4 && (m = m_pullup(m, 4)) == NULL) {
+	if ((m = m_pullup(m, 4)) == NULL) {
 		priv->stats.memoryFailures++;
 		NG_FREE_ITEM(item);
 		ERROUT(EINVAL);
@@ -863,7 +863,7 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 
 	/* Get Ns, Nr fields if present */
 	if ((hdr & L2TP_HDR_SEQ) != 0) {
-		if (m->m_len < 4 && (m = m_pullup(m, 4)) == NULL) {
+		if ((m = m_pullup(m, 4)) == NULL) {
 			priv->stats.memoryFailures++;
 			NG_FREE_ITEM(item);
 			ERROUT(EINVAL);
@@ -879,7 +879,7 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 		u_int16_t offset;
 
 		/* Get length of offset padding */
-		if (m->m_len < 2 && (m = m_pullup(m, 2)) == NULL) {
+		if ((m = m_pullup(m, 2)) == NULL) {
 			priv->stats.memoryFailures++;
 			NG_FREE_ITEM(item);
 			ERROUT(EINVAL);
@@ -1516,7 +1516,7 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 		priv->stats.xmitZLBs++;
 	} else {
 		/* Strip off session ID */
-		if (m->m_len < 2 && (m = m_pullup(m, 2)) == NULL) {
+		if ((m = m_pullup(m, 2)) == NULL) {
 			priv->stats.memoryFailures++;
 			return (ENOBUFS);
 		}

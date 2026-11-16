@@ -223,39 +223,44 @@ proc sqlite-configure {buildMode configScript} {
         dbpage               => {Enable the sqlite3_dbpage extension}
         dbstat               => {Enable the sqlite3_dbstat extension}
         carray=1             => {Disable the CARRAY extension}
+        column-metadata      => {Enable the column metadata APIs}
         all=$::sqliteConfig(all-flag-default) => {$allFlagHelp}
         largefile=1
           => {This legacy flag has no effect on the library but may influence
               the generated sqlite_cfg.h by adding #define HAVE_LFS}
       }
-      {canonical} {
-        column-metadata      => {Enable the column metadata APIs}
-        # ^^^ Affects how sqlite3.c is generated, so is not available in
-        # the autoconf build.
-      }
     }
 
-    # Options for TCL support
+    # Options for Tcl support
     tcl {
       {canonical} {
         tcl=1
-          => {Disable components which require TCL, including all tests.
-              This tree requires TCL for code generation but can use the in-tree
-              copy of autosetup/jimsh0.c for that. The SQLite TCL extension and the
+          => {Disable components which require Tcl, including all tests.
+              This tree requires Tcl for code generation but can use the in-tree
+              copy of autosetup/jimsh0.c for that. The SQLite Tcl extension and the
               test code require a canonical tclsh.}
         with-tcl:DIR
           => {Directory containing tclConfig.sh or a directory one level up from
               that, from which we can derive a directory containing tclConfig.sh.
               A dir name of "prefix" is equivalent to the directory specified by
-              the --prefix flag.}
+              the --prefix flag.
+
+              This determines the Tcl that SQLite will link against. It
+              does not affect the Tcl that is executed as part of the
+              build.}
         with-tclsh:PATH
-          => {Full pathname of tclsh to use.  It is used for (A) trying to find
-              tclConfig.sh and (B) all TCL-based code generation. Use --with-tcl
-              unless you have a specific need for this flag. Warning: if its
-              containing dir has multiple tclsh versions, it may select the
-              wrong tclConfig.sh!}
+          => {Full pathname of tclsh to use.  It is used for all Tcl-based
+              code generation.
+
+              Additionally, when doing a native (build = host) build, it
+              may also be used as a legacy fallback to find tclConfig.sh
+              if --with-tcl does not say where that is. Relying on that
+              is not recommended. Warning: if its containing dir has
+              multiple tclsh versions, it may select the wrong
+              tclConfig.sh! The safe thing is to only pass --with-tclsh
+              if one also passes --with-tcl.}
         static-tclsqlite3=0
-          => {Statically-link tclsqlite3. This only works if TCL support is
+          => {Statically-link tclsqlite3. This only works if Tcl support is
               enabled and all requisite libraries are available in
               static form. Note that glibc is unable to fully statically
               link certain libraries required by tclsqlite3, so this won't
@@ -448,7 +453,7 @@ proc sqlite-configure {buildMode configScript} {
 
   if {[catch {options {}} msg xopts]} {
     # Workaround for <https://github.com/msteveb/autosetup/issues/73>
-    # where [options] behaves oddly on _some_ TCL builds when it's
+    # where [options] behaves oddly on _some_ Tcl builds when it's
     # called from deeper than the global scope.
     dict incr xopts -level
     return {*}$xopts $msg
@@ -466,7 +471,7 @@ proc sqlite-configure {buildMode configScript} {
 proc sqlite-configure-phase1 {buildMode} {
   define PACKAGE_NAME sqlite
   define PACKAGE_URL {https://sqlite.org}
-  define PACKAGE_BUGREPORT [get-define PACKAGE_URL]/forum
+  define PACKAGE_BUGREPORT [get-define PACKAGE_URL]/bugs
   define PACKAGE_STRING "[get-define PACKAGE_NAME] [get-define PACKAGE_VERSION]"
   proj-xfer-options-aliases {
     # Carry values from hidden --flag aliases over to their canonical
@@ -1067,7 +1072,7 @@ proc sqlite-get-readline-dir-list {} {
     }
     *-haiku {
       lappend dirs /boot/system/develop/headers
-      if {[opt-val with-readline-ldflags] in {auto ""}} {
+      if {![opt-bool editline] && [opt-val with-readline-ldflags] in {auto ""}} {
         # If the user did not supply their own --with-readline-ldflags
         # value, hijack that flag to inject options which are known to
         # work on Haiku OS installations.
@@ -1094,16 +1099,30 @@ proc sqlite-get-readline-dir-list {} {
 #   - HAVE_LINENOISE to 0, 1, or 2
 #   - HAVE_EDITLINE to 0 or 1
 #
-# Only one of ^^^ those will be set to non-0.
+#  Those will be set as follows:
+#
+#   HAVE_LINENOISE=0, HAVE_EDITLINE=0, HAVE_READLINE=0: no line editing
+#
+#   HAVE_LINENOISE>0: 1=antirez flavor, 2=msteveb flavor
+#
+#   HAVE_EDITLINE=0, HAVE_READLINE=1: use GNU readline
+#
+#   HAVE_EDITLINE=1, HAVE_READLINE=1: use BSD editline header
+#   <readline/readline.h>.
+#
+#   HAVE_EDITLINE=1, HAVE_READLINE=0: use BSD editline header
+#   <editline/readline.h>.
+#
+# Other defines it sets:
 #
 #   - LDFLAGS_READLINE = linker flags or empty string
 #
 #   - CFLAGS_READLINE = compilation flags for clients or empty string.
 #
-# Note that LDFLAGS_READLINE and CFLAGS_READLINE may refer to
-# linenoise or editline, not necessarily libreadline.  In some cases
-# it will set HAVE_READLINE=1 when it's really using editline, for
-# reasons described in this function's comments.
+# Both LDFLAGS_READLINE and CFLAGS_READLINE may refer to linenoise or
+# editline, not necessarily libreadline.  In some cases it will set
+# HAVE_READLINE=1 when it's really using editline, for reasons
+# described in this function's comments.
 #
 # Returns a string describing which line-editing approach to use, or
 # "none" if no option is available.
@@ -1141,7 +1160,7 @@ proc sqlite-check-line-editing {} {
   # If none of --with-linenoise, --enable-readline, or --enable-editline
   # are provided, but there exists a directory "linenoise" at $HOME or
   # a sibling of the build or source directory, then try to use that linenoise
-  # direcctory.
+  # directory.
   #
   if {"" eq $dirLn
    && ![proj-opt-was-provided readline]
@@ -1210,6 +1229,7 @@ proc sqlite-check-line-editing {} {
     set failIfNotFound 1
     set libsForReadline {edit}
     set editLibName editline
+    set editLibDef HAVE_EDITLINE
   } elseif {![opt-bool readline]} {
     msg-result "Readline support explicitly disabled with --disable-readline"
     return "none"
@@ -1305,14 +1325,18 @@ proc sqlite-check-line-editing {} {
 
   # If we found a library, configure the build to use it...
   if {"" ne $rlLib} {
-    if {"editline" eq $editLibName && "HAVE_READLINE" eq $editLibDef} {
-      # Alert the user that, despite outward appearances, we won't be
-      # linking to the GPL'd libreadline. Presumably that distinction is
-      # significant for those using --editline.
-      proj-indented-notice {
-        NOTE: the local libedit uses <readline/readline.h> so we
-        will compile with -DHAVE_READLINE=1 but will link with
-        libedit.
+    if {"editline" eq $editLibName} {
+      # sqlite-add-shell-opt -DEL_WIDECHAR=1;
+      if {"HAVE_READLINE" eq $editLibDef} {
+        sqlite-add-shell-opt -DHAVE_EDITLINE=1
+        # Alert the user that, despite outward appearances, we won't be
+        # linking to the GPL'd libreadline. Presumably that distinction is
+        # significant for those using --editline.
+        proj-indented-notice {
+          NOTE: the local libedit uses <readline/readline.h> so we
+          will compile with -DHAVE_READLINE=1 but will link with
+          libedit.
+        }
       }
     }
     set rlLib [join $rlLib]
@@ -1633,13 +1657,15 @@ proc sqlite-handle-dll-basename {} {
 }
 
 ########################################################################
+# Handles the --out-implib flag.
+#
 # [define]s LDFLAGS_OUT_IMPLIB to either an empty string or to a
 # -Wl,... flag for the platform-specific --out-implib flag, which is
 # used for building an "import library .dll.a" file on some platforms
-# (e.g. msys2, mingw). SQLITE_OUT_IMPLIB is defined to the name of the
-# import lib or an empty string. Returns 1 if supported, else 0.
+# (e.g. msys2, mingw). Returns 1 if supported, else 0.
 #
-# The name of the import library is [define]d in SQLITE_OUT_IMPLIB.
+# The name of the import library is [define]d in SQLITE_OUT_IMPLIB,
+# as an empty string if it's not supported.
 #
 # If the configure flag --out-implib is not used (or programmatically
 # set) then this simply sets the above-listed defines to empty strings
@@ -1892,39 +1918,59 @@ proc sqlite-handle-wasi-sdk {} {
 }; # sqlite-handle-wasi-sdk
 
 ########################################################################
-# TCL...
+# Tcl...
 #
 # sqlite-check-tcl performs most of the --with-tcl and --with-tclsh
 # handling. Some related bits and pieces are performed before and
 # after that function is called.
 #
-# Important [define]'d vars:
+# Important [define]'d vars. They can be split into library and tool vars.
 #
-#  - HAVE_TCL indicates whether we have a tclsh suitable for building
-#    the TCL SQLite extension and, by extension, the testing
-#    infrastructure. This must only be 1 for environments where
-#    tclConfig.sh can be found.
+# Tcl library vars:
 #
-#  - TCLSH_CMD is the path to the canonical tclsh or "". It never
-#    refers to jimtcl.
+#  - HAVE_TCL indicates whether we have the Tcl that the SQLite Tcl
+#    extension will be linked with, and so whether that extension is
+#    built. This is 1 for environments where tclConfig.sh can be found.
+#    That file describes a library to link against, so whether any tclsh
+#    can be run is a separate matter, and none is needed for this.
 #
 #  - TCL_CONFIG_SH is the path to tclConfig.sh or "".
 #
 #  - TCLLIBDIR is the dir to which libtclsqlite3 gets installed.
 #
+# Tcl tool vars:
+#
+#  - TCLSH_CMD is the path to the canonical tclsh or "". It never
+#    refers to jimtcl.
+#
 #  - BTCLSH = the path to the tcl interpreter used for in-tree code
-#    generation.  It may be jimtcl or the canonical tclsh but may not
-#    be empty - this tree requires TCL to generated numerous
+#    generation.  It may be jimtcl or the canonical tclsh but may not be
+#    empty, as Tcl code is run as part of the build to generate numerous
 #    components.
 #
-# If --tcl or --with-tcl are provided but no TCL is found, this
+# The two configure CLI flags are separated by which set of variables
+# they affect. --with-tcl affects only Tcl library vars, and
+# --with-tclsh almost only affects Tcl tool vars. There is just one
+# exception: when compiling natively, a tclsh is asked where its own
+# tclConfig.sh is if --with-tcl is not passed.
+#
+# This distinction is good in any event to separate concerns, but it is
+# especially important for cross compilation. In that case, the Tcl that
+# SQLite links against will be one that runs on the host platform, while
+# the Tcl that SQLite's build scripts use at build time will run on the
+# build platform. Mixing up the two flags and the two kinds of vars is
+# likely to break cross compilation; that is why the one exception to
+# the separation is strictly confined to the native compilation case.
+# See: https://sqlite.org/forum/forumpost/fe9e99eb27c8c2ba
+#
+# If --tcl or --with-tcl are provided but no Tcl is found, this
 # function fails fatally. If they are not explicitly provided then
-# failure to find TCL is not fatal but a loud warning will be emitted.
+# failure to find Tcl is not fatal but a loud warning will be emitted.
 #
 proc sqlite-check-tcl {} {
   define TCLSH_CMD false ; # Significant is that it exits with non-0
   define HAVE_TCL 0      ; # Will be enabled via --tcl or a successful search
-  define TCLLIBDIR ""    ; # Installation dir for TCL extension lib
+  define TCLLIBDIR ""    ; # Installation dir for Tcl extension lib
   define TCL_CONFIG_SH ""; # full path to tclConfig.sh
 
   # Clear out all vars which would harvest from tclConfig.sh so that
@@ -1935,8 +1981,8 @@ proc sqlite-check-tcl {} {
   file delete -force ".tclenv.sh"; # ensure no stale state from previous configures.
   if {![opt-bool tcl]} {
     proj-indented-notice {
-      NOTE: TCL is disabled via --disable-tcl. This means that none
-      of the TCL-based components will be built, including tests
+      NOTE: Tcl is disabled via --disable-tcl. This means that none
+      of the Tcl-based components will be built, including tests
       and sqlite3_analyzer.
     }
     return
@@ -1963,23 +2009,39 @@ proc sqlite-check-tcl {} {
 
   set doConfigLookup 1 ; # set to 0 to test the tclConfig.sh-not-found cases
   if {"" ne $with_tclsh} {
-    # --with-tclsh was provided or found above. Validate it and use it
-    # to trump any value passed via --with-tcl=DIR.
+    # --with-tclsh was provided or found above. Validate it and, if
+    # nothing better is to be had, ask it where its tclConfig.sh is.
+    # The two name different things: the shell runs here, whereas
+    # tclConfig.sh describes the library the extension is linked
+    # against. The shell is a guide to that only when neither
+    # --with-tcl=DIR says where it is nor cross compiling puts it on
+    # another platform entirely.
     if {![file-isexec $with_tclsh]} {
-      proj-fatal "TCL shell $with_tclsh is not executable"
+      proj-fatal "Tcl shell $with_tclsh is not executable"
     } else {
       define TCLSH_CMD $with_tclsh
       #msg-result "Using tclsh: $with_tclsh"
     }
-    if {$doConfigLookup &&
-        [catch {exec $with_tclsh $::autosetup(libdir)/find_tclconfig.tcl} result] == 0} {
-      set with_tcl $result
-    }
-    if {"" ne $with_tcl && [file isdir $with_tcl]} {
-      msg-result "$with_tclsh recommends the tclConfig.sh from $with_tcl"
+
+    if {"" ne $with_tcl} {
+      # --with-tcl was given explicitly; do not second-guess it with tclsh.
+    } elseif {$::sqliteConfig(is-cross-compiling)} {
+      # This tclsh runs on the build platform, so the tclConfig.sh it would
+      # recommend describes Tcl for here, not for the host platform.
+      proj-warn "Cannot ask $with_tclsh to recommend a tclConfig.sh because we are cross compiling."
+      # Leave with_tcl empty and do not set use_tcl either way so the $libdir
+      # search below can still attempt to find one.
     } else {
-      proj-warn "$with_tclsh is unable to recommend a tclConfig.sh"
-      set use_tcl 0
+      if {$doConfigLookup &&
+          [catch {exec $with_tclsh $::autosetup(libdir)/find_tclconfig.tcl} result] == 0} {
+        set with_tcl $result
+      }
+      if {"" ne $with_tcl && [file isdir $with_tcl]} {
+        msg-result "$with_tclsh recommends the tclConfig.sh from $with_tcl"
+      } else {
+        proj-warn "$with_tclsh is unable to recommend a tclConfig.sh"
+        set use_tcl 0
+      }
     }
   }
   set cfg ""
@@ -2026,7 +2088,7 @@ proc sqlite-check-tcl {} {
     break
   }
   define TCL_CONFIG_SH $cfg
-  # Export a subset of tclConfig.sh to the current TCL-space.  If $cfg
+  # Export a subset of tclConfig.sh to the current Tcl-space.  If $cfg
   # is an empty string, this emits empty-string entries for the
   # various options we're interested in.
   proj-tclConfig-sh-to-autosetup $cfg
@@ -2046,7 +2108,7 @@ proc sqlite-check-tcl {} {
       }
     }
     if {![file-isexec $with_tclsh]} {
-      proj-warn "Cannot find a usable tclsh (tried: $tryThese)
+      proj-warn "Cannot find a usable tclsh (tried: $tryThese)"
     }
   }
   define TCLSH_CMD $with_tclsh
@@ -2062,14 +2124,16 @@ proc sqlite-check-tcl {} {
     set tcllibdir [get-env TCLLIBDIR ""]
     set sq3Ver [get-define PACKAGE_VERSION]
     if {"" eq $tcllibdir} {
-      # Attempt to extract TCLLIBDIR from TCL's $auto_path
+      # Attempt to extract TCLLIBDIR from Tcl's $auto_path
       if {"" ne $with_tclsh &&
           [catch {exec echo "puts stdout \$auto_path" | "$with_tclsh"} result] == 0} {
         foreach i $result {
-          if {[file isdir $i]} {
+          if {![string match "//zipfs:*" $i] && [file isdir $i]} {
+            # Tcl9 may report //zipfs paths as dirs. Filter those out.
             set tcllibdir $i/sqlite${sq3Ver}
             break
           }
+          # proj-warn "filtering out auto_path $i"
         }
       } else {
         proj-warn "Cannot determine TCLLIBDIR."
@@ -2083,57 +2147,65 @@ proc sqlite-check-tcl {} {
 
   if {[file-isexec $with_tclsh]} {
     msg-result "Using tclsh: $with_tclsh"
-    if {$cfg ne ""} {
-      define HAVE_TCL 1
-    } else {
-      proj-warn "Found tclsh but no tclConfig.sh."
-    }
+  }
+  # tclConfig.sh describes what the extension is built against.
+  # Whether a tclsh can be run here is a separate question, affecting
+  # code generation and the test suite.
+  if {$cfg ne ""} {
+    define HAVE_TCL 1
+  } elseif {[file-isexec $with_tclsh]} {
+    proj-warn "Found tclsh (${with_tclsh}) but no tclConfig.sh."
   }
   show-notices
-  # If TCL is not found: if it was explicitly requested then fail
+  # If Tcl is not found: if it was explicitly requested then fail
   # fatally, else just emit a warning. If we can find the APIs needed
-  # to generate a working JimTCL then that will suffice for build-time
-  # TCL purposes (see: proc sqlite-determine-codegen-tcl).
+  # to generate a working JimTcl then that will suffice for build-time
+  # Tcl purposes (see: proc sqlite-determine-codegen-tcl).
   if {![get-define HAVE_TCL] &&
       ([proj-opt-was-provided tcl] || [proj-opt-was-provided with-tcl])} {
-    proj-fatal "TCL support was requested but no tclConfig.sh could be found."
+    proj-fatal "Tcl support was requested but no tclConfig.sh could be found."
   }
   if {"" eq $cfg} {
     proj-assert {0 == [get-define HAVE_TCL]}
     proj-indented-notice {
       WARNING: Cannot find a usable tclConfig.sh file.  Use
       --with-tcl=DIR to specify a directory where tclConfig.sh can be
-      found.  SQLite does not use TCL internally, but some optional
-      components require TCL, including tests and sqlite3_analyzer.
+      found.  SQLite does not use Tcl internally, but some optional
+      components require Tcl, including tests and sqlite3_analyzer.
     }
   }
 }; # sqlite-check-tcl
 
 ########################################################################
-# sqlite-determine-codegen-tcl checks which TCL to use as a code
+# sqlite-determine-codegen-tcl checks which Tcl to use as a code
 # generator.  By default, prefer jimsh simply because we have it
 # in-tree (it's part of autosetup) unless --with-tclsh=X is used, in
 # which case prefer X.
 #
-# Returns the human-readable name of the TCL it selects. Fails fatally
-# if it cannot detect a TCL appropriate for code generation.
+# Returns the human-readable name of the Tcl it selects. Fails fatally
+# if it cannot detect a Tcl appropriate for code generation.
 #
 # Defines:
 #
-#   - BTCLSH = the TCL shell used for code generation. It may set this
+#   - BTCLSH = the Tcl shell used for code generation. It may set this
 #     to an unexpanded makefile var name.
 #
 #   - CFLAGS_JIMSH = any flags needed for buildng a BTCLSH-compatible
 #     jimsh. The defaults may be passed on to configure as
 #     CFLAGS_JIMSH=...
 proc sqlite-determine-codegen-tcl {} {
-  msg-result "Checking for TCL to use for code generation... "
+  msg-result "Checking for Tcl to use for code generation... "
   define CFLAGS_JIMSH [proj-get-env CFLAGS_JIMSH {-O1}]
   set cgtcl [opt-val with-tclsh jimsh]
   if {"jimsh" ne $cgtcl} {
-    # When --with-tclsh=X is used, use that for all TCL purposes,
-    # including in-tree code generation, per developer request.
-    define BTCLSH "\$(TCLSH_CMD)"
+    # When --with-tclsh=X is used, generate code with X rather than with
+    # the in-tree jimsh, per developer request.
+    #
+    # Name it directly rather than through the $(TCLSH_CMD) makefile
+    # var, which gets set to "false" when the extension is not built,
+    # but we need code generation regardless of whether the extension
+    # is built.
+    define BTCLSH $cgtcl
     return $cgtcl
   }
   set flagsToRestore {CC CFLAGS AS_CFLAGS CPPFLAGS AS_CPPFLAGS LDFLAGS LINKFLAGS LIBS CROSS}
@@ -2149,7 +2221,7 @@ proc sqlite-determine-codegen-tcl {} {
     # block.
     foreach flag $flagsToRestore {define $flag ""}
     define CC [get-define CC_FOR_BUILD]
-    # These headers are technically optional for JimTCL but necessary if
+    # These headers are technically optional for JimTcl but necessary if
     # we want to use it for code generation:
     set sysh [cc-check-includes dirent.h sys/time.h]
     # jimsh0.c hard-codes #define's for HAVE_DIRENT_H and
@@ -2158,6 +2230,9 @@ proc sqlite-determine-codegen-tcl {} {
     # so that we can avoid the situation that we later, at
     # make-time, try to compile jimsh but it then fails due to
     # missing headers (i.e. fail earlier rather than later).
+    #
+    # One of HAVE_REALPATH or HAVE__FULLPATH are required here for
+    # jimsh's [file normalize] to work.
     if {$sysh && [cc-check-functions realpath]} {
       define-append CFLAGS_JIMSH -DHAVE_REALPATH
       define BTCLSH "\$(JIMSH)"
@@ -2204,7 +2279,7 @@ proc sqlite-determine-codegen-tcl {} {
 proc sqlite-handle-tcl {} {
   sqlite-check-tcl
   if {"canonical" ne $::sqliteConfig(build-mode)} return
-  msg-result "TCL for code generation: [sqlite-determine-codegen-tcl]"
+  msg-result "Tcl for code generation: [sqlite-determine-codegen-tcl]"
 
   # Determine the base name of the Tcl extension's DLL
   #

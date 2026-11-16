@@ -74,8 +74,15 @@ DEFINE_TEST(test_write_disk_secure744)
 		archive_entry_set_mode(ae, S_IFREG | 0777);
 		archive_entry_copy_symlink(ae, testworkdir);
 		archive_entry_set_symlink_type(ae, AE_SYMLINK_TYPE_DIRECTORY);
-		assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+		t = archive_write_header(a, ae);
 		archive_entry_free(ae);
+		if (t == ARCHIVE_FAILED && archive_errno(a) == ENAMETOOLONG) {
+			/* Longer paths cannot be tested on this system. */
+			skipping("Cannot create symlinks with longer pathnames");
+			break;
+		}
+		if (!assertEqualIntA(a, ARCHIVE_OK, t))
+			break;
 
 		*p++ = '/';
 		snprintf(p, buff_size - (p - buff), "target%d", n);

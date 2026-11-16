@@ -51,9 +51,7 @@ MALLOC_DECLARE(M_NETGRAPH_L2CAP);
 /* Wrapper around m_pullup */
 #define NG_L2CAP_M_PULLUP(m, s) \
 	do { \
-		if ((m)->m_len < (s)) \
-			(m) = m_pullup((m), (s)); \
-		if ((m) == NULL) \
+		if (((m) = m_pullup((m), (s))) == NULL)			\
 			NG_L2CAP_ALERT("%s: %s - m_pullup(%zd) failed\n", \
 				__func__, NG_NODE_NAME(l2cap->node), (s)); \
 	} while (0)

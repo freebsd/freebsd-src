@@ -29,6 +29,7 @@
 #else
 #include <assert.h>
 #include <errno.h>
+#include <paths.h>
 #include <poll.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -54,7 +55,6 @@
 #include "libusb.h"
 #include "libusb10.h"
 
-#define DEVDPIPE	"/var/run/devd.seqpacket.pipe"
 #define DEVCTL_MAXBUF	1024
 
 typedef enum {
@@ -94,7 +94,7 @@ devd_init(libusb_context *ctx)
 		return (false);
 
 	devd_addr.sun_family = PF_LOCAL;
-	strlcpy(devd_addr.sun_path, DEVDPIPE, sizeof(devd_addr.sun_path));
+	strlcpy(devd_addr.sun_path, _PATH_DEVD_SOCKET, sizeof(devd_addr.sun_path));
 	if (connect(ctx->devd_pipe, (struct sockaddr *)&devd_addr,
 	    sizeof(devd_addr)) == -1) {
 		close(ctx->devd_pipe);

@@ -263,6 +263,9 @@ rk_cru_attach(device_t dev)
 			clknode_link_register(sc->clkdom,
 			    sc->clks[i].clk.link);
 			break;
+		case RK_CLK_MMC:
+			rk_clk_mmc_register(sc->clkdom, sc->clks[i].clk.mmc);
+			break;
 		default:
 			device_printf(dev, "Unknown clock type\n");
 			return (ENXIO);

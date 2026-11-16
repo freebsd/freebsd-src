@@ -77,6 +77,8 @@ sctp_calc_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc)
 {
 	uint32_t calc = 0;
 
+	SCTP_TCB_LOCK_ASSERT(stcb);
+
 	/*
 	 * This is really set wrong with respect to a 1-2-m socket. Since
 	 * the sb_cc is the count that everyone as put up. When we re-write

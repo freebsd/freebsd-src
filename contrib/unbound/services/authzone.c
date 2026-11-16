@@ -98,6 +98,11 @@
 #define NUM_TIMEOUTS_FALLBACK_IXFR 3
 /** number of IXFRs before an AXFR is performed, to consolidate RPZ memory. */
 #define NUM_IXFR_BEFORE_AXFR 5
+/** The max number of decompression pointers that are allowed in a received
+ * xfr packet. The parse fails if the limit is exceeded.
+ * For a lot of PTR records, with compression for a deep zone, that is about
+ * 20x pointers per RR, of about 16 bytes, more than 4000*20 = 80000. */
+#define AUTH_XFR_DECOMPRESS_PACKET_LIMIT 128000
 
 /** pick up nextprobe task to start waiting to perform transfer actions */
 static void xfr_set_timeout(struct auth_xfer* xfr, struct module_env* env,
@@ -1363,7 +1368,8 @@ az_remove_rr(struct auth_zone* z, uint8_t* rr, size_t rr_len,
 static int
 decompress_rr_into_buffer(struct sldns_buffer* buf, uint8_t* pkt,
 	size_t pktlen, uint8_t* dname, uint16_t rr_type, uint16_t rr_class,
-	uint32_t rr_ttl, uint8_t* rr_data, uint16_t rr_rdlen)
+	uint32_t rr_ttl, uint8_t* rr_data, uint16_t rr_rdlen, int* budget,
+	int limit)
 {
 	sldns_buffer pktbuf;
 	size_t dname_len = 0;
@@ -1377,7 +1383,7 @@ decompress_rr_into_buffer(struct sldns_buffer* buf, uint8_t* pkt,
 	/* decompress dname */
 	sldns_buffer_set_position(&pktbuf,
 		(size_t)(dname - sldns_buffer_current(&pktbuf)));
-	dname_len = pkt_dname_len(&pktbuf);
+	dname_len = pkt_dname_len_budget(&pktbuf, budget, limit);
 	if(dname_len == 0) return 0; /* parse fail on dname */
 	if(!sldns_buffer_available(buf, dname_len)) return 0;
 	dname_pkt_copy(&pktbuf, sldns_buffer_current(buf), dname);
@@ -1412,7 +1418,8 @@ decompress_rr_into_buffer(struct sldns_buffer* buf, uint8_t* pkt,
 				/* moves pktbuf to right after the
 				 * compressed dname, and returns uncompressed
 				 * dname length */
-				uncompressed_len = pkt_dname_len(&pktbuf);
+				uncompressed_len = pkt_dname_len_budget(
+					&pktbuf, budget, limit);
 				if(!uncompressed_len)
 					return 0; /* parse error in dname */
 				compressed_len = sldns_buffer_position(
@@ -1471,13 +1478,13 @@ static int
 az_insert_rr_decompress(struct auth_zone* z, uint8_t* pkt, size_t pktlen,
 	struct sldns_buffer* scratch_buffer, uint8_t* dname, uint16_t rr_type,
 	uint16_t rr_class, uint32_t rr_ttl, uint8_t* rr_data,
-	uint16_t rr_rdlen, int* duplicate)
+	uint16_t rr_rdlen, int* duplicate, int* budget, int limit)
 {
 	uint8_t* rr;
 	size_t rr_len;
 	size_t dname_len;
 	if(!decompress_rr_into_buffer(scratch_buffer, pkt, pktlen, dname,
-		rr_type, rr_class, rr_ttl, rr_data, rr_rdlen)) {
+		rr_type, rr_class, rr_ttl, rr_data, rr_rdlen, budget, limit)) {
 		log_err("could not decompress RR");
 		return 0;
 	}
@@ -1493,13 +1500,13 @@ static int
 az_remove_rr_decompress(struct auth_zone* z, uint8_t* pkt, size_t pktlen,
 	struct sldns_buffer* scratch_buffer, uint8_t* dname, uint16_t rr_type,
 	uint16_t rr_class, uint32_t rr_ttl, uint8_t* rr_data,
-	uint16_t rr_rdlen, int* nonexist)
+	uint16_t rr_rdlen, int* nonexist, int* budget, int limit)
 {
 	uint8_t* rr;
 	size_t rr_len;
 	size_t dname_len;
 	if(!decompress_rr_into_buffer(scratch_buffer, pkt, pktlen, dname,
-		rr_type, rr_class, rr_ttl, rr_data, rr_rdlen)) {
+		rr_type, rr_class, rr_ttl, rr_data, rr_rdlen, budget, limit)) {
 		log_err("could not decompress RR");
 		return 0;
 	}
@@ -4873,7 +4880,7 @@ chunk_rrlist_end(struct auth_chunk* rr_chunk, int rr_num)
 /** RR list iterator, move to next RR */
 static void
 chunk_rrlist_gonext(struct auth_chunk** rr_chunk, int* rr_num,
-	size_t* rr_pos, size_t rr_nextpos)
+	size_t* rr_pos, size_t rr_nextpos, int* budget)
 {
 	/* already at end of chunks? */
 	if(!*rr_chunk)
@@ -4887,6 +4894,7 @@ chunk_rrlist_gonext(struct auth_chunk** rr_chunk, int* rr_num,
 	}
 	/* no more RRs in this chunk */
 	/* continue with next chunk, see if it has RRs */
+	*budget = 0; /* new budget for next packet */
 	if(*rr_chunk)
 		*rr_chunk = (*rr_chunk)->next;
 	while(*rr_chunk) {
@@ -4970,11 +4978,12 @@ static int
 ixfr_start_serial(struct auth_chunk* rr_chunk, int rr_num, size_t rr_pos,
 	uint8_t* rr_dname, uint16_t rr_type, uint16_t rr_class,
 	uint32_t rr_ttl, uint16_t rr_rdlen, uint8_t* rr_rdata,
-	size_t rr_nextpos, uint32_t transfer_serial, uint32_t xfr_serial)
+	size_t rr_nextpos, uint32_t transfer_serial, uint32_t xfr_serial,
+	int* budget)
 {
 	uint32_t startserial;
 	/* move forward on RR */
-	chunk_rrlist_gonext(&rr_chunk, &rr_num, &rr_pos, rr_nextpos);
+	chunk_rrlist_gonext(&rr_chunk, &rr_num, &rr_pos, rr_nextpos, budget);
 	if(chunk_rrlist_end(rr_chunk, rr_num)) {
 		/* no second SOA */
 		verbose(VERB_OPS, "IXFR has no second SOA record");
@@ -5031,6 +5040,7 @@ apply_ixfr(struct auth_xfer* xfr, struct auth_zone* z,
 	size_t rr_counter = 0;
 	int delmode = 0;
 	int softfail = 0;
+	int budget = 0, limit = AUTH_XFR_DECOMPRESS_PACKET_LIMIT;
 
 	xfr->num_ixfrs++;
 
@@ -5066,7 +5076,8 @@ apply_ixfr(struct auth_xfer* xfr, struct auth_zone* z,
 				if(!ixfr_start_serial(rr_chunk, rr_num, rr_pos,
 					rr_dname, rr_type, rr_class, rr_ttl,
 					rr_rdlen, rr_rdata, rr_nextpos,
-					transfer_serial, xfr->serial)) {
+					transfer_serial, xfr->serial,
+					&budget)) {
 					return 0;
 				}
 			} else if(transfer_serial == serial) {
@@ -5110,7 +5121,7 @@ apply_ixfr(struct auth_xfer* xfr, struct auth_zone* z,
 			if(!az_remove_rr_decompress(z, rr_chunk->data,
 				rr_chunk->len, scratch_buffer, rr_dname,
 				rr_type, rr_class, rr_ttl, rr_rdata, rr_rdlen,
-				&nonexist)) {
+				&nonexist, &budget, limit)) {
 				/* failed, malloc error or so */
 				return 0;
 			}
@@ -5130,7 +5141,7 @@ apply_ixfr(struct auth_xfer* xfr, struct auth_zone* z,
 			if(!az_insert_rr_decompress(z, rr_chunk->data,
 				rr_chunk->len, scratch_buffer, rr_dname,
 				rr_type, rr_class, rr_ttl, rr_rdata, rr_rdlen,
-				&duplicate)) {
+				&duplicate, &budget, limit)) {
 				/* failed, malloc error or so */
 				return 0;
 			}
@@ -5144,7 +5155,8 @@ apply_ixfr(struct auth_xfer* xfr, struct auth_zone* z,
 		}
 
 		rr_counter++;
-		chunk_rrlist_gonext(&rr_chunk, &rr_num, &rr_pos, rr_nextpos);
+		chunk_rrlist_gonext(&rr_chunk, &rr_num, &rr_pos, rr_nextpos,
+			&budget);
 	}
 	if(softfail) {
 		verbose(VERB_ALGO, "IXFR did not apply cleanly, fetching full zone");
@@ -5168,6 +5180,7 @@ apply_axfr(struct auth_xfer* xfr, struct auth_zone* z,
 	size_t rr_nextpos;
 	size_t rr_counter = 0;
 	int have_end_soa = 0;
+	int budget = 0, limit = AUTH_XFR_DECOMPRESS_PACKET_LIMIT;
 
 	auth_zone_clear_data(z);
 	xfr->have_zone = 0;
@@ -5201,13 +5214,14 @@ apply_axfr(struct auth_xfer* xfr, struct auth_zone* z,
 		/* add this RR */
 		if(!az_insert_rr_decompress(z, rr_chunk->data, rr_chunk->len,
 			scratch_buffer, rr_dname, rr_type, rr_class, rr_ttl,
-			rr_rdata, rr_rdlen, NULL)) {
+			rr_rdata, rr_rdlen, NULL, &budget, limit)) {
 			/* failed, malloc error or so */
 			return 0;
 		}
 
 		rr_counter++;
-		chunk_rrlist_gonext(&rr_chunk, &rr_num, &rr_pos, rr_nextpos);
+		chunk_rrlist_gonext(&rr_chunk, &rr_num, &rr_pos, rr_nextpos,
+			&budget);
 	}
 	if(!have_end_soa) {
 		log_err("no end SOA record for AXFR");
@@ -6049,7 +6063,7 @@ check_xfer_packet(sldns_buffer* pkt, struct auth_xfer* xfr,
 	int* gonextonfail, int* transferdone)
 {
 	uint8_t* wire = sldns_buffer_begin(pkt);
-	int i;
+	int i, budget = 0, limit = AUTH_XFR_DECOMPRESS_PACKET_LIMIT;
 	if(sldns_buffer_limit(pkt) < LDNS_HEADER_SIZE) {
 		verbose(VERB_ALGO, "xfr to %s failed, packet too small",
 			xfr->task_transfer->master->host);
@@ -6111,7 +6125,7 @@ check_xfer_packet(sldns_buffer* pkt, struct auth_xfer* xfr,
 	for(i=0; i<(int)LDNS_QDCOUNT(wire); i++) {
 		size_t pos = sldns_buffer_position(pkt);
 		uint16_t qtype, qclass;
-		if(pkt_dname_len(pkt) == 0) {
+		if(pkt_dname_len_budget(pkt, &budget, limit) == 0) {
 			verbose(VERB_ALGO, "xfr to %s failed, packet with "
 				"malformed dname",
 				xfr->task_transfer->master->host);
@@ -6161,7 +6175,7 @@ check_xfer_packet(sldns_buffer* pkt, struct auth_xfer* xfr,
 	for(i=0; i<(int)LDNS_ANCOUNT(wire); i++) {
 		size_t pos = sldns_buffer_position(pkt);
 		uint16_t tp, rdlen;
-		if(pkt_dname_len(pkt) == 0) {
+		if(pkt_dname_len_budget(pkt, &budget, limit) == 0) {
 			verbose(VERB_ALGO, "xfr to %s failed, packet with "
 				"malformed dname in answer section",
 				xfr->task_transfer->master->host);
@@ -6277,7 +6291,7 @@ check_xfer_packet(sldns_buffer* pkt, struct auth_xfer* xfr,
 	/* we skip over the RRs checking packet format */
 	for(i=0; i<(int)LDNS_NSCOUNT(wire); i++) {
 		uint16_t rdlen;
-		if(pkt_dname_len(pkt) == 0) {
+		if(pkt_dname_len_budget(pkt, &budget, limit) == 0) {
 			verbose(VERB_ALGO, "xfr to %s failed, packet with "
 				"malformed dname in authority section",
 				xfr->task_transfer->master->host);
@@ -6306,7 +6320,7 @@ check_xfer_packet(sldns_buffer* pkt, struct auth_xfer* xfr,
 	/* check additional section */
 	for(i=0; i<(int)LDNS_ARCOUNT(wire); i++) {
 		uint16_t rdlen;
-		if(pkt_dname_len(pkt) == 0) {
+		if(pkt_dname_len_budget(pkt, &budget, limit) == 0) {
 			verbose(VERB_ALGO, "xfr to %s failed, packet with "
 				"malformed dname in additional section",
 				xfr->task_transfer->master->host);

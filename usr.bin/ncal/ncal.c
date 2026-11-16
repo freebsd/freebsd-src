@@ -164,6 +164,7 @@ static int nswitch;		/* user defined switch date */
 static int nswitchb;		/* switch date for backward compatibility */
 static int highlightdate;
 static bool flag_monday;	/* user wants week starts on Monday */
+static bool flag_sweden;	/* Sweden, 1700-1712 */
 
 static char	*center(char *s, char *t, int w);
 static wchar_t *wcenter(wchar_t *s, wchar_t *t, int w);
@@ -219,6 +220,7 @@ main(int argc, char *argv[])
 	flag_highlight = isatty(STDOUT_FILENO);
 	flag_weeks = 0;
 	flag_monday = false;
+	flag_sweden = false;
 
 	/*
 	 * Use locale to determine the country code,
@@ -243,6 +245,7 @@ main(int argc, char *argv[])
 	} else {
 		nswitch = ndaysj(&p->dt);
 		dftswitch = p;
+		flag_sweden = (strcmp(p->cc, "SE") == 0);
 	}
 
 
@@ -285,6 +288,7 @@ main(int argc, char *argv[])
 				usage();
 			nswitch = ndaysj(&never);
 			flag_julian_cal = 1;
+			flag_sweden = false;
 			break;
 		case 'C':
 			flag_backward = 1;
@@ -342,6 +346,7 @@ main(int argc, char *argv[])
 				errx(EX_USAGE,
 				    "%s: invalid country code", optarg);
 			nswitch = ndaysj(&(p->dt));
+			flag_sweden = (strcmp(p->cc, "SE") == 0);
 			break;
 		case 'w':
 			if (flag_backward)
@@ -1015,6 +1020,11 @@ static int
 sndaysr(struct date *d)
 {
 
+	/* Sweden skipped Feb 29, 1700 and added Feb 30, 1712. */
+	if (flag_sweden && d->y * 12 + d->m >= 1700 * 12 + 3 &&
+	    d->y * 12 + d->m < 1712 * 12 + 3)
+		return (ndaysj(d) - 1);
+
 	if (nswitch != 0)
 		if (nswitch < ndaysj(d))
 			return (ndaysg(d));
@@ -1042,6 +1052,20 @@ sndaysb(struct date *d)
 static struct date *
 sdater(int nd, struct date *d)
 {
+
+	/* Inverse of the Sweden case in sndaysr(). */
+	if (flag_sweden) {
+		date start = { 1700, 2, 29 }, end = { 1712, 3, 1 };
+
+		if (nd >= ndaysj(&start) && nd < ndaysj(&end)) {
+			jdate(nd + 1, d);
+			if (d->y == 1712 && d->m == 3) {
+				d->m = 2;
+				d->d = 30;
+			}
+			return (d);
+		}
+	}
 
 	if (nswitch < nd)
 		return (gdate(nd, d));

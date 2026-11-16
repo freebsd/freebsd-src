@@ -195,6 +195,14 @@ struct iwm_nvm_data {
 	int n_hw_addrs;
 	uint8_t hw_addr[IEEE80211_ADDR_LEN];
 
+	uint8_t calib_version;
+	uint16_t calib_voltage;
+
+	uint16_t raw_temperature;
+	uint16_t kelvin_temperature;
+	uint16_t kelvin_voltage;
+	uint16_t xtal_calib[2];
+
 	int sku_cap_band_24GHz_enable;
 	int sku_cap_band_52GHz_enable;
 	int sku_cap_11n_enable;
@@ -285,6 +293,7 @@ struct iwm_tx_ring {
 	int			cur;
 };
 
+/* Note: these are used as a mask; must be a power of 2 */
 #define IWM_RX_LEGACY_RING_COUNT	256
 #define IWM_RX_MQ_RING_COUNT		512
 
@@ -341,6 +350,7 @@ struct iwm_phy_ctxt {
 	uint16_t color;
 	uint32_t ref;
 	struct ieee80211_channel *channel;
+	uint8_t sco; /* 40MHz secondary channel offset */
 };
 
 struct iwm_bf_data {
@@ -430,6 +440,12 @@ struct iwm_softc {
 
 	struct task		init_task;
 
+	/* Task for ERP/HT prot/slot-time/EDCA updates. */
+	struct task		mac_ctxt_task;
+
+	/* Task for HT 20/40 MHz channel width updates. */
+	struct task		phy_ctxt_task;
+
 	struct resource		*sc_irq;
 	struct resource		*sc_mem;
 	bus_space_tag_t		sc_st;
@@ -446,6 +462,8 @@ struct iwm_softc {
 	struct iwm_tx_ring	txq[IWM_MAX_QUEUES];
 	struct iwm_rx_ring	rxq;
 	int			qfullmsk;
+	int			qenablemsk;
+	int			cmdqid;
 
 	/* ICT table. */
 	struct iwm_dma_info	ict_dma;
@@ -467,6 +485,13 @@ struct iwm_softc {
 
 	int			sc_intmask;
 
+	/* MSIX support */
+	int			sc_msix;
+	uint32_t		sc_fh_init_mask;
+	uint32_t		sc_fh_mask;
+	uint32_t		sc_hw_init_mask;
+	uint32_t		sc_hw_mask;
+
 	/*
 	 * So why do we need a separate stopped flag and a generation?
 	 * the former protects the device from issuing commands when it's
@@ -480,6 +505,10 @@ struct iwm_softc {
 
 	struct iwm_fw_info	sc_fw;
 	struct iwm_tlv_calib_ctrl sc_default_calib[IWM_UCODE_TYPE_MAX];
+
+#define IWM_MAX_FW_CMD_VERSIONS	64
+	struct iwm_fw_cmd_version cmd_versions[IWM_MAX_FW_CMD_VERSIONS];
+	int n_cmd_versions;
 
 	const struct iwm_cfg	*cfg;
 	struct iwm_nvm_data	*nvm_data;
@@ -566,6 +595,8 @@ struct iwm_softc {
 #define	IWM_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	IWM_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define IWM_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
+#define	IWM_LOCK_ASSERT_LOCKED(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
+#define	IWM_LOCK_ASSERT_UNLOCKED(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_NOTOWNED)
 
 static inline bool
 iwm_fw_has_api(struct iwm_softc *sc, unsigned int api)

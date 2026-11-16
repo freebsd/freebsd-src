@@ -352,7 +352,8 @@ static OM_uint32
 mech_accept(OM_uint32 *minor, spnego_gss_ctx_id_t ctx,
             gss_cred_id_t cred, struct negoex_message *messages,
             size_t nmessages, gss_channel_bindings_t bindings,
-            gss_buffer_t output_token, OM_uint32 *time_rec)
+            gss_buffer_t output_token, OM_uint32 *time_rec,
+            gss_cred_id_t *deleg_cred)
 {
     OM_uint32 major, tmpmin;
     struct negoex_auth_mech *mech;
@@ -392,14 +393,13 @@ mech_accept(OM_uint32 *minor, spnego_gss_ctx_id_t ctx,
 
     if (ctx->internal_name != GSS_C_NO_NAME)
         gss_release_name(&tmpmin, &ctx->internal_name);
-    if (ctx->deleg_cred != GSS_C_NO_CREDENTIAL)
-        gss_release_cred(&tmpmin, &ctx->deleg_cred);
+    if (deleg_cred != NULL && *deleg_cred != GSS_C_NO_CREDENTIAL)
+        gss_release_cred(&tmpmin, deleg_cred);
 
     major = gss_accept_sec_context(minor, &mech->mech_context, cred,
                                    &msg->token, bindings, &ctx->internal_name,
                                    &ctx->actual_mech, output_token,
-                                   &ctx->ctx_flags, time_rec,
-                                   &ctx->deleg_cred);
+                                   &ctx->ctx_flags, time_rec, deleg_cred);
 
     if (major == GSS_S_COMPLETE)
         mech->complete = 1;
@@ -704,7 +704,8 @@ cleanup:
 OM_uint32
 negoex_accept(OM_uint32 *minor, spnego_gss_ctx_id_t ctx, gss_cred_id_t cred,
               gss_buffer_t input_token, gss_channel_bindings_t bindings,
-              gss_buffer_t output_token, OM_uint32 *time_rec)
+              gss_buffer_t output_token, OM_uint32 *time_rec,
+              gss_cred_id_t *deleg_cred)
 {
     OM_uint32 major, tmpmin;
     gss_buffer_desc mech_output_token = GSS_C_EMPTY_BUFFER;
@@ -757,7 +758,7 @@ negoex_accept(OM_uint32 *minor, spnego_gss_ctx_id_t ctx, gss_cred_id_t cred,
      * is generated, so that we send the token to the initiator.
      */
     major = mech_accept(minor, ctx, cred, messages, nmessages, bindings,
-                        &mech_output_token, time_rec);
+                        &mech_output_token, time_rec, deleg_cred);
     if (major != GSS_S_COMPLETE && mech_output_token.length == 0)
         goto cleanup;
 

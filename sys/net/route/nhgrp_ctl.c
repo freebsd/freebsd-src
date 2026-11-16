@@ -174,7 +174,7 @@ calc_min_mpath_slots_fast(struct weightened_nhop *wn, size_t num_items,
 	}
 	*ptotal = total;
 	/* xmin is the minimum unit of desired capacity */
-	if ((total % xmin) != 0)
+	if (xmin == 0 || (total % xmin) != 0)
 		return (0);
 	for (i = 0; i < num_items; i++) {
 		if ((wn[i].weight % xmin) != 0)
@@ -710,7 +710,7 @@ merge_nhgrps(struct nh_control *ctl, const struct nhgrp_object *gr_orig,
 
 	*perror = 0;
 
-	sz = (orig_priv->nhg_nh_count + orig_priv->nhg_nh_count) *
+	sz = (orig_priv->nhg_nh_count + add_priv->nhg_nh_count) *
 		sizeof(struct weightened_nhop);
 	/* optimize for <= 4 paths, each path=16 bytes */
 	if (sz <= sizeof(storage))

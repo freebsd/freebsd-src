@@ -501,12 +501,9 @@ ip_input(struct mbuf *m)
 	if (__predict_false(m->m_pkthdr.len < sizeof(struct ip)))
 		goto tooshort;
 
-	if (m->m_len < sizeof(struct ip)) {
-		m = m_pullup(m, sizeof(struct ip));
-		if (__predict_false(m == NULL)) {
-			IPSTAT_INC(ips_toosmall);
-			return;
-		}
+	if ((m = m_pullup(m, sizeof(struct ip))) == NULL) {
+		IPSTAT_INC(ips_toosmall);
+		return;
 	}
 	ip = mtod(m, struct ip *);
 
@@ -520,14 +517,11 @@ ip_input(struct mbuf *m)
 		IPSTAT_INC(ips_badhlen);
 		goto bad;
 	}
-	if (hlen > m->m_len) {
-		m = m_pullup(m, hlen);
-		if (__predict_false(m == NULL)) {
-			IPSTAT_INC(ips_badhlen);
-			return;
-		}
-		ip = mtod(m, struct ip *);
+	if ((m = m_pullup(m, hlen)) == NULL) {
+		IPSTAT_INC(ips_badhlen);
+		return;
 	}
+	ip = mtod(m, struct ip *);
 
 	IP_PROBE(receive, NULL, NULL, ip, m->m_pkthdr.rcvif, ip, NULL);
 
@@ -1017,7 +1011,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	if (mcopy != NULL) {
 		mcopy->m_len = min(ntohs(ip->ip_len), M_TRAILINGSPACE(mcopy));
 		mcopy->m_pkthdr.len = mcopy->m_len;
-		m_copydata(m, 0, mcopy->m_len, mtod(mcopy, caddr_t));
+		m_copydata(m, 0, mcopy->m_len, mtod(mcopy, void *));
 	}
 #ifdef IPSTEALTH
 	if (V_ipstealth == 0)
@@ -1182,7 +1176,7 @@ ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
 		} else {
 			microtime(&tv);
 		}
-		*mp = sbcreatecontrol((caddr_t)&tv, sizeof(tv), SCM_TIMESTAMP,
+		*mp = sbcreatecontrol(&tv, sizeof(tv), SCM_TIMESTAMP,
 		    SOL_SOCKET, M_NOWAIT);
 		if (*mp != NULL) {
 			mp = &(*mp)->m_next;

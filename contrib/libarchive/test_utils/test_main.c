@@ -940,10 +940,12 @@ assertion_equal_wstring(const char *file, int line,
 /*
  * Pretty standard hexdump routine.  As a bonus, if ref != NULL, then
  * any bytes in p that differ from ref will be highlighted with '_'
- * before and after the hex value.
+ * before and after the hex value.  Bytes of p beyond the ref_len bytes
+ * of ref count as different.
  */
 static void
-hexdump(const char *p, const char *ref, size_t l, size_t offset)
+hexdump(const char *p, size_t len, const char *ref, size_t ref_len,
+    size_t offset)
 {
 	size_t i, j;
 	char sep;
@@ -952,14 +954,16 @@ hexdump(const char *p, const char *ref, size_t l, size_t offset)
 		logprintf("(null)\n");
 		return;
 	}
-	for(i=0; i < l; i+=16) {
+	for(i=0; i < len; i+=16) {
 		logprintf("%04x", (unsigned)(i + offset));
 		sep = ' ';
-		for (j = 0; j < 16 && i + j < l; j++) {
-			if (ref != NULL && p[i + j] != ref[i + j])
+		for (j = 0; j < 16 && i + j < len; j++) {
+			if (ref != NULL &&
+			    (i + j >= ref_len || p[i + j] != ref[i + j]))
 				sep = '_';
 			logprintf("%c%02x", sep, 0xff & (unsigned int)p[i+j]);
-			if (ref != NULL && p[i + j] == ref[i + j])
+			if (ref != NULL &&
+			    i + j < ref_len && p[i + j] == ref[i + j])
 				sep = ' ';
 		}
 		for (; j < 16; j++) {
@@ -967,7 +971,7 @@ hexdump(const char *p, const char *ref, size_t l, size_t offset)
 			sep = ' ';
 		}
 		logprintf("%c", sep);
-		for (j=0; j < 16 && i + j < l; j++) {
+		for (j=0; j < 16 && i + j < len; j++) {
 			int c = p[i + j];
 			if (c >= ' ' && c <= 126)
 				logprintf("%c", c);
@@ -1009,9 +1013,9 @@ assertion_equal_mem(const char *file, int line,
 		offset += 16;
 	}
 	logprintf("      Dump of %s\n", e1);
-	hexdump(v1, v2, l < 128 ? l : 128, offset);
+	hexdump(v1, l < 128 ? l : 128, v2, l, offset);
 	logprintf("      Dump of %s\n", e2);
-	hexdump(v2, v1, l < 128 ? l : 128, offset);
+	hexdump(v2, l < 128 ? l : 128, v1, l, offset);
 	logprintf("\n");
 	failure_finish(extra);
 	return (0);
@@ -1074,7 +1078,7 @@ assertion_empty_file(const char *filename, int line, const char *f1)
 		s = ((off_t)sizeof(buff) < st.st_size) ?
 		    (ssize_t)sizeof(buff) : (ssize_t)st.st_size;
 		s = fread(buff, 1, s, f);
-		hexdump(buff, NULL, s, 0);
+		hexdump(buff, s, NULL, 0, 0);
 		fclose(f);
 	}
 	failure_finish(NULL);
@@ -1206,10 +1210,10 @@ assertion_file_contents(const char *filename, int line, const void *buff, int s,
 	failure_start(filename, line, "File contents don't match");
 	logprintf("  file=\"%s\"\n", fn);
 	if (n > 0)
-		hexdump(contents, buff, n > 512 ? 512 : n, 0);
+		hexdump(contents, n > 512 ? 512 : n, buff, s, 0);
 	else {
 		logprintf("  File empty, contents should be:\n");
-		hexdump(buff, NULL, s > 512 ? 512 : s, 0);
+		hexdump(buff, s > 512 ? 512 : s, NULL, 0, 0);
 	}
 	failure_finish(NULL);
 	free(contents);
@@ -1263,12 +1267,12 @@ assertion_text_file_contents(const char *filename, int line, const char *buff, c
 	failure_start(filename, line, "Contents don't match");
 	logprintf("  file=\"%s\"\n", fn);
 	if (n > 0) {
-		hexdump(contents, buff, n, 0);
+		hexdump(contents, n, buff, s, 0);
 		logprintf("  expected\n");
-		hexdump(buff, contents, s, 0);
+		hexdump(buff, s, contents, n, 0);
 	} else {
 		logprintf("  File empty, contents should be:\n");
-		hexdump(buff, NULL, s, 0);
+		hexdump(buff, s, NULL, 0, 0);
 	}
 	failure_finish(NULL);
 	free(contents);
@@ -3313,28 +3317,6 @@ copy_reference_file(const char *name)
 	fclose(in);
 }
 
-int
-is_LargeInode(const char *file)
-{
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	BY_HANDLE_FILE_INFORMATION bhfi;
-	int r;
-
-	r = my_GetFileInformationByName(file, &bhfi);
-	if (r != 0)
-		return (0);
-	return (bhfi.nFileIndexHigh & 0x0000FFFFUL);
-#else
-	struct stat st;
-	int64_t ino;
-
-	if (stat(file, &st) < 0)
-		return (0);
-	ino = (int64_t)st.st_ino;
-	return (ino > 0xffffffff);
-#endif
-}
-
 void
 extract_reference_files(const char **names)
 {
@@ -3615,6 +3597,29 @@ set_environment(const char *key, const char *value)
 			fprintf(stderr, "setenv: %s\n", strerror(errno));
 	}
 #endif
+}
+
+int
+setCheckedLocale(const char *locale, const char *mbc, wchar_t expected_wc)
+{
+#ifdef HAVE_MBRTOWC
+	mbstate_t state;
+	size_t len;
+	wchar_t wc;
+#endif
+
+	if (setlocale(LC_ALL, locale) == NULL)
+		return (0);
+
+#ifdef HAVE_MBRTOWC
+	memset(&state, 0, sizeof(state));
+	len = strlen(mbc);
+	if (mbrtowc(&wc, mbc, len, &state) != len ||
+	    wc != expected_wc)
+		return (0);
+#endif
+
+	return (1);
 }
 
 /*

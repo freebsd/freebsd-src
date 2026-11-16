@@ -15,6 +15,10 @@
 #define LUA_USE_POSIX
 #ifndef BOOTSTRAPPING
 #define LUA_USE_DLOPEN
+#define l_checkmodep(m) \
+	(strcmp(m, "r") == 0 || strcmp(m, "re") == 0 || \
+	 strcmp(m, "r+") == 0 || strcmp(m, "r+e") == 0 || \
+	 strcmp(m, "w") == 0 || strcmp(m, "we") == 0)
 #endif
 
 #undef LUA_ROOT

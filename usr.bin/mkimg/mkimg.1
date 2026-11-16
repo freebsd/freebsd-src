@@ -22,7 +22,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd September 29, 2026
+.Dd October 21, 2026
 .Dt MKIMG 1
 .Os
 .Sh NAME
@@ -316,8 +316,8 @@ may be used multiple times to specify a list of created partition entries.
 A specification that is a single dash indicates an unused partition entry.
 Otherwise, a partition specification has the following format:
 .Bd -literal -offset indent
-<type>[/<label>]::<size>[:[+]<offset>]
-<type>[/<label>]:=<file>[:[+]<offset>]
+<type>[/<label>]::<size>[:[+]<offset>][%<align>]
+<type>[/<label>]:=<file>[:[+]<offset>][%<align>]
 <type>[/<label>]:-<cmd>
 -
 .Ed
@@ -349,6 +349,24 @@ If prefixed with
 .Ql + ,
 it is relative to the end of the previous partition; otherwise it is an
 absolute offset from the start of the image.
+The value follows the same numeric conventions as
+.Cm size .
+.It Cm align
+an optional alignment for the
+.Cm size
+and
+.Cm file
+forms.
+It is an error to specify an absolute
+.Cm offset
+which is not a multiple of
+.Cm align .
+When a relative
+.Cm offset
+is specified in combination with
+.Cm align ,
+the offset is applied first and then additional padding is added to reach the
+requested alignment.
 The value follows the same numeric conventions as
 .Cm size .
 .It Cm -

@@ -33,10 +33,15 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <errno.h>
+#include <limits.h>
 
-#ifdef _WIN32
-# define WIN32_LEAN_AND_MEAN
-# include <windows.h>
+#if defined(_WIN32) || defined(__OS2__)
+# ifdef _WIN32
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+# else
+#  include <unistd.h>   /* readlink */
+# endif
 # include <malloc.h>
 # include <io.h>     /* for _setmode() */
 # include <fcntl.h>
@@ -62,7 +67,7 @@
 #   define SIZE_FMT_SPECIFIER	"%u"
 #  endif
 # endif
-# ifndef ssize_t
+# if !(defined(ssize_t) || defined(__OS2__))
 # ifndef __MINGW32__
 #  include <BaseTsd.h>
 # else
@@ -70,7 +75,7 @@
 # endif
 #  define ssize_t SSIZE_T
 # endif
-# ifndef __MINGW32__
+# if !(defined (__MINGW32__) || defined(__OS2__))
 #  include "win-dirent.h"
 # else
 #  include <dirent.h>
@@ -78,9 +83,13 @@
 # define PKGCONF_ITEM_SIZE (_MAX_PATH + 1024)
 # define PKG_CONFIG_PATH_SEP_S   ";"
 # define PKG_DIR_SEP_S   '\\'
-# define strcasecmp _stricmp
-# define strncasecmp _strnicmp
-# define realpath(N,R) _fullpath((R),(N),_MAX_PATH)
+# ifndef __OS2__
+#  define strcasecmp _stricmp
+#  define strncasecmp _strnicmp
+#  define realpath(N,R) _fullpath((R),(N),_MAX_PATH)
+# else
+#  define _setmode(h, m) if (!isatty((h))) setmode((h), (m))
+# endif
 #else
 # define PATH_DEV_NULL	"/dev/null"
 # define SIZE_FMT_SPECIFIER	"%zu"
@@ -89,7 +98,6 @@
 # endif
 # include <dirent.h>
 # include <unistd.h>
-# include <limits.h>
 # include <strings.h>
 # include <fcntl.h>    // open
 # include <libgen.h>   // basename/dirname

@@ -306,13 +306,17 @@ copy_mech_cred(OM_uint32 *minor_status, gss_cred_id_t cred_in,
 	       mech->gss_acquire_cred != NULL) {
 	status = mech->gss_inquire_cred(minor_status, cred_in, &name, &life,
 					&usage, NULL);
-	if (status != GSS_S_COMPLETE)
+	if (status != GSS_S_COMPLETE) {
+	    map_error(minor_status, mech);
 	    return (status);
+	}
 	oidset.count = 1;
 	oidset.elements = gssint_get_public_oid(mech_oid);
 	status = mech->gss_acquire_cred(minor_status, name, life, &oidset,
 					usage, cred_out, NULL, NULL);
-	gss_release_name(&tmpmin, &name);
+	if (status != GSS_S_COMPLETE)
+	    map_error(minor_status, mech);
+	(void) gssint_release_internal_name(&tmpmin, &mech->mech_type, &name);
     } else {
 	status = GSS_S_UNAVAILABLE;
     }

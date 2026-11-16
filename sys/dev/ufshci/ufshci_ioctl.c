@@ -171,13 +171,12 @@ ufshci_passthrough_cmd(struct ufshci_controller *ctrlr,
 		goto out;
 	}
 
-	ufshci_completion_poll(&status);
+	ufshci_completion_poll(ctrlr, &status);
 
 	memcpy(&pt->resp_upiu, &status.cpl.response_upiu,
 	    min(sizeof(pt->resp_upiu), sizeof(status.cpl.response_upiu)));
 	pt->xfer_len = pt->len;
-	/* The completion does not carry the overall command status yet. */
-	pt->ocs = 0;
+	pt->ocs = status.cpl.ocs;
 
 	/*
 	 * A refused command still answered, so let the caller read the

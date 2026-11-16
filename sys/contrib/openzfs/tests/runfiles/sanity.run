@@ -121,7 +121,7 @@ tests = ['zfs_create_001_pos', 'zfs_create_002_pos', 'zfs_create_003_pos',
     'zfs_create_004_pos', 'zfs_create_005_pos', 'zfs_create_006_pos',
     'zfs_create_007_pos', 'zfs_create_011_pos', 'zfs_create_012_pos',
     'zfs_create_013_pos', 'zfs_create_014_pos', 'zfs_create_encrypted',
-    'zfs_create_dryrun', 'zfs_create_verbose']
+    'zfs_create_dryrun', 'zfs_create_refreserv', 'zfs_create_verbose']
 tags = ['functional', 'cli_root', 'zfs_create']
 
 [tests/functional/cli_root/zfs_destroy]
@@ -258,7 +258,7 @@ tests = ['zpool_add_002_pos', 'zpool_add_003_pos',
 tags = ['functional', 'cli_root', 'zpool_add']
 
 [tests/functional/cli_root/zpool_attach]
-tests = ['zpool_attach_001_neg']
+tests = ['zpool_attach_001_neg', 'zpool_attach_002_pos']
 tags = ['functional', 'cli_root', 'zpool_attach']
 
 [tests/functional/cli_root/zpool_clear]
@@ -276,10 +276,12 @@ tests = ['zpool_create_001_pos', 'zpool_create_002_pos',
     'zpool_create_012_neg', 'zpool_create_014_neg', 'zpool_create_015_neg',
     'zpool_create_017_neg', 'zpool_create_018_pos', 'zpool_create_019_pos',
     'zpool_create_020_pos', 'zpool_create_021_pos', 'zpool_create_022_pos',
-    'zpool_create_encrypted', 'zpool_create_edom_neg',
-    'zpool_create_features_001_pos', 'zpool_create_features_002_pos',
-    'zpool_create_features_003_pos', 'zpool_create_features_004_neg',
-    'zpool_create_features_005_pos']
+    'zpool_create_anyraid_001_pos', 'zpool_create_anyraid_003_pos',
+    'zpool_create_anyraid_004_pos', 'zpool_create_anyraid_005_neg',
+    'zpool_create_encrypted', 'zpool_create_features_001_pos',
+    'zpool_create_edom_neg',
+    'zpool_create_features_002_pos', 'zpool_create_features_003_pos',
+    'zpool_create_features_004_neg', 'zpool_create_features_005_pos']
 tags = ['functional', 'cli_root', 'zpool_create']
 
 [tests/functional/cli_root/zpool_destroy]
@@ -325,7 +327,6 @@ tags = ['functional', 'cli_root', 'zpool_labelclear']
 
 [tests/functional/cli_root/zpool_initialize]
 tests = ['zpool_initialize_online_offline']
-pre =
 tags = ['functional', 'cli_root', 'zpool_initialize']
 
 [tests/functional/cli_root/zpool_offline]
@@ -544,7 +545,7 @@ tests = ['reservation_001_pos', 'reservation_002_pos', 'reservation_003_pos',
     'reservation_014_pos', 'reservation_015_pos',
     'reservation_016_pos', 'reservation_017_pos', 'reservation_018_pos',
     'reservation_019_pos', 'reservation_020_pos', 'reservation_021_neg',
-    'reservation_022_pos']
+    'reservation_022_pos', 'reservation_023_pos', 'reservation_024_neg']
 tags = ['functional', 'reservation']
 
 [tests/functional/rsend]

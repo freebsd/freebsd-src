@@ -391,13 +391,9 @@ debugnet_handle_rx_msg(struct debugnet_pcb *pcb, struct mbuf **mb)
 	}
 
 	/* Get ND header. */
-	if (m->m_len < sizeof(*dnh)) {
-		m = m_pullup(m, sizeof(*dnh));
-		*mb = m;
-		if (m == NULL) {
-			DNETDEBUG("m_pullup failed\n");
-			return;
-		}
+	if ((*mb = m = m_pullup(m, sizeof(*dnh))) == NULL) {
+		DNETDEBUG("m_pullup failed\n");
+		return;
 	}
 
 	dnh = mtod(m, const struct debugnet_msg_hdr *);
@@ -451,13 +447,9 @@ debugnet_handle_ack(struct debugnet_pcb *pcb, struct mbuf **mb, uint16_t sport)
 	m = *mb;
 
 	/* Get Ack. */
-	if (m->m_len < sizeof(*dn_ack)) {
-		m = m_pullup(m, sizeof(*dn_ack));
-		*mb = m;
-		if (m == NULL) {
-			DNETDEBUG("m_pullup failed\n");
-			return;
-		}
+	if ((*mb = m = m_pullup(m, sizeof(*dn_ack))) == NULL) {
+		DNETDEBUG("m_pullup failed\n");
+		return;
 	}
 	dn_ack = mtod(m, const struct debugnet_ack *);
 
@@ -495,13 +487,9 @@ debugnet_handle_udp(struct debugnet_pcb *pcb, struct mbuf **mb)
 	}
 
 	/* Get UDP headers. */
-	if (m->m_len < sizeof(*udp)) {
-		m = m_pullup(m, sizeof(*udp));
-		*mb = m;
-		if (m == NULL) {
-			DNETDEBUG("m_pullup failed\n");
-			return;
-		}
+	if ((*mb = m = m_pullup(m, sizeof(*udp))) == NULL) {
+		DNETDEBUG("m_pullup failed\n");
+		return;
 	}
 	udp = mtod(m, const struct udphdr *);
 

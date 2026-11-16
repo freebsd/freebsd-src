@@ -14,6 +14,13 @@
 #include "sysconf_priv.h"
 
 /*
+ * Set while a value arrives already unquoted (the ucl target hands over
+ * the library's rendering, not file text), so scan_cb() must not unquote
+ * it a second time.
+ */
+static bool scan_raw;
+
+/*
  * Apply a make(1)-style assignment operator to the running effective value
  * of a directive. `+=' appends with a single space (as make(1) does);
  * `?=' keeps the existing value when already defined; `=', `:=', and `!='
@@ -72,7 +79,8 @@ dump_record(const char *directive, const char *value, enum bsdconf_op op,
 
 	if ((vcopy = strdup(value)) == NULL)
 		return (-1);
-	bsdconf_unquote(vcopy);
+	if (!scan_raw)
+		bsdconf_unquote(vcopy);
 
 	for (n = 0; n < ndumps; n++) {
 		if (strcmp(dumps[n].name, directive) != 0)
@@ -154,15 +162,19 @@ scan_cb(struct bsdconf_option *option, uint32_t line,
 		if (strcmp(reqs[n].name, directive) != 0)
 			continue;
 		/*
-		 * The defaults file is read-only: it informs the effective
+		 * Read-only files (the loader defaults, and pkg's base
+		 * repository files under /etc/pkg) inform the effective
 		 * value seen by reads, checks, and list edits, but can
 		 * never satisfy a removal (nothing there may be removed).
 		 */
-		if (reqs[n].remove && (int)conf_scanidx == defaults_idx)
+		if (reqs[n].remove &&
+		    ((int)conf_scanidx == defaults_idx ||
+		    (conf_ro != NULL && conf_ro[conf_scanidx])))
 			continue;
 		if ((copy = strdup(value)) == NULL)
 			return (-1);
-		bsdconf_unquote(copy);
+		if (!scan_raw)
+			bsdconf_unquote(copy);
 
 		/*
 		 * An identical make(1) `+=value' line already in the file
@@ -216,6 +228,23 @@ scan_cb(struct bsdconf_option *option, uint32_t line,
 }
 
 /*
+ * Record one already-unquoted `directive'/`value' pair for the file at
+ * conf_scanidx, exactly as scan_cb() would from file text. Used by the
+ * ucl target, whose values come from libucl rather than a bsdconf parse.
+ */
+int
+scan_record(uint32_t line, const char *directive, const char *value)
+{
+	int rv;
+
+	scan_raw = true;
+	rv = scan_cb(NULL, line, (char *)(uintptr_t)directive,
+	    (char *)(uintptr_t)value);
+	scan_raw = false;
+	return (rv);
+}
+
+/*
  * Parse every existing backing file in deterministic order, feeding each
  * statement through scan_cb(). With `sandbox' set (pure read operations),
  * all descriptors are opened up front and the remainder of the pass runs
@@ -231,6 +260,10 @@ scan_pass(int sandbox)
 
 	if ((fds = calloc(nconf_files, sizeof(*fds))) == NULL)
 		err(EXIT_FAILURE, NULL);
+
+	/* Compare requested values in the library's own rendering */
+	if (ucl_target)
+		ucl_canon_requests();
 
 	for (n = 0; n < nconf_files; n++) {
 		fds[n] = open(conf_files[n], O_RDONLY);
@@ -262,10 +295,18 @@ scan_pass(int sandbox)
 		if (fds[n] < 0)
 			continue;
 		conf_scanidx = n;
-		if (bsdconf_fparse(NULL, fds[n], scan_cb, processing) != 0)
+		if (ucl_target) {
+			if (ucl_scan_fd(fds[n]) != 0)
+				err(EXIT_FAILURE, "%s", conf_files[n]);
+		} else if (bsdconf_fparse(NULL, fds[n], scan_cb,
+		    processing) != 0)
 			err(EXIT_FAILURE, "%s", conf_files[n]);
 		close(fds[n]);
 	}
+
+	/* `name[i]' and `name[#]' resolve against the arrays just read */
+	if (ucl_target)
+		ucl_index_requests();
 
 	free(fds);
 	return (EXIT_SUCCESS);

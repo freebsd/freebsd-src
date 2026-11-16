@@ -126,6 +126,14 @@
  *	guid		Unique ID for the leaf vdev
  *
  * The 'vs' configuration follows the format described in 'spa_config.c'.
+ *
+ * Extra Configuration
+ * -------------------
+ *
+ * AnyRAID tile maps are also synced via this logic. Other special metadata
+ * that needs to be written out each TXG that is not part of the block tree can
+ * be updated in this phase as well. This phase occurs after the first label
+ * write and before the uberblocks are written.
  */
 
 #include <sys/zfs_context.h>
@@ -137,6 +145,7 @@
 #include <sys/vdev_impl.h>
 #include <sys/vdev_raidz.h>
 #include <sys/vdev_draid.h>
+#include <sys/vdev_anyraid.h>
 #include <sys/uberblock_impl.h>
 #include <sys/metaslab.h>
 #include <sys/metaslab_impl.h>
@@ -227,9 +236,13 @@ vdev_config_generate_stats(vdev_t *vd, nvlist_t *nv)
 	/*
 	 * Add extended stats into a special extended stats nvlist.  This keeps
 	 * all the extended stats nicely grouped together.  The extended stats
-	 * nvlist is then added to the main nvlist.
+	 * nvlist is added to the main nvlist empty and then filled in place,
+	 * so its pairs are not copied.
 	 */
 	nvx = fnvlist_alloc();
+	fnvlist_add_nvlist(nv, ZPOOL_CONFIG_VDEV_STATS_EX, nvx);
+	fnvlist_free(nvx);
+	nvx = fnvlist_lookup_nvlist(nv, ZPOOL_CONFIG_VDEV_STATS_EX);
 
 	/* ZIOs in flight to disk */
 	fnvlist_add_uint64(nvx, ZPOOL_CONFIG_VDEV_SYNC_R_ACTIVE_QUEUE,
@@ -384,10 +397,6 @@ vdev_config_generate_stats(vdev_t *vd, nvlist_t *nv)
 	fnvlist_add_uint64(nvx, ZPOOL_CONFIG_VDEV_DIO_VERIFY_ERRORS,
 	    vs->vs_dio_verify_errors);
 
-	/* Add extended stats nvlist to main nvlist */
-	fnvlist_add_nvlist(nv, ZPOOL_CONFIG_VDEV_STATS_EX, nvx);
-
-	fnvlist_free(nvx);
 	kmem_free(vs, sizeof (*vs));
 	kmem_free(vsx, sizeof (*vsx));
 }
@@ -482,16 +491,14 @@ top_vdev_actions_getprogress(vdev_t *vd, nvlist_t *nvl)
 }
 
 /*
- * Generate the nvlist representing this vdev's config.
+ * Fill the given empty nvlist with this vdev's config.  Child configs are
+ * built in place inside it, so they are not copied.
  */
-nvlist_t *
-vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
-    vdev_config_flag_t flags)
+void
+vdev_config_generate_impl(spa_t *spa, vdev_t *vd, nvlist_t *nv,
+    boolean_t getstats, vdev_config_flag_t flags)
 {
-	nvlist_t *nv = NULL;
 	vdev_indirect_config_t *vic = &vd->vdev_indirect_config;
-
-	nv = fnvlist_alloc();
 
 	fnvlist_add_string(nv, ZPOOL_CONFIG_TYPE, vd->vdev_ops->vdev_op_type);
 	if (!(flags & (VDEV_CONFIG_SPARE | VDEV_CONFIG_L2CACHE)))
@@ -717,6 +724,8 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 
 	if (!vd->vdev_ops->vdev_op_leaf) {
 		nvlist_t **child;
+		nvlist_t *empty = fnvlist_alloc();
+		uint_t children;
 		uint64_t c;
 
 		ASSERT(!vd->vdev_ishole);
@@ -724,18 +733,22 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 		child = kmem_alloc(vd->vdev_children * sizeof (nvlist_t *),
 		    KM_SLEEP);
 
-		for (c = 0; c < vd->vdev_children; c++) {
-			child[c] = vdev_config_generate(spa, vd->vdev_child[c],
-			    getstats, flags);
-		}
+		for (c = 0; c < vd->vdev_children; c++)
+			child[c] = empty;
 
 		fnvlist_add_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN,
 		    (const nvlist_t * const *)child, vd->vdev_children);
 
-		for (c = 0; c < vd->vdev_children; c++)
-			nvlist_free(child[c]);
-
 		kmem_free(child, vd->vdev_children * sizeof (nvlist_t *));
+		nvlist_free(empty);
+
+		/* Fill each child where it now lives in the array. */
+		VERIFY0(nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN,
+		    &child, &children));
+		for (c = 0; c < children; c++) {
+			vdev_config_generate_impl(spa, vd->vdev_child[c],
+			    child[c], getstats, flags);
+		}
 
 	} else {
 		const char *aux = NULL;
@@ -785,7 +798,18 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 			    vd->vdev_orig_guid);
 		}
 	}
+}
 
+/*
+ * Generate the nvlist representing this vdev's config.
+ */
+nvlist_t *
+vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
+    vdev_config_flag_t flags)
+{
+	nvlist_t *nv = fnvlist_alloc();
+
+	vdev_config_generate_impl(spa, vd, nv, getstats, flags);
 	return (nv);
 }
 
@@ -1711,6 +1735,14 @@ vdev_uberblock_load(vdev_t *rvd, uberblock_t *ub, nvlist_t **config)
 	 * Search all labels on this vdev to find the configuration that
 	 * matches the txg for our uberblock.
 	 */
+	/*
+	 * Remember the newest uberblock any label carries, whatever txg was
+	 * asked for.  A load of an older txg has to write its own uberblocks
+	 * above this one, or a later import would find the discarded ones and
+	 * prefer them.
+	 */
+	spa->spa_load_latest_ub_txg = cb.ubl_latest.ub_txg;
+
 	if (cb.ubl_vd != NULL) {
 		vdev_dbgmsg(cb.ubl_vd, "best uberblock found for spa %s, "
 		    "txg=%llu seq=%llu", spa_load_name(spa),
@@ -1955,6 +1987,77 @@ vdev_uberblock_sync_list(spa_t *spa, vdev_t **svd, int svdcount,
 }
 
 /*
+ * Write the extra data of the specified vdev.
+ */
+static void
+vdev_extra_sync(zio_t *zio, uint64_t *good_writes, vdev_t *vd, int flags,
+    uint64_t txg, vdev_config_sync_status_t status)
+{
+	for (uint64_t c = 0; c < vd->vdev_children; c++) {
+		vdev_extra_sync(zio, good_writes, vd->vdev_child[c], flags, txg,
+		    status);
+	}
+
+	if (!vd->vdev_ops->vdev_op_leaf)
+		return;
+
+	if (!vdev_writeable(vd))
+		return;
+
+	if (vd->vdev_top->vdev_ops == &vdev_anyraid_ops) {
+		vdev_anyraid_write_map_sync(vd, zio, txg, good_writes, flags,
+		    status);
+	}
+}
+
+/* Sync the extra data of all vdevs in svd[] */
+static int
+vdev_extra_sync_all(spa_t *spa, int flags, uint64_t txg,
+    vdev_config_sync_status_t status)
+{
+	zio_t *zio;
+	uint64_t good_writes = 0;
+	vdev_t **vdevs = spa->spa_root_vdev->vdev_child;
+	int svdcount = spa->spa_root_vdev->vdev_children;
+
+	boolean_t have_extra = B_FALSE;
+
+	for (int i = 0; i < svdcount; i++) {
+		if (vdevs[i]->vdev_ops == &vdev_anyraid_ops) {
+			have_extra = B_TRUE;
+			break;
+		}
+	}
+	if (!have_extra)
+		return (0);
+
+	zio = zio_root(spa, NULL, NULL, flags);
+
+	for (int v = 0; v < svdcount; v++)
+		vdev_extra_sync(zio, &good_writes, vdevs[v], flags, txg,
+		    status);
+
+	(void) zio_wait(zio);
+
+	/*
+	 * Flush the extra data to disk.  This ensures that the odd labels
+	 * are no longer needed (because the new uberblocks and the even
+	 * labels are safely on disk), so it is safe to overwrite them.
+	 */
+	zio = zio_root(spa, NULL, NULL, flags);
+
+	for (int v = 0; v < svdcount; v++) {
+		if (vdev_writeable(vdevs[v])) {
+			zio_flush(zio, vdevs[v]);
+		}
+	}
+
+	(void) zio_wait(zio);
+
+	return (good_writes >= 1 ? 0 : EIO);
+}
+
+/*
  * On success, increment the count of good writes for our top-level vdev.
  */
 static void
@@ -2137,7 +2240,8 @@ vdev_label_sync_list(spa_t *spa, int l, uint64_t txg, int flags)
  * at any time, you can just call it again, and it will resume its work.
  */
 int
-vdev_config_sync(spa_t *spa, vdev_t **svd, int svdcount, uint64_t txg)
+vdev_config_sync(spa_t *spa, vdev_t **svd, int svdcount, uint64_t txg,
+    vdev_config_sync_status_t status)
 {
 	uberblock_t *ub = &spa->spa_uberblock;
 	int error = 0;
@@ -2209,6 +2313,15 @@ retry:
 		if ((flags & ZIO_FLAG_IO_RETRY) != 0) {
 			zfs_dbgmsg("vdev_label_sync_list() returned error %d "
 			    "for pool '%s' when syncing out the even labels "
+			    "of dirty vdevs", error, spa_name(spa));
+		}
+		goto retry;
+	}
+
+	if ((error = vdev_extra_sync_all(spa, flags, txg, status)) != 0) {
+		if ((flags & ZIO_FLAG_TRYHARD) != 0) {
+			zfs_dbgmsg("vdev_extra_sync_all() returned error %d "
+			    "for pool '%s' when syncing out the extra data "
 			    "of dirty vdevs", error, spa_name(spa));
 		}
 		goto retry;

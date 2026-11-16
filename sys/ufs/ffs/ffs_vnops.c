@@ -71,6 +71,7 @@
 #include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/extattr.h>
+#include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
@@ -117,6 +118,7 @@ static vop_lock1_t	ffs_lock;
 #ifdef INVARIANTS
 static vop_unlock_t	ffs_unlock_debug;
 #endif
+static vop_open_t	ffs_open;
 static vop_read_t	ffs_read;
 static vop_write_t	ffs_write;
 static int	ffs_extread(struct vnode *vp, struct uio *uio, int ioflag);
@@ -145,6 +147,7 @@ struct vop_vector ffs_vnodeops1 = {
 #ifdef INVARIANTS
 	.vop_unlock =		ffs_unlock_debug,
 #endif
+	.vop_open =		ffs_open,
 	.vop_read =		ffs_read,
 	.vop_reallocblks =	ffs_reallocblks,
 	.vop_write =		ffs_write,
@@ -180,6 +183,7 @@ struct vop_vector ffs_vnodeops2 = {
 #ifdef INVARIANTS
 	.vop_unlock =		ffs_unlock_debug,
 #endif
+	.vop_open =		ffs_open,
 	.vop_read =		ffs_read,
 	.vop_reallocblks =	ffs_reallocblks,
 	.vop_write =		ffs_write,
@@ -267,11 +271,18 @@ ffs_syncvnode(struct vnode *vp, int waitfor, int flags)
 	struct buf *bp, *nbp;
 	ufs_lbn_t lbn;
 	int error, passes, wflag;
-	bool still_dirty, unlocked, wait;
+	bool inoupdt, unlocked, wait;
 
 	ip = VTOI(vp);
 	bo = &vp->v_bufobj;
 	ump = VFSTOUFS(vp->v_mount);
+	/*
+	 * With soft updates, the passes below may write the inode while
+	 * new block pointers in it are still rolled back.  That clears
+	 * IN_SIZEMOD and IN_IBLKDATA all the same, so note up front
+	 * whether a data-only sync has to write the inode.
+	 */
+	inoupdt = (ip->i_flag & (IN_SIZEMOD | IN_IBLKDATA)) != 0;
 #ifdef WITNESS
 	wflag = IS_SNAPSHOT(ip) ? LK_NOWITNESS : 0;
 #else
@@ -314,14 +325,13 @@ loop:
 		/*
 		 * Flush indirects in order, if requested.
 		 *
-		 * Note that if only datasync is requested, we can
-		 * skip indirect blocks when softupdates are not
-		 * active.  Otherwise we must flush them with data,
-		 * since dependencies prevent data block writes.
+		 * Indirect blocks are only dirtied by changes to the
+		 * block pointers they hold, so even a data-only sync
+		 * must write them: they are needed to retrieve newly
+		 * allocated blocks.
 		 */
 		if (waitfor == MNT_WAIT && bp->b_lblkno <= -UFS_NDADDR &&
-		    (lbn_level(bp->b_lblkno) >= passes ||
-		    ((flags & DATA_ONLY) != 0 && !DOINGSOFTDEP(vp))))
+		    lbn_level(bp->b_lblkno) >= passes)
 			continue;
 		if (bp->b_lblkno > lbn)
 			panic("ffs_syncvnode: syncing truncated data.");
@@ -421,35 +431,16 @@ next_locked:
 	 * these will be done with one sync and one async pass.
 	 */
 	if (bo->bo_dirty.bv_cnt > 0) {
-		if ((flags & DATA_ONLY) == 0) {
-			still_dirty = true;
-		} else {
-			/*
-			 * For data-only sync, dirty indirect buffers
-			 * are ignored.
-			 */
-			still_dirty = false;
-			TAILQ_FOREACH(bp, &bo->bo_dirty.bv_hd, b_bobufs) {
-				if (bp->b_lblkno > -UFS_NDADDR) {
-					still_dirty = true;
-					break;
-				}
-			}
+		/* Write the inode after sync passes to flush deps. */
+		if (wait && DOINGSOFTDEP(vp) && (flags & NO_INO_UPDT) == 0) {
+			BO_UNLOCK(bo);
+			ffs_update(vp, 1);
+			BO_LOCK(bo);
 		}
-
-		if (still_dirty) {
-			/* Write the inode after sync passes to flush deps. */
-			if (wait && DOINGSOFTDEP(vp) &&
-			    (flags & NO_INO_UPDT) == 0) {
-				BO_UNLOCK(bo);
-				ffs_update(vp, 1);
-				BO_LOCK(bo);
-			}
-			/* switch between sync/async. */
-			wait = !wait;
-			if (wait || ++passes < UFS_NIADDR + 2)
-				goto loop;
-		}
+		/* switch between sync/async. */
+		wait = !wait;
+		if (wait || ++passes < UFS_NIADDR + 2)
+			goto loop;
 	}
 	BO_UNLOCK(bo);
 	error = 0;
@@ -458,7 +449,7 @@ next_locked:
 			error = ffs_update(vp, 1);
 		if (DOINGSUJ(vp))
 			softdep_journal_fsync(VTOI(vp));
-	} else if ((ip->i_flags & (IN_SIZEMOD | IN_IBLKDATA)) != 0) {
+	} else if (inoupdt) {
 		error = ffs_update(vp, 1);
 	}
 	if (error == 0 && unlocked)
@@ -473,6 +464,41 @@ ffs_fdatasync(struct vop_fdatasync_args *ap)
 {
 
 	return (ffs_syncvnode(ap->a_vp, MNT_WAIT, DATA_ONLY));
+}
+
+/*
+ * With soft updates, an O_SYNC or O_DSYNC write that allocates blocks
+ * finishes with ffs_syncvnode(), which also writes whatever other
+ * descriptors left dirty on the vnode.  Sync the vnode when it is opened
+ * for writing with either flag, so that this cost is mostly paid once, by
+ * the open, and not by the first synchronous write.
+ *
+ * This only moves work that the writes would otherwise do, so skip it
+ * rather than wait when writes are suspended, and do not fail the open on
+ * its errors.  Without soft updates the writes sync nothing but their own
+ * blocks and the inode, so there is nothing to move and the open does not
+ * sync.  A writable open locks the vnode exclusively.
+ */
+static int
+ffs_open(struct vop_open_args *ap)
+{
+	struct vnode *vp;
+	struct mount *mp;
+	int error;
+
+	error = VOP_OPEN_APV(&ufs_vnodeops, ap);
+	vp = ap->a_vp;
+	if (error != 0 || vp->v_type != VREG || !DOINGSOFTDEP(vp) ||
+	    (ap->a_mode & FWRITE) == 0 ||
+	    (ap->a_mode & (FFSYNC | FDSYNC)) == 0)
+		return (error);
+	ASSERT_VOP_ELOCKED(vp, "ffs_open");
+	if (vn_start_write(vp, &mp, V_NOWAIT) != 0)
+		return (0);
+	(void)ffs_syncvnode(vp, MNT_WAIT,
+	    (ap->a_mode & FFSYNC) != 0 ? 0 : DATA_ONLY);
+	vn_finished_write(mp);
+	return (0);
 }
 
 static int
@@ -842,6 +868,7 @@ ffs_write(
 	struct buf *bp;
 	ufs_lbn_t lbn;
 	off_t osize;
+	uint64_t oblocks;
 	ssize_t resid, r;
 	int seqcount;
 	int blkoffset, error, flags, ioflag, size, xfersize;
@@ -905,6 +932,7 @@ ffs_write(
 
 	resid = uio->uio_resid;
 	osize = ip->i_size;
+	oblocks = DIP(ip, i_blocks);
 	if (seqcount > BA_SEQMAX)
 		flags = BA_SEQMAX << BA_SEQSHIFT;
 	else
@@ -1043,8 +1071,25 @@ ffs_write(
 			uio->uio_resid = resid;
 		}
 	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC)) {
-		if (!(ioflag & IO_DATASYNC) ||
-		    (ip->i_flags & (IN_SIZEMOD | IN_IBLKDATA)))
+		if (DOINGSOFTDEP(vp) && DIP(ip, i_blocks) != oblocks) {
+			/*
+			 * With soft updates, new block pointers in the
+			 * inode and in indirect blocks are rolled back
+			 * when those are written before the dependencies
+			 * of the new blocks, such as the cylinder group
+			 * maps, are on disk.  If this write allocated
+			 * blocks, let ffs_syncvnode() flush the
+			 * dependencies first.  It only drops the vnode
+			 * lock for directories.  A write that allocated
+			 * nothing adds no dependencies of its own and only
+			 * needs the inode written, as without soft updates.
+			 */
+			error = ffs_syncvnode(vp, MNT_WAIT,
+			    (ioflag & IO_DATASYNC) != 0 ? DATA_ONLY : 0);
+			KASSERT(error != ERELOOKUP,
+			    ("ffs_write: vnode %p unlocked by sync", vp));
+		} else if (!(ioflag & IO_DATASYNC) ||
+		    (ip->i_flag & (IN_SIZEMOD | IN_IBLKDATA)))
 			error = ffs_update(vp, 1);
 		if (ffs_fsfail_cleanup(VFSTOUFS(vp->v_mount), error))
 			error = ENXIO;

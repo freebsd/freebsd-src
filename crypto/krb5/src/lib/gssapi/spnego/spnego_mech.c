@@ -127,7 +127,7 @@ acc_ctx_vfy_oid(OM_uint32 *, spnego_gss_ctx_id_t, gss_OID,
 static OM_uint32
 acc_ctx_call_acc(OM_uint32 *, spnego_gss_ctx_id_t, spnego_gss_cred_id_t,
 		 gss_buffer_t, gss_channel_bindings_t, gss_buffer_t,
-		 OM_uint32 *, OM_uint32 *, send_token_flag *);
+		 OM_uint32 *, gss_cred_id_t *, OM_uint32 *, send_token_flag *);
 
 static gss_OID
 negotiate_mech(spnego_gss_ctx_id_t, gss_OID_set, OM_uint32 *);
@@ -1471,8 +1471,8 @@ static OM_uint32
 acc_ctx_call_acc(OM_uint32 *minor_status, spnego_gss_ctx_id_t sc,
 		 spnego_gss_cred_id_t spcred, gss_buffer_t mechtok_in,
 		 gss_channel_bindings_t bindings, gss_buffer_t mechtok_out,
-		 OM_uint32 *time_rec, OM_uint32 *negState,
-		 send_token_flag *tokflag)
+		 OM_uint32 *time_rec, gss_cred_id_t *deleg_cred,
+		 OM_uint32 *negState, send_token_flag *tokflag)
 {
 	OM_uint32 ret, tmpmin;
 	gss_OID_desc mechoid;
@@ -1497,16 +1497,18 @@ acc_ctx_call_acc(OM_uint32 *minor_status, spnego_gss_ctx_id_t sc,
 	mcred = (spcred == NULL) ? GSS_C_NO_CREDENTIAL : spcred->mcred;
 	if (negoex) {
 		ret = negoex_accept(minor_status, sc, mcred, mechtok_in,
-				    bindings, mechtok_out, time_rec);
+				    bindings, mechtok_out, time_rec,
+				    deleg_cred);
 	} else {
 		(void) gss_release_name(&tmpmin, &sc->internal_name);
-		(void) gss_release_cred(&tmpmin, &sc->deleg_cred);
+		if (deleg_cred != NULL && *deleg_cred != GSS_C_NO_CREDENTIAL)
+		    (void) gss_release_cred(&tmpmin, deleg_cred);
 		ret = gss_accept_sec_context(minor_status, &sc->ctx_handle,
 					     mcred, mechtok_in, bindings,
 					     &sc->internal_name,
 					     &sc->actual_mech, mechtok_out,
 					     &sc->ctx_flags, time_rec,
-					     &sc->deleg_cred);
+					     deleg_cred);
 	}
 	if (ret == GSS_S_COMPLETE) {
 #ifdef MS_BUG_TEST
@@ -1560,6 +1562,7 @@ spnego_gss_accept_sec_context(
 	send_token_flag return_token;
 	gss_buffer_t mechtok_in, mic_in, mic_out;
 	gss_buffer_desc mechtok_out = GSS_C_EMPTY_BUFFER;
+	gss_cred_id_t *deleg_cred;
 	spnego_gss_ctx_id_t sc = NULL;
 	spnego_gss_cred_id_t spcred = NULL;
 	int sendTokenInit = 0, tmpret;
@@ -1661,9 +1664,11 @@ spnego_gss_accept_sec_context(
 	 * whether it is the first round-trip.
 	 */
 	if (negState != REQUEST_MIC && mechtok_in != GSS_C_NO_BUFFER) {
+		deleg_cred = (delegated_cred_handle != NULL) ?
+			&sc->deleg_cred : NULL;
 		ret = acc_ctx_call_acc(minor_status, sc, spcred, mechtok_in,
 				       bindings, &mechtok_out, time_rec,
-				       &negState, &return_token);
+				       deleg_cred, &negState, &return_token);
 	}
 
 	/* Step 3: process or generate the MIC, if the negotiated mech is

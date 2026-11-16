@@ -3,7 +3,7 @@
 .\" Copyright (c) 2025 Baptiste Daroussin <bapt@FreeBSD.org>
 .\" Copyright (c) 2025 Jesús Daniel Colmenares Oviedo <dtxdf@FreeBSD.org>
 .\"
-.Dd June 8, 2026
+.Dd November 11, 2026
 .Dt NUAGEINIT 7
 .Os
 .Sh NAME
@@ -546,6 +546,8 @@ Specify a list of users to be created:
 .Bl -tag -width "ssh_authorized_keys"
 .It Ic name
 Name of the user.
+.It Ic uid
+The numeric user ID to assign to the user.
 .It Ic gecos
 GECOS for the user.
 .It Ic homedir

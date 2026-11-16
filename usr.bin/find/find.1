@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 14, 2026
+.Dd October 20, 2026
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -149,23 +149,44 @@ and
 Cause
 .Nm
 to traverse the file hierarchies in lexicographical order,
-i.e., alphabetical order within each directory.
-Note:
-.Ql find -s
+sorting entries within each directory.
+.Pp
+The output order is deterministic for a given locale and does not
+depend on the type of
+file system or on the order in which directory entries were created.
+This is useful for comparing results between runs, reproducible
+builds, and automated tests.
+.Pp
+Since entries are sorted per directory,
+.Ql "find -s"
+typically uses less memory and temporary disk space than
+.Ql "find | sort" .
+Unlike
+.Ql "find | sort" ,
+.Ql "find -s"
+can produce output while the traversal is still in progress,
+allowing a long-running pipeline such as
+.Ql "find -s . -print0 | xargs -0 -n1 /slow/script"
+to begin processing files immediately.
+The predictable order also makes the progress easy to follow,
+e.g., with
+.Xr ps 1 .
+.Pp
+Note that
+.Ql "find -s"
 and
 .Ql "find | sort"
 may give different results.
-.Pp
 For example,
-.Ql find -s
+.Ql "find -s"
 puts a directory
 .Ql Ar foo
 with all its contents before a directory
-.Ql Ar foo.\&
+.Ql Ar foo\&. ,
 but
 .Ql "find | sort"
 puts the directory name
-.Ql Ar foo.\&
+.Ql Ar foo\&.
 before any string like
 .Ql Ar foo/bar
 because
@@ -174,8 +195,8 @@ goes before
 .Ql /
 in ASCII.
 In locales other than
-.Ar C
-results may vary more due to collation differences.
+.Ar C ,
+the two may differ further because of locale-dependent collation.
 .It Fl x
 Prevent
 .Nm

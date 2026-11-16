@@ -77,7 +77,7 @@ By submitting a patch, you affirm that:
 * You can account for how the contribution was produced.
 
 Submitting contributions that you do not understand, cannot explain
-or cannot clearly attribute may be treated as harrassment per the
+or cannot clearly attribute may be treated as harassment per the
 pkgconf [Code of Conduct][coc].
 
 Contributions produced primarily by autonomous or agentic systems

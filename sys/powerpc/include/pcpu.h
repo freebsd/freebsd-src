@@ -69,7 +69,8 @@ struct pvo_entry;
 	struct pvo_entry *qmap_pvo;					\
 	struct mtx	qmap_lock;					\
 	uint64_t	opal_hmi_flags;					\
-	char		__pad[1337];
+	void		*dbstack;		/* KDB trap stack top */	\
+	char		__pad[1329];
 
 #ifdef __powerpc64__
 #define PCPU_MD_AIM_FIELDS	PCPU_MD_AIM64_FIELDS

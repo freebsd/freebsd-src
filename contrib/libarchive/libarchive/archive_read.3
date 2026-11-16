@@ -170,7 +170,7 @@ list_archive(const char *name)
   struct archive *a;
   struct archive_entry *entry;
 
-  mydata = malloc(sizeof(struct mydata));
+  mydata = malloc(sizeof(*mydata));
   a = archive_read_new();
   mydata->name = name;
   archive_read_support_filter_all(a);

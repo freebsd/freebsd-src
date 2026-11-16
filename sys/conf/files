@@ -326,6 +326,7 @@ contrib/openzfs/module/zfs/u8_textprep.c           optional zfs compile-with "${
 contrib/openzfs/module/zfs/uberblock.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/unique.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/vdev.c		optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/zfs/vdev_anyraid.c	optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/vdev_draid.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/vdev_draid_rand.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/vdev_file.c		optional zfs compile-with "${ZFS_C}"
@@ -736,6 +737,9 @@ dev/aacraid/aacraid.c		optional aacraid
 dev/aacraid/aacraid_cam.c	optional aacraid scbus
 dev/aacraid/aacraid_debug.c	optional aacraid
 dev/aacraid/aacraid_pci.c	optional aacraid pci
+dev/acpi_apple/acpi_apple.c	optional acpi_apple acpi pci backlight
+dev/acpi_apple/acpi_apple_bl.c	optional acpi_apple acpi pci backlight
+dev/acpi_apple/acpi_apple_platform.c optional acpi_apple acpi pci backlight
 dev/acpi_support/acpi_wmi.c	optional acpi_wmi acpi
 dev/acpi_support/acpi_asus.c	optional acpi_asus acpi
 dev/acpi_support/acpi_asus_wmi.c	optional acpi_asus_wmi acpi
@@ -1736,6 +1740,7 @@ dev/fdt/fdt_clock_if.m		optional fdt fdt_clock
 dev/fdt/fdt_common.c		optional fdt
 dev/fdt/fdt_pinctrl.c		optional fdt fdt_pinctrl
 dev/fdt/fdt_pinctrl_if.m	optional fdt fdt_pinctrl
+dev/fdt/fdt_reserved_memory.c	optional fdt
 dev/fdt/fdt_slicer.c		optional fdt cfi | fdt mx25l | fdt n25q | fdt at45d
 dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static \
 	dependency	"${FDT_DTS_FILE:T:R}.dtb"
@@ -2467,6 +2472,7 @@ dev/mii/gentbi.c		optional miibus | gentbi
 dev/mii/icsphy.c		optional miibus | icsphy
 dev/mii/ip1000phy.c		optional miibus | ip1000phy
 dev/mii/jmphy.c			optional miibus | jmphy
+dev/mii/lan867xphy.c		optional miibus | lan867xphy
 dev/mii/lxtphy.c		optional miibus | lxtphy
 dev/mii/mcommphy.c		optional miibus | mcommphy
 dev/mii/micphy.c		optional miibus fdt | micphy fdt
@@ -2960,6 +2966,17 @@ dev/rtwn/rtl8188e/pci/r88ee_init.c	optional rtwn_pci pci
 dev/rtwn/rtl8188e/pci/r88ee_rx.c	optional rtwn_pci pci
 dev/rtwn/rtl8188e/usb/r88eu_attach.c	optional rtwn_usb
 dev/rtwn/rtl8188e/usb/r88eu_init.c	optional rtwn_usb
+
+# RTL8188F
+dev/rtwn/rtl8188f/r88f_calib.c	optional rtwn
+dev/rtwn/rtl8188f/r88f_chan.c	optional rtwn
+dev/rtwn/rtl8188f/r88f_fw.c	optional rtwn
+dev/rtwn/rtl8188f/r88f_init.c	optional rtwn
+dev/rtwn/rtl8188f/r88f_rom.c	optional rtwn
+dev/rtwn/rtl8188f/r88f_rx.c	optional rtwn
+dev/rtwn/rtl8188f/usb/r88fu_attach.c	optional rtwn_usb
+dev/rtwn/rtl8188f/usb/r88fu_init.c	optional rtwn_usb
+
 # RTL8192C
 dev/rtwn/rtl8192c/r92c_attach.c	optional rtwn
 dev/rtwn/rtl8192c/r92c_beacon.c	optional rtwn
@@ -3298,6 +3315,7 @@ dev/tcp_log/tcp_log_dev.c	optional tcp_blackbox inet | tcp_blackbox inet6
 dev/tdfx/tdfx_pci.c		optional tdfx pci
 dev/ti/if_ti.c			optional ti pci
 dev/tpm/tpm20.c			optional	tpm
+dev/tpm/tpm_acpi_subr.c		optional tpm acpi
 dev/tpm/tpm_bus.c		optional tpm acpi
 dev/tpm/tpm_if.m		optional tpm
 dev/tpm/tpm_spibus.c		optional tpm spibus fdt
@@ -3597,13 +3615,13 @@ dev/vt/vt_font.c		optional vt
 dev/vt/vt_sysmouse.c		optional vt
 dev/vte/if_vte.c		optional vte pci
 dev/watchdog/watchdog.c		standard
-dev/wg/if_wg.c			optional wg				\
+dev/wg/if_wg.c			optional wg inet | wg inet6		\
 	compile-with "${NORMAL_C} -include $S/dev/wg/compat.h"
-dev/wg/wg_cookie.c		optional wg				\
+dev/wg/wg_cookie.c		optional wg inet | wg inet6		\
 	compile-with "${NORMAL_C} -include $S/dev/wg/compat.h"
-dev/wg/wg_crypto.c		optional wg				\
+dev/wg/wg_crypto.c		optional wg inet | wg inet6		\
 	compile-with "${NORMAL_C} -include $S/dev/wg/compat.h"
-dev/wg/wg_noise.c		optional wg				\
+dev/wg/wg_noise.c		optional wg inet | wg inet6		\
 	compile-with "${NORMAL_C} -include $S/dev/wg/compat.h"
 dev/wpi/if_wpi.c		optional wpi pci
 wpifw.c			optional wpifw					\
@@ -3976,9 +3994,6 @@ kern/link_elf.c			standard
 kern/linker_if.m		standard
 kern/p1003_1b.c			standard
 kern/posix4_mib.c		standard
-kern/sched_4bsd.c		optional sched_4bsd
-kern/sched_shim.c		standard
-kern/sched_ule.c		optional sched_ule
 kern/serdev_if.m		standard
 kern/stack_protector.c		standard \
 	compile-with "${NORMAL_C:N-fstack-protector*}"
@@ -4701,6 +4716,27 @@ nlm/nlm_prot_server.c		optional nfslockd | nfsd
 nlm/nlm_prot_svc.c		optional nfslockd | nfsd
 nlm/nlm_prot_xdr.c		optional nfslockd | nfsd
 nlm/sm_inter_xdr.c		optional nfslockd | nfsd
+
+# Scheduler
+kern/sched_4bsd.c		optional sched_4bsd
+sched_4bsd_ns.h			optional sched_4bsd \
+	dependency		"$S/kern/sched_ns.h $S/sys/sched.h \
+	$S/tools/sched_impl_ns.awk" \
+	compile-with		"${CPP} ${INCLUDES} -DSCHED_IMPLEMENTATION=4bsd \
+	$S/kern/sched_ns.h | \
+	${AWK} -f $S/tools/sched_impl_ns.awk > ${.TARGET}" \
+	no-obj no-implicit-rule before-depend local \
+	clean			"sched_4bsd_ns.h"
+kern/sched_ule.c		optional sched_ule
+sched_ule_ns.h			optional sched_ule \
+	dependency		"$S/kern/sched_ns.h $S/sys/sched.h \
+	$S/tools/sched_impl_ns.awk" \
+	compile-with		"${CPP} ${INCLUDES} -DSCHED_IMPLEMENTATION=ule \
+	$S/kern/sched_ns.h | \
+	${AWK} -f $S/tools/sched_impl_ns.awk > ${.TARGET}" \
+	no-obj no-implicit-rule before-depend local \
+	clean			"sched_ule_ns.h"
+kern/sched_shim.c		standard
 
 # Linux Kernel Programming Interface
 compat/linuxkpi/common/src/linux_80211.c	optional compat_linuxkpi wlan \

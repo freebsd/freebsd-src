@@ -262,7 +262,7 @@ parse_rule_component(krb5_context context,
     char err_buf[128];
     int ret;
     struct keyword_desc *kw, *nextkw;
-    char *nk;
+    const char *nk;
     int found_next_kw = 0;
     char *value = NULL;
     size_t len;

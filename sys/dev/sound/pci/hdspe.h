@@ -125,6 +125,8 @@
 #define	HDSPE_CHANBUF_SAMPLES		(16 * 1024)
 #define	HDSPE_CHANBUF_SIZE		(4 * HDSPE_CHANBUF_SAMPLES)
 #define	HDSPE_DMASEGSIZE		(HDSPE_CHANBUF_SIZE * HDSPE_MAX_SLOTS)
+#define	HDSPE_DMA_PAGE_SIZE		4096
+#define	HDSPE_DMA_PAGES			(HDSPE_DMASEGSIZE / HDSPE_DMA_PAGE_SIZE)
 
 #define	HDSPE_CHAN_AIO_LINE		(1 << 0)
 #define	HDSPE_CHAN_AIO_EXT		(1 << 1)
@@ -230,7 +232,7 @@ struct sc_info {
 	bus_space_handle_t	csh;
 
 	struct resource		*irq;
-	int			irqid;
+	int			rid;
 	void			*ih;
 	bus_dma_tag_t		dmat;
 
@@ -240,6 +242,9 @@ struct sc_info {
 	uint32_t		bufsize;
 	bus_dmamap_t		pmap;
 	bus_dmamap_t		rmap;
+	/* DMA buffer page addresses. */
+	uint32_t		paddr[HDSPE_DMA_PAGES];
+	uint32_t		raddr[HDSPE_DMA_PAGES];
 	uint32_t		period;
 	uint32_t		speed;
 	uint32_t		force_period;

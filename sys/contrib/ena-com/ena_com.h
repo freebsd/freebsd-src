@@ -801,7 +801,6 @@ int ena_com_get_offload_settings(struct ena_com_dev *ena_dev,
 
 /* ena_com_rss_init - Init RSS
  * @ena_dev: ENA communication layer struct
- * @log_size: indirection log size
  *
  * Allocate RSS/RFS resources.
  * The caller then can configure rss using ena_com_set_hash_function,
@@ -809,7 +808,7 @@ int ena_com_get_offload_settings(struct ena_com_dev *ena_dev,
  *
  * @return: 0 on Success and negative value otherwise.
  */
-int ena_com_rss_init(struct ena_com_dev *ena_dev, u16 log_size);
+int ena_com_rss_init(struct ena_com_dev *ena_dev);
 
 /* ena_com_rss_destroy - Destroy rss
  * @ena_dev: ENA communication layer struct
@@ -1173,6 +1172,8 @@ static inline void ena_com_disable_adaptive_moderation(struct ena_com_dev *ena_d
 {
 	ena_dev->adaptive_coalescing = false;
 }
+
+bool ena_com_indirection_table_config_supported(struct ena_com_dev *ena_dev);
 
 /* ena_com_get_cap - query whether device supports a capability.
  * @ena_dev: ENA communication layer struct

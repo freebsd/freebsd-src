@@ -1229,6 +1229,64 @@ clk_test_freq(clk_t clk, uint64_t freq, int flags)
 }
 
 int
+clknode_set_phase(struct clknode *clknode, int degrees)
+{
+	int rv;
+
+	CLK_TOPO_ASSERT();
+
+	CLKNODE_XLOCK(clknode);
+	rv = CLKNODE_SET_PHASE(clknode, degrees);
+	CLKNODE_UNLOCK(clknode);
+	return (rv);
+}
+
+int
+clknode_get_phase(struct clknode *clknode, int *degrees)
+{
+	int rv;
+
+	CLK_TOPO_ASSERT();
+
+	CLKNODE_XLOCK(clknode);
+	rv = CLKNODE_GET_PHASE(clknode, degrees);
+	CLKNODE_UNLOCK(clknode);
+	return (rv);
+}
+
+int
+clk_set_phase(clk_t clk, int degrees)
+{
+	int rv;
+	struct clknode *clknode;
+
+	clknode = clk->clknode;
+	KASSERT(clknode->ref_cnt > 0,
+	   ("Attempt to access unreferenced clock: %s\n", clknode->name));
+
+	CLK_TOPO_XLOCK();
+	rv = clknode_set_phase(clknode, degrees);
+	CLK_TOPO_UNLOCK();
+	return (rv);
+}
+
+int
+clk_get_phase(clk_t clk, int *degrees)
+{
+	int rv;
+	struct clknode *clknode;
+
+	clknode = clk->clknode;
+	KASSERT(clknode->ref_cnt > 0,
+	   ("Attempt to access unreferenced clock: %s\n", clknode->name));
+
+	CLK_TOPO_SLOCK();
+	rv = clknode_get_phase(clknode, degrees);
+	CLK_TOPO_UNLOCK();
+	return (rv);
+}
+
+int
 clk_get_parent(clk_t clk, clk_t *parent)
 {
 	struct clknode *clknode;

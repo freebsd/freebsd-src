@@ -19,7 +19,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd September 1, 2026
+.Dd October 22, 2026
 .Dt RTWN 4
 .Os
 .Sh NAME
@@ -89,6 +89,8 @@ driver supports USB and PCI devices with the following chipsets:
 .It
 Realtek 802.11n wireless 8188e (RTL8188E)
 .It
+Realtek 802.11n wireless 8188f (RTL8188F)
+.It
 Realtek 802.11n wireless 8192c (RTL8192C)
 .It
 Realtek 802.11n wireless 8192e (RTL8192E)
@@ -119,6 +121,7 @@ which are loaded when an interface is brought up:
 .Bl -tag -width Ds -offset indent -compact
 .It Pa /boot/kernel/rtwn-rtl8188eefw.ko
 .It Pa /boot/kernel/rtwn-rtl8188eufw.ko
+.It Pa /boot/kernel/rtwn-rtl8188fufw.ko
 .It Pa /boot/kernel/rtwn-rtl8192cfwE_B.ko
 .It Pa /boot/kernel/rtwn-rtl8192cfwE.ko
 .It Pa /boot/kernel/rtwn-rtl8192cfwT.ko

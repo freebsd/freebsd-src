@@ -1,7 +1,12 @@
 .\"-
-.\" Copyright (c) 2005-2006 Robert N. M. Watson
+.\" Copyright (c) 2005-2006, 2017 Robert N. M. Watson
 .\" Copyright (c) 2008 Apple Inc.
 .\" All rights reserved.
+.\"
+.\" Portions of this software were developed by BAE Systems, the University of
+.\" Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+.\" contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+.\" Computing (TC) research program.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 5, 2006
+.Dd January 6, 2017
 .Dt AUDIT.LOG 5
 .Os
 .Sh NAME
@@ -346,6 +351,23 @@ or
 .It "Error Number	1 byte	Errno value, or 0 if undefined"
 .It "Return Value	4/8 bytes	Return value (32/64-bits)"
 .El
+.Ss Return UUID Token
+The
+.Dq return UUID
+token provides a UUID for a numbered and named object returned from a system
+call.
+For example, a pair of return UUID tokens might be used to identify the two
+endpoints returned from the
+.Xr pipe 2
+system call.
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Return value ID" Ta "1 byte" Ta "Return ID"
+.It "Return UUID" Ta "16 bytes" Ta "Big-endian UUID for return object"
+.It "Length" Ta "2 bytes" Ta "Length of the text"
+.It "Text" Ta "N bytes + 1 nul" Ta "The string uncluding nul"
+.El
 .Ss Subject Token
 The
 .Dq subject
@@ -502,6 +524,22 @@ or
 .It Li "Argument value" Ta "4/8 bytes" Ta "Argument value"
 .It Li "Length" Ta "2 bytes" Ta "Length of the text"
 .It Li "Text" Ta "N bytes + 1 nul" Ta "The string including nul"
+.El
+.Ss Arg UUID Token
+The
+.Dq arg UUID
+token provides a UUID for a numbered and named object passed to a system call.
+For example, a pair of arg UUID tokens might be used to identify the two
+files operated on by a
+.Xr rename 2
+system call.
+.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
+.It Sy "Field	Bytes	Description"
+.It "Token ID	1 byte	Token ID"
+.It "Argument value ID" Ta "1 byte" Ta "Argument ID"
+.It "Argument UUID" Ta "16 bytes" Ta "Big-endian UUID for rgument"
+.It "Length" Ta "2 bytes" Ta "Length of the text"
+.It "Text" Ta "N bytes + 1 nul" Ta "The string uncluding nul"
 .El
 .Ss exec_args Token
 The

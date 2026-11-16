@@ -61,6 +61,7 @@
 
 #include "opt_tpm.h"
 #include "tpm_if.h"
+#include "tpm_irq.h"
 
 #define	BIT(x) (1U << (x))
 
@@ -128,17 +129,28 @@ struct tpm_sc {
 
 	/* Serialize commands and lifecycle; intr_lock nests inside. */
 	struct sx 	dev_lock;
+	/* Serialize TIS IRQ I/O with locality release; SPI access may sleep. */
+	struct sx	intr_io_lock;
 	struct mtx	intr_lock;
 	struct cv	intr_cv;
 
 	void 		*intr_cookie;
-	int 		intr_type;	/* Current event type */
 	uint32_t	intr_generation;
 	uint32_t	intr_mask;	/* Saved TIS interrupt configuration */
+	struct tpm_irq_config irq_config;
+	struct task	intr_task;
+	struct intr_config_hook intr_hook;
+	bool		intr_testing;
+	bool		intr_configuring;
+	bool		intr_fault;
+	bool		intr_armed;
+	bool		intr_received;
+	bool		locality;	/* Protected by intr_io_lock */
 	bool 		interrupts;
 	bool		common_initialized;
 	bool		dying;
 	bool		suspended;
+	bool		no_harvest;	/* Set by the transport before tpm20_init() */
 
 	struct tpm_priv *internal_priv;
 

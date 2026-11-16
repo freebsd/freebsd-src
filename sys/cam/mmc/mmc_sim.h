@@ -36,6 +36,7 @@ struct mmc_sim {
 	struct cam_sim			*sim;
 	device_t			dev;
 	struct task			sim_task;
+	struct taskqueue		*tq;
 	union ccb			*ccb;
 };
 

@@ -197,7 +197,7 @@ Use
 as compression method.
 Supported values are
 .Dq bzip2 ,
-.Dq gzipi ,
+.Dq gzip ,
 .Dq lzo
 .Pq ultra fast ,
 and
@@ -419,7 +419,7 @@ If enabled, the Primary Volume Descriptor may contain lowercase ASCII characters
 If disabled, characters will be converted to uppercase ASCII.
 Default: disabled.
 .It Cm allow-sharp-tilde
-If enabled, sharp and tilde characters will be permitted in filenames, in violation if the ISO9660 specification.
+If enabled, sharp and tilde characters will be permitted in filenames, in violation of the ISO9660 specification.
 If disabled, such characters will be converted to underscore characters.
 Default: disabled.
 .It Cm allow-vernum
@@ -639,7 +639,7 @@ Supported values are
 .Dq lzma
 and
 .Dq xz .
-.It Cm compression_level
+.It Cm compression-level
 The value is a decimal integer from 1 to 9 specifying the compression level.
 .It Cm toc-checksum Ns = Ns Ar type
 Use
@@ -680,7 +680,7 @@ other values will enable
 .Dq lzma ,
 or
 .Dq zstd
-compression (in order of priority, depending on what libraries 
+compression (in order of priority, depending on what libraries
 are linked) with the given level.
 .It Cm threads
 The value is interpreted as a decimal integer specifying the
@@ -751,7 +751,7 @@ compressor should use the maximum compression level.
 a = archive_write_new();
 archive_write_add_filter_gzip(a);
 archive_write_set_format_iso9660(a);
-archive_write_set_options(a, "boot=kernel.img,compression=9");
+archive_write_set_options(a, "boot=kernel.img,gzip:compression-level=9");
 archive_write_open_filename(a, filename, blocksize);
 .Ed
 .\"

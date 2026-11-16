@@ -50,6 +50,8 @@
 #include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_cpu_fdt.h>
 
+extern bus_space_tag_t fdtbus_bs_tag;
+
 /*
  * UART console routines.
  */
@@ -77,6 +79,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	bus_space_handle_t bsh;
 	u_int shift, iowidth, rclk;
 	int br, err;
+
+	uart_bus_space_mem = fdtbus_bs_tag;
 
 	/* Allow overriding the FDT using the environment. */
 	class = &uart_ns8250_class;

@@ -39,6 +39,7 @@
 #include <dev/pci/pcireg.h>
 
 #include <assert.h>
+#include <stdbool.h>
 
 #include "pci_irq.h"
 
@@ -99,6 +100,7 @@ struct pcibar {
 	uint64_t		size;
 	uint64_t		addr;
 	uint8_t			lobits;
+	bool			registered;	/* io region is registered */
 };
 
 #define PI_NAMESZ	40
@@ -266,6 +268,7 @@ int	pci_bus_configured(int bus);
 #ifdef BHYVE_SNAPSHOT
 struct pci_devinst *pci_next(const struct pci_devinst *cursor);
 int	pci_snapshot(struct vm_snapshot_meta *meta);
+void	pci_restore_prepare(void);
 int	pci_pause(struct pci_devinst *pdi);
 int	pci_resume(struct pci_devinst *pdi);
 #endif

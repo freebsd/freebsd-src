@@ -268,6 +268,21 @@ nvme_cpl_sbuf(const struct nvme_completion *cpl, struct sbuf *sb)
 		sbuf_printf(sb, " DNR");
 }
 
+/*
+ * Append an 8 or 16 byte hostid as an integer value in base 16 to an sbuf.
+ * The hostid is in the little-endian byte order the device returns it in,
+ * so print it most significant byte first.
+ */
+void
+nvme_hostid_sbuf(struct sbuf *sb, const uint8_t *hostid, bool exhid)
+{
+	int i;
+
+	sbuf_cat(sb, "0x");
+	for (i = (exhid ? 16 : 8) - 1; i >= 0; i--)
+		sbuf_printf(sb, "%02x", hostid[i]);
+}
+
 void
 nvme_strvis(uint8_t *dst, const uint8_t *src, int dstlen, int srclen)
 {

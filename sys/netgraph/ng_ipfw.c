@@ -258,8 +258,7 @@ ng_ipfw_rcvdata(hook_p hook, item_p item)
 		return (EINVAL);	/* XXX: find smth better */
 	}
 
-	if (m->m_len < sizeof(struct ip) &&
-	    (m = m_pullup(m, sizeof(struct ip))) == NULL)
+	if ((m = m_pullup(m, sizeof(struct ip))) == NULL)
 		return (ENOBUFS);
 
 	ip = mtod(m, struct ip *);
@@ -340,8 +339,7 @@ ng_ipfw_input(struct mbuf **m0, struct ip_fw_args *fwa, bool tee)
 		if ((m = m_dup(*m0, M_NOWAIT)) == NULL)
 			return (ENOMEM);	/* which is ignored */
 
-	if (m->m_len < sizeof(struct ip) &&
-	    (m = m_pullup(m, sizeof(struct ip))) == NULL)
+	if ((m = m_pullup(m, sizeof(struct ip))) == NULL)
 		return (EINVAL);
 
 	NG_SEND_DATA_ONLY(error, hook, m);

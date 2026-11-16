@@ -111,6 +111,7 @@ cs6			{ return CS6;  }
 cs7			{ return CS7;  }
 \"[^"]+\"		{ yylval.str = strndup(yytext + 1,
 			    strlen(yytext) - 2); return STR; }
+[0-9]*\.[0-9]+		{ yylval.floating = atof(yytext); return FLOAT; }
 [a-zA-Z0-9\.\-_/\:\[\]]+ { yylval.str = strdup(yytext); return STR; }
 \{			{ return OPENING_BRACKET; }
 \}			{ return CLOSING_BRACKET; }

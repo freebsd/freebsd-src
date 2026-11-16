@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 .\" THE POSSIBILITY OF SUCH DAMAGES.
 .\"
-.Dd May 4, 2023
+.Dd September 17, 2026
 .Dt OSSL 4
 .Os
 .Sh NAME
@@ -46,20 +46,6 @@ The OpenSSL distribution includes architecture-specific
 implementations for some commonly used cryptographic algorithms.
 This driver adds a wrapper around these routines permitting them to be
 used by in-kernel cryptography consumers such as kernel TLS and IPsec.
-.Pp
-The
-.Nm
-driver includes architecture-specific implementations for the following
-architectures:
-.Pp
-.Bl -bullet -compact
-.It
-arm64
-.It
-amd64
-.It
-i386
-.El
 .Pp
 The
 .Nm
@@ -96,6 +82,22 @@ SHA2-384-HMAC
 SHA2-512
 .It
 SHA2-512-HMAC
+.El
+.Sh HARDWARE
+The
+.Nm
+driver supports
+cryptographic acceleration via OpenSSL on the following architectures:
+.Pp
+.Bl -bullet -compact
+.It
+amd64
+.It
+arm64
+.It
+i386
+.It
+powerpc64
 .El
 .Sh SEE ALSO
 .Xr crypto 4 ,

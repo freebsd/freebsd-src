@@ -443,7 +443,7 @@ random_harvest_healthtest(const struct harvest_event *event)
 	}
 
 	switch (ht->ht_state) {
-	case __predict_false(INIT):
+	case INIT:
 		/* Store the first sample and initialize test state. */
 		random_healthtest_rct_init(ht, event);
 		random_healthtest_apt_init(ht, event);

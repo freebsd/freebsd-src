@@ -257,7 +257,7 @@ int	(*carp_iamatch_p)(struct ifaddr *, uint8_t **);
 #endif
 #ifdef INET6
 struct ifaddr *(*carp_iamatch6_p)(struct ifnet *ifp, struct in6_addr *taddr6);
-caddr_t	(*carp_macmatch6_p)(struct ifnet *ifp, struct mbuf *m,
+char *	(*carp_macmatch6_p)(struct ifnet *ifp, struct mbuf *m,
     const struct in6_addr *taddr);
 #endif
 
@@ -886,7 +886,7 @@ if_attach_internal(struct ifnet *ifp, bool vmove)
 		ifp->if_addr = ifa;
 		ifa->ifa_ifp = ifp;
 		ifa->ifa_addr = (struct sockaddr *)sdl;
-		sdl = (struct sockaddr_dl *)(socksize + (caddr_t)sdl);
+		sdl = (struct sockaddr_dl *)((char *)sdl + socksize);
 		ifa->ifa_netmask = (struct sockaddr *)sdl;
 		sdl->sdl_len = masklen;
 		while (namelen != 0)
@@ -1932,8 +1932,8 @@ next:				continue;
 				 */
 				if (ifa_maybe == NULL ||
 				    ifa_preferred(ifa_maybe, ifa) ||
-				    rn_refines((caddr_t)ifa->ifa_netmask,
-				    (caddr_t)ifa_maybe->ifa_netmask)) {
+				    rn_refines(ifa->ifa_netmask,
+				    ifa_maybe->ifa_netmask)) {
 					ifa_maybe = ifa;
 				}
 			}

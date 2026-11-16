@@ -368,7 +368,8 @@ static struct if_shared_ctx ixl_sctx_init = {
 	.isc_vendor_info = ixl_vendor_info_array,
 	.isc_driver_version = IXL_DRIVER_VERSION_STRING,
 	.isc_driver = &ixl_if_driver,
-	.isc_flags = IFLIB_NEED_SCRATCH | IFLIB_NEED_ZERO_CSUM | IFLIB_TSO_INIT_IP | IFLIB_ADMIN_ALWAYS_RUN,
+	.isc_flags = IFLIB_NEED_SCRATCH | IFLIB_NEED_ZERO_CSUM |
+		IFLIB_TSO_INIT_IP | IFLIB_ADMIN_ALWAYS_RUN | IFLIB_SPARSE_TX,
 
 	.isc_nrxd_min = {IXL_MIN_RING},
 	.isc_ntxd_min = {IXL_MIN_RING},
@@ -1983,7 +1984,8 @@ ixl_if_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 	case SIOCGDRVSPEC:
 	case SIOCSDRVSPEC:
 		/* NVM update command */
-		if (ifd->ifd_cmd == I40E_NVM_ACCESS) {
+		if (ifd->ifd_cmd == I40E_NVM_ACCESS ||
+		    ifd->ifd_cmd == I40E_NVM_ACCESS2) {
 			error = priv_check(curthread, PRIV_DRIVER);
 			if (error)
 				break;

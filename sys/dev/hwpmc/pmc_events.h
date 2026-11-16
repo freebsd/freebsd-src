@@ -62,13 +62,14 @@ __PMC_EV_ALIAS("cycles",	TSC_TSC)
 #define	PMC_EV_RAPL_FIRST	PMC_EV_RAPL_ENERGY_PKG
 #define	PMC_EV_RAPL_LAST	PMC_EV_RAPL_ENERGY_DRAM
 
-/* MPERF / APERF MSRs */
+/* MPERF / APERF / IRPERF MSRs */
 #define __PMC_EV_PERF()				\
 	__PMC_EV(PERF, MPERF)			\
-	__PMC_EV(PERF, APERF)
+	__PMC_EV(PERF, APERF)			\
+	__PMC_EV(PERF, IRPERF)
 
 #define		PMC_EV_PERF_FIRST	PMC_EV_PERF_MPERF
-#define		PMC_EV_PERF_LAST	PMC_EV_PERF_APERF
+#define		PMC_EV_PERF_LAST	PMC_EV_PERF_IRPERF
 
 /*
  * Software events are dynamically defined.
