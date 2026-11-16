@@ -53,6 +53,7 @@
 #endif
 
 #include <dev/sound/midi/midi.h>
+#include <dev/sound/sndstat.h>
 
 
 static MALLOC_DEFINE(M_MIDI, "midi buffers", "MIDI data allocation area");
@@ -233,6 +234,8 @@ midi_register(device_t dev, struct mtx *lock, midi_callback_t *cb,
 		}
 	}
 
+	sndstat_register(dev, SNDST_TYPE_MIDI, NULL);
+
 	return (0);
 }
 
@@ -241,6 +244,7 @@ midi_unregister(device_t dev)
 {
 	struct midi_softc *sc = device_get_softc(dev);
 
+	sndstat_unregister(dev);
 	midi_destroy(sc);
 
 	return (0);

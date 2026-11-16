@@ -1,10 +1,13 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2020 The FreeBSD Foundation
+ * Copyright (c) 2020-2026 The FreeBSD Foundation
  *
  * This software was developed by Ka Ho Ng
  * under sponsorship from the FreeBSD Foundation.
+ *
+ * Portions of this software were developed by Christos Margiolis
+ * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -53,6 +56,14 @@ struct sndstioc_nv_arg {
 #define SNDST_DSPS_DESC			"desc"
 #define SNDST_DSPS_PROVIDER		"provider"
 #define SNDST_DSPS_PROVIDER_INFO	"provider_info"
+
+/*
+ * MIDI name/value pair names
+ */
+#define SNDST_MIDIS			"midis"
+#define SNDST_MIDIS_NAMEUNIT		"nameunit"
+#define SNDST_MIDIS_DEVNODE		"devnode"
+#define SNDST_MIDIS_DESC		"desc"
 
 /*
  * Common name/value pair names for play/rec info
