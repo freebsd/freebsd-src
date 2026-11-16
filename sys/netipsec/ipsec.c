@@ -159,6 +159,8 @@ VNET_DEFINE(int, crypto_support) = CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
  *  1 - enabled
  */
 VNET_DEFINE(int, async_crypto) = 0;
+/* Derive the flow ID of outbound packets from the SA: one SA, one queue. */
+VNET_DEFINE(int, sa_flowid) = 1;
 
 /*
  * TCP/UDP checksum handling policy for transport mode NAT-T (RFC3948)
@@ -211,6 +213,9 @@ SYSCTL_INT(_net_inet_ipsec, OID_AUTO, crypto_support,
 SYSCTL_INT(_net_inet_ipsec, OID_AUTO, async_crypto,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(async_crypto), 0,
 	"Use asynchronous mode to parallelize crypto jobs.");
+SYSCTL_INT(_net_inet_ipsec, OID_AUTO, sa_flowid,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(sa_flowid), 0,
+	"Derive the flow ID of outbound packets from the SA.");
 SYSCTL_INT(_net_inet_ipsec, OID_AUTO, check_policy_history,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(check_policy_history), 0,
 	"Use strict check of inbound packets to security policy compliance.");

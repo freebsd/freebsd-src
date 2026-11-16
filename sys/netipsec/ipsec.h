@@ -297,6 +297,7 @@ VNET_DECLARE(int, ip4_ipsec_ecn);
 VNET_DECLARE(int, ip4_ipsec_random_id);
 VNET_DECLARE(int, crypto_support);
 VNET_DECLARE(int, async_crypto);
+VNET_DECLARE(int, sa_flowid);
 VNET_DECLARE(int, natt_cksum_policy);
 
 #define IPSECSTAT_INC(name)                                               \
@@ -315,6 +316,7 @@ VNET_DECLARE(int, natt_cksum_policy);
 #define	V_ip4_ipsec_random_id	VNET(ip4_ipsec_random_id)
 #define	V_crypto_support	VNET(crypto_support)
 #define	V_async_crypto		VNET(async_crypto)
+#define	V_sa_flowid		VNET(sa_flowid)
 #define	V_natt_cksum_policy	VNET(natt_cksum_policy)
 
 #define ipseclog(x)	do { if (V_ipsec_debug) log x; } while (0)

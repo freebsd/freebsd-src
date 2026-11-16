@@ -150,6 +150,7 @@ struct ifp_handle_sav;
  */
 struct secasvar {
 	uint32_t spi;			/* SPI Value, network byte order */
+	uint32_t flowid;		/* flow ID of its packets, from the SPI */
 	uint32_t flags;			/* holder for SADB_KEY_FLAGS */
 	uint32_t seq;			/* sequence number */
 	pid_t pid;			/* message's pid */

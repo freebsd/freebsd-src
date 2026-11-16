@@ -42,6 +42,7 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/hash.h>
 #include <sys/kernel.h>
 #include <sys/fnv_hash.h>
 #include <sys/lock.h>
@@ -3083,6 +3084,9 @@ key_newsav(const struct sadb_msghdr *mhp, struct secasindex *saidx,
 	}
 
 	sav->spi = spi;
+	/* Hash the SPI in host order: the same flow ID on every architecture. */
+	spi = ntohl(spi);
+	sav->flowid = jenkins_hash32(&spi, 1, 0);
 	sav->seq = mhp->msg->sadb_msg_seq;
 	sav->state = SADB_SASTATE_LARVAL;
 	sav->pid = (pid_t)mhp->msg->sadb_msg_pid;
