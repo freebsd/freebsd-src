@@ -1209,14 +1209,10 @@ sndstat_register(device_t dev, enum sndstat_type type, char *str)
 	SNDSTAT_LOCK();
 	/* sorted list insertion */
 	TAILQ_FOREACH(pre, &sndstat_devlist, link) {
-		if (pre->unit > unit)
-			break;
-		else if (pre->unit < unit)
-			continue;
 		if (pre->type > type)
 			break;
-		else if (pre->type < unit)
-			continue;
+		if (pre->type == type && pre->unit > unit)
+			break;
 	}
 	if (pre == NULL) {
 		TAILQ_INSERT_TAIL(&sndstat_devlist, ent, link);
