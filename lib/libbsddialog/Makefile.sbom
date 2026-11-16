@@ -1,0 +1,5 @@
+SBOM_DESC=	Build scripts and tools with TUI dialogs and widgets
+SBOM_VERSION=	1.1
+SBOM_COPYRIGHT=	Copyright (c) 2021-2025 Alfonso Sabato Siciliano
+SBOM_URL=	https://alfonsosiciliano.gitlab.io
+SBOM_SOURCE=	https://gitlab.com/alfix/bsddialog

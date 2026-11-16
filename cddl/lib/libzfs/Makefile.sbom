@@ -1,0 +1,5 @@
+SBOM_DESC=	ZFS filesystem support
+SBOM_VERSION=	2.4.0
+SBOM_LICENSE=	CDDL-1.0
+SBOM_COPYRIGHT=	Copyright (c) 2005, 2010, Oracle and/or its affiliates
+SBOM_URL=	https://openzfs.org

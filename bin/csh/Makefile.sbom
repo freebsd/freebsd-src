@@ -1,0 +1,4 @@
+SBOM_DESC=	C shell with file name completion and command line editing
+SBOM_LICENSE=	BSD-3-Clause
+SBOM_COPYRIGHT=	Copyright (c) 1991 The Regents of the University of California
+SBOM_URL=	https://github.com/tcsh-org/tcsh

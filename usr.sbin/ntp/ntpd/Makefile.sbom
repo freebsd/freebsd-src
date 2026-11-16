@@ -1,0 +1,2 @@
+.include "../libntp/Makefile.sbom"
+SBOM_NAME=	${SBOMBASE}${PACKAGE}

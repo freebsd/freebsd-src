@@ -1,0 +1,3 @@
+SBOM_DESC=	Small library for encoding/decoding DER-encoded objects
+SBOM_COPYRIGHT= Copyright (c) 2024 Kyle Evans <kevans@FreeBSD.org>
+SBOM_URL=	https://github.com/kevans91/libder

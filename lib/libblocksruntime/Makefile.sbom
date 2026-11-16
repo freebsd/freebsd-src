@@ -1,0 +1,5 @@
+SBOM_DESC=	LLVM BlocksRuntime library
+SBOM_LICENSE=	Apache-2.0
+SBOM_COPYRIGHT=	Copyright 2008-2010 Apple, Inc.
+SBOM_URL=	https://llvm.org
+SBOM_SOURCE=	https://github.com/llvm/llvm-project

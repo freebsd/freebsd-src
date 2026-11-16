@@ -1,0 +1,1 @@
+.include "../../lib/libpkgconf/Makefile.sbom"

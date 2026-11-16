@@ -1,0 +1,3 @@
+SBOM_DESC=	Point-to-Point Protocol (PPP) utilities
+SBOM_LICENSE=	BSD-4.3TAHOE AND BSD-3-Clause AND BSD-2-Clause
+SBOM_COPYRIGHT=	Copyright (c) 1996 - 2001 Brian Somers <brian@Awfulhak.org>

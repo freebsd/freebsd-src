@@ -1,0 +1,7 @@
+SBOM_NAME=	${SBOMBASE}${PACKAGE}
+SBOM_DESC=	Automated Testing Framework
+SBOM_VERSION=	0.22
+SBOM_LICENSE=	BSD-3-Clause AND BSD-2-Clause
+SBOM_COPYRIGHT=	Copyright (c) 2007, 2008, 2009, 2010, 2011, 2012 The NetBSD Foundation, Inc.
+SBOM_URL=	https://github.com/FreeBSD/atf
+SBOM_SOURCE=	${SBOM_URL}

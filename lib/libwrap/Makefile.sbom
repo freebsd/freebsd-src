@@ -1,0 +1,6 @@
+SBOM_DESC=	TCP Wrappers access control facility
+SBOM_VERSION=	7.6
+SBOM_LICENSE=	TCP-wrappers
+SBOM_COPYRIGHT=	Copyright 1995 by Wietse Venema
+SBOM_URL=	http://ftp.porcupine.org/pub/security/
+SBOM_SOURCE=	https://github.com/tcp-wrappers/code

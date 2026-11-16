@@ -1,0 +1,2 @@
+SBOM_DESC=	Intel / Microsoft APM BIOS utility
+SBOM_COPYRIGHT=	Copyright (C) 1994-1996 by Tatsumi Hosokawa <hosokawa@jp.FreeBSD.org>

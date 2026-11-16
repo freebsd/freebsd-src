@@ -1,0 +1,5 @@
+SBOM_DESC=	NetBSD Editline library
+SBOM_VERSION=	20260304
+SBOM_LICENSE=	BSD-3-Clause
+SBOM_COPYRIGHT=	Copyright (c) 1997 The NetBSD Foundation, Inc.
+SBOM_URL=	https://www.NetBSD.org

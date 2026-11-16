@@ -1,0 +1,4 @@
+SBOM_DESC=	Simple and extensible SNMP daemon
+SBOM_VERSION=	1.14
+SBOM_COPYRIGHT=	Copyright (c) 2001-2003 Fraunhofer Institute for Open Communication Systems (FhG Fokus)
+SBOM_URL=	https://people.FreeBSD.org/~harti/bsnmp/

@@ -1,0 +1,2 @@
+SBOM_DESC=	Create and rotate system log files
+SBOM_COPYRIGHT=	Copyright (c) 2003, 2004  - Garance Alistair Drosehn <gad@FreeBSD.org>

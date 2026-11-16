@@ -1,0 +1,2 @@
+SBOM_DESC=	Install firmware packages for the running system
+SBOM_COPYRIGHT=	Copyright 2023 Beckhoff Automation GmbH & Co. KG

@@ -1,0 +1,7 @@
+SBOM_DESC=	Package compiler and linker metadata toolkit
+SBOM_VERSION=	2.9.93
+SBOM_COPYRIGHT=	Copyright (c) 2011-2026 pkgconf authors
+SBOM_LICENSE=	ISC
+SBOM_MAINTAINER=Ariadne Conill <ariadne@ariadne.space>
+SBOM_URL=	https://github.com/pkgconf/pkgconf
+SBOM_SOURCE=	${SBOM_URL}/archive/refs/tags/pkgconf-${SBOM_VERSION}.tar.gz

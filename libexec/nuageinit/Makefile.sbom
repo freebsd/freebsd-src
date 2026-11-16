@@ -1,0 +1,2 @@
+SBOM_DESC=	cloud-init configuration support
+SBOM_COPYRIGHT=	Copyright(c) 2022-2025 Baptiste Daroussin <bapt@FreeBSD.org>
