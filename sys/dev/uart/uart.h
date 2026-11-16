@@ -47,7 +47,10 @@ struct uart_bas {
 	u_int	regiowidth;
 	u_int	busy_detect;
 	u_int	rclk_guess;/* if rclk == 0, use baud + divisor to compute rclk */
+	u_int	flags;
 };
+
+#define	UART_BAS_IN_PROBE	0x0001	/* softc is still a plain uart_softc */
 
 #define	uart_regofs(bas, reg)		((reg) << (bas)->regshft)
 #define	uart_regiowidth(bas)		((bas)->regiowidth)

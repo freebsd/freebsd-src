@@ -569,7 +569,10 @@ uart_bus_probe(device_t dev, int regshft, int regiowidth, int rclk, int rid, int
                 }
 	}
 
+	/* The class specific fields of the softc can't be used yet. */
+	sc->sc_bas.flags |= UART_BAS_IN_PROBE;
 	error = UART_PROBE(sc);
+	sc->sc_bas.flags &= ~UART_BAS_IN_PROBE;
 	bus_release_resource(dev, sc->sc_rtype, sc->sc_rrid, sc->sc_rres);
 	return ((error) ? error : 0);
 }
