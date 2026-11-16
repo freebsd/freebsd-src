@@ -35,10 +35,13 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+
 #include <errno.h>
-#include <unistd.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+
 #include "pax.h"
 #include "extern.h"
 
@@ -54,14 +57,14 @@
  * limit on blocking size is removed (though that will violate pax spec)
  * MAXBLK define and tests will also need to be updated.
  */
-static char bufmem[MAXBLK+BLKMULT];	/* i/o buffer + pushback id space */
+static char bufmem[MAXBLK + BLKMULT];	/* i/o buffer + pushback id space */
 static char *buf;			/* normal start of i/o buffer */
 static char *bufend;			/* end or last char in i/o buffer */
 static char *bufpt;			/* read/write point in i/o buffer */
-int blksz = MAXBLK;			/* block input/output size in bytes */
-int wrblksz;				/* user spec output size in bytes */
+size_t blksz = MAXBLK;			/* block input/output size in bytes */
+size_t wrblksz;				/* user spec output size in bytes */
 int maxflt = MAXFLT;			/* MAX consecutive media errors */
-int rdblksz;				/* first read blksize (tapes only) */
+size_t rdblksz;				/* first read blksize (tapes only) */
 off_t wrlimit;				/* # of bytes written per archive vol */
 off_t wrcnt;				/* # of bytes written on current vol */
 off_t rdcnt;				/* # of bytes read on current vol */
@@ -87,18 +90,18 @@ wr_start(void)
 	if (!wrblksz)
 		wrblksz = frmt->bsz;
 	if (wrblksz > MAXBLK) {
-		paxwarn(1, "Write block size of %d too large, maximum is: %d",
-			wrblksz, MAXBLK);
+		paxwarn(1, "Write block size of %zu too large, maximum is: %d",
+		    wrblksz, MAXBLK);
 		return(-1);
 	}
 	if (wrblksz % BLKMULT) {
-		paxwarn(1, "Write block size of %d is not a %d byte multiple",
+		paxwarn(1, "Write block size of %zu is not a %d byte multiple",
 		    wrblksz, BLKMULT);
 		return(-1);
 	}
 	if (wrblksz > MAXBLK_POSIX) {
-		paxwarn(0, "Write block size of %d larger than POSIX max %d, archive may not be portable",
-			wrblksz, MAXBLK_POSIX);
+		paxwarn(0, "Write block size of %zu larger than POSIX max %d, "
+		    "archive may not be portable", wrblksz, MAXBLK_POSIX);
 		return(-1);
 	}
 
@@ -132,13 +135,13 @@ rd_start(void)
 	buf = &(bufmem[BLKMULT]);
 	if ((act == APPND) && wrblksz) {
 		if (wrblksz > MAXBLK) {
-			paxwarn(1,"Write block size %d too large, maximum is: %d",
-				wrblksz, MAXBLK);
+			paxwarn(1, "Write block size %zu too large, "
+			    "maximum is: %d", wrblksz, MAXBLK);
 			return(-1);
 		}
 		if (wrblksz % BLKMULT) {
-			paxwarn(1, "Write block size %d is not a %d byte multiple",
-			wrblksz, BLKMULT);
+			paxwarn(1, "Write block size %zu is not a "
+			    "%d byte multiple", wrblksz, BLKMULT);
 			return(-1);
 		}
 	}
@@ -736,81 +739,94 @@ rd_wrfile(ARCHD *arcn, int ofd, off_t *left)
 }
 
 /*
+ * Copy up to len (limited to SSIZE_MAX) bytes from infd to outfd with
+ * similar semantics to copy_file_range(2), for use when the latter does
+ * not work.  Just like copy_file_range(2), this may terminate early for a
+ * variety of reasons, and should therefore be called in a loop until it
+ * returns zero or an error.
+ */
+
+static ssize_t
+copy_file_fallback(int infd, int outfd, size_t len)
+{
+	char *pos;
+	ssize_t rlen = 0, wlen = 0;
+	size_t total = 0;
+
+	if (len > SSIZE_MAX)
+		len = SSIZE_MAX;
+	if (len == 0)
+		return (0);
+	while (total < len) {
+		if ((rlen = read(infd, buf, MIN(blksz, len))) <= 0)
+			break;
+		for (pos = buf; rlen > 0; pos += wlen, rlen -= wlen)
+			if ((wlen = write(outfd, pos, rlen)) < 0)
+				break;
+		total += pos - buf;
+		if (wlen < 0)
+			break;
+	}
+	/* report a partial success as success */
+	if (total > 0)
+		return (total);
+	if (rlen < 0 || wlen < 0)
+		return (-1);
+	return (0);
+}
+
+/*
  * cp_file()
- *	copy the contents of one file to another. used during -rw phase of pax
- *	just as in rd_wrfile() we use a special write function to write the
- *	destination file so we can properly copy files with holes.
+ *	copy the contents of one file to another, used during -rw phase of pax.
  */
 
 void
 cp_file(ARCHD *arcn, int fd1, int fd2)
 {
-	int cnt;
-	off_t cpcnt = 0L;
-	int res = 0;
-	char *fnm = arcn->name;
-	int no_hole = 0;
-	int isem = 1;
-	int rem;
-	int sz = MINFBSZ;
 	struct stat sb;
+	ssize_t res, total = 0;
 
 	/*
-	 * check for holes in the source file. If none, we will use regular
-	 * write instead of file write.
+	 * Try copy_file_range(2) first.  On FreeBSD, it works in almost
+	 * all situations, even across file systems, and even when the
+	 * underlying file system does not implement it.
 	 */
-	 if (((off_t)(arcn->sb.st_blocks * BLKMULT)) >= arcn->sb.st_size)
-		++no_hole;
-
-	/*
-	 * pass the blocksize of the file being written to the write routine,
-	 * if the size is zero, use the default MINFBSZ
-	 */
-	if (fstat(fd2, &sb) == 0) {
-		if (sb.st_blksize > 0)
-			sz = sb.st_blksize;
-	} else
-		syswarn(0,errno,"Unable to obtain block size for file %s",fnm);
-	rem = sz;
-
-	/*
-	 * read the source file and copy to destination file until EOF
-	 */
-	for(;;) {
-		if ((cnt = read(fd1, buf, blksz)) <= 0)
+	for (;;) {
+		res = copy_file_range(fd1, NULL, fd2, NULL, SSIZE_MAX, 0);
+		if (res <= 0)
 			break;
-		if (no_hole)
-			res = write(fd2, buf, cnt);
-		else
-			res = file_write(fd2, buf, cnt, &rem, &isem, sz, fnm);
-		if (res != cnt)
-			break;
-		cpcnt += cnt;
+		total += res;
+	}
+
+	/*
+	 * Fall back to a standard copy loop.
+	 */
+	if (res < 0 && errno == EINVAL) {
+		for (;;) {
+			res = copy_file_fallback(fd1, fd2, SSIZE_MAX);
+			if (res <= 0)
+				break;
+			total += res;
+		}
 	}
 
 	/*
 	 * check to make sure the copy is valid.
 	 */
-	if (res < 0)
+	if (res < 0) {
 		syswarn(1, errno, "Failed write during copy of %s to %s",
-			arcn->org_name, arcn->name);
-	else if (cpcnt != arcn->sb.st_size)
+		    arcn->org_name, arcn->name);
+	} else if (total != arcn->sb.st_size) {
 		paxwarn(1, "File %s changed size during copy to %s",
-			arcn->org_name, arcn->name);
-	else if (fstat(fd1, &sb) < 0)
+		    arcn->org_name, arcn->name);
+	} else if (fstat(fd1, &sb) < 0) {
 		syswarn(1, errno, "Failed stat of %s", arcn->org_name);
-	else if (arcn->sb.st_mtime != sb.st_mtime)
+	} else if (arcn->sb.st_mtime != sb.st_mtime ||
+	    arcn->sb.st_size != sb.st_size) {
 		paxwarn(1, "File %s was modified during copy to %s",
-			arcn->org_name, arcn->name);
+		    arcn->org_name, arcn->name);
+	}
 
-	/*
-	 * if the last block has a file hole (all zero), we must make sure this
-	 * gets updated in the file. We force the last block of zeros to be
-	 * written. just closing with the file offset moved forward may not put
-	 * a hole at the end of the file.
-	 */
-	if (!no_hole && isem && (arcn->sb.st_size > 0L))
-		file_flush(fd2, fnm, isem);
 	return;
 }
 
@@ -872,11 +888,11 @@ buf_fill(void)
  */
 
 int
-buf_flush(int bufcnt)
+buf_flush(size_t bufcnt)
 {
-	int cnt;
-	int push = 0;
-	int totcnt = 0;
+	ssize_t cnt;
+	size_t push = 0;
+	size_t totcnt = 0;
 
 	/*
 	 * if we have reached the user specified byte count for each archive
@@ -916,8 +932,9 @@ buf_flush(int bufcnt)
 		/*
 		 * write a block and check if it all went out ok
 		 */
-		cnt = ar_write(buf, blksz);
-		if (cnt == blksz) {
+		if ((cnt = ar_write(buf, blksz)) < 0) {
+			break;
+		} else if ((size_t)cnt == blksz) {
 			/*
 			 * the write went ok
 			 */
@@ -937,7 +954,7 @@ buf_flush(int bufcnt)
 			} else
 				bufpt = buf;
 			return(totcnt);
-		} else if (cnt > 0) {
+		} else {
 			/*
 			 * Oh drat we got a partial write!
 			 * if format doesn't care about alignment let it go,

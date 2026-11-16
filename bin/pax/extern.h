@@ -49,8 +49,8 @@ void ar_close(void);
 void ar_drain(void);
 int ar_set_wr(void);
 int ar_app_ok(void);
-int ar_read(char *, int);
-int ar_write(char *, int);
+ssize_t ar_read(char *, size_t);
+ssize_t ar_write(char *, size_t);
 int ar_rdsync(void);
 int ar_fow(off_t, off_t *);
 int ar_rev(off_t );
@@ -69,10 +69,10 @@ void copy(void);
 /*
  * buf_subs.c
  */
-extern int blksz;
-extern int wrblksz;
+extern size_t blksz;
+extern size_t wrblksz;
 extern int maxflt;
-extern int rdblksz;
+extern size_t rdblksz;
 extern off_t wrlimit;
 extern off_t rdcnt;
 extern off_t wrcnt;
@@ -91,7 +91,7 @@ int wr_rdfile(ARCHD *, int, off_t *);
 int rd_wrfile(ARCHD *, int, off_t *);
 void cp_file(ARCHD *, int, int);
 int buf_fill(void);
-int buf_flush(int);
+int buf_flush(size_t);
 
 /*
  * cache.c
