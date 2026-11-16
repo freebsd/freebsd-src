@@ -1536,7 +1536,7 @@ ipsec_updatereplay(uint32_t seq, struct secasvar *sav)
 	SECREPLAY_UNLOCK(replay);
 	return (0);
 }
-int
+static int
 ipsec_updateid(struct secasvar *sav, crypto_session_t *new,
     crypto_session_t *old)
 {
@@ -1581,6 +1581,23 @@ ipsec_updateid(struct secasvar *sav, crypto_session_t *new,
 	sav->tdb_cryptoid = *new;
 	SECASVAR_WUNLOCK(sav);
 	return (0);
+}
+
+/*
+ * Prepare a request that failed with EAGAIN to be dispatched again.
+ * The caller must release its locks before it dispatches the request.
+ */
+void
+ipsec_crypto_retry(struct secasvar *sav, struct xform_data *xd,
+    struct cryptop *crp)
+{
+	crypto_session_t cryptoid;
+
+	cryptoid = xd->cryptoid;
+	if (ipsec_updateid(sav, &crp->crp_session, &cryptoid) != 0)
+		crypto_freesession(cryptoid);
+	xd->cryptoid = crp->crp_session;
+	crp->crp_etype = 0;
 }
 
 int

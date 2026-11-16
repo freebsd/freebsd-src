@@ -329,6 +329,7 @@ VNET_DECLARE(int, natt_cksum_policy);
 #define	DPRINTF(x)
 #endif
 
+struct cryptop;
 struct inpcb;
 struct ip;
 struct m_tag;
@@ -336,6 +337,7 @@ struct rm_priotracker;
 struct secasvar;
 struct sockopt;
 struct tcphdr;
+struct xform_data;
 union sockaddr_union;
 
 int ipsec_if_input(struct mbuf *, struct secasvar *, uint32_t,
@@ -353,7 +355,8 @@ int udp_ipsec_output(struct mbuf *, struct secasvar *);
 
 int ipsec_chkreplay(uint32_t, uint32_t *, struct secasvar *);
 int ipsec_updatereplay(uint32_t, struct secasvar *);
-int ipsec_updateid(struct secasvar *, crypto_session_t *, crypto_session_t *);
+void ipsec_crypto_retry(struct secasvar *, struct xform_data *,
+    struct cryptop *);
 int ipsec_initialized(void);
 size_t ipsec_hdrsiz_internal(struct secpolicy *);
 

@@ -695,7 +695,6 @@ ah_input_cb(struct cryptop *crp)
 	struct secasvar *sav;
 	struct secasindex *saidx;
 	caddr_t ptr;
-	crypto_session_t cryptoid;
 	int authsize, rplen, ahsize, error, skip, protoff;
 	uint8_t nxt;
 
@@ -708,7 +707,6 @@ ah_input_cb(struct cryptop *crp)
 	skip = xd->skip;
 	nxt = xd->nxt;
 	protoff = xd->protoff;
-	cryptoid = xd->cryptoid;
 	ipsec_sahtree_rlock(&sahtree_tracker);
 	if (sav->state >= SADB_SASTATE_DEAD) {
 		/* saidx is freed */
@@ -725,10 +723,7 @@ ah_input_cb(struct cryptop *crp)
 	/* Check for crypto errors. */
 	if (crp->crp_etype) {
 		if (crp->crp_etype == EAGAIN) {
-			/* Reset the session ID */
-			if (ipsec_updateid(sav, &crp->crp_session, &cryptoid) != 0)
-				crypto_freesession(cryptoid);
-			xd->cryptoid = crp->crp_session;
+			ipsec_crypto_retry(sav, xd, crp);
 			ipsec_sahtree_runlock(&sahtree_tracker);
 			CURVNET_RESTORE();
 			return (crypto_dispatch(crp));
@@ -1100,7 +1095,6 @@ ah_output_cb(struct cryptop *crp)
 	struct secpolicy *sp;
 	struct secasvar *sav;
 	struct mbuf *m;
-	crypto_session_t cryptoid;
 	caddr_t ptr;
 	u_int idx;
 	int skip, error;
@@ -1112,16 +1106,12 @@ ah_output_cb(struct cryptop *crp)
 	sav = xd->sav;
 	skip = xd->skip;
 	idx = xd->idx;
-	cryptoid = xd->cryptoid;
 	ptr = (caddr_t) (xd + 1);
 
 	/* Check for crypto errors. */
 	if (crp->crp_etype) {
 		if (crp->crp_etype == EAGAIN) {
-			/* Reset the session ID */
-			if (ipsec_updateid(sav, &crp->crp_session, &cryptoid) != 0)
-				crypto_freesession(cryptoid);
-			xd->cryptoid = crp->crp_session;
+			ipsec_crypto_retry(sav, xd, crp);
 			CURVNET_RESTORE();
 			return (crypto_dispatch(crp));
 		}
