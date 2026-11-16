@@ -3138,15 +3138,26 @@ kqueue_fork_copy_knote(struct kqueue *kq, struct kqueue *kq1, struct knote *kn,
 	KQ_UNLOCK(kq1);
 }
 
+enum klist_which {
+	KLIST_FD,
+	KLIST_HASH,
+};
+
+static struct klist *
+kqueue_list(struct kqueue *kq, enum klist_which which, int i)
+{
+	return (which == KLIST_FD ? &kq->kq_knlist[i] : &kq->kq_knhash[i]);
+}
+
 static void
-kqueue_fork_copy_list(struct klist *knlist, struct knote *marker,
+kqueue_fork_copy_list(enum klist_which which, int i, struct knote *marker,
     struct kqueue *kq, struct kqueue *kq1, struct proc *p1,
     struct filedesc *fdp)
 {
 	struct knote *kn;
 
 	KQ_OWNED(kq);
-	kn = SLIST_FIRST(knlist);
+	kn = SLIST_FIRST(kqueue_list(kq, which, i));
 	while (kn != NULL) {
 		MPASS(kn->kn_kq == kq);
 		if ((kn->kn_status & (KN_DETACHED | KN_MARKER)) != 0 ||
@@ -3162,7 +3173,7 @@ kqueue_fork_copy_list(struct klist *knlist, struct knote *marker,
 		kn_leave_flux(kn);
 		kn = SLIST_NEXT(marker, kn_link);
 		/* XXXKIB switch kn_link to LIST? */
-		SLIST_REMOVE(knlist, marker, knote, kn_link);
+		SLIST_REMOVE(kqueue_list(kq, which, i), marker, knote, kn_link);
 	}
 }
 
@@ -3186,13 +3197,12 @@ kqueue_fork_copy(struct filedesc *fdp, struct file *fp, struct file *fp1,
 
 	KQ_LOCK(kq);
 	for (i = 0; i < kq->kq_knlistsize; i++) {
-		kqueue_fork_copy_list(&kq->kq_knlist[i], marker, kq, kq1,
-		    p1, fdp);
+		kqueue_fork_copy_list(KLIST_FD, i, marker, kq, kq1, p1, fdp);
 	}
 	if (kq->kq_knhashmask != 0) {
 		for (i = 0; i <= kq->kq_knhashmask; i++) {
-			kqueue_fork_copy_list(&kq->kq_knhash[i], marker, kq,
-			    kq1, p1, fdp);
+			kqueue_fork_copy_list(KLIST_HASH, i, marker, kq, kq1,
+			    p1, fdp);
 		}
 	}
 	kqueue_release(kq, 1);
