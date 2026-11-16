@@ -1033,7 +1033,7 @@ tdq_lock_pair(struct tdq *one, bool one_locked, struct tdq *two)
 				return;
 			/*
 			 * That did not work. Release 'one' to acquire both
-			 * locks in the proper order as we may need to sleep
+			 * locks in the proper order as we may need to spin
 			 * (most probably, as 'two' has just been seen locked).
 			 */
 			TDQ_UNLOCK(one);
@@ -2329,8 +2329,8 @@ sched_switch_migrate(struct tdq *tdq, struct thread *td, int flags)
 	 * thread to be lock-unblocked (see there why).  If we dropped the
 	 * current runqueue lock, we would have to re-acquire it after putting
 	 * the thread into our remote CPU's runqueue (i.e., the source CPU for
-	 * the steal) before finally reaching cpu_wait() which lock-unblocks the
-	 * thread.  This would create a "hidden" and arbitrary additional
+	 * the steal) before finally reaching cpu_switch() which lock-unblocks
+	 * the thread.  This would create a "hidden" and arbitrary additional
 	 * lock-ordering dependency between the source and destination locks of
 	 * tdq_move() on one hand, and our current runqueue's lock on the other
 	 * hand, sometimes violating the lock ordering established by
