@@ -1934,6 +1934,12 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 #endif
 		error = EINVAL;
 		break;
+	case LINUX_PR_GET_SECUREBITS:
+		/*
+		 * No securebits are emulated; report none set.
+		 */
+		td->td_retval[0] = 0;
+		break;
 	case LINUX_PR_SET_CHILD_SUBREAPER:
 		if (args->arg2 == 0) {
 			return (kern_procctl(td, P_PID, 0, PROC_REAP_RELEASE,
@@ -1995,6 +2001,33 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		 * arg2 as "disable", so there's nothing to reject here.
 		 */
 		td->td_retval[0] = 0;
+		break;
+	case LINUX_PR_CAP_AMBIENT:
+		/*
+		 * There is no ambient capability set; report it as empty.
+		 */
+		switch (args->arg2) {
+		case LINUX_PR_CAP_AMBIENT_IS_SET:
+			/* Callers probe up to the first EINVAL. */
+			if (args->arg3 > LINUX_CAP_LAST_CAP)
+				error = EINVAL;
+			else
+				td->td_retval[0] = 0;
+			break;
+		case LINUX_PR_CAP_AMBIENT_CLEAR_ALL:
+			td->td_retval[0] = 0;
+			break;
+		case LINUX_PR_CAP_AMBIENT_RAISE:
+			error = args->arg3 > LINUX_CAP_LAST_CAP ? EINVAL : EPERM;
+			break;
+		case LINUX_PR_CAP_AMBIENT_LOWER:
+			if (args->arg3 > LINUX_CAP_LAST_CAP)
+				error = EINVAL;
+			break;
+		default:
+			error = EINVAL;
+			break;
+		}
 		break;
 	default:
 		linux_msg(td, "unsupported prctl option %d", args->option);

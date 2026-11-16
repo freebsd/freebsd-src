@@ -57,12 +57,19 @@
 #define	LINUX_PR_GET_SECCOMP	21
 #define	LINUX_PR_SET_SECCOMP	22
 #define	LINUX_PR_CAPBSET_READ	23
+#define	LINUX_PR_GET_SECUREBITS	27
 #define	LINUX_PR_SET_CHILD_SUBREAPER	36 /* Set child subreaper status */
 #define	LINUX_PR_GET_CHILD_SUBREAPER	37 /* Get child subreaper status */
 #define	LINUX_PR_SET_NO_NEW_PRIVS	38 /* Set no_new_privs attribute */
 #define	LINUX_PR_GET_NO_NEW_PRIVS	39 /* Get no_new_privs attribute */
 #define LINUX_PR_SET_THP_DISABLE	41 /* Disable / enable THP */
 #define LINUX_PR_GET_THP_DISABLE	42 /* Get THP state */
+#define	LINUX_PR_CAP_AMBIENT	47
+#define	LINUX_PR_CAP_AMBIENT_IS_SET	1
+#define	LINUX_PR_CAP_AMBIENT_RAISE	2
+#define	LINUX_PR_CAP_AMBIENT_LOWER	3
+#define	LINUX_PR_CAP_AMBIENT_CLEAR_ALL	4
+#define	LINUX_CAP_LAST_CAP	40	/* CAP_CHECKPOINT_RESTORE */
 #define	LINUX_PR_SET_PTRACER	1499557217
 #define	LINUX_PR_SET_VMA	1398164801
 #define	LINUX_PR_SET_VMA_ANON_NAME	0
