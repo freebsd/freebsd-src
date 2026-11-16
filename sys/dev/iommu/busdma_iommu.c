@@ -261,10 +261,13 @@ iommu_instantiate_ctx(struct iommu_unit *unit, device_t dev, bool rmrr)
 	 * cannot disable the IOMMU unit, due to possibility of other
 	 * devices on the same IOMMU unit still requiring translation.
 	 * Instead provide the identity mapping for the device
-	 * context.
+	 * context.  Do the same when DMA remapping is disabled for
+	 * the unit: busdma then does not use the context, but
+	 * interrupt remapping might still create it.
 	 */
-	disabled = iommu_bus_dma_is_dev_disabled(pci_get_domain(requester),
-	    pci_get_bus(requester), pci_get_slot(requester), 
+	disabled = !unit->dma_enabled ||
+	    iommu_bus_dma_is_dev_disabled(pci_get_domain(requester),
+	    pci_get_bus(requester), pci_get_slot(requester),
 	    pci_get_function(requester));
 	ctx = iommu_get_ctx(unit, requester, rid, disabled, rmrr);
 	if (ctx == NULL)
