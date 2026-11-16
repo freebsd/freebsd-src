@@ -878,6 +878,8 @@ void mprsas_ir_shutdown(struct mpr_softc *sc, int howto);
 int mpr_reinit(struct mpr_softc *sc);
 void mprsas_handle_reinit(struct mpr_softc *sc);
 
+int mpr_hostboot(struct mpr_softc *sc, uint8_t *fw_image, uint32_t fw_len);
+
 void mpr_base_static_config_pages(struct mpr_softc *sc);
 
 int mpr_mapping_initialize(struct mpr_softc *);

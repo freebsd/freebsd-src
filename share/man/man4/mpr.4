@@ -37,7 +37,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd September 28, 2025
+.Dd November 15, 2026
 .Dt MPR 4
 .Os
 .Sh NAME
@@ -340,6 +340,48 @@ dev.mpr.X.use_phy_num
 .Ed
 .Pp
 The same set of values are valid as when setting this tunable for all adapters.
+.Sh FIRMWARE
+If a controller's flash firmware is corrupt or missing,
+.Nm
+may fail to attach to the controller.
+As a recovery mechanism, a firmware image can be preloaded by the boot loader
+and staged in host memory, then the driver will boot it directly from that
+image, bypassing the device flash entirely.
+The preloaded image itself is not written to the device flash.
+.Pp
+To configure a recovery image for adapter unit X, choose a variable name
+prefix that is not used by any other preloaded file
+.Po
+it need not match anything else, it only has to be unique
+.Pc .
+It is the
+.Va prefix_type
+value that associates the image with adapter unit X, not the prefix itself,
+so a distinct prefix is needed for each preloaded image.
+For example, to configure separate recovery images for
+.Nm mpr0
+and
+.Nm mpr1 ,
+set these variables in
+.Xr loader.conf 5 :
+.Pp
+.Bd -literal -offset indent
+mpr0fw_load="YES"
+mpr0fw_name="/boot/firmware/mpr0-fw.bin"
+mpr0fw_type="mpr0:firmware"
+
+mpr1fw_load="YES"
+mpr1fw_name="/boot/firmware/mpr1-fw.bin"
+mpr1fw_type="mpr1:firmware"
+.Ed
+.Pp
+The same hostboot recovery can be triggered manually after boot, without
+editing
+.Xr loader.conf 5 ,
+via
+.Xr mprutil 8 Ns 's
+.Cm hostboot
+command.
 .Sh DEBUGGING
 Driver diagnostic printing is controlled in
 .Xr loader.conf 5
@@ -386,6 +428,7 @@ The following levels are available:
 .Xr cd 4 ,
 .Xr ch 4 ,
 .Xr da 4 ,
+.Xr firmware 9 ,
 .Xr mps 4 ,
 .Xr mpt 4 ,
 .Xr pci 4 ,
