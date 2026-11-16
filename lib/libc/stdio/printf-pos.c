@@ -368,7 +368,7 @@ reswitch:	switch (ch) {
 					flags &= ~FASTINT;
 					fmt--;
 				}
-				goto error;
+				break;
 			}
 			goto rflag;
 		case 'z':
@@ -597,7 +597,7 @@ reswitch:	switch (ch) {
 					flags &= ~FASTINT;
 					fmt--;
 				}
-				goto error;
+				break;
 			}
 			goto rflag;
 		case 'z':
