@@ -124,8 +124,8 @@ midi_queue_deq(struct midi_queue *q, uint8_t *dst, size_t n)
 static void
 midi_destroy(struct midi_softc *sc)
 {
-	struct midi_port *m;
-	int i;
+	struct midi_port *m, *ports;
+	int i, nchan;
 
 	mtx_lock(sc->lock);
 	sc->dying = true;
@@ -147,8 +147,20 @@ midi_destroy(struct midi_softc *sc)
 		if (m->cdev != NULL)
 			destroy_dev(m->cdev);
 	}
-	for (i = 0; i < sc->nchan; i++) {
-		m = &sc->ports[i];
+
+	/*
+	 * Interrupt handlers may call midi_in() and midi_out(), so make the
+	 * ports unreachable before freeing them.
+	 */
+	mtx_lock(sc->lock);
+	ports = sc->ports;
+	nchan = sc->nchan;
+	sc->ports = NULL;
+	sc->nchan = 0;
+	mtx_unlock(sc->lock);
+
+	for (i = 0; i < nchan; i++) {
+		m = &ports[i];
 		free(m->inq.buf, M_MIDI);
 		free(m->outq.buf, M_MIDI);
 		knlist_clear(&m->rsel.si_note, 0);
@@ -156,9 +168,7 @@ midi_destroy(struct midi_softc *sc)
 		knlist_destroy(&m->rsel.si_note);
 		knlist_destroy(&m->wsel.si_note);
 	}
-	free(sc->ports, M_MIDI);
-	sc->ports = NULL;
-	sc->nchan = 0;
+	free(ports, M_MIDI);
 }
 
 /*
