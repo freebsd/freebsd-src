@@ -1056,9 +1056,8 @@ vrtc_snapshot(struct vrtc *vrtc, struct vm_snapshot_meta *meta)
 
 	vrtc_callout_reset(vrtc, vrtc_freq(vrtc));
 
-	VRTC_UNLOCK(vrtc);
-
 done:
+	VRTC_UNLOCK(vrtc);
 	return (ret);
 }
 #endif
