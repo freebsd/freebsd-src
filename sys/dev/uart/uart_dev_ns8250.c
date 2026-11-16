@@ -167,6 +167,10 @@ ns8250_clrint(struct uart_bas *bas)
 	}
 }
 
+/*
+ * The divisor in use: input clock cycles per bit, prescaler included, in
+ * units of 1 / NS8250_DIVISOR_SCALE.  0 if the divisor latch is 0.
+ */
 static uint32_t
 ns8250_get_divisor(struct uart_bas *bas)
 {
@@ -181,20 +185,20 @@ ns8250_get_divisor(struct uart_bas *bas)
 	uart_setreg(bas, REG_LCR, lcr);
 	uart_barrier(bas);
 
-	return (divisor);
+	/* The 16550 prescaler divides by 16. */
+	return (divisor * 16 * NS8250_DIVISOR_SCALE);
 }
 
 static int
 ns8250_delay(struct uart_bas *bas)
 {
-	int divisor;
+	uint32_t divisor;
 
 	divisor = ns8250_get_divisor(bas);
 
-	/* 1/10th the time to transmit 1 character (estimate). */
-	if (divisor <= 134)
-		return (16000000 * divisor / bas->rclk);
-	return (16000 * divisor / (bas->rclk / 1000));
+	/* 1/10th the time to transmit 1 character (estimate): one bit. */
+	return ((uint64_t)divisor * (1000000 / NS8250_DIVISOR_SCALE) /
+	    bas->rclk);
 }
 
 static int
@@ -219,6 +223,38 @@ ns8250_divisor(int rclk, int baudrate)
 		return (0);
 
 	return (divisor);
+}
+
+static int
+ns8250_get_baudrate(struct uart_bas *bas)
+{
+	uint32_t divisor;
+
+	divisor = ns8250_get_divisor(bas);
+	if (divisor == 0)
+		return (0);
+	return ((uint64_t)bas->rclk * NS8250_DIVISOR_SCALE / divisor);
+}
+
+/* Set the rate.  Nothing is changed if the rate cannot be set. */
+static int
+ns8250_set_baudrate(struct uart_bas *bas, int baudrate)
+{
+	int divisor;
+	uint8_t lcr;
+
+	divisor = ns8250_divisor(bas->rclk, baudrate);
+	if (divisor == 0)
+		return (EINVAL);
+	lcr = uart_getreg(bas, REG_LCR);
+	uart_setreg(bas, REG_LCR, lcr | LCR_DLAB);
+	uart_barrier(bas);
+	uart_setreg(bas, REG_DLL, divisor & 0xff);
+	uart_setreg(bas, REG_DLH, (divisor >> 8) & 0xff);
+	uart_barrier(bas);
+	uart_setreg(bas, REG_LCR, lcr);
+	uart_barrier(bas);
+	return (0);
 }
 
 static int
@@ -315,7 +351,7 @@ static int
 ns8250_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
     int parity)
 {
-	int divisor;
+	int error;
 	uint8_t lcr;
 
 	/* Don't change settings when running on Hyper-V */
@@ -337,14 +373,9 @@ ns8250_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 
 	/* Set baudrate if we know a rclk and both are not 0. */
 	if (baudrate > 0 && bas->rclk > 0) {
-		divisor = ns8250_divisor(bas->rclk, baudrate);
-		if (divisor == 0)
-			return (EINVAL);
-		uart_setreg(bas, REG_LCR, lcr | LCR_DLAB);
-		uart_barrier(bas);
-		uart_setreg(bas, REG_DLL, divisor & 0xff);
-		uart_setreg(bas, REG_DLH, (divisor >> 8) & 0xff);
-		uart_barrier(bas);
+		error = ns8250_set_baudrate(bas, baudrate);
+		if (error != 0)
+			return (error);
 	}
 
 	/* Set LCR and clear DLAB. */
@@ -421,7 +452,7 @@ ns8250_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 		uint32_t div;
 
 		div = ns8250_get_divisor(bas);
-		bas->rclk = baudrate * div * 16;
+		bas->rclk = (uint64_t)baudrate * div / NS8250_DIVISOR_SCALE;
 	}
 
 	/*
@@ -766,7 +797,7 @@ int
 ns8250_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 {
 	struct uart_bas *bas;
-	int baudrate, divisor, error;
+	int baudrate, error;
 	uint8_t efr, lcr;
 
 	bas = &sc->sc_bas;
@@ -813,8 +844,7 @@ ns8250_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 		uart_barrier(bas);
 		break;
 	case UART_IOCTL_BAUD:
-		divisor = ns8250_get_divisor(bas);
-		baudrate = (divisor > 0) ? bas->rclk / divisor / 16 : 0;
+		baudrate = ns8250_get_baudrate(bas);
 		if (baudrate > 0)
 			*(int*)data = baudrate;
 		else

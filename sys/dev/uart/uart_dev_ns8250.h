@@ -30,6 +30,12 @@
 #define _DEV_UART_DEV_NS8250_H_
 
 /*
+ * Divisors are given in units of 1 / NS8250_DIVISOR_SCALE input clock
+ * cycles per bit, so that prescalers and fractional dividers fit.
+ */
+#define	NS8250_DIVISOR_SCALE	100
+
+/*
  * High-level UART interface.
  */
 struct ns8250_softc {
