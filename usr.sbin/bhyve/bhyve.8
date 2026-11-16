@@ -1263,6 +1263,11 @@ deals with the following signals:
 .It SIGTERM
 Trigger ACPI poweroff for a VM
 .El
+.Sh FILES
+.Bl -tag -width "/dev/vmm/*"
+.It Pa /dev/vmm/*
+Device interface for individual virtual machines.
+.El
 .Sh EXIT STATUS
 Exit status indicates how the VM was terminated:
 .Pp
