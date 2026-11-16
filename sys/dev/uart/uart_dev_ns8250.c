@@ -190,11 +190,18 @@ ns8250_get_divisor(struct uart_bas *bas)
 }
 
 static int
-ns8250_delay(struct uart_bas *bas)
+ns8250_delay(struct ns8250_softc *ns8250)
 {
+	struct uart_bas *bas;
 	uint32_t divisor;
 
-	divisor = ns8250_get_divisor(bas);
+	bas = &ns8250->base.sc_bas;
+
+	/* While probing, the softc is not yet an ns8250_softc. */
+	if ((bas->flags & UART_BAS_IN_PROBE) != 0)
+		divisor = ns8250_get_divisor(bas);
+	else
+		divisor = ns8250->get_divisor(bas);
 
 	/* 1/10th the time to transmit 1 character (estimate): one bit. */
 	return ((uint64_t)divisor * (1000000 / NS8250_DIVISOR_SCALE) /
@@ -258,11 +265,13 @@ ns8250_set_baudrate(struct uart_bas *bas, int baudrate)
 }
 
 static int
-ns8250_drain(struct uart_bas *bas, int what)
+ns8250_drain(struct ns8250_softc *ns8250, int what)
 {
+	struct uart_bas *bas;
 	int delay, limit;
 
-	delay = ns8250_delay(bas);
+	bas = &ns8250->base.sc_bas;
+	delay = ns8250_delay(ns8250);
 
 	if (what & UART_DRAIN_TRANSMITTER) {
 		/*
@@ -315,12 +324,14 @@ ns8250_drain(struct uart_bas *bas, int what)
  * drained. WARNING: this function clobbers the FIFO setting!
  */
 static void
-ns8250_flush(struct uart_bas *bas, int what)
+ns8250_flush(struct ns8250_softc *ns8250, int what)
 {
+	struct uart_bas *bas;
 	uint8_t fcr;
 	uint8_t lsr;
 	int drain = 0;
 
+	bas = &ns8250->base.sc_bas;
 	fcr = FCR_ENABLE;
 	if (what & UART_FLUSH_TRANSMITTER)
 		fcr |= FCR_XMT_RST;
@@ -343,13 +354,13 @@ ns8250_flush(struct uart_bas *bas, int what)
 		drain |= UART_DRAIN_RECEIVER;
 	if (drain != 0) {
 		printf("uart: ns8250: UART FCR is broken (%#x)\n", drain);
-		ns8250_drain(bas, drain);
+		ns8250_drain(ns8250, drain);
 	}
 }
 
 static int
 ns8250_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
-    int parity)
+    int parity, ns8250_set_baudrate_t *set_baudrate)
 {
 	int error;
 	uint8_t lcr;
@@ -373,7 +384,7 @@ ns8250_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 
 	/* Set baudrate if we know a rclk and both are not 0. */
 	if (baudrate > 0 && bas->rclk > 0) {
-		error = ns8250_set_baudrate(bas, baudrate);
+		error = set_baudrate(bas, baudrate);
 		if (error != 0)
 			return (error);
 	}
@@ -463,7 +474,8 @@ ns8250_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	if (bas->rclk == 0 && baudrate != 0)
 		bas->rclk = DEFAULT_RCLK;
 
-	ns8250_param(bas, baudrate, databits, stopbits, parity);
+	ns8250_param(bas, baudrate, databits, stopbits, parity,
+	    ns8250_set_baudrate);
 
 	/* Disable the FIFO (if present). */
 	uart_setreg(bas, REG_FCR, 0);
@@ -655,6 +667,13 @@ ns8250_bus_attach(struct uart_softc *sc)
 
 	bas = &sc->sc_bas;
 
+	if (ns8250->set_baudrate == NULL)
+		ns8250->set_baudrate = ns8250_set_baudrate;
+	if (ns8250->get_baudrate == NULL)
+		ns8250->get_baudrate = ns8250_get_baudrate;
+	if (ns8250->get_divisor == NULL)
+		ns8250->get_divisor = ns8250_get_divisor;
+
 	ns8250->busy_detect = bas->busy_detect;
 	ns8250->mcr = uart_getreg(bas, REG_MCR);
 	ns8250->fcr = FCR_ENABLE;
@@ -746,12 +765,12 @@ ns8250_bus_flush(struct uart_softc *sc, int what)
 	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
 	if (sc->sc_rxfifosz > 1) {
-		ns8250_flush(bas, what);
+		ns8250_flush(ns8250, what);
 		uart_setreg(bas, REG_FCR, ns8250->fcr);
 		uart_barrier(bas);
 		error = 0;
 	} else
-		error = ns8250_drain(bas, what);
+		error = ns8250_drain(ns8250, what);
 	uart_unlock(sc->sc_hwmtx);
 	return (error);
 }
@@ -796,6 +815,7 @@ ns8250_bus_getsig(struct uart_softc *sc)
 int
 ns8250_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 {
+	struct ns8250_softc *ns8250 = (struct ns8250_softc *)sc;
 	struct uart_bas *bas;
 	int baudrate, error;
 	uint8_t efr, lcr;
@@ -844,7 +864,7 @@ ns8250_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 		uart_barrier(bas);
 		break;
 	case UART_IOCTL_BAUD:
-		baudrate = ns8250_get_baudrate(bas);
+		baudrate = ns8250->get_baudrate(bas);
 		if (baudrate > 0)
 			*(int*)data = baudrate;
 		else
@@ -937,7 +957,8 @@ ns8250_bus_param(struct uart_softc *sc, int baudrate, int databits,
 		}
 	}
 
-	error = ns8250_param(bas, baudrate, databits, stopbits, parity);
+	error = ns8250_param(bas, baudrate, databits, stopbits, parity,
+	    ns8250->set_baudrate);
 	uart_unlock(sc->sc_hwmtx);
 	return (error);
 }
@@ -945,6 +966,8 @@ ns8250_bus_param(struct uart_softc *sc, int baudrate, int databits,
 int
 ns8250_bus_probe(struct uart_softc *sc)
 {
+	/* Not an ns8250_softc yet; the helpers check UART_BAS_IN_PROBE. */
+	struct ns8250_softc *ns8250 = (struct ns8250_softc *)sc;
 	struct uart_bas *bas;
 	int count, delay, error, limit;
 	uint8_t lsr, mcr, ier;
@@ -962,7 +985,7 @@ ns8250_bus_probe(struct uart_softc *sc)
 	} else
 		mcr |= MCR_DTR | MCR_RTS;
 
-	error = ns8250_drain(bas, UART_DRAIN_TRANSMITTER);
+	error = ns8250_drain(ns8250, UART_DRAIN_TRANSMITTER);
 	if (error)
 		return (error);
 
@@ -998,10 +1021,11 @@ ns8250_bus_probe(struct uart_softc *sc)
 	uart_barrier(bas);
 
 	count = 0;
-	delay = ns8250_delay(bas);
+	delay = ns8250_delay(ns8250);
 
 	/* We have FIFOs. Drain the transmitter and receiver. */
-	error = ns8250_drain(bas, UART_DRAIN_RECEIVER|UART_DRAIN_TRANSMITTER);
+	error = ns8250_drain(ns8250,
+	    UART_DRAIN_RECEIVER|UART_DRAIN_TRANSMITTER);
 	if (error) {
 		uart_setreg(bas, REG_MCR, mcr);
 		uart_setreg(bas, REG_FCR, 0);
@@ -1055,7 +1079,7 @@ ns8250_bus_probe(struct uart_softc *sc)
 	uart_setreg(bas, REG_MCR, mcr);
 
 	/* Reset FIFOs. */
-	ns8250_flush(bas, UART_FLUSH_RECEIVER|UART_FLUSH_TRANSMITTER);
+	ns8250_flush(ns8250, UART_FLUSH_RECEIVER|UART_FLUSH_TRANSMITTER);
 
  describe:
 	if (count >= 14 && count <= 16) {
@@ -1198,7 +1222,7 @@ ns8250_bus_transmit(struct uart_softc *sc)
 	uart_setreg(bas, REG_IER, ns8250->ier);
 	uart_barrier(bas);
 	if (broken_txfifo)
-		ns8250_drain(bas, UART_DRAIN_TRANSMITTER);
+		ns8250_drain(ns8250, UART_DRAIN_TRANSMITTER);
 	else
 		sc->sc_txbusy = 1;
 	uart_unlock(sc->sc_hwmtx);

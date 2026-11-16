@@ -35,6 +35,10 @@
  */
 #define	NS8250_DIVISOR_SCALE	100
 
+typedef int ns8250_set_baudrate_t(struct uart_bas *, int);
+typedef int ns8250_get_baudrate_t(struct uart_bas *);
+typedef uint32_t ns8250_get_divisor_t(struct uart_bas *);
+
 /*
  * High-level UART interface.
  */
@@ -48,6 +52,16 @@ struct ns8250_softc {
 	uint8_t		ier_rxbits;
 	uint8_t		busy_detect;
 	int		noise_count;
+
+	/*
+	 * The baud rate generator.  A UART with a generator of its own sets
+	 * these before ns8250_bus_attach(), which sets the ones left NULL to
+	 * the 16550 versions.  set_baudrate() must change nothing if it
+	 * fails.  get_baudrate() and get_divisor() must agree.
+	 */
+	ns8250_set_baudrate_t	*set_baudrate;
+	ns8250_get_baudrate_t	*get_baudrate;
+	ns8250_get_divisor_t	*get_divisor;
 };
 
 extern struct uart_ops uart_ns8250_ops;
