@@ -173,6 +173,20 @@ open_lobpf(in_addr_t *addrp)
 }
 
 static void
+require_reass(void)
+{
+	size_t len;
+	int max;
+
+	len = sizeof(max);
+	ATF_REQUIRE(sysctlbyname("net.inet.ip.maxfragpackets", &max, &len,
+	    NULL, 0) == 0);
+	if (max == 0)
+		atf_tc_skip("IP reassembly is disabled "
+		    "(net.inet.ip.maxfragpackets=0)");
+}
+
+static void
 get_ipstat(struct ipstat *stat)
 {
 	size_t len;
@@ -210,6 +224,7 @@ ATF_TC_BODY(ip_reass__multiple_last_fragments, tc)
 	int error, fd;
 	uint16_t ipid;
 
+	require_reass();
 	fd = open_lobpf(&addr);
 	ipid = arc4random_uniform(UINT16_MAX + 1);
 
@@ -290,6 +305,7 @@ ATF_TC_BODY(ip_reass__zero_length_fragment, tc)
 	int error, fd;
 	uint16_t ipid;
 
+	require_reass();
 	fd = open_lobpf(&addr);
 	ipid = arc4random_uniform(UINT16_MAX + 1);
 
@@ -340,6 +356,7 @@ ATF_TC_BODY(ip_reass__large_fragment, tc)
 	int error, fd;
 	uint16_t ipid;
 
+	require_reass();
 	fd = open_lobpf(&addr);
 	ipid = arc4random_uniform(UINT16_MAX + 1);
 
