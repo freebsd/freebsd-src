@@ -271,7 +271,9 @@ ipsec4_perform_request(struct ifnet *ifp, struct mbuf *m, struct ip *ip1,
 			if (bootverbose)
 				if_printf(ifp, "Tx TLS+IPSEC packet\n");
 		}
-		return (error);
+		/* mb_unmapped_to_ext() has freed the chain. */
+		m = NULL;
+		goto bad;
 	}
 	m = m1;
 
