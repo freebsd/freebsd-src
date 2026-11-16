@@ -129,7 +129,7 @@ amdiommu_domain_free_pgtbl(struct amdiommu_domain *domain)
 
 static iommu_pte_t *
 amdiommu_pgtbl_map_pte(struct amdiommu_domain *domain, iommu_gaddr_t base,
-    int lvl, int flags, vm_pindex_t *idxp, struct sf_buf **sf)
+    int lvl, int flags, vm_pindex_t *idxp, struct sf_buf **sf, bool *pde_set)
 {
 	iommu_pte_t *pte, *ptep;
 	struct sf_buf *sfp;
@@ -162,7 +162,7 @@ retry:
 
 			sfp = NULL;
 			ptep = amdiommu_pgtbl_map_pte(domain, base, lvl - 1,
-			    flags, &idx1, &sfp);
+			    flags, &idx1, &sfp, pde_set);
 			if (ptep == NULL) {
 				KASSERT(m->pindex != 0,
 				    ("loosing root page %p", domain));
@@ -174,6 +174,15 @@ retry:
 			ptep->pte = VM_PAGE_TO_PHYS(m) |  AMDIOMMU_PTE_IR |
 			    AMDIOMMU_PTE_IW | AMDIOMMU_PTE_PR |
 			    ((domain->pglvl - lvl) << AMDIOMMU_PTE_NLVL_SHIFT);
+			/*
+			 * Count the pending flush now: a sleepable
+			 * iommu_map_pgtbl() may drop the page table lock
+			 * before this map returns.
+			 */
+			if (pde_set != NULL && !*pde_set) {
+				*pde_set = true;
+				domain->pde_flushes++;
+			}
 			vm_page_wire(sf_buf_page(sfp));
 			vm_page_unwire_noq(m);
 			iommu_unmap_pgtbl(sfp);
@@ -188,7 +197,7 @@ retry:
 static int
 amdiommu_map_buf_locked(struct amdiommu_domain *domain, iommu_gaddr_t base,
     iommu_gaddr_t size, vm_page_t *ma, uint64_t pflags, int flags,
-    struct iommu_map_entry *entry)
+    struct iommu_map_entry *entry, bool *pde_set)
 {
 	iommu_pte_t *pte;
 	struct sf_buf *sf;
@@ -202,6 +211,7 @@ amdiommu_map_buf_locked(struct amdiommu_domain *domain, iommu_gaddr_t base,
 	idx = -1;
 	pte = NULL;
 	sf = NULL;
+	*pde_set = false;
 
 	for (pi = 0; size > 0; base += IOMMU_PAGE_SIZE, size -= IOMMU_PAGE_SIZE,
 	    pi++) {
@@ -209,7 +219,7 @@ amdiommu_map_buf_locked(struct amdiommu_domain *domain, iommu_gaddr_t base,
 		    ("mapping loop overflow %p %jx %jx %jx", domain,
 		    (uintmax_t)base, (uintmax_t)size, (uintmax_t)IOMMU_PAGE_SIZE));
 		pte = amdiommu_pgtbl_map_pte(domain, base, domain->pglvl - 1,
-		    flags, &idx, &sf);
+		    flags, &idx, &sf, pde_set);
 		if (pte == NULL) {
 			KASSERT((flags & IOMMU_PGF_WAITOK) == 0,
 			    ("failed waitable pte alloc %p", domain));
@@ -236,6 +246,7 @@ amdiommu_map_buf(struct iommu_domain *iodom, struct iommu_map_entry *entry,
 	uint64_t pflags;
 	iommu_gaddr_t base, size;
 	int error;
+	bool flush, pde_set;
 
 	base = entry->start;
 	size = entry->end - entry->start;
@@ -274,15 +285,26 @@ amdiommu_map_buf(struct iommu_domain *iodom, struct iommu_map_entry *entry,
 
 	AMDIOMMU_DOMAIN_PGLOCK(domain);
 	error = amdiommu_map_buf_locked(domain, base, size, ma, pflags,
-	    flags, entry);
+	    flags, entry, &pde_set);
+	/*
+	 * Filling a non-present PTE needs no invalidation unless the
+	 * IOMMU caches non-present entries (NpCache).  A new PDE does:
+	 * unmap clears a PDE before its invalidation is done, so the
+	 * IOMMU may still hold the old one.  So does a map that uses a
+	 * new PDE whose flush, by a concurrent map, is not done yet.
+	 */
+	flush = domain->pde_flushes != 0 ||
+	    (DOM2AMD(domain)->cap_hdr & PCIM_AMDIOMMU_CAP_NPCACHE) != 0;
 	AMDIOMMU_DOMAIN_PGUNLOCK(domain);
 
-	/*
-	 * XXXKIB invalidation seems to be needed even for non-valid->valid
-	 * updates.  Recheck.
-	 */
-	iommu_qi_invalidate_sync(iodom, base, size,
-	    (flags & IOMMU_PGF_WAITOK) != 0);
+	if (flush)
+		iommu_qi_invalidate_sync(iodom, base, size,
+		    (flags & IOMMU_PGF_WAITOK) != 0);
+	if (pde_set) {
+		AMDIOMMU_DOMAIN_PGLOCK(domain);
+		domain->pde_flushes--;
+		AMDIOMMU_DOMAIN_PGUNLOCK(domain);
+	}
 	return (error);
 }
 
@@ -295,7 +317,7 @@ amdiommu_free_pgtbl_pde(struct amdiommu_domain *domain, iommu_gaddr_t base,
 	vm_pindex_t idx;
 
 	sf = NULL;
-	pde = amdiommu_pgtbl_map_pte(domain, base, lvl, flags, &idx, &sf);
+	pde = amdiommu_pgtbl_map_pte(domain, base, lvl, flags, &idx, &sf, NULL);
 	amdiommu_unmap_clear_pte(domain, base, lvl, flags, pde, &sf, entry,
 	    true);
 }
@@ -362,7 +384,7 @@ amdiommu_unmap_buf_locked(struct amdiommu_domain *domain, iommu_gaddr_t base,
 
 	for (sf = NULL; size > 0; base += pg_sz, size -= pg_sz) {
 		pte = amdiommu_pgtbl_map_pte(domain, base,
-		    domain->pglvl - 1, flags, &idx, &sf);
+		    domain->pglvl - 1, flags, &idx, &sf, NULL);
 		KASSERT(pte != NULL,
 		    ("sleeping or page missed %p %jx %d 0x%x",
 		    domain, (uintmax_t)base, domain->pglvl - 1, flags));

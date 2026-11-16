@@ -484,6 +484,8 @@ amdiommu_attach(device_t dev)
 	error = pci_find_cap(dev, PCIY_SECDEV, &sc->seccap_reg);
 	if (error != 0 || sc->seccap_reg == 0)
 		return (ENXIO);
+	sc->cap_hdr = pci_read_config(dev, sc->seccap_reg +
+	    PCIR_AMDIOMMU_CAP_HEADER, 4);
 
 	base_low = pci_read_config(dev, sc->seccap_reg +
 	    PCIR_AMDIOMMU_BASE_LOW, 4);

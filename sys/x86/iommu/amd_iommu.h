@@ -48,6 +48,7 @@ struct amdiommu_domain {
 	vm_object_t pgtbl_obj;		/* (c) Page table pages */
 	vm_page_t pgtblr;		/* (c) Page table root page */
 	u_int pglvl;			/* (c) Page table levels */
+	u_int pde_flushes;		/* Maps flushing a new PDE, pglock */
 };
 
 struct amdiommu_ctx {
@@ -65,6 +66,7 @@ struct amdiommu_unit {
 	u_int		unit_id;	/* Hypertransport Unit ID, deprecated */
 	TAILQ_ENTRY(amdiommu_unit) unit_next;
 	int		seccap_reg;
+	uint32_t	cap_hdr;	/* Capability header */
 	uint64_t	efr;
 	vm_paddr_t	mmio_base;
 	vm_size_t	mmio_sz;
