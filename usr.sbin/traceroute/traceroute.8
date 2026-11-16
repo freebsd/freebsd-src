@@ -18,7 +18,7 @@
 .\"
 .\"	$Id: traceroute.8,v 1.19 2000/09/21 08:44:19 leres Exp $
 .\"
-.Dd May 14, 2025
+.Dd November 15, 2026
 .Dt TRACEROUTE 8
 .Os
 .Sh NAME
@@ -91,6 +91,9 @@ or mangled
 them, or if it is experiencing congestion
 .Pq Dv 11 .
 Otherwise, report that it passed the bits appropriately.
+The report is taken from the probe header quoted in the ICMP error message
+sent by the hop, so there is none for a destination which answers an ICMP
+probe with an echo reply.
 If
 .Fl t
 is also specified, the corresponding ECN bits will be replaced.
