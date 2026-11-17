@@ -26,17 +26,18 @@
 .\"
 .\"	OpenBSD: tsearch.3,v 1.2 1998/06/21 22:13:49 millert Exp
 .\"
-.Dd June 4, 2017
+.Dd November 17, 2026
 .Dt TSEARCH 3
 .Os
 .Sh NAME
-.Nm tsearch , tfind , tdelete , twalk
+.Nm tsearch , tfind , tdelete , twalk , tdestroy
 .Nd manipulate binary search trees
 .Sh SYNOPSIS
 .In search.h
 .Ft void *
 .Fn tdelete "const void * restrict key" "posix_tnode ** restrict rootp" "int (*compar) (const void *, const void *)"
-.Fn tdestroy "posix_tnode *root" "(void (*node_free)(void *)"
+.Ft void
+.Fn tdestroy "posix_tnode *root" "void (*node_free)(void *)"
 .Ft posix_tnode *
 .Fn tfind "const void *key" "posix_tnode * const *rootp" "int (*compar) (const void *, const void *)"
 .Ft posix_tnode *
@@ -214,7 +215,7 @@ functions conform to
 .St -p1003.1-2008 .
 The
 .Fn tdestroy
-function is the glibc extension.
+function is a glibc extension.
 .Pp
 The
 .Fa posix_tnode
