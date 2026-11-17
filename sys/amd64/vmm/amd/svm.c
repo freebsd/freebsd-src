@@ -2079,7 +2079,8 @@ svm_dr_enter_guest(struct svm_regctx *gctx)
 	 * VMCB.
 	 */
 	load_dr7(0);
-	wrmsr(MSR_DEBUGCTLMSR, 0);
+	if (gctx->host_debugctl != 0)
+		wrmsr(MSR_DEBUGCTLMSR, 0);
 
 	/* Save host debug registers. */
 	gctx->host_dr0 = rdr0();
@@ -2114,7 +2115,12 @@ svm_dr_leave_guest(struct svm_regctx *gctx)
 	load_dr2(gctx->host_dr2);
 	load_dr3(gctx->host_dr3);
 	load_dr6(gctx->host_dr6);
-	wrmsr(MSR_DEBUGCTLMSR, gctx->host_debugctl);
+	/*
+	 * LBR virtualization restores the zero DEBUGCTL value used at VMRUN.
+	 * Only a nonzero original host value needs restoring here.
+	 */
+	if (gctx->host_debugctl != 0)
+		wrmsr(MSR_DEBUGCTLMSR, gctx->host_debugctl);
 	load_dr7(gctx->host_dr7);
 }
 
