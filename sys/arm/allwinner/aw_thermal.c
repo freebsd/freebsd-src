@@ -152,6 +152,8 @@ struct aw_thermal_sensor {
 	int			init_shut;
 };
 
+struct aw_thermal_softc;
+
 struct aw_thermal_config {
 	struct aw_thermal_sensor	sensors[MAX_SENSORS];
 	int				nsensors;
@@ -160,6 +162,7 @@ struct aw_thermal_config {
 	int				adc_cali_en;
 	uint32_t			filter;
 	uint32_t			thermal_per;
+	int				(*init)(struct aw_thermal_softc *);
 	int				(*to_temp)(uint32_t, int);
 	uint32_t			(*to_reg)(int, int);
 	int				temp_base;
@@ -168,6 +171,8 @@ struct aw_thermal_config {
 	int				calib0, calib1;
 	uint32_t			calib0_mask, calib1_mask;
 };
+
+static int aw_thermal_v1_init(struct aw_thermal_softc *);
 
 static int
 a83t_to_temp(uint32_t val, int sensor)
@@ -196,6 +201,7 @@ static const struct aw_thermal_config a83t_config = {
 	.adc_cali_en = 1,
 	.filter = A83T_FILTER,
 	.thermal_per = A83T_THERMAL_PER,
+	.init = aw_thermal_v1_init,
 	.to_temp = a83t_to_temp,
 	.calib0_mask = 0xffffffff,
 	.calib1_mask = 0xffff,
@@ -228,6 +234,7 @@ static const struct aw_thermal_config a64_config = {
 	.adc_cali_en = 1,
 	.filter = A64_FILTER,
 	.thermal_per = A64_THERMAL_PER,
+	.init = aw_thermal_v1_init,
 	.to_temp = a64_to_temp,
 	.calib0_mask = 0xffffffff,
 	.calib1_mask = 0xffff,
@@ -260,6 +267,7 @@ static const struct aw_thermal_config h3_config = {
 	.adc_cali_en = 1,
 	.filter = H3_FILTER,
 	.thermal_per = H3_THERMAL_PER,
+	.init = aw_thermal_v1_init,
 	.to_temp = h3_to_temp,
 	.to_reg = h3_to_reg,
 	.calib0_mask = 0xffffffff,
@@ -334,6 +342,7 @@ static const struct aw_thermal_config h5_config = {
 	.adc_acquire_time = H5_ADC_ACQUIRE_TIME,
 	.filter = H5_FILTER,
 	.thermal_per = H5_THERMAL_PER,
+	.init = aw_thermal_v1_init,
 	.to_temp = h5_to_temp,
 	.to_reg = h5_to_reg,
 	.calib0_mask = 0xffffffff,
@@ -375,7 +384,7 @@ static struct resource_spec aw_thermal_spec[] = {
 #define	WR4(sc, reg, val)	bus_write_4((sc)->res[0], (reg), (val))
 
 static int
-aw_thermal_init(struct aw_thermal_softc *sc)
+aw_thermal_v1_init(struct aw_thermal_softc *sc)
 {
 	phandle_t node;
 	uint32_t calib[2];
@@ -664,7 +673,7 @@ aw_thermal_attach(device_t dev)
 			    sc->conf->sensors[i].init_shut);
 	}
 
-	if (aw_thermal_init(sc) != 0)
+	if (sc->conf->init(sc) != 0)
 		goto fail;
 
 	for (i = 0; i < sc->conf->nsensors; i++)
