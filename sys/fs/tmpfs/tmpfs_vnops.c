@@ -678,6 +678,15 @@ tmpfs_write(struct vop_write_args *v)
 		return (0);
 	if (ioflag & IO_APPEND)
 		uio->uio_offset = node->tn_size;
+
+	/*
+	 * For better or worse, O_APPEND can be cleared after the file has been
+	 * opened with F_SETFL.  Only allow writes at the end for append-only
+	 * files.
+	 */
+	if ((node->tn_flags & APPEND) != 0 && uio->uio_offset != node->tn_size)
+		return (EPERM);
+
 	error = vn_rlimit_fsizex(vp, uio, VFS_TO_TMPFS(vp->v_mount)->
 	    tm_maxfilesize, &r, uio->uio_td);
 	if (error != 0) {
@@ -717,6 +726,13 @@ out:
 static int
 tmpfs_deallocate(struct vop_deallocate_args *v)
 {
+	struct tmpfs_node *node;
+
+	/* Deallocation would zero existing data in the file. */
+	node = VP_TO_TMPFS_NODE(v->a_vp);
+	if ((node->tn_flags & APPEND) != 0)
+		return (EPERM);
+
 	return (tmpfs_reg_punch_hole(v->a_vp, v->a_offset, v->a_len));
 }
 
