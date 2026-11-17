@@ -33,26 +33,24 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_quota.h"
 
-#include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
-#include <sys/gsb_crc32.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/proc.h>
-#include <sys/namei.h>
-#include <sys/sched.h>
-#include <sys/stat.h>
+#include <sys/gsb_crc32.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/namei.h>
+#include <sys/proc.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
+#include <sys/sched.h>
+#include <sys/stat.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
