@@ -76,7 +76,8 @@ pmc_record_then_info_body()
 	if ! pmc_record -c instructions -t 2 record.pmc; then
 		grep -q "Cannot allocate event" record.out && \
 		    atf_skip "no instructions event on this CPU"
-		atf_fail "pmc record failed: $(cat record.out)"
+		cat record.out >&2
+		atf_fail "pmc record failed"
 	fi
 
 	atf_check -s exit:0 -o save:info.txt -e ignore pmc info record.pmc
@@ -84,8 +85,10 @@ pmc_record_then_info_body()
 	# listed under the name libpmc resolved it to.
 	awk '/^Counter/ { t = 1; next }
 	    t && $NF ~ /^[0-9]+$/ && $NF > 0 { found = 1 }
-	    END { exit(found ? 0 : 1) }' info.txt || \
-	    atf_fail "pmc info shows no samples: $(tail -5 info.txt)"
+	    END { exit(found ? 0 : 1) }' info.txt || {
+		cat info.txt >&2
+		atf_fail "pmc info shows no samples"
+	}
 }
 
 atf_init_test_cases()

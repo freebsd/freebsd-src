@@ -36,8 +36,10 @@ pmc_frontend_ibs_body()
 	rc=$?
 	kill "$load" 2>/dev/null
 	wait
-	[ "$rc" -eq 0 ] || \
-	    atf_fail "pmc record -s frontend failed: $(cat record.out)"
+	if [ "$rc" -ne 0 ]; then
+		cat record.out >&2
+		atf_fail "pmc record -s frontend failed"
+	fi
 
 	# Each decoded sample row of the analysis carries miss percentages.
 	atf_check -s exit:0 -o save:frontend.txt -e ignore \
