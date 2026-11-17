@@ -5945,7 +5945,8 @@ tr_setup:
 				}
 			}
 
-			chan->curr_cable %= chan->max_emb_jack;
+			chan->curr_cable = (chan->curr_cable + 1) %
+			    chan->max_emb_jack;
 
 			if (chan->curr_cable == start_cable) {
 				if (tr_any == 0)
