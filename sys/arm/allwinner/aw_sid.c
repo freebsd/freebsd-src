@@ -188,6 +188,15 @@ static struct aw_sid_efuse h6_efuses[] = {
 		.id = AW_SID_FUSE_SPEEDGRADE,
 		.public = true,
 	},
+	{
+		.name = "calibration",
+		.desc = "Thermal Sensor Calibration Data",
+		.base = EFUSE_OFFSET,
+		.offset = 0x14,
+		.size = 8,
+		.id = AW_SID_FUSE_THSSENSOR,
+		.public = true,
+	},
 };
 
 static struct aw_sid_efuse h616_efuses[] = {
