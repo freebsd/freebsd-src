@@ -2217,7 +2217,7 @@ ffs_devvp_bdflush_fsync(void *arg, int pending)
 void
 ffs_bdflush(struct bufobj *bo, struct buf *bp)
 {
-	struct vnode *vp, *devvp;
+	struct vnode *devvp;
 	struct buf *nbp;
 	struct ufsmount *ump;
 	int bp_bdskip;
@@ -2225,9 +2225,8 @@ ffs_bdflush(struct bufobj *bo, struct buf *bp)
 	if (bo->bo_dirty.bv_cnt <= dirtybufthresh)
 		return;
 
-	vp = bp->b_vp;
 	devvp = bo2vnode(bo);
-	KASSERT(vp == devvp, ("devvp != vp %p %p", bo, bp));
+	KASSERT(bp->b_vp == devvp, ("devvp != vp %p %p", bo, bp));
 
 	VI_LOCK(devvp);
 	bp_bdskip = ffs_bp_snapblk(devvp, bp);
@@ -2261,7 +2260,7 @@ ffs_bdflush(struct bufobj *bo, struct buf *bp)
 			}
 			if (bp_bdskip) {
 				VI_LOCK(devvp);
-				if (!ffs_bp_snapblk(vp, nbp)) {
+				if (!ffs_bp_snapblk(devvp, nbp)) {
 					VI_UNLOCK(devvp);
 					BO_LOCK(bo);
 					BUF_UNLOCK(nbp);
