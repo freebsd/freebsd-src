@@ -112,8 +112,8 @@ get_directory_head()
 get_directory_body()
 {
 	mkdir -p repo/subdir
-	check_output "ko: not a file" "get subdir 0\nquit\n" repo ||
-	    atf_fail "expected not a file"
+	check_output "ko: file not found" "get subdir 0\nquit\n" repo ||
+	    atf_fail "expected file not found"
 }
 
 atf_test_case get_missing_age
@@ -163,12 +163,27 @@ get_fifo_body()
 	mkfifo repo/fifo
 	output=$(printf 'get fifo 0\nquit\n' | timeout 10 "${PKG_SERVE}" repo)
 	case "$output" in
-	*"ko: not a file"*)
+	*"ko: file not found"*)
 		;;
 	*)
-		atf_fail "expected 'not a file', got: ${output}"
+		atf_fail "expected 'file not found', got: ${output}"
 		;;
 	esac
+}
+
+atf_test_case no_existence_oracle
+no_existence_oracle_head()
+{
+	atf_set "descr" "Missing and non-regular files are indistinguishable"
+}
+no_existence_oracle_body()
+{
+	mkdir repo
+	mkdir repo/dir
+	missing=$(serve "get missing.pkg 0\nquit\n" repo)
+	nonreg=$(serve "get dir 0\nquit\n" repo)
+	[ "${missing}" = "${nonreg}" ] ||
+	    atf_fail "responses differ: '${missing}' vs '${nonreg}'"
 }
 
 atf_test_case path_traversal
@@ -271,6 +286,7 @@ atf_init_test_cases()
 	atf_add_test_case get_file_leading_slash
 	atf_add_test_case get_file_uptodate
 	atf_add_test_case get_directory
+	atf_add_test_case no_existence_oracle
 	atf_add_test_case get_missing_age
 	atf_add_test_case get_bad_age
 	atf_add_test_case get_empty_arg

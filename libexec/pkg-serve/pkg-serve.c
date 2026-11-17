@@ -174,7 +174,7 @@ main(int argc, char *argv[])
 
 		if (!S_ISREG(st.st_mode)) {
 			close(ffd);
-			printf("ko: not a file\n");
+			printf("ko: file not found\n");
 			fflush(stdout);
 			continue;
 		}
