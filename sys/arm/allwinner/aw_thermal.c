@@ -163,6 +163,8 @@ struct aw_thermal_config {
 	uint32_t			filter;
 	uint32_t			thermal_per;
 	int				(*init)(struct aw_thermal_softc *);
+	bus_size_t			data_reg;
+	bool				has_alarm;
 	int				(*to_temp)(uint32_t, int);
 	uint32_t			(*to_reg)(int, int);
 	int				temp_base;
@@ -202,6 +204,8 @@ static const struct aw_thermal_config a83t_config = {
 	.filter = A83T_FILTER,
 	.thermal_per = A83T_THERMAL_PER,
 	.init = aw_thermal_v1_init,
+	.data_reg = THS_DATA0,
+	.has_alarm = true,
 	.to_temp = a83t_to_temp,
 	.calib0_mask = 0xffffffff,
 	.calib1_mask = 0xffff,
@@ -235,6 +239,8 @@ static const struct aw_thermal_config a64_config = {
 	.filter = A64_FILTER,
 	.thermal_per = A64_THERMAL_PER,
 	.init = aw_thermal_v1_init,
+	.data_reg = THS_DATA0,
+	.has_alarm = true,
 	.to_temp = a64_to_temp,
 	.calib0_mask = 0xffffffff,
 	.calib1_mask = 0xffff,
@@ -268,6 +274,8 @@ static const struct aw_thermal_config h3_config = {
 	.filter = H3_FILTER,
 	.thermal_per = H3_THERMAL_PER,
 	.init = aw_thermal_v1_init,
+	.data_reg = THS_DATA0,
+	.has_alarm = true,
 	.to_temp = h3_to_temp,
 	.to_reg = h3_to_reg,
 	.calib0_mask = 0xffffffff,
@@ -343,6 +351,8 @@ static const struct aw_thermal_config h5_config = {
 	.filter = H5_FILTER,
 	.thermal_per = H5_THERMAL_PER,
 	.init = aw_thermal_v1_init,
+	.data_reg = THS_DATA0,
+	.has_alarm = true,
 	.to_temp = h5_to_temp,
 	.to_reg = h5_to_reg,
 	.calib0_mask = 0xffffffff,
@@ -438,7 +448,7 @@ aw_thermal_gettemp(struct aw_thermal_softc *sc, int sensor)
 {
 	uint32_t val;
 
-	val = RD4(sc, THS_DATA0 + (sensor * 4));
+	val = RD4(sc, sc->conf->data_reg + (sensor * 4));
 
 	return (sc->conf->to_temp(val, sensor));
 }
@@ -657,11 +667,14 @@ aw_thermal_attach(device_t dev)
 		}
 	}
 
-	error = bus_setup_intr(dev, sc->res[1], INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, aw_thermal_intr, dev, &ih);
-	if (error != 0) {
-		device_printf(dev, "cannot setup interrupt handler\n");
-		goto fail;
+	if (sc->conf->has_alarm) {
+		error = bus_setup_intr(dev, sc->res[1],
+		    INTR_TYPE_MISC | INTR_MPSAFE, NULL, aw_thermal_intr, dev,
+		    &ih);
+		if (error != 0) {
+			device_printf(dev, "cannot setup interrupt handler\n");
+			goto fail;
+		}
 	}
 
 	for (i = 0; i < sc->conf->nsensors; i++) {
@@ -684,7 +697,7 @@ aw_thermal_attach(device_t dev)
 		    sc, i, aw_thermal_sysctl, "IK0",
 		    sc->conf->sensors[i].desc);
 
-	if (bootverbose)
+	if (bootverbose && sc->conf->has_alarm)
 		for (i = 0; i < sc->conf->nsensors; i++) {
 			device_printf(dev,
 			    "%s: alarm %dC hyst %dC shut %dC\n",
@@ -694,8 +707,9 @@ aw_thermal_attach(device_t dev)
 			    aw_thermal_getshut(sc, i));
 		}
 
-	sc->cf_pre_tag = EVENTHANDLER_REGISTER(cpufreq_pre_change,
-	    aw_thermal_cf_pre_change, sc, EVENTHANDLER_PRI_FIRST);
+	if (sc->conf->has_alarm)
+		sc->cf_pre_tag = EVENTHANDLER_REGISTER(cpufreq_pre_change,
+		    aw_thermal_cf_pre_change, sc, EVENTHANDLER_PRI_FIRST);
 
 	return (0);
 
