@@ -504,7 +504,7 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 #define MIDI_WSIZE 32
 	struct midi_port *m = i_dev->si_drv1;
 	int retval;
-	size_t used;
+	size_t used, n;
 	uint8_t buf[MIDI_WSIZE];
 
 	retval = EIO;
@@ -546,13 +546,26 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 		if (retval)
 			goto err0;
 		mtx_lock(m->sc->lock);
-		midi_queue_enq(&m->outq, buf, used);
+		/*
+		 * Another thread may have taken the space while the lock was
+		 * dropped.
+		 */
+		n = ulmin(used, midi_queue_avail(&m->outq));
+		midi_queue_enq(&m->outq, buf, n);
 		/*
 	         * Inform the bottom half that data can be written
 	         */
 		if (!(m->flags & M_TXPEND)) {
 			m->flags |= M_TXPEND;
 			m->sc->cb(m->sc->devinfo, m->chan, m->flags);
+		}
+		/*
+		 * Give back the bytes that did not fit, so that they do not
+		 * get dropped silently.
+		 */
+		if (n < used) {
+			uio->uio_resid += used - n;
+			break;
 		}
 	}
 	/*
