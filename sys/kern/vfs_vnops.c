@@ -3996,7 +3996,18 @@ vn_fallocate(struct file *fp, off_t offset, off_t len, struct thread *td)
 		}
 		if (error != 0 || len == 0)
 			break;
-		KASSERT(olen > len, ("Iteration did not make progress?"));
+
+		/*
+		 * A partial result is permitted, but each pass must make some
+		 * progress or we would spin here forever.
+		 */
+		if (len >= olen) {
+			error = EXTERROR(EIO,
+			    "no progress on vp %p (off %jd)",
+			    vp, (intmax_t)ooffset);
+			break;
+		}
+
 		maybe_yield();
 	}
 
