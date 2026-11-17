@@ -473,7 +473,7 @@ public:
       LongDoubleFormat = &llvm::APFloat::IEEEdouble();
     }
 
-    if (Triple.isOSAIX() || Triple.isOSLinux())
+    if (Triple.isOSAIX() || Triple.isOSLinux() || Triple.isOSFreeBSD())
       DataLayout += "-S128-v256:256:256-v512:512:512";
     resetDataLayout(DataLayout);
 
