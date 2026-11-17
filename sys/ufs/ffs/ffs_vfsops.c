@@ -55,6 +55,7 @@
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 #include <sys/vmmeter.h>
 
 #include <security/mac/mac_framework.h>
@@ -1144,6 +1145,9 @@ ffs_mountfs(struct vnode *odevvp, struct mount *mp, struct thread *td)
 #ifdef UFS_EXTATTR
 	ufs_extattr_uepm_init(&ump->um_extattr);
 #endif
+
+	TASK_INIT(&ump->um_devvp_fsync_task, 0, ffs_devvp_bdflush_fsync, ump);
+
 	/*
 	 * Set FS local "last mounted on" information (NULL pad)
 	 */
@@ -1202,6 +1206,8 @@ out:
 		free(fs->fs_si, M_UFSMNT);
 		free(fs, M_UFSMNT);
 	}
+	if (ump != NULL)
+		taskqueue_drain(taskqueue_thread, &ump->um_devvp_fsync_task);
 	if (cp != NULL)
 		g_vfs_close_unlocked(cp);
 	if (ump != NULL) {
@@ -1317,6 +1323,7 @@ ffs_unmount(struct mount *mp, int mntflags)
 		taskqueue_free(ump->um_trim_tq);
 		free (ump->um_trimhash, M_TRIM);
 	}
+	taskqueue_drain(taskqueue_thread, &ump->um_devvp_fsync_task);
 	vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY);
 	g_topology_lock();
 	g_vfs_close(ump->um_cp);

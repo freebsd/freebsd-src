@@ -228,6 +228,7 @@ void	softdep_freework(struct workhead *);
 #define	DATA_ONLY		0x00000002
 
 int	ffs_rdonly(struct inode *);
+void	ffs_devvp_bdflush_fsync(void *arg, int pending);
 
 TAILQ_HEAD(snaphead, inode);
 
