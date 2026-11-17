@@ -2424,7 +2424,7 @@ parse_rules_v1(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 		r = (struct ip_fw_rule *)(ctlv + 1);
 		while (clen > 0) {
 			rsize = RULEUSIZE1(r);
-			if (rsize > clen || count > ctlv->count) {
+			if (rsize > clen || count >= ctlv->count) {
 				error = EINVAL;
 				break;
 			}
