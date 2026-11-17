@@ -66,6 +66,8 @@ vm_inject_fault(struct vcpu *vcpu, int vector, int errcode_valid,
 
 	error = vm_inject_exception(vcpu, vector, errcode_valid, errcode,
 	    restart_instruction);
+	if (error != 0)
+		vm_check_destroyed(vcpu);
 	assert(error == 0);
 }
 
@@ -83,6 +85,7 @@ vmexit_inout(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 
 	error = emulate_inout(ctx, vcpu, vme);
 	if (error) {
+		vm_check_destroyed(vcpu);
 		EPRINTLN("Unhandled %s%c 0x%04x at 0x%lx",
 		    in ? "in" : "out",
 		    bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'),
@@ -120,10 +123,14 @@ vmexit_rdmsr(struct vmctx *ctx __unused, struct vcpu *vcpu,
 
 	eax = val;
 	error = vm_set_register(vcpu, VM_REG_GUEST_RAX, eax);
+	if (error != 0)
+		vm_check_destroyed(vcpu);
 	assert(error == 0);
 
 	edx = val >> 32;
 	error = vm_set_register(vcpu, VM_REG_GUEST_RDX, edx);
+	if (error != 0)
+		vm_check_destroyed(vcpu);
 	assert(error == 0);
 
 	return (VMEXIT_CONTINUE);
@@ -387,6 +394,7 @@ vmexit_inst_emul(struct vmctx *ctx __unused, struct vcpu *vcpu,
 	return (VMEXIT_CONTINUE);
 
 fail:
+	vm_check_destroyed(vcpu);
 	fprintf(stderr, "Failed to emulate instruction sequence [ ");
 	for (i = 0; i < vie->num_valid; i++)
 		fprintf(stderr, "%02x", vie->inst[i]);

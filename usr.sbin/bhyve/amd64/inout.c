@@ -199,6 +199,8 @@ emulate_inout(struct vmctx *ctx, struct vcpu *vcpu, struct vm_exit *vmexit)
 
 		/* Update index register */
 		error = vie_update_register(vcpu, idxreg, index, addrsize);
+		if (error != 0)
+			vm_check_destroyed(vcpu);
 		assert(error == 0);
 
 		/*
@@ -208,12 +210,16 @@ emulate_inout(struct vmctx *ctx, struct vcpu *vcpu, struct vm_exit *vmexit)
 		if (rep) {
 			error = vie_update_register(vcpu, VM_REG_GUEST_RCX,
 			    count, addrsize);
+			if (error != 0)
+				vm_check_destroyed(vcpu);
 			assert(error == 0);
 		}
 
 		/* Restart the instruction if more iterations remain */
 		if (retval == 0 && count != 0) {
 			error = vm_restart_instruction(vcpu);
+			if (error != 0)
+				vm_check_destroyed(vcpu);
 			assert(error == 0);
 		}
 	} else {
@@ -225,6 +231,8 @@ emulate_inout(struct vmctx *ctx, struct vcpu *vcpu, struct vm_exit *vmexit)
 			eax |= val & vie_size2mask(bytes);
 			error = vm_set_register(vcpu, VM_REG_GUEST_RAX,
 			    eax);
+			if (error != 0)
+				vm_check_destroyed(vcpu);
 			assert(error == 0);
 		}
 	}

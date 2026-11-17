@@ -95,6 +95,7 @@ vmexit_inst_emul(struct vmctx *ctx __unused, struct vcpu *vcpu,
 	return (VMEXIT_CONTINUE);
 
 fail:
+	vm_check_destroyed(vcpu);
 	fprintf(stderr, "Failed to emulate instruction ");
 	FPRINTLN(stderr, "at 0x%lx", vme->pc);
 	return (VMEXIT_ABORT);
