@@ -263,7 +263,7 @@ tmp461_read_temperature(device_t dev, int32_t *temperature, bool remote_measure)
 		goto fail;
 
 	data -= offset;
-	*temperature = signed_extend32(data, 0, 8) << 4;
+	*temperature = extract_signed_bitfield_32(data, 0, 8) << 4;
 
 	if (remote_measure) {
 		if (sc->conf & TMP461_REMOTE_TEMP_DOUBLE_REG) {

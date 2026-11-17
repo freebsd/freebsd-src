@@ -295,20 +295,73 @@ rindex(const char *p, int ch)
 	return (strrchr(p, ch));
 }
 
+/*
+ * Returns a sign extension of 'val' from its 'sign_idx_bit'.
+ *
+ * All bits above 'sign_idx_bit' are set to 0 or 1 accordingly.
+ */
 static __inline int64_t
-signed_extend64(uint64_t bitmap, int lsb, int width)
+sign_extend_64(uint64_t val, int sign_bit_idx)
 {
+	uint64_t sign_bit_mask;
 
-	return ((int64_t)(bitmap << (63 - lsb - (width - 1)))) >>
-	    (63 - (width - 1));
+	KASSERT(0 <= sign_bit_idx && sign_bit_idx < sizeof(val) * 8,
+	    ("%s: Sign bit index %d out of range.", __func__, sign_bit_idx));
+
+	sign_bit_mask = 1ull << sign_bit_idx;
+	return (-(sign_bit_mask & val) | ((sign_bit_mask - 1) & val));
 }
 
+/* See 64-bit version above. */
 static __inline int32_t
-signed_extend32(uint32_t bitmap, int lsb, int width)
+sign_extend_32(uint32_t val, int sign_bit_idx)
 {
+	uint32_t sign_bit_mask;
 
-	return ((int32_t)(bitmap << (31 - lsb - (width - 1)))) >>
-	    (31 - (width - 1));
+	KASSERT(0 <= sign_bit_idx && sign_bit_idx < sizeof(val) * 8,
+	    ("%s: Sign bit index %d out of range.", __func__, sign_bit_idx));
+
+	sign_bit_mask = 1u << sign_bit_idx;
+	return (-(sign_bit_mask & val) | ((sign_bit_mask - 1) & val));
+}
+
+/*
+ * Extract signed bitfield.
+ *
+ * Extract value of bitfield in 'bitmap' that starts at least-significant bit
+ * 'lsb' and with number of bits 'width', sign extending the result.
+ */
+static __inline int64_t
+extract_signed_bitfield_64(uint64_t bitmap, int lsb, int width)
+{
+	KASSERT(0 <= lsb && lsb < sizeof(bitmap) * 8,
+	    ("%s: Bitfield start index %d out of range.", __func__, lsb));
+	KASSERT(width > 0, ("%s: Bitfield width %d not strictly positive.",
+	    __func__, width));
+	KASSERT(width <= sizeof(bitmap) * 8,
+	    ("%s: Bitfield too wide (width %d).", __func__, width));
+	KASSERT(lsb + width <= sizeof(bitmap) * 8,
+	    ("%s: Bitfield overflows bitmap (last bit index %d).", __func__,
+	    lsb + width - 1));
+
+	return (sign_extend_64(bitmap >> lsb, width - 1));
+}
+
+/* See 64-bit variant above. */
+static __inline int32_t
+extract_signed_bitfield_32(uint32_t bitmap, int lsb, int width)
+{
+	KASSERT(0 <= lsb && lsb < sizeof(bitmap) * 8,
+	    ("%s: Bitfield start index %d out of range.", __func__, lsb));
+	KASSERT(width > 0, ("%s: Bitfield width %d not strictly positive.",
+	    __func__, width));
+	KASSERT(width <= sizeof(bitmap) * 8,
+	    ("%s: Bitfield too wide (width %d).", __func__, width));
+	KASSERT(lsb + width <= sizeof(bitmap) * 8,
+	    ("%s: Bitfield overflows bitmap (last bit index %d).", __func__,
+	    lsb + width - 1));
+
+	return (sign_extend_32(bitmap >> lsb, width - 1));
 }
 
 /* fnmatch() return values. */
