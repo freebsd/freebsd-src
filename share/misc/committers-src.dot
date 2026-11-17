@@ -204,6 +204,7 @@ grehan [label="Peter Grehan\ngrehan@FreeBSD.org\n2002/08/08"]
 grog [label="Greg Lehey\ngrog@FreeBSD.org\n1998/08/30"]
 gshapiro [label="Gregory Shapiro\ngshapiro@FreeBSD.org\n2000/07/12"]
 harti [label="Hartmut Brandt\nharti@FreeBSD.org\n2003/01/29"]
+hayzam [label="Hayzam Sherif\nhayzam@FreeBSD.org\n2026/11/16"]
 hiren [label="Hiren Panchasara\nhiren@FreeBSD.org\n2013/04/12"]
 hmp [label="Hiten Pandya\nhmp@FreeBSD.org\n2004/03/23"]
 ian [label="Ian Lepore\nian@FreeBSD.org\n2013/01/07"]
@@ -577,6 +578,7 @@ eivind -> rwatson
 emaste -> achim
 emaste -> bwidawsk
 emaste -> dteske
+emaste -> hayzam
 emaste -> jlduran
 emaste -> kd
 emaste -> kevans
@@ -821,6 +823,7 @@ markj -> cem
 markj -> christos
 markj -> dougm
 markj -> fuz
+markj -> hayzam
 markj -> igoro
 markj -> jfree
 markj -> lwhsu

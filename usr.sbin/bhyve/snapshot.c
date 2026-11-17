@@ -1085,6 +1085,23 @@ vm_snapshot_device(vm_snapshot_dev_cb func, const char *dev_name,
 	return (0);
 }
 
+static bool
+vm_can_snapshot_devices(void)
+{
+	struct pci_devinst *pdi;
+
+	pdi = NULL;
+	while ((pdi = pci_next(pdi)) != NULL) {
+		if (!pci_can_snapshot(pdi)) {
+			EPRINTLN("%s does not support checkpointing",
+			    pdi->pi_name);
+			return (false);
+		}
+	}
+
+	return (true);
+}
+
 static int
 vm_snapshot_devices(int data_fd, xo_handle_t *xop)
 {
@@ -1226,6 +1243,10 @@ vm_checkpoint(struct vmctx *ctx, int fddir, const char *checkpoint_file,
 	char *meta_filename = NULL;
 	char *kdata_filename = NULL;
 	FILE *meta_file = NULL;
+
+	/* Reject unsupported devices before creating files or touching RAM. */
+	if (!vm_can_snapshot_devices())
+		return (ENOTSUP);
 
 	kdata_filename = strcat_extension(checkpoint_file, ".kern");
 	if (kdata_filename == NULL) {

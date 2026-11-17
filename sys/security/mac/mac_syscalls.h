@@ -21,7 +21,7 @@
 
 int	mac_label_copyin(const void *const u_mac, struct mac *const mac,
 	    char **const u_string);
-void	free_copied_label(const struct mac *const mac);
+void	free_copied_label(struct mac *const mac);
 
 int	mac_set_proc_prepare(struct thread *const td,
 	    const struct mac *const mac, void **const mac_set_proc_data);

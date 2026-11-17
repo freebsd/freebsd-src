@@ -24,7 +24,7 @@ getoldopt(int argc, char **argv, const char *optstring)
 	static char	*key;		/* Points to next keyletter */
 	static char	use_getopt;	/* !=0 if argv[1][0] was '-' */
 	char		c;
-	char		*place;
+	const char	*place;
 
 	optarg = NULL;
 

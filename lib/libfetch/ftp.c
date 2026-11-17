@@ -66,6 +66,7 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -225,38 +226,44 @@ ftp_filename(const char *file, int *len, int *type)
 }
 
 /*
- * Get current working directory from the reply to a CWD, PWD or CDUP
- * command.
+ * Get current working directory from the reply to a PWD command.
+ *
+ * The server reply is of the form `XYZ "pathname" comment` where XYZ is a
+ * result code which has already been checked and stored in conn->err and
+ * "pathname" is the double-quoted current working directory, which may be
+ * empty.  Any double-quote characters occurring in the pathname must be
+ * doubled to distinguish them from the double-quote character at the end.
  */
 static int
-ftp_pwd(conn_t *conn, char *pwd, size_t pwdlen)
+ftp_pwd(conn_t *conn, char *dst, size_t dstlen)
 {
-	char *src, *dst, *end;
-	int q;
+	char *src, *end;
+	bool dq = false;
 
-	if (conn->err != FTP_WORKING_DIRECTORY &&
-	    conn->err != FTP_FILE_ACTION_OK)
+	if (conn->err != FTP_WORKING_DIRECTORY ||
+	    conn->linelen < 6 || conn->line[4] != '"')
 		return (FTP_PROTOCOL_ERROR);
 	end = conn->line + conn->linelen;
-	src = conn->line + 4;
-	if (src >= end || *src++ != '"')
-		return (FTP_PROTOCOL_ERROR);
-	for (q = 0, dst = pwd; src < end && pwdlen--; ++src) {
-		if (!q && *src == '"')
-			q = 1;
-		else if (q && *src != '"')
+	for (src = conn->line + 5; src < end; ++src) {
+		if (!dq && *src == '"') {
+			/* either the first of two or the end */
+			dq = true;
+			continue;
+		}
+		if (dq && *src != '"') {
+			/* the end */
 			break;
-		else if (q)
-			*dst++ = '"', q = 0;
-		else
-			*dst++ = *src;
+		}
+		/* need space for at list this + null */
+		if (dstlen < 2)
+			return (FTP_PROTOCOL_ERROR);
+		*dst++ = dq ? '"' : *src;
+		dq = false;
+		dstlen--;
 	}
-	if (!pwdlen)
+	if (!dq)
 		return (FTP_PROTOCOL_ERROR);
 	*dst = '\0';
-#if 0
-	DEBUGF("pwd: [%s]\n", pwd);
-#endif
 	return (FTP_OK);
 }
 
@@ -286,12 +293,10 @@ ftp_cwd(conn_t *conn, const char *file)
 		for (i = 0; i <= len && i <= end - file; ++i)
 			if (pwd[i] != file[i])
 				break;
-#if 0
-		DEBUGF("have: [%.*s|%s]\n", i, pwd, pwd + i);
-		DEBUGF("want: [%.*s|%s]\n", i, file, file + i);
-#endif
+
 		/* Keep going up a dir until we have a matching prefix. */
-		if (pwd[i] == '\0' && (file[i - 1] == '/' || file[i] == '/'))
+		if (pwd[i] == '\0' &&
+		    (file[i] == '/' || (i > 0 && file[i - 1] == '/')))
 			break;
 		if ((e = ftp_cmd(conn, "CDUP")) != FTP_FILE_ACTION_OK ||
 		    (e = ftp_cmd(conn, "PWD")) != FTP_WORKING_DIRECTORY ||

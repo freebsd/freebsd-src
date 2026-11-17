@@ -484,8 +484,8 @@ ar_app_ok(void)
 
 	if (!invld_rec)
 		return(0);
-	paxwarn(1,"Cannot append, device record size %d does not support %s spec",
-		rdblksz, argv0);
+	paxwarn(1, "Cannot append, device record size %zu "
+	    "does not support %s spec", rdblksz, argv0);
 	return(-1);
 }
 
@@ -498,10 +498,10 @@ ar_app_ok(void)
  *	Number of bytes in buffer. 0 for end of file, -1 for a read error.
  */
 
-int
-ar_read(char *buf, int cnt)
+ssize_t
+ar_read(char *buf, size_t cnt)
 {
-	int res = 0;
+	ssize_t res = 0;
 
 	/*
 	 * if last i/o was in error, no more reads until reset or new volume
@@ -523,7 +523,7 @@ ar_read(char *buf, int cnt)
 			 * manner.
 			 */
 			io_ok = 1;
-			if (res != rdblksz) {
+			if ((size_t)res != rdblksz) {
 				/*
 				 * Record size changed. If this happens on
 				 * any record after the first, we probably have
@@ -581,8 +581,8 @@ ar_read(char *buf, int cnt)
  *	error in the archive occurred.
  */
 
-int
-ar_write(char *buf, int bsz)
+ssize_t
+ar_write(char *buf, size_t bsz)
 {
 	int res;
 	off_t cpos;
@@ -594,20 +594,21 @@ ar_write(char *buf, int bsz)
 	if (lstrval <= 0)
 		return(lstrval);
 
-	if ((res = write(arfd, buf, bsz)) == bsz) {
-		wr_trail = 1;
-		io_ok = 1;
-		return(bsz);
+	if ((res = write(arfd, buf, bsz)) < 0) {
+		lstrval = -1;
+	} else {
+		lstrval = 0;
+		if ((size_t)res == bsz) {
+			wr_trail = 1;
+			io_ok = 1;
+			return(bsz);
+		}
 	}
+
 	/*
 	 * write broke, see what we can do with it. We try to send any partial
 	 * writes that may violate pax spec to the next archive volume.
 	 */
-	if (res < 0)
-		lstrval = res;
-	else
-		lstrval = 0;
-
 	switch (artyp) {
 	case ISREG:
 		if ((res > 0) && (res % BLKMULT)) {

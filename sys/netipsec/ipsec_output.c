@@ -109,6 +109,22 @@
 static int ipsec_encap(struct mbuf **mp, struct secasindex *saidx);
 static size_t ipsec_get_pmtu(struct secasvar *sav);
 
+/*
+ * Select the transmit queue by SA: its packets then do not reorder between
+ * independently draining queues.  Done before the transforms, software or
+ * offloaded, so that the SA decides the queue either way; in a bundle the
+ * last SA decides.  Concurrent processing and crypto completions can still
+ * reorder the packets before they are queued.
+ */
+static void
+ipsec_set_flowid(struct mbuf *m, struct secasvar *sav)
+{
+	if (V_sa_flowid) {
+		m->m_pkthdr.flowid = sav->flowid;
+		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE_HASH);
+	}
+}
+
 #ifdef INET
 static struct secasvar *
 ipsec4_allocsa(struct ifnet *ifp, struct mbuf *m, const struct ip *ip,
@@ -227,6 +243,7 @@ ipsec4_perform_request(struct ifnet *ifp, struct mbuf *m, struct ip *ip1,
 	/* Re-calculate *ip1 after potential change of m in the hook. */
 	m_copydata(m, 0, sizeof(*ip1), (char *)ip1);
 
+	ipsec_set_flowid(m, sav);
 	hwassist = 0;
 	accel = ipsec_accel_output(ifp, m, inp, sp, sav, AF_INET, mtu,
 	    &hwassist);
@@ -254,7 +271,9 @@ ipsec4_perform_request(struct ifnet *ifp, struct mbuf *m, struct ip *ip1,
 			if (bootverbose)
 				if_printf(ifp, "Tx TLS+IPSEC packet\n");
 		}
-		return (error);
+		/* mb_unmapped_to_ext() has freed the chain. */
+		m = NULL;
+		goto bad;
 	}
 	m = m1;
 
@@ -656,6 +675,7 @@ ipsec6_perform_request(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
 	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_OUT)) != 0)
 		goto bad;
 
+	ipsec_set_flowid(m, sav);
 	hwassist = 0;
 	accel = ipsec_accel_output(ifp, m, inp, sp, sav, AF_INET6, mtu,
 	    &hwassist);

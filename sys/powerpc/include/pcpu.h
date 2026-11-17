@@ -155,6 +155,16 @@ struct pvo_entry;
 
 #ifdef _KERNEL
 
+static __inline struct pcpu *
+get_pcpu(void)
+{
+	struct pcpu *ret;
+
+	__asm __volatile("mfsprg %0, 0" : "=r"(ret));
+
+	return (ret);
+}
+
 #define pcpup	(get_pcpu())
 
 static __inline __pure2 struct thread *

@@ -746,6 +746,7 @@ vendor SUNPLUS		0x1bcf	Sunplus Innovation Technology Inc.
 vendor WAGO		0x1be3  WAGO Kontakttechnik GmbH.
 vendor TELIT		0x1bc7  Telit
 vendor IONICS		0x1c0c	Ionics PlugComputer
+vendor HUMANWARE	0x1c71	HumanWare
 vendor LONGCHEER	0x1c9e	Longcheer Holdings, Ltd.
 vendor MPMAN		0x1cae	MpMan
 vendor DRESDENELEKTRONIK 0x1cf1 dresden elektronik
@@ -2644,6 +2645,9 @@ product HUAWEI E5573Cs322_ACM	0x1442	LTE AP modem ACM mode
 
 /* HUAWEI 3com products */
 product HUAWEI3COM WUB320G	0x0009	Aolynk WUB320g
+
+/* HumanWare products */
+product HUMANWARE APEX		0xc004	BrailleNote Apex
 
 /* IBM Corporation */
 product IBM USBCDROMDRIVE	0x4427	USB CD-ROM Drive

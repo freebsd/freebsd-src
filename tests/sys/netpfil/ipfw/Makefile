@@ -7,8 +7,11 @@ ATF_TESTS_SH+=	fwd \
 		ipv6-flow-id \
 		log \
 		lookup \
+		nat \
 		table \
 		unmapped
+
+ATF_TESTS_C+=	nat_getlog
 
 ${PACKAGE}FILES+=	fwd_inetd.conf \
 			lookup_inetd.conf

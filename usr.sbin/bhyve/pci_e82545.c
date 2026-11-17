@@ -671,8 +671,9 @@ e82545_intr_write(struct e82545_softc *sc, uint32_t offset, uint32_t value)
 	case E1000_IMC:
 		sc->esc_IMC = value;	/* for debug */
 		sc->esc_IMS &= ~value;
-		// XXX clear interrupts if all ICR bits now masked
-		// and interrupt was pending ?
+
+		/* Clear the interrupt if no unmasked source is left. */
+		e82545_icr_deassert(sc, 0);
 		break;
 	default:
 		break;

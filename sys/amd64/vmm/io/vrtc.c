@@ -80,6 +80,7 @@ struct vrtc {
 	u_int		addr;		/* RTC register to read or write */
 	sbintime_t	base_uptime;
 	time_t		base_rtctime;
+	sbintime_t	callout_time;
 	struct rtcdev	rtcdev;
 };
 
@@ -520,8 +521,9 @@ vrtc_freq(struct vrtc *vrtc)
 }
 
 static void
-vrtc_callout_reset(struct vrtc *vrtc, sbintime_t freqsbt)
+vrtc_callout_reset(struct vrtc *vrtc, sbintime_t freqsbt, bool periodic)
 {
+	sbintime_t now;
 
 	KASSERT(VRTC_LOCKED(vrtc), ("%s: vrtc not locked", __func__));
 
@@ -533,8 +535,20 @@ vrtc_callout_reset(struct vrtc *vrtc, sbintime_t freqsbt)
 		return;
 	}
 	VM_CTR1(vrtc->vm, "RTC callout frequency %d hz", SBT_1S / freqsbt);
-	callout_reset_sbt(&vrtc->callout, freqsbt, 0, vrtc_callout_handler,
-	    vrtc, 0);
+
+	/*
+	 * From the handler, the next deadline is one period after the previous
+	 * one, not one period after the handler ran: else the latency of each
+	 * callout adds up and the interrupt comes at a lower rate than the
+	 * guest programmed.  Start afresh if that deadline has passed.
+	 */
+	now = sbinuptime();
+	if (periodic)
+		vrtc->callout_time += freqsbt;
+	if (!periodic || vrtc->callout_time < now)
+		vrtc->callout_time = now + freqsbt;
+	callout_reset_sbt(&vrtc->callout, vrtc->callout_time, 0,
+	    vrtc_callout_handler, vrtc, C_ABSOLUTE);
 }
 
 static void
@@ -571,7 +585,7 @@ vrtc_callout_handler(void *arg)
 
 	freqsbt = vrtc_freq(vrtc);
 	KASSERT(freqsbt != 0, ("%s: vrtc frequency cannot be zero", __func__));
-	vrtc_callout_reset(vrtc, freqsbt);
+	vrtc_callout_reset(vrtc, freqsbt, true);
 done:
 	VRTC_UNLOCK(vrtc);
 }
@@ -690,7 +704,7 @@ vrtc_set_reg_b(struct vrtc *vrtc, uint8_t newval)
 	 */
 	newfreq = vrtc_freq(vrtc);
 	if (newfreq != oldfreq)
-		vrtc_callout_reset(vrtc, newfreq);
+		vrtc_callout_reset(vrtc, newfreq, false);
 	else
 		vrtc_callout_check(vrtc, newfreq);
 
@@ -742,7 +756,7 @@ vrtc_set_reg_a(struct vrtc *vrtc, uint8_t newval)
 	 */
 	newfreq = vrtc_freq(vrtc);
 	if (newfreq != oldfreq)
-		vrtc_callout_reset(vrtc, newfreq);
+		vrtc_callout_reset(vrtc, newfreq, false);
 	else
 		vrtc_callout_check(vrtc, newfreq);
 }
@@ -1054,11 +1068,10 @@ vrtc_snapshot(struct vrtc *vrtc, struct vm_snapshot_meta *meta)
 	SNAPSHOT_BUF_OR_LEAVE(vrtc->rtcdev.nvram2, sizeof(vrtc->rtcdev.nvram2),
 			      meta, ret, done);
 
-	vrtc_callout_reset(vrtc, vrtc_freq(vrtc));
-
-	VRTC_UNLOCK(vrtc);
+	vrtc_callout_reset(vrtc, vrtc_freq(vrtc), false);
 
 done:
+	VRTC_UNLOCK(vrtc);
 	return (ret);
 }
 #endif

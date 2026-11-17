@@ -26,12 +26,17 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_hwpmc_hooks.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/cpuset.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
@@ -329,8 +334,10 @@ kthread_add1(void (*func)(void *), void *arg, struct proc *p,
 	/* Avoid inheriting affinity from a random parent. */
 	cpuset_kernthread(newtd);
 #ifdef HWPMC_HOOKS
-	if (PMC_SYSTEM_SAMPLING_ACTIVE())
-		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_THR_CREATE_LOG, NULL);
+	if (PMC_PROC_IS_USING_PMCS(p))
+		PMC_CALL_HOOK(newtd, PMC_FN_THR_CREATE, NULL);
+	else if (PMC_SYSTEM_SAMPLING_ACTIVE())
+		PMC_CALL_HOOK_UNLOCKED(newtd, PMC_FN_THR_CREATE_LOG, NULL);
 #endif
 	/* Delay putting it on the run queue until now. */
 	if ((flags & RFSTOPPED) == 0) {
@@ -366,10 +373,6 @@ kthread_exit(void)
 	td = curthread;
 	p = td->td_proc;
 
-#ifdef HWPMC_HOOKS
-	if (PMC_SYSTEM_SAMPLING_ACTIVE())
-		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_THR_EXIT_LOG, NULL);
-#endif
 	/* A module may be waiting for us to exit. */
 	wakeup(td);
 

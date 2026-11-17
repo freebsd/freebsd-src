@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 7, 2026
+.Dd November 4, 2026
 .Dt IPSEC 4
 .Os
 .Sh NAME
@@ -240,6 +240,7 @@ for tweaking the kernel's IPsec behavior:
 .It "net.inet.ipsec.natt_cksum_policy	integer	yes"
 .It "net.inet.ipsec.check_policy_history	integer	yes"
 .It "net.inet.ipsec.random_id		integer	yes"
+.It "net.inet.ipsec.sa_flowid	integer	yes"
 .It "net.inet6.ipsec6.ecn	integer	yes"
 .It "net.inet6.ipsec6.debug	integer	yes"
 .El
@@ -292,6 +293,27 @@ If set to 0 and original addresses were configured for corresponding SA
 by the IKE daemon, the kernel incrementally recomputes checksums for
 inbound TCP segments and UDP datagrams.
 If addresses were not configured, the checksums are ignored.
+.It Li ipsec.sa_flowid
+If set to non-zero (the default), packets leaving the kernel's IPsec
+transforms carry a flow ID derived from the SPI of their security association
+instead of that of the inner traffic.
+An interface, a
+.Xr lagg 4
+with
+.Cm use_flowid
+or a multipath route that selects a transmit queue, port or path by flow ID
+then keeps the packets of one SA together, which avoids the reordering of
+their sequence numbers between independently draining queues.
+Concurrent processing and asynchronous crypto completion can still reorder
+them before they are queued.
+If set to 0, the packets keep the flow ID of the inner traffic, so one SA may
+spread over several queues and its sequence numbers interleave, which a peer
+with a small anti-replay window drops.
+The ID is set before the packet is handed to a network interface that
+implements the security association itself, so such SAs select their queue
+the same way.
+To spread a tunnel over several queues, ports or paths, use several SAs;
+distinct SAs may still select the same one.
 .It Li ipsec.check_policy_history
 Enables strict policy checking for inbound packets.
 By default, inbound security policies check that packets handled by IPsec

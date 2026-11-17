@@ -27,6 +27,7 @@
 
 #define VERSION "0.1"
 #define BUFSZ 32768
+#define MAXLINE 4096
 
 static void
 usage(void)
@@ -35,14 +36,39 @@ usage(void)
 	exit(EXIT_FAILURE);
 }
 
+static ssize_t
+readcmd(char *buf, size_t size, FILE *fp)
+{
+	size_t len;
+	int c;
+
+	len = 0;
+	while ((c = fgetc(fp)) != EOF && c != '\n') {
+		if (len + 1 >= size) {
+			/* Line too long: discard the rest of it. */
+			while ((c = fgetc(fp)) != EOF && c != '\n')
+				;
+			buf[0] = '\0';
+			return (-2);
+		}
+		buf[len++] = (char)c;
+	}
+
+	if (c == EOF && len == 0)
+		return (-1);
+
+	buf[len] = '\0';
+	return ((ssize_t)len);
+}
+
 int
 main(int argc, char *argv[])
 {
 	struct stat st;
-	cap_rights_t rights;
-	char *line = NULL;
+	cap_rights_t rights, ffdrights;
+	char line[MAXLINE];
 	char *file, *age;
-	size_t linecap = 0, r, toread;
+	size_t r, toread;
 	ssize_t linelen;
 	off_t remaining;
 	time_t mtime;
@@ -59,8 +85,7 @@ main(int argc, char *argv[])
 	if ((fd = open(basedir, O_DIRECTORY | O_RDONLY | O_CLOEXEC)) < 0)
 		err(EXIT_FAILURE, "open(%s)", basedir);
 
-	cap_rights_init(&rights, CAP_READ, CAP_FSTATAT, CAP_LOOKUP,
-	    CAP_FCNTL);
+	cap_rights_init(&rights, CAP_READ, CAP_FSTAT, CAP_LOOKUP);
 	if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS)
 		err(EXIT_FAILURE, "cap_rights_limit");
 
@@ -70,10 +95,12 @@ main(int argc, char *argv[])
 	printf("ok: pkg-serve " VERSION "\n");
 	fflush(stdout);
 
-	while ((linelen = getline(&line, &linecap, stdin)) > 0) {
-		/* trim newline */
-		if (linelen > 0 && line[linelen - 1] == '\n')
-			line[--linelen] = '\0';
+	while ((linelen = readcmd(line, sizeof(line), stdin)) != -1) {
+		if (linelen == -2) {
+			printf("ko: command too long\n");
+			fflush(stdout);
+			continue;
+		}
 
 		if (linelen == 0)
 			continue;
@@ -130,28 +157,40 @@ main(int argc, char *argv[])
 			continue;
 		}
 
-		if (fstatat(fd, file, &st, AT_RESOLVE_BENEATH) == -1) {
+		ffd = openat(fd, file,
+		    O_RDONLY | O_NONBLOCK | O_RESOLVE_BENEATH | O_CLOEXEC);
+		if (ffd == -1) {
+			printf("ko: file not found\n");
+			fflush(stdout);
+			continue;
+		}
+
+		if (fstat(ffd, &st) == -1) {
+			close(ffd);
 			printf("ko: file not found\n");
 			fflush(stdout);
 			continue;
 		}
 
 		if (!S_ISREG(st.st_mode)) {
-			printf("ko: not a file\n");
+			close(ffd);
+			printf("ko: file not found\n");
 			fflush(stdout);
 			continue;
 		}
 
 		if (st.st_mtime <= mtime) {
+			close(ffd);
 			printf("ok: 0\n");
 			fflush(stdout);
 			continue;
 		}
 
-		if ((ffd = openat(fd, file, O_RDONLY | O_RESOLVE_BENEATH)) == -1) {
-			printf("ko: file not found\n");
-			fflush(stdout);
-			continue;
+		/* Only reading is needed from now on. */
+		cap_rights_init(&ffdrights, CAP_READ);
+		if (cap_rights_limit(ffd, &ffdrights) < 0 && errno != ENOSYS) {
+			close(ffd);
+			err(EXIT_FAILURE, "cap_rights_limit");
 		}
 
 		printf("ok: %" PRIdMAX "\n", (intmax_t)st.st_size);

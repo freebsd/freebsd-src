@@ -857,8 +857,8 @@ nat44_get_log(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	export_nat_cfg(ptr, ucfg);
 
 	/* Estimate memory amount */
-	ucfg->size = sizeof(struct nat44_cfg_nat) + LIBALIAS_BUF_SIZE;
-	if (sd->valsize < sz + sizeof(*oh)) {
+	ucfg->size = sz + LIBALIAS_BUF_SIZE;
+	if (sd->valsize < ucfg->size) {
 		/*
 		 * Submitted buffer size is not enough.
 		 * WE've already filled in @ucfg structure with
@@ -870,6 +870,10 @@ nat44_get_log(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	}
 
 	pbuf = (void *)ipfw_get_sopt_space(sd, LIBALIAS_BUF_SIZE);
+	if (pbuf == NULL) {
+		IPFW_UH_RUNLOCK(chain);
+		return (ENOMEM);
+	}
 	memcpy(pbuf, ptr->lib->logDesc, LIBALIAS_BUF_SIZE);
 
 	IPFW_UH_RUNLOCK(chain);

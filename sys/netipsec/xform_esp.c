@@ -520,7 +520,6 @@ esp_input_cb(struct cryptop *crp)
 	struct xform_data *xd;
 	struct secasvar *sav;
 	struct secasindex *saidx;
-	crypto_session_t cryptoid;
 	int hlen, skip, protoff, error, alen;
 
 	SECASVAR_RLOCK_TRACKER;
@@ -540,17 +539,13 @@ esp_input_cb(struct cryptop *crp)
 	}
 	skip = xd->skip;
 	protoff = xd->protoff;
-	cryptoid = xd->cryptoid;
 	saidx = &sav->sah->saidx;
 	esph = sav->tdb_authalgxform;
 
 	/* Check for crypto errors */
 	if (crp->crp_etype) {
 		if (crp->crp_etype == EAGAIN) {
-			/* Reset the session ID */
-			if (ipsec_updateid(sav, &crp->crp_session, &cryptoid) != 0)
-				crypto_freesession(cryptoid);
-			xd->cryptoid = crp->crp_session;
+			ipsec_crypto_retry(sav, xd, crp);
 			ipsec_sahtree_runlock(&sahtree_tracker);
 			CURVNET_RESTORE();
 			return (crypto_dispatch(crp));
@@ -1005,7 +1000,6 @@ esp_output_cb(struct cryptop *crp)
 	struct secpolicy *sp;
 	struct secasvar *sav;
 	struct mbuf *m;
-	crypto_session_t cryptoid;
 	u_int idx;
 	int error;
 
@@ -1016,15 +1010,11 @@ esp_output_cb(struct cryptop *crp)
 	sp = xd->sp;
 	sav = xd->sav;
 	idx = xd->idx;
-	cryptoid = xd->cryptoid;
 
 	/* Check for crypto errors. */
 	if (crp->crp_etype) {
 		if (crp->crp_etype == EAGAIN) {
-			/* Reset the session ID */
-			if (ipsec_updateid(sav, &crp->crp_session, &cryptoid) != 0)
-				crypto_freesession(cryptoid);
-			xd->cryptoid = crp->crp_session;
+			ipsec_crypto_retry(sav, xd, crp);
 			CURVNET_RESTORE();
 			return (crypto_dispatch(crp));
 		}

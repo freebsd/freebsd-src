@@ -2603,6 +2603,13 @@ done:
 	return (ret);
 }
 
+bool
+pci_can_snapshot(const struct pci_devinst *pdi)
+{
+
+	return (pdi->pi_d->pe_snapshot != NULL);
+}
+
 int
 pci_snapshot(struct vm_snapshot_meta *meta)
 {
@@ -2615,7 +2622,7 @@ pci_snapshot(struct vm_snapshot_meta *meta)
 	pdi = meta->dev_data;
 	pde = pdi->pi_d;
 
-	if (pde->pe_snapshot == NULL)
+	if (!pci_can_snapshot(pdi))
 		return (ENOTSUP);
 
 	ret = pci_snapshot_pci_dev(meta);
