@@ -22,6 +22,7 @@ setup_forwarded_format_test()
     tcpdump --immediate-mode -c 1 -i lo0 -w "${pcapfile}" \
         dst port "${SERVER_1_PORT}" &
     tcpdump_pid="$!"
+    tcpdump_wait_ready "${tcpdump_pid}" "${pcapfile}"
 
     # Start first server: receive UDP, log to file
     printf "user.debug\t${SYSLOGD_LOGFILE}\n" > "$(config_filename ${SERVER_1_PORT})"
@@ -111,8 +112,8 @@ O_flag_rfc3164strict_forwarded_body()
 O_flag_rfc3164strict_forwarded_cleanup()
 {
     syslogd_stop_on_ports \
-        "${SYSLOGD_UDP_PORT_1}" \
-        "${SYSLOGD_UDP_PORT_2}"
+        "${SERVER_1_PORT}" \
+        "${SERVER_2_PORT}"
 }
 
 atf_test_case "O_flag_syslog_forwarded" "cleanup"

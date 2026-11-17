@@ -23,6 +23,7 @@ setup_relayed_format_test()
     tcpdump --immediate-mode -c 1 -i lo0 -w "${pcapfile}" dst port \
         "${SERVER_1_PORT}" &
     tcpdump_pid="$!"
+    tcpdump_wait_ready "${tcpdump_pid}" "${pcapfile}"
 
     # Start first (central) server: receive UDP, log to file
     printf "user.debug\t${SYSLOGD_LOGFILE}\n" \
@@ -118,9 +119,9 @@ O_flag_rfc3164strict_relayed_body()
 O_flag_rfc3164strict_relayed_cleanup()
 {
     syslogd_stop_on_ports \
-        "${SYSLOGD_UDP_PORT_1}" \
-        "${SYSLOGD_UDP_PORT_2}" \
-        "${SYSLOGD_UDP_PORT_3}"
+        "${SERVER_1_PORT}" \
+        "${SERVER_2_PORT}" \
+        "${SERVER_3_PORT}"
 }
 
 atf_test_case "O_flag_syslog_relayed" "cleanup"
