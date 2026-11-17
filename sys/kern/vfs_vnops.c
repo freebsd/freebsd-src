@@ -43,11 +43,13 @@
 #include "opt_hwpmc_hooks.h"
 #include "opt_hwt_hooks.h"
 
+#define	EXTERR_CATEGORY	EXTERR_CAT_VFSVNOPS
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/disk.h>
 #include <sys/dirent.h>
+#include <sys/exterrvar.h>
 #include <sys/fail.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
@@ -4008,7 +4010,7 @@ vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
 {
 	struct mount *mp;
 	void *rl_cookie;
-	off_t off, len;
+	off_t len, off, olen;
 	int error;
 #ifdef AUDIT
 	bool audited_vnode1 = false;
@@ -4049,9 +4051,21 @@ vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
 			error = mac_vnode_check_write(active_cred, file_cred,
 			    vp);
 #endif
-		if (error == 0)
+		if (error == 0) {
+			olen = len;
 			error = VOP_DEALLOCATE(vp, &off, &len, flags, ioflag,
 			    cred);
+
+			/*
+			 * A partial result is permitted, but each pass must
+			 * make some progress or we would spin here forever.
+			 */
+			if (error == 0 && len >= olen) {
+				error = EXTERROR(EIO,
+				    "no progress on vp %p (off %jd)",
+				    vp, (intmax_t)off);
+			}
+		}
 
 		if ((ioflag & IO_NODELOCKED) == 0) {
 			VOP_UNLOCK(vp);
