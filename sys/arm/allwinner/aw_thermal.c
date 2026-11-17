@@ -29,6 +29,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 #include <sys/eventhandler.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
@@ -131,6 +132,32 @@
 #define	H5_INIT_GPU_ALARM	84	/* degC */
 #define	H5_INIT_GPU_SHUT	100	/* degC */
 
+/*
+ * The controller of the H6 has other registers than the one of the other SoCs
+ * and has the calibration values in its own registers (THS_CDATA).
+ */
+#define	H6_THS_CTRL		0x00
+#define	 H6_THS_CTRL_ACQ(x)	(((x) - 1) & 0xffff)
+#define	 H6_THS_CTRL_PERIOD(x)	((((x) - 1) & 0xffff) << 16)
+#define	H6_THS_EN		0x04
+#define	H6_THS_PER		0x08
+#define	 H6_THS_PER_SHIFT	12
+#define	H6_THS_FILTER		0x30
+#define	 H6_THS_FILTER_EN	(1 << 2)
+#define	 H6_THS_FILTER_AVG4	(1 << 0)
+#define	H6_THS_CDATA		0xa0
+#define	 H6_CDATA_MASK		0xfff
+#define	 H6_CDATA_DEFAULT	0x800
+#define	H6_THS_DATA		0xc0
+
+#define	H6_ADC_ACQUIRE_TIME	48	/* 2us at 24MHz */
+#define	H6_SAMPLE_PERIOD	480	/* 20us at 24MHz */
+#define	H6_THERMAL_PER		365	/* 0.25s, average of 4 samples */
+#define	H6_FT_TEMP_MASK		0xfff
+#define	H6_TEMP_OFFSET		187744	/* mdegC */
+#define	H6_TEMP_SCALE		672
+#define	H6_TEMP_FT_DEVIATION	7000	/* mdegC */
+
 #define	TEMP_C_TO_K		273
 #define	SENSOR_ENABLE_ALL	(SENSOR0_EN|SENSOR1_EN|SENSOR2_EN)
 #define	SHUT_INT_ALL		(SHUT_INT0_STS|SHUT_INT1_STS|SHUT_INT2_STS)
@@ -175,6 +202,7 @@ struct aw_thermal_config {
 };
 
 static int aw_thermal_v1_init(struct aw_thermal_softc *);
+static int aw_thermal_h6_init(struct aw_thermal_softc *);
 
 static int
 a83t_to_temp(uint32_t val, int sensor)
@@ -358,11 +386,36 @@ static const struct aw_thermal_config h5_config = {
 	.calib0_mask = 0xffffffff,
 };
 
+static int
+h6_to_temp(uint32_t val, int sensor)
+{
+	return ((H6_TEMP_OFFSET - (int)(val * H6_TEMP_SCALE / 10) +
+	    H6_TEMP_FT_DEVIATION) / 1000);
+}
+
+static const struct aw_thermal_config h6_config = {
+	.nsensors = 2,
+	.sensors = {
+		[0] = {
+			.name = "cpu",
+			.desc = "CPU temperature",
+		},
+		[1] = {
+			.name = "gpu",
+			.desc = "GPU temperature",
+		},
+	},
+	.init = aw_thermal_h6_init,
+	.data_reg = H6_THS_DATA,
+	.to_temp = h6_to_temp,
+};
+
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun8i-a83t-ths",	(uintptr_t)&a83t_config },
 	{ "allwinner,sun8i-h3-ths",	(uintptr_t)&h3_config },
 	{ "allwinner,sun50i-a64-ths",	(uintptr_t)&a64_config },
 	{ "allwinner,sun50i-h5-ths",	(uintptr_t)&h5_config },
+	{ "allwinner,sun50i-h6-ths",	(uintptr_t)&h6_config },
 	{ NULL,				(uintptr_t)NULL }
 };
 
@@ -439,6 +492,69 @@ aw_thermal_v1_init(struct aw_thermal_softc *sc)
 
 	/* Enable sensors */
 	WR4(sc, THS_CTRL2, RD4(sc, THS_CTRL2) | SENSOR_ENABLE_ALL);
+
+	return (0);
+}
+
+/*
+ * The efuse has the temperature of the factory test (in 0.1 degC) and the
+ * value of each sensor at this temperature. Compute for each sensor the value
+ * that makes the controller report the factory temperature.
+ */
+static void
+aw_thermal_h6_calibrate(struct aw_thermal_softc *sc)
+{
+	uint8_t buf[8];
+	uint16_t caldata[4];
+	phandle_t node;
+	uint32_t val;
+	int ft_temp, sensor_temp, cdata, shift, i;
+
+	node = ofw_bus_get_node(sc->dev);
+	if (nvmem_get_cell_len(node, "calibration") != sizeof(buf) ||
+	    nvmem_read_cell_by_name(node, "calibration", buf,
+	    sizeof(buf)) != 0) {
+		device_printf(sc->dev, "Cannot read THS efuse, "
+		    "the sensors are not calibrated\n");
+		return;
+	}
+	for (i = 0; i < nitems(caldata); i++)
+		caldata[i] = le16dec(&buf[i * 2]);
+	if (caldata[0] == 0)
+		return;
+
+	ft_temp = (caldata[0] & H6_FT_TEMP_MASK) * 100;
+	for (i = 0; i < sc->conf->nsensors; i++) {
+		sensor_temp = H6_TEMP_OFFSET -
+		    (caldata[i + 1] & H6_CDATA_MASK) * H6_TEMP_SCALE / 10;
+		cdata = H6_CDATA_DEFAULT -
+		    ((sensor_temp - ft_temp) * 10 / H6_TEMP_SCALE);
+		if ((cdata & ~H6_CDATA_MASK) != 0) {
+			device_printf(sc->dev, "sensor%d is not calibrated\n",
+			    i);
+			continue;
+		}
+		if (bootverbose)
+			device_printf(sc->dev, "%s: calibration 0x%x\n",
+			    sc->conf->sensors[i].name, cdata);
+		shift = (i % 2) * 16;
+		val = RD4(sc, H6_THS_CDATA + (i / 2) * 4);
+		val &= ~(H6_CDATA_MASK << shift);
+		val |= cdata << shift;
+		WR4(sc, H6_THS_CDATA + (i / 2) * 4, val);
+	}
+}
+
+static int
+aw_thermal_h6_init(struct aw_thermal_softc *sc)
+{
+	aw_thermal_h6_calibrate(sc);
+
+	WR4(sc, H6_THS_CTRL, H6_THS_CTRL_ACQ(H6_ADC_ACQUIRE_TIME) |
+	    H6_THS_CTRL_PERIOD(H6_SAMPLE_PERIOD));
+	WR4(sc, H6_THS_FILTER, H6_THS_FILTER_EN | H6_THS_FILTER_AVG4);
+	WR4(sc, H6_THS_PER, H6_THERMAL_PER << H6_THS_PER_SHIFT);
+	WR4(sc, H6_THS_EN, (1 << sc->conf->nsensors) - 1);
 
 	return (0);
 }
