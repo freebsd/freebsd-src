@@ -325,6 +325,32 @@ ATF_TC_BODY(unaligned_dealloc_eof, tc)
 	ATF_REQUIRE(close(fd) == 0);
 }
 
+/*
+ * Check deallocation of an aligned range that ends within its first block.
+ * tmpfs used to make no progress on such a range, leaving the caller
+ * spinning in vn_deallocate_impl() forever.
+ */
+ATF_TC_WITHOUT_HEAD(aligned_dealloc_partial);
+ATF_TC_BODY(aligned_dealloc_partial, tc)
+{
+	struct spacectl_range range;
+	off_t offset, length;
+	blksize_t blocksize;
+	int fd;
+
+	ATF_REQUIRE((blocksize = fd_get_blksize()) != -1);
+	range.r_offset = offset = blocksize;
+	range.r_len = length = blocksize / 2;
+
+	ATF_REQUIRE((fd = open("sys_fspacectl_testfile",
+			 O_CREAT | O_RDWR | O_TRUNC, 0600)) != -1);
+	ATF_REQUIRE(fill(fd, 0, file_max_blocks * blocksize) == 0);
+	ATF_CHECK(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0);
+	ATF_CHECK(check_content_dealloc(fd, offset, length,
+		      file_max_blocks * blocksize) == 0);
+	ATF_REQUIRE(close(fd) == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, aligned_dealloc);
@@ -333,6 +359,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, unaligned_dealloc_eof);
 	ATF_TP_ADD_TC(tp, aligned_dealloc_offmax);
 	ATF_TP_ADD_TC(tp, unaligned_dealloc_offmax);
+	ATF_TP_ADD_TC(tp, aligned_dealloc_partial);
 
 	return atf_no_error();
 }

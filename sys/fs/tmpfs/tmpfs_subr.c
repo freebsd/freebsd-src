@@ -1963,9 +1963,10 @@ tmpfs_reg_punch_hole(struct vnode *vp, off_t *offset, off_t *length)
 
 	/*
 	 * If there is a partial page at the beginning of the hole-punching
-	 * request, fill the partial page with zeroes.
+	 * request or if we're only punching a hole within a single page, fill
+	 * the partial page with zeroes.
 	 */
-	if (startofs != 0) {
+	if (startofs != 0 || pistart == piend) {
 		end = pistart != piend ? PAGE_SIZE : endofs;
 		error = tmpfs_partial_page_invalidate(object, pistart, startofs,
 		    end, FALSE);
@@ -1973,6 +1974,9 @@ tmpfs_reg_punch_hole(struct vnode *vp, off_t *offset, off_t *length)
 			goto out;
 		off += end - startofs;
 		len -= end - startofs;
+
+		if (pistart == piend)
+			goto out;
 	}
 
 	/*
@@ -1988,7 +1992,7 @@ tmpfs_reg_punch_hole(struct vnode *vp, off_t *offset, off_t *length)
 	 * If there is a partial page at the end of the hole-punching request,
 	 * fill the partial page with zeroes.
 	 */
-	if (endofs != 0 && pistart != piend) {
+	if (endofs != 0) {
 		error = tmpfs_partial_page_invalidate(object, piend, 0, endofs,
 		    FALSE);
 		if (error != 0)
