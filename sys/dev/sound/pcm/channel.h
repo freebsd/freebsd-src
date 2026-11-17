@@ -143,10 +143,6 @@ struct pcm_channel {
 	 * container.
 	 */
 	struct pcmchan_syncmember *sm;
-#ifdef OSSV4_EXPERIMENT
-	uint16_t lpeak, rpeak;	/**< Peak value from 0-32767. */
-#endif
-
 	struct {
 		SLIST_HEAD(, pcm_channel) head;
 		SLIST_ENTRY(pcm_channel) link;
@@ -305,10 +301,6 @@ int chn_notify(struct pcm_channel *c, uint32_t flags);
 
 int chn_getrates(struct pcm_channel *c, int **rates);
 int chn_syncdestroy(struct pcm_channel *c);
-
-#ifdef OSSV4_EXPERIMENT
-int chn_getpeaks(struct pcm_channel *c, int *lpeak, int *rpeak);
-#endif
 
 #define CHN_LOCKOWNED(c)	mtx_owned(&(c)->lock)
 #define CHN_LOCK(c)		mtx_lock(&(c)->lock)

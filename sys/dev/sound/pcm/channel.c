@@ -2624,12 +2624,3 @@ chn_syncdestroy(struct pcm_channel *c)
 
 	return sg_id;
 }
-
-#ifdef OSSV4_EXPERIMENT
-int
-chn_getpeaks(struct pcm_channel *c, int *lpeak, int *rpeak)
-{
-	CHN_LOCKASSERT(c);
-	return CHANNEL_GETPEAKS(c->methods, c->devinfo, lpeak, rpeak);
-}
-#endif
