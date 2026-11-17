@@ -152,6 +152,25 @@ get_empty_arg_body()
 	    atf_fail "expected bad command get"
 }
 
+atf_test_case get_fifo
+get_fifo_head()
+{
+	atf_set "descr" "Requesting a FIFO returns ko without blocking"
+}
+get_fifo_body()
+{
+	mkdir repo
+	mkfifo repo/fifo
+	output=$(printf 'get fifo 0\nquit\n' | timeout 10 "${PKG_SERVE}" repo)
+	case "$output" in
+	*"ko: not a file"*)
+		;;
+	*)
+		atf_fail "expected 'not a file', got: ${output}"
+		;;
+	esac
+}
+
 atf_test_case path_traversal
 path_traversal_head()
 {
@@ -256,6 +275,7 @@ atf_init_test_cases()
 	atf_add_test_case get_bad_age
 	atf_add_test_case get_empty_arg
 	atf_add_test_case command_too_long
+	atf_add_test_case get_fifo
 	atf_add_test_case path_traversal
 	atf_add_test_case get_subdir_file
 	atf_add_test_case multiple_gets

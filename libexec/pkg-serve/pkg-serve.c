@@ -65,7 +65,7 @@ int
 main(int argc, char *argv[])
 {
 	struct stat st;
-	cap_rights_t rights;
+	cap_rights_t rights, ffdrights;
 	char line[MAXLINE];
 	char *file, *age;
 	size_t r, toread;
@@ -85,8 +85,7 @@ main(int argc, char *argv[])
 	if ((fd = open(basedir, O_DIRECTORY | O_RDONLY | O_CLOEXEC)) < 0)
 		err(EXIT_FAILURE, "open(%s)", basedir);
 
-	cap_rights_init(&rights, CAP_READ, CAP_FSTATAT, CAP_LOOKUP,
-	    CAP_FCNTL);
+	cap_rights_init(&rights, CAP_READ, CAP_FSTAT, CAP_LOOKUP);
 	if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS)
 		err(EXIT_FAILURE, "cap_rights_limit");
 
@@ -158,28 +157,40 @@ main(int argc, char *argv[])
 			continue;
 		}
 
-		if (fstatat(fd, file, &st, AT_RESOLVE_BENEATH) == -1) {
+		ffd = openat(fd, file,
+		    O_RDONLY | O_NONBLOCK | O_RESOLVE_BENEATH | O_CLOEXEC);
+		if (ffd == -1) {
+			printf("ko: file not found\n");
+			fflush(stdout);
+			continue;
+		}
+
+		if (fstat(ffd, &st) == -1) {
+			close(ffd);
 			printf("ko: file not found\n");
 			fflush(stdout);
 			continue;
 		}
 
 		if (!S_ISREG(st.st_mode)) {
+			close(ffd);
 			printf("ko: not a file\n");
 			fflush(stdout);
 			continue;
 		}
 
 		if (st.st_mtime <= mtime) {
+			close(ffd);
 			printf("ok: 0\n");
 			fflush(stdout);
 			continue;
 		}
 
-		if ((ffd = openat(fd, file, O_RDONLY | O_RESOLVE_BENEATH)) == -1) {
-			printf("ko: file not found\n");
-			fflush(stdout);
-			continue;
+		/* Only reading is needed from now on. */
+		cap_rights_init(&ffdrights, CAP_READ);
+		if (cap_rights_limit(ffd, &ffdrights) < 0 && errno != ENOSYS) {
+			close(ffd);
+			err(EXIT_FAILURE, "cap_rights_limit");
 		}
 
 		printf("ok: %" PRIdMAX "\n", (intmax_t)st.st_size);
