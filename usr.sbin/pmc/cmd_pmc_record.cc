@@ -604,7 +604,7 @@ cmd_pmc_record(int argc, char **argv)
 	uint64_t rate = DEFAULT_RATE;
 	const char *logfile = "default.log";
 	int status;
-	int option, logfd, kq;
+	int n, option, logfd, kq;
 
 	CPU_ZERO(&mask);
 	if (cpuset_getaffinity(CPU_LEVEL_ROOT, CPU_WHICH_PID, -1,
@@ -693,8 +693,11 @@ cmd_pmc_record(int argc, char **argv)
 		p.start();
 	}
 
-	if (clock_gettime(CLOCK_MONOTONIC, &start) < 0)
-		err(EX_OSERR, "ERROR: Could not get the current time");
+	if (clock_gettime(CLOCK_MONOTONIC, &start) < 0) {
+		warn("ERROR: Could not get the current time");
+		status = EX_OSERR;
+		goto done;
+	}
 
 	printf("Recording performance trace press Ctrl-C to stop\n");
 
@@ -702,17 +705,22 @@ cmd_pmc_record(int argc, char **argv)
 	 * loop till either the target process (if any) exits, or we
 	 * are killed by a SIGINT or we reached the time duration.
 	 */
+	status = EX_OK;
 	while (1) {
-		status = kevent(kq, NULL, 0, &kev, 1, NULL);
-		if (status <= 0) {
-			if (errno != EINTR)
-				err(EX_OSERR, "ERROR: kevent failed");
-			else
+		n = kevent(kq, NULL, 0, &kev, 1, NULL);
+		if (n <= 0) {
+			if (errno == EINTR)
 				continue;
+			warn("ERROR: kevent failed");
+			status = EX_OSERR;
+			goto done;
 		}
 
-		if (kev.flags & EV_ERROR)
-			errc(EX_OSERR, kev.data, "ERROR: kevent failed");
+		if (kev.flags & EV_ERROR) {
+			warnc(kev.data, "ERROR: kevent failed");
+			status = EX_OSERR;
+			goto done;
+		}
 
 		switch (kev.filter) {
 		case EVFILT_READ:  /* log file data is present */
@@ -729,7 +737,10 @@ cmd_pmc_record(int argc, char **argv)
 				status = EX_OK;
 				goto done;
 			} else {
-				err(EX_OSERR, "Unknown signal recieved");
+				warnx("ERROR: Unknown signal %d received",
+				    (int)kev.ident);
+				status = EX_OSERR;
+				goto done;
 			}
 			break;
 		case EVFILT_TIMER:

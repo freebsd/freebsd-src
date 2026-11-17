@@ -32,13 +32,11 @@ pmc_frontend_ibs_body()
 	# Keep a CPU busy so that samples are taken while recording.
 	sh -c 'i=0; while [ $i -lt 3000000 ]; do i=$((i + 1)); done' &
 	load=$!
-	# pmc record returns kevent()'s result (1) when the -t timer ends
-	# the capture and 0 when it is interrupted.
 	pmc record -s frontend -t 3 frontend.pmc > record.out 2>&1
 	rc=$?
 	kill "$load" 2>/dev/null
 	wait
-	[ "$rc" -le 1 ] || \
+	[ "$rc" -eq 0 ] || \
 	    atf_fail "pmc record -s frontend failed: $(cat record.out)"
 
 	# Each decoded sample row of the analysis carries miss percentages.

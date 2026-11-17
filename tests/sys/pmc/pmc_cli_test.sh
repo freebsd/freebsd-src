@@ -23,16 +23,10 @@ pmc_cli_setup()
 	    atf_skip "libpmc has no pmu-events table for this CPU"
 }
 
-# Run pmc record, saving its output in record.out.  pmc record returns
-# kevent()'s result (1) when the -t timer ends the capture and 0 when it is
-# interrupted; any other status means the capture failed.
+# Run pmc record, saving its output in record.out.
 pmc_record()
 {
 	pmc record "$@" > record.out 2>&1
-	case $? in
-	0|1) return 0 ;;
-	*) return 1 ;;
-	esac
 }
 
 atf_test_case pmc_info_missing_file
