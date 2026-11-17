@@ -148,14 +148,16 @@ static uint16_t evdev_at_set1_scancodes[] = {
 	/* 0x60 - 0x7f */
 	NONE,		NONE,		NONE,		NONE,
 	NONE,		NONE,		NONE,		NONE,
-	NONE,		NONE,		NONE,		NONE,
+	/* 0x68: HP programmable key */
+	KEY_PROG1,	NONE,		NONE,		NONE,
 	NONE,		NONE,		NONE,		NONE,
 	KEY_KATAKANAHIRAGANA,	KEY_HANJA,	KEY_HANGEUL,	KEY_RO,
 	NONE,		NONE,	KEY_ZENKAKUHANKAKU,	KEY_HIRAGANA,
 	KEY_KATAKANA,	KEY_HENKAN,	NONE,		KEY_MUHENKAN,
 	NONE,		KEY_YEN,	KEY_KPCOMMA,	NONE,
 	/* 0x00 - 0x1f. 0xE0 prefixed */
-	NONE,		NONE,		NONE,		NONE,
+	/* 0xE0 0x01: HP mic mute (Fn+Esc on other HP models) */
+	NONE,		KEY_MICMUTE,	NONE,		NONE,
 	NONE,		NONE,		NONE,		NONE,
 	NONE,		NONE,		NONE,		NONE,
 	NONE,		NONE,		NONE,		NONE,
