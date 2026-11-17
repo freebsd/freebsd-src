@@ -179,6 +179,15 @@ static struct aw_sid_efuse h6_efuses[] = {
 		.id = AW_SID_FUSE_ROOTKEY,
 		.public = true,
 	},
+	{
+		.name = "speedgrade",
+		.desc = "CPU Speed Grade",
+		.base = EFUSE_OFFSET,
+		.offset = 0x1c,
+		.size = 4,
+		.id = AW_SID_FUSE_SPEEDGRADE,
+		.public = true,
+	},
 };
 
 static struct aw_sid_efuse h616_efuses[] = {
@@ -198,6 +207,15 @@ static struct aw_sid_efuse h616_efuses[] = {
 		.offset = 0x34,
 		.size = 4,
 		.id = AW_SID_FUSE_THSSENSOR,
+		.public = true,
+	},
+	{
+		.name = "speedgrade",
+		.desc = "CPU Speed Grade",
+		.base = EFUSE_OFFSET,
+		.offset = 0x00,
+		.size = 2,
+		.id = AW_SID_FUSE_SPEEDGRADE,
 		.public = true,
 	},
 };
@@ -417,8 +435,10 @@ aw_sid_read(device_t dev, uint32_t offset, uint32_t size, uint8_t *buffer)
 
 	sc = device_get_softc(dev);
 
+	/* Some cells overlap, the H616 speed grade is part of the rootkey. */
 	for (i = 0; i < sc->sid_conf->nfuses; i++)
-		if (offset == sc->sid_conf->efuses[i].offset) {
+		if (offset == sc->sid_conf->efuses[i].offset &&
+		    size == sc->sid_conf->efuses[i].size) {
 			fuse_id = sc->sid_conf->efuses[i].id;
 			break;
 		}
