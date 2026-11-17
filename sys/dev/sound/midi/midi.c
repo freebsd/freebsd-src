@@ -36,6 +36,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/condvar.h>
 #include <sys/conf.h>
 #include <sys/event.h>
 #include <sys/fcntl.h>
@@ -70,7 +71,7 @@ struct midi_port {
 
 	int	flags;			/* File flags */
 	struct midi_queue inq, outq;
-	int	rchan, wchan;
+	struct cv rcv, wcv;
 	struct selinfo rsel, wsel;
 	size_t	hiwat;			/* Free space below which writes from
 					 * userland are blocked. */
@@ -132,10 +133,8 @@ midi_destroy(struct midi_softc *sc)
 	sc->dying = true;
 	for (i = 0; i < sc->nchan; i++) {
 		m = &sc->ports[i];
-		wakeup(&m->rchan);
-		wakeup(&m->wchan);
-		m->rchan = 0;
-		m->wchan = 0;
+		cv_broadcast(&m->rcv);
+		cv_broadcast(&m->wcv);
 		KNOTE_LOCKED(&m->rsel.si_note, 0);
 		KNOTE_LOCKED(&m->wsel.si_note, 0);
 	}
@@ -168,6 +167,8 @@ midi_destroy(struct midi_softc *sc)
 		knlist_clear(&m->wsel.si_note, 0);
 		knlist_destroy(&m->rsel.si_note);
 		knlist_destroy(&m->wsel.si_note);
+		cv_destroy(&m->rcv);
+		cv_destroy(&m->wcv);
 	}
 	free(ports, M_MIDI);
 }
@@ -202,6 +203,8 @@ midi_register(device_t dev, struct mtx *lock, midi_callback_t *cb,
 		m = &sc->ports[i];
 		m->sc = sc;
 		m->chan = i;
+		cv_init(&m->rcv, "midi RX");
+		cv_init(&m->wcv, "midi TX");
 		knlist_init_mtx(&m->rsel.si_note, sc->lock);
 		knlist_init_mtx(&m->wsel.si_note, sc->lock);
 		if (inqsize != 0) {
@@ -294,10 +297,7 @@ midi_in(device_t dev, int chan, uint8_t *buf, size_t size)
 		midi_queue_enq(&m->inq, buf, size);
 	} else
 		return (0);
-	if (m->rchan) {
-		wakeup(&m->rchan);
-		m->rchan = 0;
-	}
+	cv_broadcast(&m->rcv);
 	selwakeup(&m->rsel);
 	KNOTE_LOCKED(&m->rsel.si_note, 0);
 
@@ -331,10 +331,7 @@ midi_out(device_t dev, int chan, uint8_t *buf, size_t size)
 		m->sc->cb(m->sc->devinfo, m->chan, m->flags);
 	}
 	if (used && midi_queue_avail(&m->outq) > m->hiwat) {
-		if (m->wchan) {
-			wakeup(&m->wchan);
-			m->wchan = 0;
-		}
+		cv_broadcast(&m->wcv);
 		selwakeup(&m->wsel);
 		KNOTE_LOCKED(&m->wsel.si_note, 0);
 	}
@@ -373,9 +370,6 @@ midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 		if (retval)
 			goto err;
 	}
-
-	m->rchan = 0;
-	m->wchan = 0;
 
 	if (flags & FREAD) {
 		m->flags |= M_RX;
@@ -463,13 +457,9 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 			retval = EWOULDBLOCK;
 			if (ioflag & O_NONBLOCK)
 				goto err1;
-			m->rchan = 1;
-			retval = msleep(&m->rchan, m->sc->lock,
-			    PCATCH | PDROP, "midi RX", 0);
-			if (retval)
-				goto err0;
-			mtx_lock(m->sc->lock);
-			m->rchan = 0;
+			retval = cv_wait_sig(&m->rcv, m->sc->lock);
+			if (retval != 0)
+				goto err1;
 		}
 		/*
 	         * At this point, it is certain that m->inq has data
@@ -525,13 +515,9 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 			retval = EWOULDBLOCK;
 			if (ioflag & O_NONBLOCK)
 				goto err1;
-			m->wchan = 1;
-			retval = msleep(&m->wchan, m->sc->lock,
-			    PCATCH | PDROP, "midi TX", 0);
-			if (retval)
-				goto err0;
-			mtx_lock(m->sc->lock);
-			m->wchan = 0;
+			retval = cv_wait_sig(&m->wcv, m->sc->lock);
+			if (retval != 0)
+				goto err1;
 		}
 
 		/*
