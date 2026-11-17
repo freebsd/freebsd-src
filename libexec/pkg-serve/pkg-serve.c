@@ -27,6 +27,7 @@
 
 #define VERSION "0.1"
 #define BUFSZ 32768
+#define MAXLINE 4096
 
 static void
 usage(void)
@@ -35,14 +36,39 @@ usage(void)
 	exit(EXIT_FAILURE);
 }
 
+static ssize_t
+readcmd(char *buf, size_t size, FILE *fp)
+{
+	size_t len;
+	int c;
+
+	len = 0;
+	while ((c = fgetc(fp)) != EOF && c != '\n') {
+		if (len + 1 >= size) {
+			/* Line too long: discard the rest of it. */
+			while ((c = fgetc(fp)) != EOF && c != '\n')
+				;
+			buf[0] = '\0';
+			return (-2);
+		}
+		buf[len++] = (char)c;
+	}
+
+	if (c == EOF && len == 0)
+		return (-1);
+
+	buf[len] = '\0';
+	return ((ssize_t)len);
+}
+
 int
 main(int argc, char *argv[])
 {
 	struct stat st;
 	cap_rights_t rights;
-	char *line = NULL;
+	char line[MAXLINE];
 	char *file, *age;
-	size_t linecap = 0, r, toread;
+	size_t r, toread;
 	ssize_t linelen;
 	off_t remaining;
 	time_t mtime;
@@ -70,10 +96,12 @@ main(int argc, char *argv[])
 	printf("ok: pkg-serve " VERSION "\n");
 	fflush(stdout);
 
-	while ((linelen = getline(&line, &linecap, stdin)) > 0) {
-		/* trim newline */
-		if (linelen > 0 && line[linelen - 1] == '\n')
-			line[--linelen] = '\0';
+	while ((linelen = readcmd(line, sizeof(line), stdin)) != -1) {
+		if (linelen == -2) {
+			printf("ko: command too long\n");
+			fflush(stdout);
+			continue;
+		}
 
 		if (linelen == 0)
 			continue;

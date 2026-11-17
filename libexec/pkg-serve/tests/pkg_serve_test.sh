@@ -211,6 +211,38 @@ bad_basedir_body()
 	    "${PKG_SERVE}" /nonexistent/path
 }
 
+atf_test_case command_too_long
+command_too_long_head()
+{
+	atf_set "descr" "Overlong command line is rejected and does not desync the stream"
+}
+command_too_long_body()
+{
+	mkdir repo
+	echo "testcontent" > repo/test.pkg
+	# A line far beyond the per-command limit must be discarded, and the
+	# commands that follow it on the same stream must still be processed.
+	output=$(awk 'BEGIN {
+	    for (i = 0; i < 100000; i++)
+		printf "A"
+	    printf "\nget test.pkg 0\nquit\n"
+	}' | "${PKG_SERVE}" repo)
+	case "$output" in
+	*"ko: command too long"*)
+		;;
+	*)
+		atf_fail "expected 'command too long', got: ${output}"
+		;;
+	esac
+	case "$output" in
+	*"ok: 12"*"testcontent"*)
+		;;
+	*)
+		atf_fail "server did not recover after overlong line: ${output}"
+		;;
+	esac
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case greeting
@@ -223,6 +255,7 @@ atf_init_test_cases()
 	atf_add_test_case get_missing_age
 	atf_add_test_case get_bad_age
 	atf_add_test_case get_empty_arg
+	atf_add_test_case command_too_long
 	atf_add_test_case path_traversal
 	atf_add_test_case get_subdir_file
 	atf_add_test_case multiple_gets
