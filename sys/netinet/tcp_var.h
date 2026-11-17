@@ -34,6 +34,7 @@
 
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
+#include <netinet/tcp_seq.h>
 
 #ifdef _KERNEL
 #include <net/vnet.h>
@@ -1618,6 +1619,15 @@ tcp_fields_to_net(struct tcphdr *th)
 	th->th_ack = htonl(th->th_ack);
 	th->th_win = htons(th->th_win);
 	th->th_urp = htons(th->th_urp);
+}
+
+static inline void
+tcp_adapt_iss_check(struct tcpcb *tp)
+{
+	if (SEQ_GT(tp->snd_una, tp->iss + (TCP_MAXWIN << tp->snd_scale))) {
+		/* Checking SEG.ACK against ISS is definitely redundant. */
+		tp->t_flags2 |= TF2_NO_ISS_CHECK;
+	}
 }
 #endif /* _KERNEL */
 

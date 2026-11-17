@@ -11602,10 +11602,7 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	rack = (struct tcp_rack *)tp->t_fb_ptr;
-	if (SEQ_GEQ(tp->snd_una, tp->iss + (65535 << tp->snd_scale))) {
-		/* Checking SEG.ACK against ISS is definitely redundant. */
-		tp->t_flags2 |= TF2_NO_ISS_CHECK;
-	}
+	tcp_adapt_iss_check(tp);
 	if (!V_tcp_insecure_ack) {
 		tcp_seq seq_min;
 		bool ghost_ack_check;
