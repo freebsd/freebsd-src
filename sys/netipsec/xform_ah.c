@@ -314,6 +314,15 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 				return EINVAL;
 			}
 
+			/* An option must not run past the header. */
+			if (ptr[off] != IPOPT_EOL && ptr[off] != IPOPT_NOP &&
+			    off + ptr[off + 1] > skip) {
+				DPRINTF(("%s: malformed IPv4 options header\n",
+					__func__));
+				m_freem(m);
+				return EINVAL;
+			}
+
 			switch (ptr[off]) {
 			case IPOPT_EOL:
 				off = skip;  /* End the loop. */
@@ -383,15 +392,6 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 				bcopy(ipseczeroes, ptr + off, count);
 				off += count;
 				break;
-			}
-
-			/* Sanity check. */
-			if (off > skip)	{
-				DPRINTF(("%s: malformed IPv4 options header\n",
-					__func__));
-
-				m_freem(m);
-				return EINVAL;
 			}
 		}
 
@@ -476,6 +476,9 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 						continue; /* Skip padding. */
 					}
 
+					/* The length byte must be in the header. */
+					if (count + 1 >= noff)
+						goto error6;
 					ad = ptr[count + 1] + 2;
 					if (count + ad > noff)
 						goto error6;

@@ -68,8 +68,8 @@ main(int argc, char *argv[])
 	cap_rights_t rights, ffdrights;
 	char line[MAXLINE];
 	char *file, *age;
-	size_t r, toread;
-	ssize_t linelen;
+	size_t toread;
+	ssize_t r, linelen;
 	off_t remaining;
 	time_t mtime;
 	char *end;
@@ -204,7 +204,7 @@ main(int argc, char *argv[])
 			r = read(ffd, buf, toread);
 			if (r <= 0)
 				break;
-			if (fwrite(buf, 1, r, stdout) != r)
+			if (fwrite(buf, 1, (size_t)r, stdout) != (size_t)r)
 				break;
 			remaining -= r;
 		}

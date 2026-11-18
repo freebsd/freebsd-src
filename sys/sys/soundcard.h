@@ -1558,17 +1558,6 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
  * @todo ask about maintaining __SIOWR vs. _IOWR ioctl cmd defines
  */
 
-/**
- * @note The @c OSSV4_EXPERIMENT macro is meant to wrap new development code
- * in the sound system relevant to adopting 4Front's OSSv4 specification.
- * Users should not enable this!  Really!
- */
-#if 0
-# define OSSV4_EXPERIMENT 1
-#else
-# undef OSSV4_EXPERIMENT
-#endif
-
 #ifdef SOUND_VERSION
 # undef SOUND_VERSION
 # define SOUND_VERSION	0x040000

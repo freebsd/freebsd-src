@@ -1058,7 +1058,7 @@ main(int argc, char **argv)
 #endif
 					precis = 3;
 				Printf("  %.*f ms", precis, T);
-				if (ecnflag) {
+				if (ecnflag && hip != NULL) {
 					u_char ecn = hip->ip_tos & IPTOS_ECN_MASK;
 					switch (ecn) {
 					case IPTOS_ECN_ECT1:
@@ -1374,6 +1374,9 @@ packet_ok(register u_char *buf, int cc, register struct sockaddr_in *from,
 #endif
 	type = icp->icmp_type;
 	code = icp->icmp_code;
+	/* Forget the header quoted by the previous packet. */
+	hip = NULL;
+	hiplen = 0;
 	/* Path MTU Discovery (RFC1191) */
 	if (code != ICMP_UNREACH_NEEDFRAG)
 		pmtu = 0;

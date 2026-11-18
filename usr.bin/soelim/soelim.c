@@ -37,7 +37,11 @@
 
 #define C_OPTION 0x1
 
+/* Maximum number of nested .so files to process. */
+#define MAX_INCLUDE_DEPTH 64
+
 static StringList *includes;
+static int include_depth;
 
 static void
 usage(void)
@@ -54,6 +58,7 @@ soelim_fopen(const char *name)
 	FILE *f;
 	char path[PATH_MAX];
 	size_t i;
+	int len;
 
 	if (strcmp(name, "-") == 0)
 		return (stdin);
@@ -67,8 +72,10 @@ soelim_fopen(const char *name)
 	}
 
 	for (i = 0; i < includes->sl_cur; i++) {
-		snprintf(path, sizeof(path), "%s/%s", includes->sl_str[i],
-		    name);
+		len = snprintf(path, sizeof(path), "%s/%s",
+		    includes->sl_str[i], name);
+		if (len < 0 || (size_t)len >= sizeof(path))
+			continue;
 		if ((f = fopen(path, "r")) != NULL)
 			return (f);
 	}
@@ -79,54 +86,69 @@ soelim_fopen(const char *name)
 }
 
 static int
-soelim_file(FILE *f, int flag)
+soelim_file(FILE *f, const char *name, int flag)
 {
 	char *line = NULL;
-	char *walk, *cp;
+	char *walk, *cp, *end;
 	size_t linecap = 0;
-	ssize_t linelen;
+	int ret;
 
 	if (f == NULL)
 		return (1);
 
-	while ((linelen = getline(&line, &linecap, f)) > 0) {
+	include_depth++;
+	ret = 0;
+	while (getline(&line, &linecap, f) > 0) {
 		if (strncmp(line, ".so", 3) != 0) {
-			printf("%s", line);
+			fputs(line, stdout);
 			continue;
 		}
 
 		walk = line + 3;
-		if (!isspace(*walk) && ((flag & C_OPTION) == 0)) {
-			printf("%s", line);
+		if (!isspace((unsigned char)*walk) &&
+		    ((flag & C_OPTION) == 0)) {
+			fputs(line, stdout);
 			continue;
 		}
 
-		while (isspace(*walk))
+		while (isspace((unsigned char)*walk))
 			walk++;
 
 		cp = walk;
-		while (*cp != '\0' && !isspace(*cp))
+		while (*cp != '\0' && !isspace((unsigned char)*cp))
 			cp++;
-		*cp = 0;
-		if (cp < line + linelen)
+		end = cp;
+		while (isspace((unsigned char)*cp))
 			cp++;
+		*end = '\0';
 
 		if (*walk == '\0') {
-			printf("%s", line);
+			fputs(line, stdout);
 			continue;
 		}
-		if (soelim_file(soelim_fopen(walk), flag) == 1) {
-			free(line);
-			return (1);
+		if (include_depth >= MAX_INCLUDE_DEPTH) {
+			warnx("%s: too many nested includes", walk);
+			ret = 1;
+			break;
+		}
+		if (soelim_file(soelim_fopen(walk), walk, flag) == 1) {
+			ret = 1;
+			break;
 		}
 		if (*cp != '\0')
-			printf("%s", cp);
+			fputs(cp, stdout);
 	}
+	include_depth--;
 
+	if (ferror(f)) {
+		warn("%s", name);
+		ret = 1;
+	}
 	free(line);
-	fclose(f);
+	if (f != stdin)
+		fclose(f);
 
-	return (0);
+	return (ret);
 }
 
 int
@@ -163,12 +185,16 @@ main(int argc, char **argv)
 	argv += optind;
 
 	if (argc == 0)
-		ret = soelim_file(stdin, flags);
+		ret = soelim_file(stdin, "stdin", flags);
 
 	for (i = 0; i < argc; i++)
-		ret = soelim_file(soelim_fopen(argv[i]), flags);
+		if (soelim_file(soelim_fopen(argv[i]), argv[i], flags) != 0)
+			ret = 1;
 
 	sl_free(includes, 0);
+
+	if (fflush(stdout) != 0)
+		err(EXIT_FAILURE, "stdout");
 
 	return (ret);
 }

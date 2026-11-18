@@ -249,8 +249,6 @@ sysctl_hw_snd_feeder_rate_quality(SYSCTL_HANDLER_ARGS)
 		d = devclass_get_softc(pcm_devclass, i);
 		if (!PCM_REGISTERED(d))
 			continue;
-		PCM_LOCK(d);
-		PCM_WAIT(d);
 		PCM_ACQUIRE(d);
 		CHN_FOREACH(c, d, channels.pcm) {
 			CHN_LOCK(c);
@@ -263,7 +261,6 @@ sysctl_hw_snd_feeder_rate_quality(SYSCTL_HANDLER_ARGS)
 			CHN_UNLOCK(c);
 		}
 		PCM_RELEASE(d);
-		PCM_UNLOCK(d);
 	}
 	bus_topo_unlock();
 

@@ -2959,7 +2959,8 @@ vmx_dr_enter_guest(struct vmxctx *vmxctx)
 	 * guest DR7 and DEBUGCTL are saved/restored in the VMCS.
 	 */
 	load_dr7(0);
-	wrmsr(MSR_DEBUGCTLMSR, 0);
+	if (vmxctx->host_debugctl != 0)
+		wrmsr(MSR_DEBUGCTLMSR, 0);
 
 	/*
 	 * Disable single stepping the kernel to avoid corrupting the
@@ -3006,7 +3007,9 @@ vmx_dr_leave_guest(struct vmxctx *vmxctx)
 	load_dr2(vmxctx->host_dr2);
 	load_dr3(vmxctx->host_dr3);
 	load_dr6(vmxctx->host_dr6);
-	wrmsr(MSR_DEBUGCTLMSR, vmxctx->host_debugctl);
+	/* VM-exit clears DEBUGCTL; a failed entry also leaves it cleared. */
+	if (vmxctx->host_debugctl != 0)
+		wrmsr(MSR_DEBUGCTLMSR, vmxctx->host_debugctl);
 	load_dr7(vmxctx->host_dr7);
 	write_rflags(read_rflags() | vmxctx->host_tf);
 }

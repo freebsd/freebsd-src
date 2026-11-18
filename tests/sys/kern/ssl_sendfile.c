@@ -482,7 +482,7 @@ ATF_TC_BODY(eagain_vs_eof, tc)
 {
 	struct ctx c;
 	char buf[16 * 1024];
-	ssize_t nread;
+	ssize_t nread, offset = 0;
 	int n;
 
 	common_init(&c);
@@ -492,7 +492,7 @@ ATF_TC_BODY(eagain_vs_eof, tc)
 	 * socket.  Internal sendfile(2) returns -1 and errno == EAGAIN.
 	 */
 	ATF_REQUIRE(pthread_mutex_lock(&c.mtx) == 0);
-	sendme_locked_wait(&c, 0, FSIZE, true);
+	sendme_locked_wait(&c, offset, FSIZE, true);
 	ATF_REQUIRE_MSG(c.sbytes > 0, "c.sbytes <= 0: %zd", c.sbytes);
 	ATF_REQUIRE(SSL_get_error(c.srv, c.sbytes) == 0);
 #if 0	/* see https://github.com/openssl/openssl/issues/29742 */
@@ -500,16 +500,23 @@ ATF_TC_BODY(eagain_vs_eof, tc)
 #endif
 
 	/*
-	 * Exercise second attempt on already full buffer.
+	 * Keep writing until both buffers are full.  May be executed just once
+	 * or may loop a few times in the case if our sending thread is slower
+	 * than loopback TCP processing.
 	 */
-	sendme_locked_wait(&c, 0, FSIZE, true);
-	ATF_REQUIRE_MSG(c.sbytes == -1, "c.sbytes != -1: %zd", c.sbytes);
+	do {
+		offset += c.sbytes;
+		sendme_locked_wait(&c, offset, FSIZE, true);
+#if 0	/* see https://github.com/openssl/openssl/issues/29742 */
+		ATF_REQUIRE(BIO_should_retry(SSL_get_wbio(c.srv)));
+#endif
+	} while (c.sbytes != -1);
 	ATF_REQUIRE(SSL_get_error(c.srv, c.sbytes) == SSL_ERROR_WANT_WRITE);
 	ATF_REQUIRE(BIO_should_retry(SSL_get_wbio(c.srv)));
 
 	/* Clear the buffer. */
 	nread = 0;
-	while (nread < c.sbytes &&
+	while (nread < offset &&
 	    (n = SSL_read_b(c.cln, buf, sizeof(buf))) > 0) {
 		ATF_REQUIRE(memcmp((char *)c.mfd + nread, buf, n) == 0);
 		nread += n;

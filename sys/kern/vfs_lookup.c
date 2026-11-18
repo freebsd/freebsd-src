@@ -261,15 +261,20 @@ nameicap_cleanup(struct nameidata *ndp, int error)
 		vfs_rel(mp);
 		ndp->ni_nctrack_mnt = NULL;
 	}
+	if (ndp->ni_rbeneath_dpp != NULL) {
+		vdrop(ndp->ni_rbeneath_dpp);
+		ndp->ni_rbeneath_dpp = NULL;
+	}
 }
 
 /*
  * For dotdot lookups in capability mode, disallow walking over the
- * directory no_rbeneath_dpp that was used as the starting point of
- * the lookup.  Since we take the mnt_renamelocks of all mounts we
- * ever walked over during lookup, parallel renames are disabled.
- * This prevents the situation where we circumvent walk over
- * ni_rbeneath_dpp following dotdots.
+ * directory ni_rbeneath_dpp that was used as the starting point of
+ * the lookup, or over the directory it covers, see
+ * nameicap_union_fallthrough().  Since we take the mnt_renamelocks
+ * of all mounts we ever walked over during lookup, parallel renames
+ * are disabled.  This prevents the situation where we circumvent
+ * walk over ni_rbeneath_dpp following dotdots.
  *
  * Also allow to force failure of dotdot lookups for non-local
  * filesystems, where external agents might assist local lookups to
@@ -300,6 +305,29 @@ violation:
 	if (__predict_false((ndp->ni_lcf & NI_LCF_STRICTREL_KTR) != 0))
 		NI_CAP_VIOLATION(ndp, ndp->ni_cnd.cn_pnbuf);
 	return (ENOTCAPABLE);
+}
+
+/*
+ * A name not found in the root of a union mount is looked up in the
+ * covered directory, which is the same directory in the union view.
+ * If the union root is ni_rbeneath_dpp, move ni_rbeneath_dpp to the
+ * covered vnode.  A relative symlink found in the covered directory
+ * is resolved from the covered vnode without crossing back into the
+ * union root, so dotdot from it must be refused as from the starting
+ * directory.  Dotdot from the union root steps over mnt_vnodecovered
+ * in the vfs_lookup() dotdot loop and meets the moved ni_rbeneath_dpp
+ * there.  The mount holds a reference on the covered vnode until it
+ * is unmounted.
+ */
+static void
+nameicap_union_fallthrough(struct nameidata *ndp, struct vnode *rootvp,
+    struct vnode *coveredvp)
+{
+	if (ndp->ni_rbeneath_dpp != rootvp)
+		return;
+	vholdnz(coveredvp);
+	ndp->ni_rbeneath_dpp = coveredvp;
+	vdrop(rootvp);
 }
 
 static void
@@ -422,8 +450,10 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 			    NI_LCF_CAP_DOTDOT;
 		}
 	}
-	if (error == 0 && (ndp->ni_lcf & NI_LCF_STRICTREL) != 0)
+	if (error == 0 && (ndp->ni_lcf & NI_LCF_STRICTREL) != 0) {
 		ndp->ni_rbeneath_dpp = *dpp;
+		vholdnz(*dpp);
+	}
 
 	/*
 	 * If we are auditing the kernel pathname, save the user pathname.
@@ -1063,6 +1093,18 @@ vfs_lookup_isroot(struct nameidata *ndp, struct vnode *dvp)
 	    dvp == rootvnode);
 }
 
+static bool
+vfs_lookup_invalid_boundary(struct nameidata *ndp, struct vnode *dvp)
+{
+	struct vnode *ndpp;
+
+	ndpp = ndp->ni_rbeneath_dpp;
+	/* The doomed check prevents escape through the startdir reclaim. */
+	if (dvp == ndpp || (ndpp != NULL && VN_IS_DOOMED(ndpp)))
+		return (true);
+	return (vfs_lookup_isroot(ndp, dvp));
+}
+
 /*
  * FAILIFEXISTS handling.
  *
@@ -1412,7 +1454,7 @@ dirloop:
 		for (;;) {
 			bool isroot;
 
-			isroot = vfs_lookup_isroot(ndp, dp);
+			isroot = vfs_lookup_invalid_boundary(ndp, dp);
 			if (__predict_false(isroot && (ndp->ni_lcf &
 			    (NI_LCF_STRICTREL | NI_LCF_STRICTREL_KTR)) != 0)) {
 				if ((ndp->ni_lcf & NI_LCF_STRICTREL_KTR) != 0)
@@ -1486,6 +1528,7 @@ unionlookup:
 			tdp = dp;
 			dp = dp->v_mount->mnt_vnodecovered;
 			vref(dp);
+			nameicap_union_fallthrough(ndp, tdp, dp);
 			vput(tdp);
 			vn_lock(dp,
 			    enforce_lkflags(dp->v_mount, cnp->cn_lkflags |

@@ -262,6 +262,51 @@ c_flag_body()
 	    sysrc -f "${SYSRC_CONF}" -c test_enable=YES test_list-=item1
 }
 
+atf_test_case c_flag_quoting
+c_flag_quoting_head()
+{
+	atf_set "descr" "Verify -c compares raw assignment text"
+}
+c_flag_quoting_body()
+{
+	local msg
+
+	# PR 299413: the expanded value is " -J 15"
+	printf '%s\n' 'cron_flags="$cron_flags -J 15"' > "${SYSRC_CONF}"
+	msg="${SYSRC_CONF}: cron_flags: already set to"
+	msg="$msg \`\$cron_flags -J 15'"
+	atf_check -o inline:"$msg\n" \
+	    sysrc -f "${SYSRC_CONF}" -v -c 'cron_flags=$cron_flags -J 15'
+	msg="${SYSRC_CONF}: cron_flags: would change from"
+	msg="$msg \`\$cron_flags -J 15' to \`\$cron_flags -J 16'"
+	atf_check -s exit:1 -o inline:"$msg\n" \
+	    sysrc -f "${SYSRC_CONF}" -v -c 'cron_flags=$cron_flags -J 16'
+
+	# Same raw text in the other quote forms
+	printf '%s\n' "cron_flags='\$cron_flags -J 15'" > "${SYSRC_CONF}"
+	atf_check sysrc -f "${SYSRC_CONF}" -c 'cron_flags=$cron_flags -J 15'
+	printf '%s\n' 'cron_flags=$cron_flags\ -J\ 15' > "${SYSRC_CONF}"
+	atf_check sysrc -f "${SYSRC_CONF}" -c 'cron_flags=$cron_flags -J 15'
+	printf '%s\n' "cron_flags='\$cron_flags'\" -J 15\"" > "${SYSRC_CONF}"
+	atf_check sysrc -f "${SYSRC_CONF}" -c 'cron_flags=$cron_flags -J 15'
+
+	# Dollar quotes keep their quote marks
+	printf '%s\n' 'cron_flags=$"%s: file not found"' > "${SYSRC_CONF}"
+	msg="${SYSRC_CONF}: cron_flags: already set to"
+	msg="$msg \`\$\"%s: file not found\"'"
+	atf_check -o inline:"$msg\n" \
+	    sysrc -f "${SYSRC_CONF}" -v -c 'cron_flags=$"%s: file not found"'
+	atf_check -s exit:1 \
+	    sysrc -f "${SYSRC_CONF}" -c 'cron_flags=$%s: file not found'
+	printf '%s\n' "cron_flags=\$'a\\tb'" > "${SYSRC_CONF}"
+	msg="${SYSRC_CONF}: cron_flags: already set to"
+	msg="$msg \`\$'a\\\\tb''"
+	atf_check -o inline:"$msg\n" \
+	    sysrc -f "${SYSRC_CONF}" -v -c "cron_flags=\$'a\\tb'"
+	atf_check -s exit:1 \
+	    sysrc -f "${SYSRC_CONF}" -c 'cron_flags=$a\tb'
+}
+
 atf_test_case d_flag cleanup
 d_flag_head()
 {
@@ -334,18 +379,126 @@ F_flag_body()
 	    -f ${sysrc2_conf} -F test_enable test_list
 }
 
+atf_test_case r_flag
+r_flag_head()
+{
+	atf_set "descr" "Verify -r shows raw assignment text"
+}
+r_flag_body()
+{
+	local msg
+
+	# Assignment keeps the expansion text
+	msg="test_flags:  -> \$test_flags -J 15"
+	atf_check -o inline:"$msg\n" \
+	    sysrc -f "${SYSRC_CONF}" -r 'test_flags=$test_flags -J 15'
+	atf_check -o inline:'test_flags="$test_flags -J 15"\n' \
+	    cat "${SYSRC_CONF}"
+
+	# Query expands; -r does not
+	atf_check -o inline:"test_flags:  -J 15\n" \
+	    sysrc -f "${SYSRC_CONF}" test_flags
+	atf_check -o inline:"test_flags: \$test_flags -J 15\n" \
+	    sysrc -f "${SYSRC_CONF}" -r test_flags
+
+	# Replace the raw text
+	msg="test_flags: \$test_flags -J 15 ->"
+	msg="$msg \$test_flags -J 16"
+	atf_check -o inline:"$msg\n" \
+	    sysrc -f "${SYSRC_CONF}" -r 'test_flags=$test_flags -J 16'
+
+	# Append to the raw text
+	msg="test_flags: \$test_flags -J 16 ->"
+	msg="$msg \$test_flags -J 16 extra"
+	atf_check -o inline:"$msg\n" \
+	    sysrc -f "${SYSRC_CONF}" -r test_flags+=extra
+	atf_check -o inline:'test_flags="$test_flags -J 16 extra"\n' \
+	    cat "${SYSRC_CONF}"
+
+	# Appending a token already present does not duplicate it
+	msg="test_flags: \$test_flags -J 16 extra ->"
+	msg="$msg \$test_flags -J 16 extra"
+	atf_check -o inline:"$msg\n" \
+	    sysrc -f "${SYSRC_CONF}" -r test_flags+=extra
+
+	# Subtract a token; the unexpanded name stays
+	msg="test_flags: \$test_flags -J 16 extra ->"
+	msg="$msg \$test_flags -J 16"
+	atf_check -o inline:"$msg\n" \
+	    sysrc -f "${SYSRC_CONF}" -r test_flags-=extra
+
+	# Drop $test_flags. A leading word keeps the space delimiter
+	msg="test_flags: \$test_flags -J 16 -> -J 16"
+	atf_check -o inline:"$msg\n" \
+	    sysrc -f "${SYSRC_CONF}" -r 'test_flags-=x $test_flags'
+	atf_check -o inline:'test_flags="-J 16"\n' cat "${SYSRC_CONF}"
+}
+
+atf_test_case strappend
+strappend_head()
+{
+	atf_set "descr" "String-append with .= inserts a space"
+}
+strappend_body()
+{
+	local msg
+
+	# NULL value: no leading space
+	atf_check -o inline:'cron_flags:  -> -J 15\n' \
+	    sysrc -f "${SYSRC_CONF}" 'cron_flags.=-J 15'
+	atf_check -o inline:'cron_flags="-J 15"\n' cat "${SYSRC_CONF}"
+
+	printf '%s\n' 'cron_flags="$cron_flags"' > "${SYSRC_CONF}"
+
+	# A space is inserted. The text is not scanned for a delimiter
+	msg='cron_flags: $cron_flags -> $cron_flags -J 15'
+	atf_check -o inline:"$msg\n" \
+	    sysrc -f "${SYSRC_CONF}" 'cron_flags.=-J 15'
+	atf_check -o inline:'cron_flags="$cron_flags -J 15"\n' \
+	    cat "${SYSRC_CONF}"
+
+	# A second append adds the text again, with another space
+	msg='cron_flags: $cron_flags -J 15 ->'
+	msg="$msg "'$cron_flags -J 15 -J 15'
+	atf_check -o inline:"$msg\n" \
+	    sysrc -f "${SYSRC_CONF}" 'cron_flags.=-J 15'
+
+	# -c reports the result and does not write
+	printf '%s\n' 'cron_flags="$cron_flags"' > "${SYSRC_CONF}"
+	msg="${SYSRC_CONF}: cron_flags: would change from"
+	msg="$msg \`\$cron_flags' to \`\$cron_flags -J 15'"
+	atf_check -s exit:1 -o inline:"$msg\n" \
+	    sysrc -f "${SYSRC_CONF}" -v -c 'cron_flags.=-J 15'
+	atf_check -o inline:'cron_flags="$cron_flags"\n' \
+	    cat "${SYSRC_CONF}"
+
+	# A comma stays text. .= does not take it as a delimiter
+	printf '%s\n' 'foo="bar"' > "${SYSRC_CONF}"
+	atf_check -o inline:'foo: bar -> bar ,extra\n' \
+	    sysrc -f "${SYSRC_CONF}" 'foo.=,extra'
+	atf_check -o inline:'foo="bar ,extra"\n' cat "${SYSRC_CONF}"
+
+	# += is still an exclusive list: -J is present, 15 is not
+	printf '%s\n' 'cron_flags="-J 10"' > "${SYSRC_CONF}"
+	atf_check -o inline:'cron_flags: -J 10 -> -J 10 15\n' \
+	    sysrc -f "${SYSRC_CONF}" 'cron_flags+=-J 15'
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case check_variable
 	atf_add_test_case set_variable
 	atf_add_test_case remove_variable_x_flag
 	atf_add_test_case append_list
+	atf_add_test_case strappend
 	atf_add_test_case subtract_list
 	atf_add_test_case multiple_operations
 	atf_add_test_case a_flag
 	atf_add_test_case A_flag
 	atf_add_test_case c_flag
+	atf_add_test_case c_flag_quoting
 	atf_add_test_case d_flag
 	atf_add_test_case f_flag
 	atf_add_test_case F_flag
+	atf_add_test_case r_flag
 }

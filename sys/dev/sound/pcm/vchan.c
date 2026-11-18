@@ -258,40 +258,39 @@ sysctl_dev_pcm_vchans(SYSCTL_HANDLER_ARGS)
 		bus_topo_unlock();
 		return (EINVAL);
 	}
+	/*
+	 * Do not give up the topology lock until the device is busied, or it
+	 * might detach between unlocking and busying.
+	 */
+	PCM_ACQUIRE(d);
 	bus_topo_unlock();
-
-	PCM_LOCK(d);
-	PCM_WAIT(d);
 
 	switch (VCHAN_SYSCTL_DIR(oidp->oid_arg1)) {
 	case VCHAN_PLAY:
 		/* Exit if we do not support this direction. */
 		if (d->playcount < 1) {
-			PCM_UNLOCK(d);
+			PCM_RELEASE(d);
 			return (ENODEV);
 		}
 		flag = SD_F_PVCHANS;
 		break;
 	case VCHAN_REC:
 		if (d->reccount < 1) {
-			PCM_UNLOCK(d);
+			PCM_RELEASE(d);
 			return (ENODEV);
 		}
 		flag = SD_F_RVCHANS;
 		break;
 	default:
-		PCM_UNLOCK(d);
+		PCM_RELEASE(d);
 		return (EINVAL);
 	}
 
 	enabled = (d->flags & flag) != 0;
 
-	PCM_ACQUIRE(d);
-	PCM_UNLOCK(d);
-
 	err = sysctl_handle_int(oidp, &enabled, 0, req);
 	if (err != 0 || req->newptr == NULL) {
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		return (err);
 	}
 
@@ -300,7 +299,7 @@ sysctl_dev_pcm_vchans(SYSCTL_HANDLER_ARGS)
 	else
 		d->flags |= flag;
 
-	PCM_RELEASE_QUICK(d);
+	PCM_RELEASE(d);
 
 	return (0);
 }
@@ -320,15 +319,13 @@ sysctl_dev_pcm_vchanmode(SYSCTL_HANDLER_ARGS)
 		bus_topo_unlock();
 		return (EINVAL);
 	}
+	PCM_ACQUIRE(d);
 	bus_topo_unlock();
-
-	PCM_LOCK(d);
-	PCM_WAIT(d);
 
 	switch (VCHAN_SYSCTL_DIR(oidp->oid_arg1)) {
 	case VCHAN_PLAY:
 		if ((d->flags & SD_F_PVCHANS) == 0) {
-			PCM_UNLOCK(d);
+			PCM_RELEASE(d);
 			return (ENODEV);
 		}
 		direction = PCMDIR_PLAY;
@@ -336,19 +333,16 @@ sysctl_dev_pcm_vchanmode(SYSCTL_HANDLER_ARGS)
 		break;
 	case VCHAN_REC:
 		if ((d->flags & SD_F_RVCHANS) == 0) {
-			PCM_UNLOCK(d);
+			PCM_RELEASE(d);
 			return (ENODEV);
 		}
 		direction = PCMDIR_REC;
 		vchanmode = &d->rvchanmode;
 		break;
 	default:
-		PCM_UNLOCK(d);
+		PCM_RELEASE(d);
 		return (EINVAL);
 	}
-
-	PCM_ACQUIRE(d);
-	PCM_UNLOCK(d);
 
 	if (*vchanmode & CHN_F_VCHAN_PASSTHROUGH)
 		strlcpy(dtype, "passthrough", sizeof(dtype));
@@ -359,7 +353,7 @@ sysctl_dev_pcm_vchanmode(SYSCTL_HANDLER_ARGS)
 
 	ret = sysctl_handle_string(oidp, dtype, sizeof(dtype), req);
 	if (ret != 0 || req->newptr == NULL) {
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		return (ret);
 	}
 
@@ -370,7 +364,7 @@ sysctl_dev_pcm_vchanmode(SYSCTL_HANDLER_ARGS)
 	else if (strcasecmp(dtype, "fixed") == 0 || strcmp(dtype, "0") == 0)
 		dflags = 0;
 	else {
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		return (EINVAL);
 	}
 
@@ -388,7 +382,7 @@ sysctl_dev_pcm_vchanmode(SYSCTL_HANDLER_ARGS)
 		*vchanmode = dflags;
 	}
 
-	PCM_RELEASE_QUICK(d);
+	PCM_RELEASE(d);
 
 	return (ret);
 }
@@ -414,15 +408,13 @@ sysctl_dev_pcm_vchanrate(SYSCTL_HANDLER_ARGS)
 		bus_topo_unlock();
 		return (EINVAL);
 	}
+	PCM_ACQUIRE(d);
 	bus_topo_unlock();
-
-	PCM_LOCK(d);
-	PCM_WAIT(d);
 
 	switch (VCHAN_SYSCTL_DIR(oidp->oid_arg1)) {
 	case VCHAN_PLAY:
 		if ((d->flags & SD_F_PVCHANS) == 0) {
-			PCM_UNLOCK(d);
+			PCM_RELEASE(d);
 			return (ENODEV);
 		}
 		direction = PCMDIR_PLAY;
@@ -430,30 +422,27 @@ sysctl_dev_pcm_vchanrate(SYSCTL_HANDLER_ARGS)
 		break;
 	case VCHAN_REC:
 		if ((d->flags & SD_F_RVCHANS) == 0) {
-			PCM_UNLOCK(d);
+			PCM_RELEASE(d);
 			return (ENODEV);
 		}
 		direction = PCMDIR_REC;
 		vchanrate = &d->rvchanrate;
 		break;
 	default:
-		PCM_UNLOCK(d);
+		PCM_RELEASE(d);
 		return (EINVAL);
 	}
-
-	PCM_ACQUIRE(d);
-	PCM_UNLOCK(d);
 
 	newspd = *vchanrate;
 
 	ret = sysctl_handle_int(oidp, &newspd, 0, req);
 	if (ret != 0 || req->newptr == NULL) {
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		return (ret);
 	}
 
 	if (newspd < feeder_rate_min || newspd > feeder_rate_max) {
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		return (EINVAL);
 	}
 
@@ -490,7 +479,7 @@ sysctl_dev_pcm_vchanrate(SYSCTL_HANDLER_ARGS)
 		CHN_UNLOCK(c);
 	}
 
-	PCM_RELEASE_QUICK(d);
+	PCM_RELEASE(d);
 
 	return (ret);
 }
@@ -510,15 +499,13 @@ sysctl_dev_pcm_vchanformat(SYSCTL_HANDLER_ARGS)
 		bus_topo_unlock();
 		return (EINVAL);
 	}
+	PCM_ACQUIRE(d);
 	bus_topo_unlock();
-
-	PCM_LOCK(d);
-	PCM_WAIT(d);
 
 	switch (VCHAN_SYSCTL_DIR(oidp->oid_arg1)) {
 	case VCHAN_PLAY:
 		if ((d->flags & SD_F_PVCHANS) == 0) {
-			PCM_UNLOCK(d);
+			PCM_RELEASE(d);
 			return (ENODEV);
 		}
 		direction = PCMDIR_PLAY;
@@ -526,19 +513,16 @@ sysctl_dev_pcm_vchanformat(SYSCTL_HANDLER_ARGS)
 		break;
 	case VCHAN_REC:
 		if ((d->flags & SD_F_RVCHANS) == 0) {
-			PCM_UNLOCK(d);
+			PCM_RELEASE(d);
 			return (ENODEV);
 		}
 		direction = PCMDIR_REC;
 		vchanformat = &d->rvchanformat;
 		break;
 	default:
-		PCM_UNLOCK(d);
+		PCM_RELEASE(d);
 		return (EINVAL);
 	}
-
-	PCM_ACQUIRE(d);
-	PCM_UNLOCK(d);
 
 	bzero(fmtstr, sizeof(fmtstr));
 
@@ -547,13 +531,13 @@ sysctl_dev_pcm_vchanformat(SYSCTL_HANDLER_ARGS)
 
 	ret = sysctl_handle_string(oidp, fmtstr, sizeof(fmtstr), req);
 	if (ret != 0 || req->newptr == NULL) {
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		return (ret);
 	}
 
 	newfmt = snd_str2afmt(fmtstr);
 	if (newfmt == 0 || !(newfmt & AFMT_VCHAN)) {
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		return (EINVAL);
 	}
 
@@ -589,7 +573,7 @@ sysctl_dev_pcm_vchanformat(SYSCTL_HANDLER_ARGS)
 		CHN_UNLOCK(c);
 	}
 
-	PCM_RELEASE_QUICK(d);
+	PCM_RELEASE(d);
 
 	return (ret);
 }
@@ -621,7 +605,15 @@ vchan_create(struct pcm_channel *parent, struct pcm_channel **child)
 		return (EINVAL);
 
 	CHN_UNLOCK(parent);
-	PCM_LOCK(d);
+
+	/*
+	 * This is the only place where channels are created at runtime, so do
+	 * not create any if we are tearing down.
+	 */
+	if (!PCM_REGISTERED(d)) {
+		CHN_LOCK(parent);
+		return (ENODEV);
+	}
 
 	if (parent->direction == PCMDIR_PLAY) {
 		direction = PCMDIR_PLAY_VIRTUAL;
@@ -636,11 +628,9 @@ vchan_create(struct pcm_channel *parent, struct pcm_channel **child)
 	/* create a new playback channel */
 	ch = chn_init(d, parent, &vchan_class, direction, parent);
 	if (ch == NULL) {
-		PCM_UNLOCK(d);
 		CHN_LOCK(parent);
 		return (ENODEV);
 	}
-	PCM_UNLOCK(d);
 
 	CHN_LOCK(parent);
 	CHN_INSERT_SORT_ASCEND(parent, ch, children);
@@ -755,7 +745,7 @@ sysctl_hw_snd_vchans_enable(SYSCTL_HANDLER_ARGS)
 		d = devclass_get_softc(pcm_devclass, i);
 		if (!PCM_REGISTERED(d))
 			continue;
-		PCM_ACQUIRE_QUICK(d);
+		PCM_ACQUIRE(d);
 		if (snd_vchans_enable) {
 			if (d->playcount > 0)
 				d->flags |= SD_F_PVCHANS;
@@ -763,7 +753,7 @@ sysctl_hw_snd_vchans_enable(SYSCTL_HANDLER_ARGS)
 				d->flags |= SD_F_RVCHANS;
 		} else
 			d->flags &= ~(SD_F_PVCHANS | SD_F_RVCHANS);
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 	}
 	bus_topo_unlock();
 

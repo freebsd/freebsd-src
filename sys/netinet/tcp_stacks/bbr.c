@@ -7681,10 +7681,7 @@ bbr_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	bbr = (struct tcp_bbr *)tp->t_fb_ptr;
 	lost = bbr->r_ctl.rc_lost;
 	nsegs = max(1, m->m_pkthdr.lro_nsegs);
-	if (SEQ_GEQ(tp->snd_una, tp->iss + (65535 << tp->snd_scale))) {
-		/* Checking SEG.ACK against ISS is definitely redundant. */
-		tp->t_flags2 |= TF2_NO_ISS_CHECK;
-	}
+	tcp_adapt_iss_check(tp);
 	if (!V_tcp_insecure_ack) {
 		tcp_seq seq_min;
 		bool ghost_ack_check;

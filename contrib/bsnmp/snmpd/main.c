@@ -496,6 +496,10 @@ snmp_input_start(const u_char *buf, size_t len, const char *source,
 
 	ret = SNMPD_INPUT_OK;
 
+	/* Zero the PDU before anything can return, so a failure path that
+	 * runs before the header is decoded still leaves it safe to free. */
+	memset(pdu, 0, sizeof(*pdu));
+
 	/* look whether we have enough bytes for the entire PDU. */
 	switch (sret = snmp_pdu_snoop(&b)) {
 
@@ -508,7 +512,6 @@ snmp_input_start(const u_char *buf, size_t len, const char *source,
 	}
 	b.asn_len = *pdulen = (size_t)sret;
 
-	memset(pdu, 0, sizeof(*pdu));
 	if ((code = snmp_pdu_decode_header(&b, pdu)) != SNMP_CODE_OK)
 		goto decoded;
 
@@ -641,9 +644,29 @@ decoded:
 			pdu->engine.engine_boots = snmpd_engine.engine_boots;
 			pdu->engine.engine_time = snmpd_engine.engine_time;
 		}
+		/*
+		 * A discovery message may only elicit a Report.  Force GET
+		 * so the appended usmStats counter is read back as-is: a
+		 * GETNEXT or GETBULK would otherwise walk forward from it,
+		 * and a SET act on it, all with VACM skipped for the
+		 * AUTODISCOVER flag.
+		 */
+		if ((pdu->flags & SNMP_MSG_AUTODISCOVER) != 0)
+			pdu->type = SNMP_PDU_GET;
 	} else if (pdu->user.auth_proto != SNMP_AUTH_NOAUTH &&
 	     (pdu->engine.engine_boots == 0 || pdu->engine.engine_time == 0)) {
 		snmpd_usmstats.not_in_time_windows++;
+		ret = SNMPD_INPUT_FAILED;
+	} else if ((pdu->flags & SNMP_MSG_AUTODISCOVER) != 0) {
+		/*
+		 * A discovery message (RFC 3414) may only elicit a Report and
+		 * carries no variable bindings of its own.  Reaching here with
+		 * bindings means the message was not authenticated as a user
+		 * (empty security name, or a noAuthNoPriv user): acting on it
+		 * would run a GET or SET that bypasses USM authentication and
+		 * the VACM access check.  Refuse it.
+		 */
+		snmpd_usmstats.unknown_users++;
 		ret = SNMPD_INPUT_FAILED;
 	}
 
@@ -1088,6 +1111,7 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	 * check the access first. We don't want to return an error response
 	 * to a proxy PDU with a wrong community */
 	if (ierr == SNMPD_INPUT_FAILED) {
+		snmp_pdu_free(&pdu);
 		/* for streaming transports this is fatal */
 		if (pi->stream)
 			return (-1);

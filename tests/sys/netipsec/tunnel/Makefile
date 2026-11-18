@@ -12,6 +12,7 @@ ATF_TESTS_SH+=	empty \
 		aesni_aes_gcm_128 \
 		aesni_aes_gcm_256 \
 		chacha20_poly1305 \
+		esp_iv \
 		sa_flowid
 
 TEST_METADATA+= execenv="jail" \

@@ -1654,6 +1654,68 @@ ATF_TC_BODY(largepage_mlock, tc)
 	}
 }
 
+/*
+ * Test handling of the RO->RW transition for an mlocked largepage mapping.
+ */
+ATF_TC(largepage_mprotect_wired);
+ATF_TC_HEAD(largepage_mprotect_wired, tc)
+{
+	/* Needed to set rlimit. */
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+ATF_TC_BODY(largepage_mprotect_wired, tc)
+{
+	struct rlimit rl;
+	char *addr;
+	size_t ps[MAXPAGESIZES], sz;
+	u_long max_wired, wired;
+	int fd, error, pscnt;
+
+	rl.rlim_cur = rl.rlim_max = RLIM_INFINITY;
+	ATF_REQUIRE_MSG(setrlimit(RLIMIT_MEMLOCK, &rl) == 0,
+	    "setrlimit failed; error=%d", errno);
+
+	sz = sizeof(max_wired);
+	error = sysctlbyname("vm.max_user_wired", &max_wired, &sz, NULL, 0);
+	ATF_REQUIRE_MSG(error == 0,
+	    "sysctlbyname(vm.max_user_wired) failed; error=%d", errno);
+
+	sz = sizeof(wired);
+	error = sysctlbyname("vm.stats.vm.v_user_wire_count", &wired, &sz, NULL,
+	    0);
+	ATF_REQUIRE_MSG(error == 0,
+	    "sysctlbyname(vm.stats.vm.v_user_wire_count) failed; error=%d",
+	    errno);
+
+	pscnt = pagesizes(ps, true);
+	for (int i = 1; i < pscnt; i++) {
+		if (ps[i] / ps[0] > max_wired - wired) {
+			/* Cannot wire past the limit. */
+			atf_tc_skip("test would exceed wiring limit");
+		}
+
+		fd = shm_open_large(i, SHM_LARGEPAGE_ALLOC_DEFAULT, ps[i]);
+
+		addr = mmap(NULL, ps[i], PROT_READ, MAP_SHARED, fd, 0);
+		ATF_REQUIRE_MSG(addr != MAP_FAILED,
+		    "mmap(%zu bytes) failed; error=%d", ps[i], errno);
+
+		ATF_REQUIRE_MSG(mlock(addr, ps[i]) == 0,
+		    "mlock failed; error=%d", errno);
+
+		ATF_REQUIRE_MSG(mprotect(addr, ps[i],
+		    PROT_READ | PROT_WRITE) == 0,
+		    "mprotect failed; error=%d", errno);
+
+		memset(addr, 0x41, ps[i]);
+		ATF_REQUIRE_MSG(addr[0] == 0x41 && addr[ps[i] - 1] == 0x41,
+		    "largepage contents unexpected after mprotect");
+
+		ATF_REQUIRE(munmap(addr, ps[i]) == 0);
+		ATF_REQUIRE(close(fd) == 0);
+	}
+}
+
 ATF_TC_WITHOUT_HEAD(largepage_msync);
 ATF_TC_BODY(largepage_msync, tc)
 {
@@ -2322,6 +2384,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, largepage_mlock);
 	ATF_TP_ADD_TC(tp, largepage_msync);
 	ATF_TP_ADD_TC(tp, largepage_mprotect);
+	ATF_TP_ADD_TC(tp, largepage_mprotect_wired);
 	ATF_TP_ADD_TC(tp, largepage_minherit);
 	ATF_TP_ADD_TC(tp, largepage_pipe);
 #ifdef __amd64__

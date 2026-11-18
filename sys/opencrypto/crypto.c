@@ -1883,6 +1883,15 @@ crypto_ret_thread(void *arg)
 			if (crpt->crp_seq == ret_worker->reorder_cur_seq) {
 				TAILQ_REMOVE(&ret_worker->crp_ordered_ret_q, crpt, crp_next);
 				ret_worker->reorder_cur_seq++;
+
+				/*
+				 * The sequence number is spent.  A callback
+				 * that dispatches the request again, as
+				 * consumers do after EAGAIN, must not bring it
+				 * back to this queue under a number the
+				 * thread will never wait for again.
+				 */
+				crpt->crp_flags &= ~CRYPTO_F_ASYNC_ORDERED;
 			} else {
 				crpt = NULL;
 			}

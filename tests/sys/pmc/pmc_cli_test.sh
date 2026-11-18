@@ -23,16 +23,10 @@ pmc_cli_setup()
 	    atf_skip "libpmc has no pmu-events table for this CPU"
 }
 
-# Run pmc record, saving its output in record.out.  pmc record returns
-# kevent()'s result (1) when the -t timer ends the capture and 0 when it is
-# interrupted; any other status means the capture failed.
+# Run pmc record, saving its output in record.out.
 pmc_record()
 {
 	pmc record "$@" > record.out 2>&1
-	case $? in
-	0|1) return 0 ;;
-	*) return 1 ;;
-	esac
 }
 
 atf_test_case pmc_info_missing_file
@@ -82,7 +76,8 @@ pmc_record_then_info_body()
 	if ! pmc_record -c instructions -t 2 record.pmc; then
 		grep -q "Cannot allocate event" record.out && \
 		    atf_skip "no instructions event on this CPU"
-		atf_fail "pmc record failed: $(cat record.out)"
+		cat record.out >&2
+		atf_fail "pmc record failed"
 	fi
 
 	atf_check -s exit:0 -o save:info.txt -e ignore pmc info record.pmc
@@ -90,8 +85,10 @@ pmc_record_then_info_body()
 	# listed under the name libpmc resolved it to.
 	awk '/^Counter/ { t = 1; next }
 	    t && $NF ~ /^[0-9]+$/ && $NF > 0 { found = 1 }
-	    END { exit(found ? 0 : 1) }' info.txt || \
-	    atf_fail "pmc info shows no samples: $(tail -5 info.txt)"
+	    END { exit(found ? 0 : 1) }' info.txt || {
+		cat info.txt >&2
+		atf_fail "pmc info shows no samples"
+	}
 }
 
 atf_init_test_cases()

@@ -515,6 +515,13 @@ gve_alloc_pending_packet(struct gve_tx_ring *tx)
 	if (__predict_false(index == -1)) {
 		tx->dqo.free_pending_pkts_csm = atomic_swap_32(
 		    &tx->dqo.free_pending_pkts_prd, -1);
+		/*
+		 * Pairs with atomic_cmpset_rel_32() in
+		 * gve_free_pending_packet() so the completion thread's writes
+		 * to all slots in the stolen list are visible before this xmit
+		 * thread walks ->next and reuses them.
+		 */
+		atomic_thread_fence_acq();
 
 		index = tx->dqo.free_pending_pkts_csm;
 		if (__predict_false(index == -1))
@@ -525,9 +532,7 @@ gve_alloc_pending_packet(struct gve_tx_ring *tx)
 
 	/* Remove pending_pkt from the consumer list */
 	tx->dqo.free_pending_pkts_csm = pending_pkt->next;
-	pending_pkt->state = GVE_PACKET_STATE_PENDING_DATA_COMPL;
-
-	gve_set_timestamp(&pending_pkt->enqueue_time_sec);
+	pending_pkt->next = -1;
 
 	return (pending_pkt);
 }
@@ -545,10 +550,16 @@ gve_free_pending_packet(struct gve_tx_ring *tx,
 
 	/* Add pending_pkt to the producer list */
 	while (true) {
-		old_head = atomic_load_acq_32(&tx->dqo.free_pending_pkts_prd);
+		old_head = atomic_load_32(&tx->dqo.free_pending_pkts_prd);
 
 		pending_pkt->next = old_head;
-		if (atomic_cmpset_32(&tx->dqo.free_pending_pkts_prd,
+		/*
+		 * Pairs with atomic_thread_fence_acq() in
+		 * gve_alloc_pending_packet() so this completion thread's
+		 * updates to state and ->next are visible before the xmit
+		 * thread steals and reuses this slot.
+		 */
+		if (atomic_cmpset_rel_32(&tx->dqo.free_pending_pkts_prd,
 		    old_head, index))
 			break;
 	}
@@ -574,7 +585,7 @@ gve_tx_has_desc_room_dqo(struct gve_tx_ring *tx, int needed_descs)
 		return (false);
 	}
 
-	return (0);
+	return (true);
 }
 
 static void
@@ -621,6 +632,14 @@ gve_tx_alloc_qpl_buf(struct gve_tx_ring *tx)
 	if (__predict_false(buf == -1)) {
 		tx->dqo.free_qpl_bufs_csm = atomic_swap_32(
 		    &tx->dqo.free_qpl_bufs_prd, -1);
+		/*
+		 * Pairs with atomic_cmpset_rel_32() in
+		 * gve_reap_qpl_bufs_dqo() so the completion thread's
+		 * qpl_bufs[] entries for the entire stolen list are visible
+		 * before this xmit thread walks and allocates them.
+		 */
+		atomic_thread_fence_acq();
+
 		buf = tx->dqo.free_qpl_bufs_csm;
 		if (__predict_false(buf == -1))
 			return (-1);
@@ -748,11 +767,14 @@ gve_xmit_dqo_qpl(struct gve_tx_ring *tx, struct mbuf *mbuf)
 		return (ENOBUFS);
 	}
 	completion_tag = pkt - tx->dqo.pending_pkts;
-	pkt->mbuf = mbuf;
 
 	err = gve_tx_fill_ctx_descs(tx, mbuf, is_tso, &desc_idx);
 	if (err)
 		goto abort;
+
+	pkt->mbuf = mbuf;
+	pkt->state = GVE_PACKET_STATE_PENDING_DATA_COMPL;
+	gve_set_timestamp(&pkt->enqueue_time_sec);
 
 	gve_tx_copy_mbuf_and_write_pkt_descs(tx, mbuf, pkt,
 	    has_csum_flag, completion_tag, &desc_idx);
@@ -770,7 +792,6 @@ gve_xmit_dqo_qpl(struct gve_tx_ring *tx, struct mbuf *mbuf)
 	return (0);
 
 abort:
-	pkt->mbuf = NULL;
 	gve_free_pending_packet(tx, pkt);
 	return (err);
 }
@@ -823,7 +844,6 @@ gve_xmit_dqo(struct gve_tx_ring *tx, struct mbuf **mbuf_ptr)
 	if (err)
 		goto abort;
 	mbuf = *mbuf_ptr;  /* gve_map_mbuf_dqo might replace the mbuf chain */
-	pkt->mbuf = mbuf;
 
 	total_descs_needed = 1 + /* general_ctx_desc */
 	    nsegs +              /* pkt_desc */
@@ -837,6 +857,10 @@ gve_xmit_dqo(struct gve_tx_ring *tx, struct mbuf **mbuf_ptr)
 	err = gve_tx_fill_ctx_descs(tx, mbuf, is_tso, &desc_idx);
 	if (err)
 		goto abort_with_dma;
+
+	pkt->mbuf = mbuf;
+	pkt->state = GVE_PACKET_STATE_PENDING_DATA_COMPL;
+	gve_set_timestamp(&pkt->enqueue_time_sec);
 
 	bus_dmamap_sync(tx->dqo.buf_dmatag, pkt->dmamap, BUS_DMASYNC_PREWRITE);
 	for (i = 0; i < nsegs; i++) {
@@ -861,7 +885,6 @@ gve_xmit_dqo(struct gve_tx_ring *tx, struct mbuf **mbuf_ptr)
 abort_with_dma:
 	gve_unmap_packet(tx, pkt);
 abort:
-	pkt->mbuf = NULL;
 	gve_free_pending_packet(tx, pkt);
 	return (err);
 }

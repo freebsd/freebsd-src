@@ -560,6 +560,19 @@ lkpinew_pci_dev(device_t dev)
 	return (pdev);
 }
 
+/*
+ * Linux drops the reference on the "from" device of the pci_get_*() iterators
+ * once the next device has been looked up.  Only do it for the devices which
+ * were created by lkpinew_pci_dev(); the other ones belong to the bus.
+ */
+static void
+lkpi_pci_put_from(struct pci_dev *from)
+{
+
+	if (from != NULL && from->dev.release == lkpinew_pci_dev_release)
+		pci_dev_put(from);
+}
+
 struct pci_dev *
 lkpi_pci_get_class(unsigned int class, struct pci_dev *from)
 {
@@ -571,6 +584,7 @@ lkpi_pci_get_class(unsigned int class, struct pci_dev *from)
 		devfrom = from->dev.bsddev;
 
 	dev = pci_find_class_from(class >> 16, (class >> 8) & 0xFF, devfrom);
+	lkpi_pci_put_from(from);
 	if (dev == NULL)
 		return (NULL);
 
@@ -589,6 +603,7 @@ lkpi_pci_get_base_class(unsigned int baseclass, struct pci_dev *from)
 		devfrom = from->dev.bsddev;
 
 	dev = pci_find_base_class_from(baseclass, devfrom);
+	lkpi_pci_put_from(from);
 	if (dev == NULL)
 		return (NULL);
 
@@ -707,6 +722,14 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 	return (0);
 
 out_err:
+	/*
+	 * As on Linux when a probe fails, release the devres actions.  Waiting
+	 * for the last reference to go away is wrong: devres actions (e.g. the
+	 * drm_dev_put() of devm_drm_dev_alloc()) may hold references on this
+	 * very device, which then never gets released, nor does the object
+	 * which holds the reference.
+	 */
+	lkpi_devres_release_free_list(&pdev->dev);
 	put_device(&pdev->dev);
 	return (-error);
 }

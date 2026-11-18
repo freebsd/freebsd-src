@@ -254,11 +254,11 @@ ATF_TC_BODY(amd_invalid_subclass, tc)
 
 	ATF_REQUIRE_FEATURE("exterr_strings");
 	require_hwpmc();
-	require_class(PMC_CLASS_K8, "AMD");
+	require_class(PMC_CLASS_AMD, "AMD");
 	clear_exterr();
 
 	memset(&pa, 0, sizeof(pa));
-	pa.pm_class = PMC_CLASS_K8;
+	pa.pm_class = PMC_CLASS_AMD;
 	pa.pm_mode = PMC_MODE_TC;
 	pa.pm_cpu = PMC_CPU_ANY;
 	pa.pm_flags = PMC_F_EV_PMU;
@@ -276,13 +276,13 @@ ATF_TC_BODY(amd_invalid_config_bits, tc)
 
 	ATF_REQUIRE_FEATURE("exterr_strings");
 	require_hwpmc();
-	require_class(PMC_CLASS_K8, "AMD");
+	require_class(PMC_CLASS_AMD, "AMD");
 	if (!pmc_pmu_enabled())
 		atf_tc_skip("AMD PMU raw allocation path is unavailable");
 	clear_exterr();
 
 	memset(&pa, 0, sizeof(pa));
-	pa.pm_class = PMC_CLASS_K8;
+	pa.pm_class = PMC_CLASS_AMD;
 	pa.pm_mode = PMC_MODE_TC;
 	pa.pm_cpu = PMC_CPU_ANY;
 	pa.pm_flags = PMC_F_EV_PMU;
@@ -315,13 +315,13 @@ ATF_TC_BODY(amd_invalid_df_config_bits, tc)
 
 	ATF_REQUIRE_FEATURE("exterr_strings");
 	require_hwpmc();
-	require_class(PMC_CLASS_K8, "AMD");
+	require_class(PMC_CLASS_AMD, "AMD");
 	if (!pmc_pmu_enabled())
 		atf_tc_skip("AMD PMU raw allocation path is unavailable");
 	clear_exterr();
 
 	memset(&pa, 0, sizeof(pa));
-	pa.pm_class = PMC_CLASS_K8;
+	pa.pm_class = PMC_CLASS_AMD;
 	pa.pm_mode = PMC_MODE_SC;
 	pa.pm_cpu = 0;
 	pa.pm_flags = PMC_F_EV_PMU;

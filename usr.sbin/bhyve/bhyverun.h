@@ -87,6 +87,7 @@ int bhyve_numa_parse(const char *opt);
 void bhyve_cfg_warn(const char *old, const char *new);
 
 void bhyve_init_vcpu(struct vcpu *vcpu);
+void vm_check_destroyed(struct vcpu *vcpu);
 void bhyve_start_vcpu(struct vcpu *vcpu, bool bsp);
 int bhyve_init_platform(struct vmctx *ctx, struct vcpu *bsp);
 int bhyve_init_platform_late(struct vmctx *ctx, struct vcpu *bsp);

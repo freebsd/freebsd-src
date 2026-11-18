@@ -1537,23 +1537,23 @@ sysctl_es137x_single_pcm_mixer(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	if (val == set)
 		return (0);
-	PCM_ACQUIRE_QUICK(d);
+	PCM_ACQUIRE(d);
 	m = d->mixer;
 	if (m == NULL) {
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		return (ENODEV);
 	}
 	level = mix_get(m, SOUND_MIXER_PCM);
 	recsrc = mix_getrecsrc(m);
 	if (level < 0 || recsrc < 0) {
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		return (ENXIO);
 	}
 
 	ES_LOCK(es);
 	if (es->ctrl & (CTRL_ADC_EN | CTRL_DAC1_EN | CTRL_DAC2_EN)) {
 		ES_UNLOCK(es);
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		return (EBUSY);
 	}
 	if (val)
@@ -1583,7 +1583,7 @@ sysctl_es137x_single_pcm_mixer(SYSCTL_HANDLER_ARGS)
 			err = mix_setrecsrc(m, recsrc);
 	}
 
-	PCM_RELEASE_QUICK(d);
+	PCM_RELEASE(d);
 
 	return (err);
 }

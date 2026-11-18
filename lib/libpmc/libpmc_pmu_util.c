@@ -583,7 +583,7 @@ pmc_pmu_amd_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm,
 	if (ped->ped_umask > 0) {
 		pm->pm_caps |= PMC_CAP_QUALIFIER;
 	}
-	pm->pm_class = PMC_CLASS_K8;
+	pm->pm_class = PMC_CLASS_AMD;
 	pe = pmu_event_get(NULL, event_name, &idx);
 
 	if (pe->pmu == NULL) {

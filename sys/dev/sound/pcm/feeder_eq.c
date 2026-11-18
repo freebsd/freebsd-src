@@ -442,38 +442,38 @@ sysctl_dev_pcm_eq(SYSCTL_HANDLER_ARGS)
 	int err, val, oval;
 
 	d = oidp->oid_arg1;
-	if (!PCM_REGISTERED(d))
+	bus_topo_lock();
+	if (!PCM_REGISTERED(d)) {
+		bus_topo_unlock();
 		return (ENODEV);
+	}
+	/*
+	 * Do not give up the topology lock until the device is busied, or it
+	 * might detach between unlocking and busying.
+	 */
+	PCM_ACQUIRE(d);
+	bus_topo_unlock();
 
-	PCM_LOCK(d);
-	PCM_WAIT(d);
 	if (d->flags & SD_F_EQ)
 		val = 1;
 	else
 		val = 0;
-	PCM_ACQUIRE(d);
-	PCM_UNLOCK(d);
 
 	oval = val;
 	err = sysctl_handle_int(oidp, &val, 0, req);
 
 	if (err == 0 && req->newptr != NULL && val != oval) {
 		if (!(val == 0 || val == 1)) {
-			PCM_RELEASE_QUICK(d);
+			PCM_RELEASE(d);
 			return (EINVAL);
 		}
-
-		PCM_LOCK(d);
 
 		if (val == 1)
 			d->flags |= SD_F_EQ;
 		else
 			d->flags &= ~SD_F_EQ;
-
-		PCM_RELEASE(d);
-		PCM_UNLOCK(d);
-	} else
-		PCM_RELEASE_QUICK(d);
+	}
+	PCM_RELEASE(d);
 
 	return (err);
 }
@@ -488,18 +488,23 @@ sysctl_dev_pcm_eq_preamp(SYSCTL_HANDLER_ARGS)
 	char buf[32];
 
 	d = oidp->oid_arg1;
-	if (!PCM_REGISTERED(d))
+	bus_topo_lock();
+	if (!PCM_REGISTERED(d)) {
+		bus_topo_unlock();
 		return (ENODEV);
+	}
+	/*
+	 * Do not give up the topology lock until the device is busied, or it
+	 * might detach between unlocking and busying.
+	 */
+	PCM_ACQUIRE(d);
+	bus_topo_unlock();
 
-	PCM_LOCK(d);
-	PCM_WAIT(d);
 	val = d->eqpreamp;
 	bzero(buf, sizeof(buf));
 	(void)snprintf(buf, sizeof(buf), "%c%d.%ddB",
 	    FEEDEQ_PREAMP_SIGNMARK(val), FEEDEQ_PREAMP_IPART(val),
 	    FEEDEQ_PREAMP_FPART(val));
-	PCM_ACQUIRE(d);
-	PCM_UNLOCK(d);
 
 	oval = val;
 	err = sysctl_handle_string(oidp, buf, sizeof(buf), req);
@@ -507,11 +512,9 @@ sysctl_dev_pcm_eq_preamp(SYSCTL_HANDLER_ARGS)
 	if (err == 0 && req->newptr != NULL) {
 		val = feed_eq_scan_preamp_arg(buf);
 		if (val == FEEDEQ_PREAMP_INVALID) {
-			PCM_RELEASE_QUICK(d);
+			PCM_RELEASE(d);
 			return (EINVAL);
 		}
-
-		PCM_LOCK(d);
 
 		if (val != oval) {
 			if (val < FEEDEQ_PREAMP_MIN)
@@ -521,6 +524,7 @@ sysctl_dev_pcm_eq_preamp(SYSCTL_HANDLER_ARGS)
 
 			d->eqpreamp = val;
 
+			PCM_LOCK(d);
 			CHN_FOREACH(c, d, channels.pcm.busy) {
 				CHN_LOCK(c);
 				f = feeder_find(c, FEEDER_EQ);
@@ -528,12 +532,10 @@ sysctl_dev_pcm_eq_preamp(SYSCTL_HANDLER_ARGS)
 					(void)FEEDER_SET(f, FEEDEQ_PREAMP, val);
 				CHN_UNLOCK(c);
 			}
+			PCM_UNLOCK(d);
 		}
-
-		PCM_RELEASE(d);
-		PCM_UNLOCK(d);
-	} else
-		PCM_RELEASE_QUICK(d);
+	}
+	PCM_RELEASE(d);
 
 	return (err);
 }

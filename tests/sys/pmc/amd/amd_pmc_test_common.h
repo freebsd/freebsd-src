@@ -24,6 +24,7 @@
 #include <pmc.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -270,10 +271,22 @@ amd_test_count_pmc_rows_with_prefix(int cpu, const char *prefix)
 }
 
 /*
- * Count the AMD core counter rows ("K8-<n>") on a CPU.  The L3, DF and UMC
- * rows share the K8 class and prefix ("K8-L3-", "K8-DF-", "K8-UMC") and are
- * not core counters.  With free_only, count only rows that are free.
+ * Return the core counter number of an AMD row name, or -1 for other rows
+ * (L3, DF, UMC).  Rows are "AMD-<n>", or "K8-<n>" on older kernels.
  */
+static inline int
+amd_test_core_index(const char *name)
+{
+	unsigned int n;
+	char extra;
+
+	if (sscanf(name, "AMD-%u%c", &n, &extra) == 1 ||
+	    sscanf(name, "K8-%u%c", &n, &extra) == 1)
+		return ((int)n);
+	return (-1);
+}
+
+/* Count the AMD core counter rows on a CPU; with free_only, the free ones. */
 static inline int
 amd_test_count_core_rows(int cpu, bool free_only)
 {
@@ -293,8 +306,7 @@ amd_test_count_core_rows(int cpu, bool free_only)
 	count = 0;
 	for (i = 0; i < npmc; i++) {
 		p = &pmcinfo->pm_pmcs[i];
-		if (strncmp(p->pm_name, "K8-", 3) != 0 ||
-		    p->pm_name[3] < '0' || p->pm_name[3] > '9')
+		if (amd_test_core_index(p->pm_name) < 0)
 			continue;
 		if (free_only && p->pm_rowdisp != PMC_DISP_FREE)
 			continue;

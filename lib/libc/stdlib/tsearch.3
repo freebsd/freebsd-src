@@ -26,17 +26,18 @@
 .\"
 .\"	OpenBSD: tsearch.3,v 1.2 1998/06/21 22:13:49 millert Exp
 .\"
-.Dd June 4, 2017
+.Dd November 17, 2026
 .Dt TSEARCH 3
 .Os
 .Sh NAME
-.Nm tsearch , tfind , tdelete , twalk
+.Nm tsearch , tfind , tdelete , twalk , tdestroy
 .Nd manipulate binary search trees
 .Sh SYNOPSIS
 .In search.h
 .Ft void *
 .Fn tdelete "const void * restrict key" "posix_tnode ** restrict rootp" "int (*compar) (const void *, const void *)"
-.Fn tdestroy "posix_tnode *root" "(void (*node_free)(void *)"
+.Ft void
+.Fn tdestroy "posix_tnode *root" "void (*node_free)(void *)"
 .Ft posix_tnode *
 .Fn tfind "const void *key" "posix_tnode * const *rootp" "int (*compar) (const void *, const void *)"
 .Ft posix_tnode *
@@ -58,18 +59,27 @@ the advantage of calling the comparison function relatively
 infrequently.
 .Pp
 The comparison function passed in by
-the user has the same style of return values as
+the user takes two arguments, each of which is a key pointer.
+This function has the same style of return values as
 .Xr strcmp 3 .
 .Pp
 The
 .Fn tfind
 function
-searches for the datum matched by the argument
+searches for a node whose key matches the argument
 .Fa key
 in the binary tree rooted at
 .Fa rootp ,
-returning a pointer to the datum if it is found and NULL
+returning a pointer to the node if it is found and
+.Dv NULL
 if it is not.
+.Pp
+The first member of a node is a pointer to its key.
+Thus, you should generally cast this result to a
+double pointer to the data type stored in the tree, for example
+.Vt struct foo ** ,
+and use double indirection to retrieve the
+original key value.
 .Pp
 The
 .Fn tsearch
@@ -77,11 +87,14 @@ function
 is identical to
 .Fn tfind
 except that if no match is found,
+it inserts a new node for the
 .Fa key
-is inserted into the tree and a pointer to it is returned.
+into the tree and returns a pointer to the node.
 If
 .Fa rootp
-points to a NULL value a new binary search tree is created.
+points to a
+.Dv NULL
+value a new binary search tree is created.
 .Pp
 The
 .Fn tdelete
@@ -116,14 +129,36 @@ The
 function
 is called with three arguments: a pointer to the current node,
 a value from the enum
-.Sy "typedef enum { preorder, postorder, endorder, leaf } VISIT;"
-specifying the traversal type, and a node level (where level
-zero is the root of the tree).
+.Vt VISIT
+specifying the traversal type, and a node level
+.Pq where level zero is the root of the tree :
+.Bd -literal -offset indent
+typedef enum { preorder, postorder, endorder, leaf } VISIT;
+.Ed
+.Pp
+The
+.Fa action
+function is called only once for a leaf node, with the
+traversal type
+.Dv leaf .
+.Pp
+Note: the names for the traversal types differ somewhat from
+common parlance.
+The traversal type
+.Dv postorder
+corresponds
+to what would typically be referred to as in-order, and the
+traversal type
+.Dv endorder
+corresponds to what would typically
+be referred to as post-order.
 .Sh RETURN VALUES
 The
 .Fn tsearch
-function returns NULL if allocation of a new node fails (usually
-due to a lack of free memory).
+function returns
+.Dv NULL
+if allocation of a new node fails
+.Pq usually due to a lack of free memory .
 .Pp
 The
 .Fn tfind ,
@@ -131,9 +166,13 @@ The
 and
 .Fn tdelete
 functions
-return NULL if
+return
+.Dv NULL
+if
 .Fa rootp
-is NULL or the datum cannot be found.
+is
+.Dv NULL
+or the node cannot be found.
 .Pp
 The
 .Fn twalk
@@ -147,7 +186,8 @@ to search for four strings in
 .Dv root .
 Because the strings are not already present, they are added.
 .Fn tsearch
-is called twice on the fourth string to demonstrate that a string is not added when it is already present.
+is called twice on the fourth string to demonstrate that
+a string is not added when it is already present.
 .Fn tfind
 is used to find the single instance of the fourth string, and
 .Fn tdelete
@@ -214,7 +254,7 @@ functions conform to
 .St -p1003.1-2008 .
 The
 .Fn tdestroy
-function is the glibc extension.
+function is a glibc extension.
 .Pp
 The
 .Fa posix_tnode

@@ -18,7 +18,7 @@
 .\"
 .\"	$Id: traceroute.8,v 1.19 2000/09/21 08:44:19 leres Exp $
 .\"
-.Dd May 14, 2025
+.Dd November 16, 2026
 .Dt TRACEROUTE 8
 .Os
 .Sh NAME
@@ -91,6 +91,9 @@ or mangled
 them, or if it is experiencing congestion
 .Pq Dv 11 .
 Otherwise, report that it passed the bits appropriately.
+The report is taken from the probe header quoted in the ICMP error message
+sent by the hop, so there is none for a destination which answers an ICMP
+probe with an echo reply.
 If
 .Fl t
 is also specified, the corresponding ECN bits will be replaced.
@@ -106,10 +109,10 @@ packets.
 This is normally only useful on a multi-homed host.
 (See the
 .Fl s
-flag for another way to do this).
+flag for another way to do this.)
 .It Fl I
 Use ICMP ECHO instead of UDP datagrams.
-(A synonym for "-P icmp").
+(A synonym for "-P icmp".)
 .It Fl m Ar max_ttl
 Set the max time-to-live (max number of hops) used in outgoing probe packets.
 The default is the value of the
@@ -139,7 +142,7 @@ to terminate the route tracing).
 If something is listening on a port in the default range, this option can be
 used to pick an unused port range.
 .It Fl P Ar proto
-Use packets of specified IP protocol when sending probes.
+Use packets of the specified IP protocol when sending probes.
 The
 .Ar proto
 argument may be one of the following:
@@ -211,7 +214,7 @@ network.
 If the host is not on a directly-attached network, an error is returned.
 This option can be used to ping a local host through an interface that has no
 route through it (e.g., after the interface was dropped by
-.Xr routed 8 .
+.Xr routed 8 ) .
 .It Fl s Ar src_addr
 Use the following IP address (which usually is given as an IP number, not a
 hostname) as the source address in outgoing probe packets.
@@ -222,7 +225,7 @@ If the IP address is not one of this machine's interface addresses, an error is
 returned and nothing is sent.
 (See the
 .Fl i
-flag for another way to do this).
+flag for another way to do this.)
 .It Fl S
 Print a summary of how many probes were not answered for each hop.
 .It Fl t Ar tos
@@ -259,7 +262,7 @@ So they are always calculated when using ICMP.
 Set the time (in milliseconds) to pause between probes (default 0).
 Some systems such as Solaris and routers such as Ciscos rate limit ICMP
 messages.
-A good value to use with this is 500 (e.g., 1/2 second).
+A good value to use with this is 500 (i.e., 1/2 second).
 .El
 .Pp
 This program attempts to trace the route an IP packet would follow to some
@@ -267,7 +270,7 @@ internet host by launching UDP probe packets with a small TTL (time to live)
 then listening for an ICMP "time exceeded" reply from a gateway.
 We start our probes with a TTL of one and increase by one until we get an ICMP
 "port unreachable" (which means we got to "host") or hit a max (which defaults
-to the amount of hops specified by the
+to the number of hops specified by the
 .Va net.inet.ip.ttl
 .Xr sysctl 8
 and can be changed with the
@@ -368,7 +371,7 @@ destination system:
 .Pp
 Notice that there are 12 "gateways" (13 is the final destination) and exactly
 the last half of them are "missing".
-What's really happening is that rip (a Sun-3 running Sun OS3.5) is using the
+What's really happening is that rip (a Sun-3 running SunOS 3.5) is using the
 TTL from our arriving datagram as the TTL in its ICMP reply.
 So, the reply will time out on the return path (with no notice sent to anyone
 since ICMP's aren't sent for ICMP's) until we probe with a TTL that's at least

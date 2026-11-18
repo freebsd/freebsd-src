@@ -26,8 +26,10 @@
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
+#include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
 
 #include <atf-c.h>
 #include <errno.h>
@@ -255,6 +257,137 @@ ATF_TC_BODY(lookup_cap_dotdot__root, tc)
 	ATF_REQUIRE_ERRNO(ENOTCAPABLE, openat(dfd, "..", O_DIRECTORY));
 }
 
+/*
+ * ".." from a directory that is a mount root: the lookup must not cross
+ * to the covered vnode and leave its starting directory.
+ */
+static char mntpath[MAXPATHLEN];
+
+/* Mount tmpfs over the existing directory "mnt". */
+static void
+mount_tmpfs(bool unionmnt)
+{
+	struct iovec iov[6];
+	char cwd[MAXPATHLEN];
+	u_int iovlen;
+
+	ATF_REQUIRE(getcwd(cwd, sizeof(cwd)) != NULL);
+	snprintf(mntpath, sizeof(mntpath), "%s/mnt", cwd);
+	iov[0].iov_base = __DECONST(char *, "fstype");
+	iov[0].iov_len = sizeof("fstype");
+	iov[1].iov_base = __DECONST(char *, "tmpfs");
+	iov[1].iov_len = sizeof("tmpfs");
+	iov[2].iov_base = __DECONST(char *, "fspath");
+	iov[2].iov_len = sizeof("fspath");
+	iov[3].iov_base = mntpath;
+	iov[3].iov_len = strlen(mntpath) + 1;
+	iovlen = 4;
+	if (unionmnt) {
+		iov[4].iov_base = __DECONST(char *, "union");
+		iov[4].iov_len = sizeof("union");
+		iov[5].iov_base = NULL;
+		iov[5].iov_len = 0;
+		iovlen = 6;
+	}
+	ATF_REQUIRE_MSG(nmount(iov, iovlen, 0) == 0, "nmount: %s",
+	    strerror(errno));
+}
+
+static void
+unmount_tmpfs(void)
+{
+	char cwd[MAXPATHLEN];
+
+	if (getcwd(cwd, sizeof(cwd)) == NULL)
+		return;
+	snprintf(mntpath, sizeof(mntpath), "%s/mnt", cwd);
+	(void)unmount(mntpath, MNT_FORCE);
+}
+
+ATF_TC_WITH_CLEANUP(lookup_cap_dotdot__mountroot);
+ATF_TC_HEAD(lookup_cap_dotdot__mountroot, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Validate that .. from a mount root stays beneath it");
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
+ATF_TC_BODY(lookup_cap_dotdot__mountroot, tc)
+{
+	int dfd;
+
+	check_capsicum();
+	ATF_REQUIRE(mkdir("mnt", 0777) == 0);
+	mount_tmpfs(false);
+
+	ATF_REQUIRE((dfd = open(mntpath, O_RDONLY | O_DIRECTORY)) >= 0);
+	ATF_REQUIRE(mkdirat(dfd, "sub", 0777) == 0);
+
+	/* A ".." that ends at the start is fine. */
+	ATF_REQUIRE_MSG(openat(dfd, "sub/..", O_RDONLY | O_DIRECTORY |
+	    O_RESOLVE_BENEATH) >= 0, "%s", strerror(errno));
+
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE, openat(dfd, "..", O_RDONLY |
+	    O_DIRECTORY | O_RESOLVE_BENEATH) < 0);
+
+	ATF_REQUIRE(cap_enter() >= 0);
+
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    openat(dfd, "..", O_RDONLY | O_DIRECTORY) < 0);
+}
+
+ATF_TC_CLEANUP(lookup_cap_dotdot__mountroot, tc)
+{
+	unmount_tmpfs();
+}
+
+/*
+ * A name missing from the root of a union mount is looked up in the
+ * covered directory.  A relative symlink found there is resolved from
+ * the covered directory, and its ".." must not leave the starting
+ * directory either.
+ */
+ATF_TC_WITH_CLEANUP(lookup_cap_dotdot__union);
+ATF_TC_HEAD(lookup_cap_dotdot__union, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Validate that symlinks below a union mount root stay beneath it");
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
+ATF_TC_BODY(lookup_cap_dotdot__union, tc)
+{
+	int dfd;
+
+	check_capsicum();
+	touchat(AT_FDCWD, "outside");
+	ATF_REQUIRE(mkdir("mnt", 0777) == 0);
+	touchat(AT_FDCWD, "mnt/lower");
+	ATF_REQUIRE(symlink("lower", "mnt/lnklower") == 0);
+	ATF_REQUIRE(symlink("../outside", "mnt/lnkout") == 0);
+	mount_tmpfs(true);
+
+	ATF_REQUIRE((dfd = open(mntpath, O_RDONLY | O_DIRECTORY)) >= 0);
+
+	/* Entries of the covered directory are still found. */
+	ATF_REQUIRE_MSG(openat(dfd, "lower", O_RDONLY |
+	    O_RESOLVE_BENEATH) >= 0, "%s", strerror(errno));
+	ATF_REQUIRE_MSG(openat(dfd, "lnklower", O_RDONLY |
+	    O_RESOLVE_BENEATH) >= 0, "%s", strerror(errno));
+
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE, openat(dfd, "lnkout", O_RDONLY |
+	    O_RESOLVE_BENEATH) < 0);
+
+	ATF_REQUIRE(cap_enter() >= 0);
+
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE, openat(dfd, "lnkout", O_RDONLY) < 0);
+}
+
+ATF_TC_CLEANUP(lookup_cap_dotdot__union, tc)
+{
+	unmount_tmpfs();
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -267,6 +400,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, lookup_cap_dotdot__advanced);
 	ATF_TP_ADD_TC(tp, lookup_cap_dotdot__negative);
 	ATF_TP_ADD_TC(tp, lookup_cap_dotdot__root);
+	ATF_TP_ADD_TC(tp, lookup_cap_dotdot__mountroot);
+	ATF_TP_ADD_TC(tp, lookup_cap_dotdot__union);
 
 	return (atf_no_error());
 }

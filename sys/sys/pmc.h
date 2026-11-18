@@ -141,7 +141,7 @@ enum pmc_cputype {
  */
 #define	__PMC_CLASSES()								\
     __PMC_CLASS(TSC,		0x00,	"CPU Timestamp counter")		\
-    __PMC_CLASS(K8,		0x02,	"AMD K8 performance counters")		\
+    __PMC_CLASS(AMD,		0x02,	"AMD performance counters")		\
     __PMC_CLASS(IBS,		0x03,	"AMD IBS performance counters")		\
     __PMC_CLASS(IAF,		0x06,	"Intel Core2/Atom, fixed function")	\
     __PMC_CLASS(IAP,		0x07,	"Intel Core...Atom, programmable")	\
@@ -168,6 +168,9 @@ enum pmc_class {
 
 #define	PMC_CLASS_FIRST	PMC_CLASS_TSC
 #define	PMC_CLASS_LAST	PMC_CLASS_PERF
+
+/* Compat for the old name. */
+#define	PMC_CLASS_K8	PMC_CLASS_AMD
 
 /*
  * A PMC can be in the following states:

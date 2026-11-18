@@ -29,6 +29,7 @@
 enum aw_sid_fuse_id {
 	AW_SID_FUSE_ROOTKEY = 1,
 	AW_SID_FUSE_THSSENSOR,
+	AW_SID_FUSE_SPEEDGRADE,
 };
 
 int	aw_sid_read_tscalib(uint32_t *, uint32_t *);

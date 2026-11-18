@@ -97,10 +97,6 @@ int sndbuf_acquire(struct snd_dbuf *b, uint8_t *from, unsigned int count);
 int sndbuf_dispose(struct snd_dbuf *b, uint8_t *to, unsigned int count);
 int sndbuf_feed(struct snd_dbuf *from, struct snd_dbuf *to, struct pcm_channel *channel, struct pcm_feeder *feeder, unsigned int count);
 
-#ifdef OSSV4_EXPERIMENT
-void sndbuf_getpeaks(struct snd_dbuf *b, int *lp, int *rp);
-#endif
-
 static inline uint32_t
 snd_xbytes(uint32_t v, uint32_t from, uint32_t to)
 {

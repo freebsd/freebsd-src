@@ -26,6 +26,8 @@
  */
 
 #include <sys/stat.h>
+#include <sys/sysctl.h>
+#include <sys/user.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -206,6 +208,27 @@ remove_dir(int fd)
 }
 
 static int
+uid_has_procs(int uid)
+{
+	int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_UID, 0};
+	struct kinfo_proc kp;
+	size_t kp_len = sizeof(kp);
+
+	mib[3] = uid;
+
+	/*
+	 * Only pass a stack allocation with room for one kinfo_proc, and ignore
+	 * ENOMEM. This gives a zero-allocation way to discover whether the UID
+	 * has any processes.
+	 */
+	if (sysctl(mib, nitems(mib), &kp, &kp_len, NULL, 0) && errno != ENOMEM) {
+		return -1;
+	}
+
+	return (kp_len > 0);
+}
+
+static int
 _pam_xdg_close(pam_handle_t *pamh __unused, int flags __unused,
     int argc __unused, const char *argv[] __unused)
 {
@@ -291,13 +314,18 @@ _pam_xdg_close(pam_handle_t *pamh __unused, int flags __unused,
 	}
 	close(session_file);
 
-	/* Final cleanup if last user session */
+	/*
+	 * Final cleanup if last user session and linger not enabled,
+	 * or linger enabled but user has no processes
+	 */
 	if (i == 0) {
-		remove_dir(rt_dir);
-		if (unlinkat(rt_dir_prefix, user, AT_REMOVEDIR) != 0) {
-			PAM_VERBOSE_ERROR("Can't cleanup %s/%s\n", runtime_dir_prefix, user);
-			rv = PAM_SESSION_ERR;
-			goto out;
+		if (openpam_get_option(pamh, "linger") == NULL || !uid_has_procs(passwd->pw_uid)) {
+			remove_dir(rt_dir);
+			if (unlinkat(rt_dir_prefix, user, AT_REMOVEDIR) != 0) {
+				PAM_VERBOSE_ERROR("Can't cleanup %s/%s\n", runtime_dir_prefix, user);
+				rv = PAM_SESSION_ERR;
+				goto out;
+			}
 		}
 	}
 

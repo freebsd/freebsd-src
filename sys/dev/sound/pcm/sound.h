@@ -74,6 +74,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
+#include <sys/sx.h>
 
 struct pcm_channel;
 struct pcm_feeder;
@@ -94,7 +95,7 @@ struct snd_mixer;
 #define SD_F_SIMPLEX		0x00000001
 /* unused			0x00000002 */
 #define SD_F_SOFTPCMVOL		0x00000004
-#define SD_F_BUSY		0x00000008
+/* unused			0x00000008 */
 #define SD_F_MPSAFE		0x00000010
 #define SD_F_REGISTERED		0x00000020
 #define SD_F_BITPERFECT		0x00000040
@@ -110,7 +111,7 @@ struct snd_mixer;
 				"\001SIMPLEX"				\
 				/* "\002 */				\
 				"\003SOFTPCMVOL"			\
-				"\004BUSY"				\
+				/* "\004 */				\
 				"\005MPSAFE"				\
 				"\006REGISTERED"			\
 				"\007BITPERFECT"			\
@@ -156,6 +157,33 @@ void *pcm_getdevinfo(device_t dev);
 int snd_setup_intr(device_t dev, struct resource *res, int flags,
 		   driver_intr_t hand, void *param, void **cookiep);
 
+/*
+ * Locking protocol:
+ *
+ * Giant: Taken with PCM_GIANT_ENTER() or bus_topo_lock(). Used with non-MPSAFE
+ * drivers and when accessing the devclass, as well as for synchronizing device
+ * teardown.
+ *
+ * snddev_info->sx: Taken with PCM_ACQUIRE(). Busies the device and serializes
+ * writes to the flags (but not reads). It is held across sleeps and long
+ * operations: opening and closing the dsp cdev, creating and destroying
+ * channels, the ioctl and sysctl handlers, and detach. Holding it also blocks
+ * pcm_unregister() from destroying the device mid-operation, which is why
+ * handlers which never sleep also take the sx.
+ *
+ * snddev_info->lock: Taken with PCM_LOCK(). Also the primary mixer's lock (see
+ * mixer_obj_create()). It covers code which cannot sleep: the mixer, which is
+ * sometimes accessed from interrupt handlers, and channels.pcm.busy, mutated
+ * by chn_trigger(), which is only sometimes called with the sx already held.
+ *
+ * pcm_channel->lock: Taken with CHN_LOCK(). Covers the channel's own state.
+ *
+ * Lock order:
+ *
+ * Giant -> PCM_ACQUIRE() -> PCM_LOCK() -> CHN_LOCK(parent) -> CHN_LOCK(child).
+ *
+ * A dsp_cdevpriv's record channel is locked before its play channel.
+ */
 struct snddev_info {
 	struct {
 		struct {
@@ -177,6 +205,7 @@ struct snddev_info {
 	device_t dev;
 	char status[SND_STATUSLEN];
 	struct mtx lock;
+	struct sx sx;
 	struct cdev *dsp_dev;
 	struct snd_mixer *mixer;
 	uint32_t pvchanrate, pvchanformat, pvchanmode;
@@ -184,7 +213,6 @@ struct snddev_info {
 	int32_t eqpreamp;
 	struct sysctl_ctx_list play_sysctl_ctx, rec_sysctl_ctx;
 	struct sysctl_oid *play_sysctl_tree, *rec_sysctl_tree;
-	struct cv cv;
 	struct unrhdr *p_unr;
 	struct unrhdr *vp_unr;
 	struct unrhdr *r_unr;
@@ -198,61 +226,18 @@ int	sound_oss_card_info(oss_card_info *);
 #define	PCM_MODE_PLAY		0x02
 #define	PCM_MODE_REC		0x04
 
-#define PCM_LOCKOWNED(d)	mtx_owned(&(d)->lock)
 #define	PCM_LOCK(d)		mtx_lock(&(d)->lock)
 #define	PCM_UNLOCK(d)		mtx_unlock(&(d)->lock)
-#define PCM_TRYLOCK(d)		mtx_trylock(&(d)->lock)
 #define PCM_LOCKASSERT(d)	mtx_assert(&(d)->lock, MA_OWNED)
 #define PCM_UNLOCKASSERT(d)	mtx_assert(&(d)->lock, MA_NOTOWNED)
 
-/*
- * For PCM_[WAIT | ACQUIRE | RELEASE], be sure to surround these
- * with PCM_LOCK/UNLOCK() sequence, or I'll come to gnaw upon you!
- */
-#define PCM_WAIT(x)		do {					\
-	PCM_LOCKASSERT(x);						\
-	while ((x)->flags & SD_F_BUSY)					\
-		cv_wait(&(x)->cv, &(x)->lock);				\
+#define PCM_ACQUIRE(d)		do {					\
+	PCM_UNLOCKASSERT(d);						\
+	sx_xlock(&(d)->sx);						\
 } while (0)
 
-#define PCM_ACQUIRE(x)		do {					\
-	PCM_LOCKASSERT(x);						\
-	KASSERT(!((x)->flags & SD_F_BUSY),				\
-	    ("%s(%d): [PCM ACQUIRE] Trying to acquire BUSY cv!",	\
-	    __func__, __LINE__));					\
-	(x)->flags |= SD_F_BUSY;					\
-} while (0)
-
-#define PCM_RELEASE(x)		do {					\
-	PCM_LOCKASSERT(x);						\
-	KASSERT((x)->flags & SD_F_BUSY,					\
-	    ("%s(%d): [PCM RELEASE] Releasing non-BUSY cv!",		\
-	    __func__, __LINE__));					\
-	(x)->flags &= ~SD_F_BUSY;					\
-	cv_broadcast(&(x)->cv);						\
-} while (0)
-
-/* Quick version, for shorter path. */
-#define PCM_ACQUIRE_QUICK(x)	do {					\
-	PCM_UNLOCKASSERT(x);						\
-	PCM_LOCK(x);							\
-	PCM_WAIT(x);							\
-	PCM_ACQUIRE(x);							\
-	PCM_UNLOCK(x);							\
-} while (0)
-
-#define PCM_RELEASE_QUICK(x)	do {					\
-	PCM_UNLOCKASSERT(x);						\
-	PCM_LOCK(x);							\
-	PCM_RELEASE(x);							\
-	PCM_UNLOCK(x);							\
-} while (0)
-
-#define PCM_BUSYASSERT(x)	KASSERT(x != NULL &&			\
-				    ((x)->flags & SD_F_BUSY),		\
-				    ("%s(%d): [PCM BUSYASSERT] "	\
-				    "Failed, snddev_info=%p",		\
-				    __func__, __LINE__, x))
+#define PCM_RELEASE(d)		sx_xunlock(&(d)->sx)
+#define PCM_BUSYASSERT(d)	sx_assert(&(d)->sx, SA_XLOCKED)
 
 #define PCM_GIANT_ENTER(x)	do {					\
 	int _pcm_giant = 0;						\

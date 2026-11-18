@@ -1050,7 +1050,10 @@ freebsd32_ptrace_useraction(struct thread *td, int req, bool pd_mode, pid_t pid,
 	void *addr;
 	int data, error, i;
 
-	error = 0;
+	error = ptrace_check_allowed(td, req, pd_mode, pid);
+	if (error != 0)
+		return (error);
+
 	addr = &r;
 	data = udata;
 
@@ -1512,9 +1515,9 @@ freebsd32_cmsg_convert(const struct cmsghdr *cm, void *data, socklen_t datalen)
 static int
 freebsd32_copy_msg_out(struct msghdr *msg, struct mbuf *control)
 {
-	struct cmsghdr *cm;
+	struct cmsghdr *cm, cm_out;
 	void *data;
-	socklen_t clen, datalen, datalen_out, oldclen;
+	socklen_t clen, datalen, datalen_out;
 	int error;
 	caddr_t ctlbuf;
 	int len, copylen;
@@ -1540,9 +1543,10 @@ freebsd32_copy_msg_out(struct msghdr *msg, struct mbuf *control)
 			datalen_out = freebsd32_cmsg_convert(cm, data, datalen);
 
 			/*
-			 * Copy out the message header.  Preserve the native
-			 * message size in case we need to inspect the message
-			 * contents later.
+			 * Copy out the message header.  Adjust it first to
+			 * satisfy the 32-bit ABI's alignment requirements.
+			 * Note that the underlying storage may still be
+			 * resident in the socket buffer.
 			 */
 			copylen = sizeof(struct cmsghdr);
 			if (len < copylen) {
@@ -1550,11 +1554,11 @@ freebsd32_copy_msg_out(struct msghdr *msg, struct mbuf *control)
 				m_dispose_extcontrolm(m);
 				goto exit;
 			}
-			oldclen = cm->cmsg_len;
-			cm->cmsg_len = FREEBSD32_ALIGN(sizeof(struct cmsghdr)) +
+			memcpy(&cm_out, cm, copylen);
+			cm_out.cmsg_len =
+			    FREEBSD32_ALIGN(sizeof(struct cmsghdr)) +
 			    datalen_out;
-			error = copyout(cm, ctlbuf, copylen);
-			cm->cmsg_len = oldclen;
+			error = copyout(&cm_out, ctlbuf, copylen);
 			if (error != 0)
 				goto exit;
 

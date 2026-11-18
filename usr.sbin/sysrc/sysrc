@@ -16,7 +16,7 @@ pgm="${0##*/}" # Program basename
 #
 # Version information
 #
-SYSRC_VERSION="7.3.1 Oct-17,2026"
+SYSRC_VERSION="8.3 Nov-16,2026"
 
 #
 # Options
@@ -31,6 +31,7 @@ JAIL=
 LIST_SERVICE_CONFS=
 LIST_CONFS=
 QUIET=
+RAW=
 ROOTDIR=
 SERVICE=
 SHOW_ALL=
@@ -62,7 +63,7 @@ die()
 usage()
 {
 	f_err "Usage: %s [OPTIONS] %s\n" "$pgm" \
-		"{name[[+|-]=value] ... | -a | -A | -l | -L [name ...]}"
+		"{name[[+|-|.]=value] ... | -a | -A | -l | -L [name ...]}"
 	f_err "Try \`%s --help' for more information.\n" "$pgm"
 	die
 }
@@ -76,7 +77,7 @@ help()
 	local optfmt="\t%-11s%s\n"
 	local envfmt="\t%-17s%s\n"
 
-	f_err "Usage: %s [OPTIONS] name[[+|-]=value] ...\n" "$pgm"
+	f_err "Usage: %s [OPTIONS] name[[+|-|.]=value] ...\n" "$pgm"
 	f_err "Usage: %s [OPTIONS] -a | -A\n" "$pgm"
 	f_err "Usage: %s [OPTIONS] -l | -L [name ...]\n" "$pgm"
 
@@ -125,12 +126,14 @@ help()
 	      "Show only variable names, not their values."
 	f_err "$optfmt" "-q" \
 	      "Quiet. Disable verbose and hide certain errors."
+	f_err "$optfmt" "-r" \
+	      "Show raw, unexpanded value(s)."
+	f_err "$optfmt" "-R dir" \
+	      "Operate within the root directory \`dir' rather than \`/'."
 	f_err "$optfmt" "-s name" \
 	      "Process additional \`rc.conf.d' entries for service name."
 	f_err "$optfmt" "" \
 	      "Ignored if \`-f file' is given."
-	f_err "$optfmt" "-R dir" \
-	      "Operate within the root directory \`dir' rather than \`/'."
 	f_err "$optfmt" "-v" \
 	      "Verbose. Print the pathname of the specific rc.conf(5)"
 	f_err "$optfmt" "" \
@@ -216,7 +219,7 @@ unset arg
 #
 # Process command-line flags
 #
-while getopts aAcdDeEf:Fhij:lLnNqR:s:vxX flag; do
+while getopts aAcdDeEf:Fhij:lLnNqrR:s:vxX flag; do
 	case "$flag" in
 	a) SHOW_ALL=${SHOW_ALL:-1} ;;
 	A) SHOW_ALL=2 ;;
@@ -237,6 +240,7 @@ while getopts aAcdDeEf:Fhij:lLnNqR:s:vxX flag; do
 	n) SHOW_NAME= ;;
 	N) SHOW_VALUE= ;;
 	q) QUIET=1 VERBOSE= ;;
+	r) RAW=1 ;;
 	R) [ "$OPTARG" ] ||
 		die "%s: Missing or null argument to \`-R' flag" "$pgm"
 	   ROOTDIR="$OPTARG" ;;
@@ -328,6 +332,7 @@ fi
 for name in "$@"; do
 	# NB: shell expansion syntax removed first
 	name="${name%%:[+=-]*}"
+	name="${name%%.=*}" # string append
 	name="${name%%[%#+=-]*}"
 	[ "$name" = "${name#*[!$VALID_VARNAME_CHARS]}" ] || die \
 		"%s: %s: name contains characters not allowed in shell" \
@@ -451,6 +456,7 @@ if [ "$JAIL" -o "$ROOTDIR" ]; then
 	args="
 		${VERBOSE:+-v}
 		${QUIET:+-q}
+		${RAW:+-r}
 		$( [ "$DELETE" = "1" ] && echo \ -x )
 		$( [ "$DELETE" = "2" ] && echo \ -X )
 		$( [ "$SHOW_ALL" = "1" ] && echo \ -a )
@@ -578,8 +584,9 @@ if [ "$SHOW_ALL" ]; then
 		EXCEPT="$EXCEPT|DELETE|SHOW_ALL|SHOW_EQUALS|SHOW_NAME|DEFAULT"
 		EXCEPT="$EXCEPT|SHOW_VALUE|SHOW_FILE|VERBOSE|RC_CONFS|SERVICE"
 		EXCEPT="$EXCEPT|pgm|SUCCESS|FAILURE|CHECK_ONLY|EXISTING_ONLY"
-		EXCEPT="$EXCEPT|LIST_CONFS|LIST_SERVICE_CONFS"
+		EXCEPT="$EXCEPT|LIST_CONFS|LIST_SERVICE_CONFS|RAW"
 		EXCEPT="$EXCEPT|f_sysrc_desc_awk|f_sysrc_delete_awk"
+		EXCEPT="$EXCEPT|f_sysrc_get_raw_awk"
 
 		#
 		# Clean the environment (except for our required variables)
@@ -662,7 +669,8 @@ if [ "$SHOW_ALL" ]; then
 			fi
 
 			echo "${SHOW_NAME:+$NAME$SEP}$(
-			      f_sysrc_get "$NAME" )${SHOW_EQUALS:+\"}"
+				f_sysrc_get${RAW:+_raw} "$NAME"
+			)${SHOW_EQUALS:+\"}"
 
 		done
 	)
@@ -681,8 +689,9 @@ while [ $# -gt 0 ]; do
 	NAME="${1%%=*}"
 
 	case "$NAME" in
-	*+) mode=APPEND NAME="${NAME%+}" ;;
-	*-) mode=REMOVE NAME="${NAME%-}" ;;
+	*+) mode=LISTAPPEND NAME="${NAME%+}" ;;
+	*-) mode=LISTREMOVE NAME="${NAME%-}" ;;
+	*.) mode=STRAPPEND NAME="${NAME%.}" ;;
 	 *) mode=ASSIGN
 	esac
 
@@ -722,16 +731,17 @@ while [ $# -gt 0 ]; do
 		# Determine both `before' value and appropriate `new' value
 		#
 		case "$mode" in
-		APPEND)
-			before=$( f_sysrc_get "$NAME" )
+		LISTAPPEND)
+			before=$( f_sysrc_get_raw "$NAME" )
 			add="${1#*=}"
 			delim="${add%"${add#?}"}" # first character
 			oldIFS="$IFS"
 			case "$delim" in
-			""|[$IFS]|[a-zA-Z0-9./]) delim=" " ;;
+			""|[$IFS]|[-a-zA-Z0-9./_*~$]) delim=" " ;;
 			*) IFS="$delim"
 			esac
 			new="$before"
+			set -f # noglob
 			for a in $add; do
 				[ "$a" ] || continue
 				skip=
@@ -740,20 +750,22 @@ while [ $# -gt 0 ]; do
 				done
 				[ "$skip" ] || new="$new$delim$a"
 			done
+			set +f # glob
 			new="${new#"$delim"}" IFS="$oldIFS"
 			unset add delim oldIFS a skip b
 			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
 			;;
-		REMOVE)
-			before=$( f_sysrc_get "$NAME" )
+		LISTREMOVE)
+			before=$( f_sysrc_get_raw "$NAME" )
 			remove="${1#*=}"
 			delim="${remove%"${remove#?}"}" # first character
 			oldIFS="$IFS"
 			case "$delim" in
-			""|[$IFS]|[a-zA-Z0-9./]) delim=" " ;;
+			""|[$IFS]|[-a-zA-Z0-9./_*~$]) delim=" " ;;
 			*) IFS="$delim"
 			esac
 			new=
+			set -f # noglob
 			for b in $before; do
 				[ "$b" ] || continue
 				add=1
@@ -762,15 +774,24 @@ while [ $# -gt 0 ]; do
 				done
 				[ "$add" ] && new="$new$delim$b"
 			done
+			set +f # glob
 			new="${new#"$delim"}" IFS="$oldIFS"
 			unset remove delim oldIFS b add r
+			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
+			;;
+		STRAPPEND)
+			before=$( f_sysrc_get_raw "$NAME" )
+			add="${1#*=}"
+			new="$add"
+			[ "$before" ] && new="$before $add"
+			unset add
 			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
 			;;
 		*) # ASSIGN
 			if [ "$SHOW_FILE" ]; then
 				before=$( f_sysrc_find "$NAME" )
 			else
-				before=$( f_sysrc_get "$NAME" )
+				before=$( f_sysrc_get_raw "$NAME" )
 			fi
 			new="${1#*=}"
 		esac
@@ -814,7 +835,9 @@ while [ $# -gt 0 ]; do
 					if [ "$SHOW_FILE" ]; then
 						after=$( f_sysrc_find "$NAME" )
 					else
-						after=$( f_sysrc_get "$NAME" )
+						after=$(
+							f_sysrc_get_raw "$NAME"
+						)
 					fi
 					echo -n "${SHOW_NAME:+$NAME$SEP}"
 					echo -n "$before${SHOW_EQUALS:+\" #}"
@@ -886,7 +909,8 @@ while [ $# -gt 0 ]; do
 			echo "$NAME"
 		else
 			echo "${SHOW_NAME:+$NAME$SEP}$(
-			      f_sysrc_get "$NAME" )${SHOW_EQUALS:+\"}"
+				f_sysrc_get${RAW:+_raw} "$NAME"
+			)${SHOW_EQUALS:+\"}"
 		fi
 	esac
 	shift 1

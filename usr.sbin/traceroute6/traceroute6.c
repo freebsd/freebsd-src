@@ -975,7 +975,9 @@ main(int argc, char *argv[])
 						lastaddr = Rcv.sin6_addr;
 					}
 					printf("  %.3f ms", deltaT(&t1, &t2));
-					if (ecnflag) {
+					/* An echo reply quotes no header. */
+					if (ecnflag &&
+					    type != ICMP6_ECHO_REPLY) {
 						switch (ecn) {
 						case IPTOS_ECN_ECT1:
 							printf(" (ecn=passed)");

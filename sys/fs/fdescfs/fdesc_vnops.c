@@ -73,11 +73,12 @@ static vop_readdir_t	fdesc_readdir;
 static vop_readlink_t	fdesc_readlink;
 static vop_reclaim_t	fdesc_reclaim;
 static vop_setattr_t	fdesc_setattr;
+static vop_access_t	fdesc_access;
 
 static struct vop_vector fdesc_vnodeops = {
 	.vop_default =		&default_vnodeops,
 
-	.vop_access =		VOP_NULL,
+	.vop_access =		fdesc_access,
 	.vop_getattr =		fdesc_getattr,
 	.vop_lookup =		fdesc_lookup,
 	.vop_open =		fdesc_open,
@@ -539,19 +540,24 @@ fdesc_setattr(struct vop_setattr_args *ap)
 		return (EACCES);
 
 	fd = VTOFDESC(ap->a_vp)->fd_fd;
+	cap_rights_init(&rights, CAP_FUTIMES, CAP_FCHMOD, CAP_FCHOWN,
+	    CAP_FCHFLAGS);
 
 	/*
 	 * Allow setattr where there is an underlying vnode.
 	 * For O_PATH descriptors, disallow truncate.
 	 */
 	if (vap->va_size != VNOVAL) {
-		error = getvnode(td, fd,
-		    cap_rights_init_one(&rights, CAP_EXTATTR_SET), &fp);
+		cap_rights_set(&rights, CAP_FTRUNCATE);
+		error = getvnode(td, fd, &rights, &fp);
+		if (error == 0 && (fp->f_flag & FWRITE) == 0) {
+			error = EACCES;
+			goto out;
+		}
 	} else {
-		error = getvnode_path(td, fd,
-		    cap_rights_init_one(&rights, CAP_EXTATTR_SET), NULL, &fp);
+		error = getvnode_path(td, fd, &rights, NULL, &fp);
 	}
-	if (error) {
+	if (error != 0) {
 		/*
 		 * getvnode() returns EINVAL if the file descriptor is not
 		 * backed by a vnode.  Silently drop all changes except
@@ -572,7 +578,10 @@ fdesc_setattr(struct vop_setattr_args *ap)
 		VOP_UNLOCK(vp);
 		vn_finished_write(mp);
 	}
+out:
+	VOP_UNLOCK(ap->a_vp);
 	fdrop(fp, td);
+	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY);
 	return (error);
 }
 
@@ -717,5 +726,36 @@ fdesc_readlink(struct vop_readlink_args *va)
 
 out:
 	vn_lock(vn, lockflags | LK_RETRY);
+	return (error);
+}
+
+static int
+fdesc_access(struct vop_access_args *va)
+{
+	struct vnode *vp;
+	struct fdescnode *fd;
+	struct file *fp;
+	int error, flags, locked;
+
+	vp = va->a_vp;
+	fd = VTOFDESC(vp);
+	if (fd->fd_type == Froot)
+		return (0);
+	error = fget(va->a_td, fd->fd_fd, &cap_no_rights, &fp);
+	if (error != 0)
+		return (error);
+	flags = 0;
+	if ((va->a_accmode & VREAD) != 0)
+		flags |= FREAD;
+	if ((va->a_accmode & (VWRITE | VAPPEND)) != 0)
+		flags |= FWRITE;
+	if ((va->a_accmode & VEXEC) != 0)
+		flags |= FEXEC;
+	if ((flags & fp->f_flag) != flags)
+		error = EACCES;
+	locked = VOP_ISLOCKED(vp);
+	VOP_UNLOCK(vp);
+	fdrop(fp, va->a_td);
+	vn_lock(vp, locked | LK_RETRY);
 	return (error);
 }

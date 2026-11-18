@@ -54,7 +54,7 @@ ur_pick_event()
 	local ev
 
 	for ev in $UR_EVENTS; do
-		if pmcstat -P "$ev" -n "$UR_RATE" -O ur_probe.pmc \
+		if pmcstat -n "$UR_RATE" -P "$ev" -O ur_probe.pmc \
 		    -- /usr/bin/true >/dev/null 2>&1; then
 			printf '%s\n' "$ev"
 			return 0
@@ -85,7 +85,7 @@ pmcstat_U_survives_and_samples_body()
 	    "(tried: $UR_EVENTS)"
 
 	atf_check -s exit:0 -o ignore -e ignore \
-	    pmcstat -U -P "$ev" -n "$UR_RATE" -O ur_capture.pmc \
+	    pmcstat -U -n "$UR_RATE" -P "$ev" -O ur_capture.pmc \
 	    -- ./ur_load.sh 4
 
 	after=$(sysctl -n kern.hwpmc.stats.merges)

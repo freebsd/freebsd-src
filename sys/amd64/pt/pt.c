@@ -311,7 +311,7 @@ pt_topa_prepare(struct pt_ctx *ctx, struct hwt_vm *vm)
 
 	KASSERT(buf->topa_hw == NULL,
 	    ("%s: ToPA info already exists", __func__));
-	buf->topa_hw = mallocarray(vm->npages + 1, sizeof(uint64_t), M_PT,
+	buf->topa_hw = malloc_aligned((vm->npages + 1) * sizeof(uint64_t), PAGE_SIZE, M_PT,
 	    M_ZERO | M_WAITOK);
 	dprintf("%s: ToPA virt addr %p\n", __func__, buf->topa_hw);
 	buf->size = vm->npages * PAGE_SIZE;
@@ -699,8 +699,10 @@ pt_backend_alloc_thread(struct hwt_thread *thr)
 		return (ENOMEM);
 
 	error = pt_init_ctx(pt_ctx, thr->vm, thr->thread_id);
-	if (error)
+	if (error) {
+		free(pt_ctx, M_PT);
 		return (error);
+	}
 
 	thr->private = pt_ctx;
 	return (0);
@@ -800,6 +802,7 @@ pt_topa_intr(struct trapframe *tf)
 	}
 
 	if (pt_cpu_get_state(curcpu) != PT_ACTIVE) {
+		pt_topa_status_clear();
 		return (1);
 	}
 	atomic_set_int(&cpu->in_pcint_handler, 1);

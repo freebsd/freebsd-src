@@ -57,6 +57,20 @@ set_common_atf_metadata()
     atf_set require.user root
 }
 
+# Wait for a background "tcpdump -w" to start capturing.  tcpdump
+# creates the pcap file only after it attaches the BPF filter, so a
+# packet sent earlier is missed and "tcpdump -c 1" never exits.
+tcpdump_wait_ready()
+{
+    local pid="$1"
+    local pcapfile="$2"
+
+    while [ ! -e "${pcapfile}" ]; do
+        kill -0 "${pid}" 2>/dev/null || atf_fail "tcpdump exited early"
+        sleep 0.1
+    done
+}
+
 # Wrapper with better semantic name for networking context
 syslogd_start_on_port()
 {
@@ -75,9 +89,7 @@ syslogd_start_on_port()
 # Wrapper with better semantic name for networking context
 syslogd_stop_on_ports()
 {
-    local ports="$@"
-
-    for port in "${ports}"; do
+    for port in "$@"; do
         syslogd_stop \
             "$(pid_filename ${port})" \
             "$(local_socket_filename ${port})" \

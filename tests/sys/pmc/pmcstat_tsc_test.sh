@@ -21,7 +21,8 @@ pmc_capture()
 	    2> pmcstat.err; then
 		grep -q "Cannot allocate system-mode pmc" pmcstat.err && \
 		    atf_skip "cannot allocate a system-mode instructions PMC"
-		atf_fail "pmcstat failed: $(cat pmcstat.err)"
+		cat pmcstat.err >&2
+		atf_fail "pmcstat failed"
 	fi
 	[ -s "$1" ] || atf_fail "pmcstat produced an empty log"
 }

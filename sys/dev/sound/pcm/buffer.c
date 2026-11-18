@@ -97,6 +97,7 @@ sndbuf_busy(struct snd_dbuf *b)
 
 	return (refcount_load(&b->refcount) > 1 ||
 	    (b->flags & SNDBUF_F_DETACHED) != 0 ||
+	    b->channel->inprog != 0 ||
 	    /*
 	     * XXX-MJ CHN_F_MMAP is not reliable, but for software buffers the
 	     * refcount accurately reflects whether the buffer is mapped.
@@ -610,31 +611,3 @@ sndbuf_clearshadow(struct snd_dbuf *b)
 	if ((b->shadbuf != NULL) && (b->sl > 0))
 		memset(b->shadbuf, sndbuf_zerodata(b->fmt), b->sl);
 }
-
-#ifdef OSSV4_EXPERIMENT
-/**
- * @brief Return peak value from samples in buffer ready area.
- *
- * Peak ranges from 0-32767.  If channel is monaural, most significant 16
- * bits will be zero.  For now, only expects to work with 1-2 channel
- * buffers.
- *
- * @note  Currently only operates with linear PCM formats.
- *
- * @param b buffer to analyze
- * @param lpeak pointer to store left peak value
- * @param rpeak pointer to store right peak value
- */
-void
-sndbuf_getpeaks(struct snd_dbuf *b, int *lp, int *rp)
-{
-	uint32_t lpeak, rpeak;
-
-	lpeak = 0;
-	rpeak = 0;
-
-	/**
-	 * @todo fill this in later
-	 */
-}
-#endif

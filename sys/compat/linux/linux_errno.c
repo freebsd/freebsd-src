@@ -1,4 +1,3 @@
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
@@ -10,10 +9,10 @@
 int
 bsd_to_linux_errno(int error)
 {
-
-	KASSERT(error >= 0 && error <= ELAST,
-	    ("%s: bad error %d", __func__, error));
-
+	if (__predict_false(error < 0 || error > ELAST)) {
+		printf("%s: unhandled value %d\n", __func__, error);
+		return (-LINUX_EINVAL);
+	}
 	return (linux_errtbl[error]);
 }
 

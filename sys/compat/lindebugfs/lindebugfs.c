@@ -349,7 +349,7 @@ debugfs_create_symlink(const char *name, struct dentry *parent,
 		pnode = debugfs_root;
 
 	pfs_create_link(pnode, &dnode->d_pfs_node, name, &debugfs_fill_data,
-	    NULL, NULL, NULL, PFS_NOWAIT);
+	    NULL, NULL, debugfs_destroy, PFS_NOWAIT);
 	if (dnode->d_pfs_node == NULL)
 		goto fail;
 	dnode->d_pfs_node->pn_data = dm;

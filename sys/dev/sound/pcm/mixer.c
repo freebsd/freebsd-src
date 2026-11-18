@@ -887,11 +887,23 @@ mixer_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 		return (EBADF);
 
 	PCM_GIANT_ENTER(d);
-	PCM_ACQUIRE_QUICK(d);
+
+	/*
+	 * This group of ioctls can report info about any device in the system,
+	 * and they busy each one as they inspect it, so they must not run with
+	 * this device already busied, otherwise we will recurse on the sx.
+	 */
+	if (IOCGROUP(cmd) == 'X') {
+		ret = mixer_ioctl_cmd(i_dev, cmd, arg, mode, td);
+		PCM_GIANT_EXIT(d);
+		return (ret);
+	}
+
+	PCM_ACQUIRE(d);
 
 	ret = mixer_ioctl_cmd(i_dev, cmd, arg, mode, td);
 
-	PCM_RELEASE_QUICK(d);
+	PCM_RELEASE(d);
 	PCM_GIANT_LEAVE(d);
 
 	return (ret);
@@ -1117,7 +1129,6 @@ mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi)
 		return (EINVAL);
 
 	d = NULL;
-	m = NULL;
 
 	/*
 	 * There's a 1:1 relationship between mixers and PCM devices, so
@@ -1125,123 +1136,118 @@ mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi)
 	 */
 	bus_topo_lock();
 	for (i = 0; pcm_devclass != NULL &&
-	    i < devclass_get_maxunit(pcm_devclass); i++) {
+	    i < devclass_get_maxunit(pcm_devclass); i++, d = NULL) {
 		d = devclass_get_softc(pcm_devclass, i);
 		if (!PCM_REGISTERED(d)) {
 			if ((mi->dev == -1 && i == snd_unit) || mi->dev == i) {
 				mixer_oss_mixerinfo_unavail(mi, i);
 				bus_topo_unlock();
 				return (0);
-			} else
-				continue;
+			}
+			d = NULL;
+			continue;
 		}
-
-		/* XXX Need Giant magic entry */
-
-		/* See the note in function docblock. */
-		PCM_UNLOCKASSERT(d);
-		PCM_LOCK(d);
 
 		if (!MIXER_REGISTERED(d->mixer)) {
 			if (mi->dev == i) {
 				mixer_oss_mixerinfo_unavail(mi, i);
-				PCM_UNLOCK(d);
 				bus_topo_unlock();
 				return (0);
 			}
-			PCM_UNLOCK(d);
+			d = NULL;
 			continue;
 		}
 
-		if (!((d->mixer->cdev == i_dev && mi->dev == -1) ||
-		    mi->dev == i)) {
-			PCM_UNLOCK(d);
-			continue;
-		}
-
-		m = d->mixer;
-
-		/*
-		 * At this point, the following synchronization stuff
-		 * has happened:
-		 * - a specific PCM device is locked.
-		 * - a specific mixer device has been locked, so be
-		 *   sure to unlock when existing.
-		 */
-		bzero((void *)mi, sizeof(*mi));
-		mi->dev = i;
-		snprintf(mi->id, sizeof(mi->id), "mixer%d", i);
-		strlcpy(mi->name, m->name, sizeof(mi->name));
-		/**
-		 * Counter is incremented when applications change any of this
-		 * mixer's controls.  A change in value indicates that
-		 * persistent mixer applications should update their displays.
-		 */
-		mi->modify_counter = m->modify_counter;
-		mi->card_number = i;
-		/*
-		 * Currently, FreeBSD assumes 1:1 relationship between
-		 * a pcm and mixer devices, so this is hardcoded to 0.
-		 */
-		mi->port_number = 0;
-
-		/**
-		 * @todo Fill in @sa oss_mixerinfo::mixerhandle.
-		 * @note From 4Front:  "mixerhandle is an arbitrary
-		 *       string that identifies the mixer better than
-		 *       the device number (mixerinfo.dev).  Device
-		 *       numbers may change depending on the order the
-		 *       drivers are loaded. However the handle should
-		 *       remain the same provided that the sound card
-		 *       is not moved to another PCI slot."
-		 */
-
-		/**
-		 * @note
-		 * @sa oss_mixerinfo::magic is a reserved field.
-		 *
-		 * @par
-		 * From 4Front:  "magic is usually 0. However some
-		 * devices may have dedicated setup utilities and the
-		 * magic field may contain an unique driver specific
-		 * value (managed by [4Front])."
-		 */
-
-		mi->enabled = device_is_attached(m->dev) ? 1 : 0;
-		/**
-		 * The only flag for @sa oss_mixerinfo::caps is
-		 * currently MIXER_CAP_VIRTUAL, which I'm not sure we
-		 * really worry about.
-		 */
-		/**
-		 * Mixer extensions currently aren't supported, so
-		 * leave @sa oss_mixerinfo::nrext blank for now.
-		 */
-
-		/**
-		 * @todo Fill in @sa oss_mixerinfo::priority (requires
-		 *       touching drivers?)
-		 * @note The priority field is for mixer applets to
-		 * determine which mixer should be the default, with 0
-		 * being least preferred and 10 being most preferred.
-		 * From 4Front:  "OSS drivers like ICH use higher
-		 * values (10) because such chips are known to be used
-		 * only on motherboards.  Drivers for high end pro
-		 * devices use 0 because they will never be the
-		 * default mixer. Other devices use values 1 to 9
-		 * depending on the estimated probability of being the
-		 * default device.
-		 */
-
-		snprintf(mi->devnode, sizeof(mi->devnode), "/dev/mixer%d", i);
-		mi->legacy_device = i;
-
-		PCM_UNLOCK(d);
-
-		bus_topo_unlock();
-		return (0);
+		if ((mi->dev == -1 && d->mixer->cdev == i_dev) || mi->dev == i)
+			break;
 	}
+
+	/* Exhausted the search. */
+	if (d == NULL) {
+		bus_topo_unlock();
+		return (EINVAL);
+	}
+
+	/*
+	 * Do not give up the topology lock until the device is busied, or it
+	 * might detach between unlocking and busying.
+	 */
+	PCM_ACQUIRE(d);
 	bus_topo_unlock();
 
-	return (EINVAL);
+	m = d->mixer;
+
+	mtx_lock(m->lock);
+	bzero((void *)mi, sizeof(*mi));
+	mi->dev = i;
+	snprintf(mi->id, sizeof(mi->id), "mixer%d", i);
+	strlcpy(mi->name, m->name, sizeof(mi->name));
+	/**
+	 * Counter is incremented when applications change any of this
+	 * mixer's controls.  A change in value indicates that
+	 * persistent mixer applications should update their displays.
+	 */
+	mi->modify_counter = m->modify_counter;
+	mi->card_number = i;
+	/*
+	 * Currently, FreeBSD assumes 1:1 relationship between
+	 * a pcm and mixer devices, so this is hardcoded to 0.
+	 */
+	mi->port_number = 0;
+
+	/**
+	 * @todo Fill in @sa oss_mixerinfo::mixerhandle.
+	 * @note From 4Front:  "mixerhandle is an arbitrary
+	 *       string that identifies the mixer better than
+	 *       the device number (mixerinfo.dev).  Device
+	 *       numbers may change depending on the order the
+	 *       drivers are loaded. However the handle should
+	 *       remain the same provided that the sound card
+	 *       is not moved to another PCI slot."
+	 */
+
+	/**
+	 * @note
+	 * @sa oss_mixerinfo::magic is a reserved field.
+	 *
+	 * @par
+	 * From 4Front:  "magic is usually 0. However some
+	 * devices may have dedicated setup utilities and the
+	 * magic field may contain an unique driver specific
+	 * value (managed by [4Front])."
+	 */
+
+	mi->enabled = device_is_attached(m->dev) ? 1 : 0;
+	/**
+	 * The only flag for @sa oss_mixerinfo::caps is
+	 * currently MIXER_CAP_VIRTUAL, which I'm not sure we
+	 * really worry about.
+	 */
+	/**
+	 * Mixer extensions currently aren't supported, so
+	 * leave @sa oss_mixerinfo::nrext blank for now.
+	 */
+
+	/**
+	 * @todo Fill in @sa oss_mixerinfo::priority (requires
+	 *       touching drivers?)
+	 * @note The priority field is for mixer applets to
+	 * determine which mixer should be the default, with 0
+	 * being least preferred and 10 being most preferred.
+	 * From 4Front:  "OSS drivers like ICH use higher
+	 * values (10) because such chips are known to be used
+	 * only on motherboards.  Drivers for high end pro
+	 * devices use 0 because they will never be the
+	 * default mixer. Other devices use values 1 to 9
+	 * depending on the estimated probability of being the
+	 * default device.
+	 */
+
+	snprintf(mi->devnode, sizeof(mi->devnode), "/dev/mixer%d", i);
+	mi->legacy_device = i;
+	mtx_unlock(m->lock);
+
+	PCM_RELEASE(d);
+
+	return (0);
 }

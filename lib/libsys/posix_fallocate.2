@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 2, 2025
+.Dd November 12, 2026
 .Dt POSIX_FALLOCATE 2
 .Os
 .Sh NAME
@@ -108,6 +108,8 @@ argument was less than or equal to zero, the
 argument was less than zero.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to a file system.
+.It Bq Er EIO
+The file system failed to make progress on the requested allocation.
 .It Bq Er EINTEGRITY
 Corrupted data was detected while reading from the file system.
 .It Bq Er ENODEV

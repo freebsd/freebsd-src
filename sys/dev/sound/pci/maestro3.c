@@ -1122,6 +1122,7 @@ m3_intr(void *p)
 		uint8_t event;
 
 		event = m3_rd_1(sc, HW_VOL_COUNTER_MASTER);
+		M3_UNLOCK(sc);
 		switch (event) {
 		case 0x99:
 			mixer_hwvol_mute(sc->dev);
@@ -1137,6 +1138,7 @@ m3_intr(void *p)
 		default:
 			device_printf(sc->dev, "Unknown HWVOL event\n");
 		}
+		M3_LOCK(sc);
 		m3_wr_1(sc, HW_VOL_COUNTER_MASTER, 0x88);
 	}
 

@@ -1,7 +1,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.\" Copyright (c) 2011-2016 Devin Teske
+.\" Copyright (c) 2011-2026 Devin Teske
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 3, 2022
+.Dd November 17, 2026
 .Dt SYSRC 8
 .Os
 .Sh NAME
@@ -33,14 +33,14 @@
 .Nd safely edit system rc files
 .Sh SYNOPSIS
 .Nm
-.Op Fl cdDeEFhinNqvx
+.Op Fl cdDeEFhinNqrvx
 .Op Fl s Ar name
 .Op Fl f Ar file
 .Op Fl j Ar jail | Fl R Ar dir
-.Ar name Ns Op Ns Oo +|- Oc Ns = Ns Ar value
+.Ar name Ns Op Ns Oo +|-|. Oc Ns = Ns Ar value
 .Ar ...
 .Nm
-.Op Fl cdDeEFhinNqvx
+.Op Fl cdDeEFhinNqrvx
 .Op Fl s Ar name
 .Op Fl f Ar file
 .Op Fl j Ar jail | Fl R Ar dir
@@ -147,6 +147,8 @@ When combined with
 and one or more
 .Ar name
 arguments, provide only exit status and no output.
+.It Fl r
+Show raw, unexpanded value(s).
 .It Fl R Ar dir
 Operate within the root directory
 .Sq Ar dir
@@ -198,11 +200,14 @@ In addition
 .Pq but unlike Xr sysctl 8 ,
 .Ql name+=value
 is supported for adding items to values
-.Pq see APPENDING VALUES
-and
+.Pq see APPENDING VALUES ,
 .Ql name-=value
 is supported for removing items from values
-.Pq see SUBTRACTING VALUES .
+.Pq see SUBTRACTING VALUES ,
+and
+.Ql name.=value
+is supported for appending text
+.Pq see APPENDING TEXT .
 .Pp
 However, while
 .Xr sysctl 8
@@ -279,8 +284,18 @@ For convenience, if the first character is alpha-numeric
 .Pq letters A-Z, a-z, or numbers 0-9 ,
 dot
 .Pq Li \&. ,
-or slash
+slash
 .Pq Li / ,
+dash
+.Pq Li - ,
+underscore
+.Pq Li _ ,
+asterisk
+.Pq Li * ,
+tilde
+.Pq Li ~ ,
+or dollar
+.Pq Li $ ,
 .Nm
 uses the default setting of whitespace as separator.
 For example, the above and below statements are equivalent since
@@ -367,6 +382,69 @@ foo-=baz # `baz' -> NULL
 .Nm
 removes all occurrences of all items provided
 and collapses extra delimiters between items.
+.Sh APPENDING TEXT
+When using the
+.Ql key.=value
+syntax,
+.Nm
+appends
+.Ar value
+to the current value as one string.
+The first character is not a delimiter, and
+.Ar value
+is not split into items.
+If the current value is non-NULL, one space is inserted before the text.
+If no
+.Ar value
+is given
+.Pq Ql key.= ,
+nothing is changed and success is returned.
+.Pp
+The text operator
+.Ql .=
+suits option strings stored in
+.Ql *_flags
+variables.
+For example, with
+.Va cron_flags
+set to
+.Dq $cron_flags -j 15 :
+.Bl -item -offset indent
+.It
+.Nm
+cron_flags.="-J 15"
+.Dl # `$cron_flags -j 15' -> `$cron_flags -j 15 -J 15'
+.El
+.Pp
+The list operator
+.Ql +=
+does not do this
+.Pq see Sx APPENDING VALUES .
+.Ql cron_flags+="-J 15"
+has two items,
+.Dq -J
+and
+.Dq 15 .
+Because
+.Dq 15
+is already present, only
+.Dq -J
+is added, and the stored text becomes
+.Dq $cron_flags -j 15 -J .
+.Pp
+To join with another delimiter, or with none, manually read the raw value and
+then assign the desired result.
+With a comma:
+.Pp
+.Dl cur=$( sysrc -inr foo\  )
+.Dl sysrc foo="$cur${cur:+,}extra"
+.Pp
+The
+.Ql .=
+operator is equivalent to:
+.Pp
+.Dl cur=$( sysrc -inr foo\  )
+.Dl sysrc foo="$cur${cur:+ }extra"
 .Sh ENVIRONMENT
 The following environment variables are referenced by
 .Nm :
@@ -436,6 +514,12 @@ Remove
 from $cloned_interfaces
 .Pq see Sx SUBTRACTING VALUES :
 .Dl sysrc cloned_interfaces-=gif0
+.Pp
+Append
+.Dq -J 15
+to $cron_flags
+.Pq see Sx APPENDING TEXT :
+.Dl sysrc cron_flags.="-J 15"
 .Ss Inline shell parameter expansion
 Return $hostname up to, but not including, first
 .Ql \&. :

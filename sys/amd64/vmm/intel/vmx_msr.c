@@ -492,7 +492,11 @@ vmx_wrmsr(struct vmx_vcpu *vcpu, u_int num, uint64_t val, bool *retu)
 		error = vmx_set_tsc_offset(vcpu, val - rdtsc());
 		break;
 	case MSR_TSC_AUX:
-		if (vmx_have_msr_tsc_aux)
+		/*
+		 * Bits 63:32 are reserved.  Reject them here, since the
+		 * value is later written to the host's MSR.
+		 */
+		if (vmx_have_msr_tsc_aux && (val >> 32) == 0)
 			/*
 			 * vmx_msr_guest_enter_tsc_aux() will apply this
 			 * value when it is called immediately before guest

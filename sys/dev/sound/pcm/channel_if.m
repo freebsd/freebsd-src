@@ -66,12 +66,6 @@ CODE {
 	}
 
 	static int
-	channel_nogetpeaks(kobj_t obj, void *data, int *lpeak, int *rpeak)
-	{
-		return -1;
-	}
-
-	static int
 	channel_nogetrates(kobj_t obj, void *data, int **rates)
 	{
 		*rates = NULL;
@@ -167,33 +161,6 @@ METHOD int notify {
 	void *data;
 	uint32_t changed;
 } DEFAULT channel_nonotify;
-
-/**
- * @brief Retrieve channel peak values
- *
- * This function is intended to obtain peak volume values for samples
- * played/recorded on a channel.  Values are on a linear scale from 0 to
- * 32767.  If the channel is monaural, a single value should be recorded
- * in @c lpeak.
- *
- * If hardware support isn't available, the SNDCTL_DSP_GET[IO]PEAKS
- * operation should return EINVAL.  However, we may opt to provide
- * software support that the user may toggle via sysctl/mixext.
- *
- * @param obj	standard kobj object (usually @c channel->methods)
- * @param data	driver-specific data (usually @c channel->devinfo)
- * @param lpeak	pointer to store left peak level
- * @param rpeak	pointer to store right peak level
- *
- * @retval -1	Error; usually operation isn't supported.
- * @retval 0	success
- */
-METHOD int getpeaks {
-	kobj_t obj;
-	void *data;
-	int *lpeak;
-	int *rpeak;
-} DEFAULT channel_nogetpeaks;
 
 /**
  * @brief Retrieve discrete supported sample rates

@@ -312,6 +312,7 @@ static void	unp_internalize_fp(struct file *);
 static int	unp_externalize(const struct socket *, struct mbuf *,
 		    struct mbuf **, int);
 static int	unp_externalize_fp(struct file *);
+static struct mbuf **unp_peek_control(struct mbuf *, struct mbuf **);
 static void	unp_addsockcred(struct thread *, struct mchain *, int);
 static void	unp_process_defers(void * __unused, int);
 
@@ -1689,20 +1690,11 @@ restart:
 			}
 		} else {
 			/*
-			 * XXXGL
-			 *
-			 * In MSG_PEEK case control is not externalized.  This
-			 * means we are leaking some kernel pointers to the
-			 * userland.  They are useless to a law-abiding
-			 * application, but may be useful to a malware.  This
-			 * is what the historical implementation in the
-			 * soreceive_generic() did. To be improved?
+			 * In MSG_PEEK case control is not externalized.  See
+			 * unp_peek_control().
 			 */
-			if (controlp != NULL) {
-				*controlp = m_copym(control, 0, control->m_len,
-				    M_WAITOK);
-				controlp = &(*controlp)->m_next;
-			}
+			if (controlp != NULL)
+				controlp = unp_peek_control(control, controlp);
 			control = STAILQ_NEXT(control, m_stailq);
 		}
 	}
@@ -2274,13 +2266,12 @@ uipc_peek_dgram(struct socket *so, struct mbuf *m, struct sockaddr **psa,
 	KASSERT(m, ("%s: no data or control after soname", __func__));
 
 	/*
-	 * With MSG_PEEK the control isn't executed, just copied.
+	 * With MSG_PEEK the control isn't externalized.  See
+	 * unp_peek_control().
 	 */
 	while (m != NULL && m->m_type == MT_CONTROL) {
-		if (controlp != NULL) {
-			*controlp = m_copym(m, 0, m->m_len, M_WAITOK);
-			controlp = &(*controlp)->m_next;
-		}
+		if (controlp != NULL)
+			controlp = unp_peek_control(m, controlp);
 		m = m->m_next;
 	}
 	KASSERT(m == NULL || m->m_type == MT_DATA,
@@ -2730,6 +2721,7 @@ uipc_shutdown(struct socket *so, enum shutdown_how how)
 	struct unpcb *unp = sotounpcb(so);
 	int error;
 
+	UNP_PCB_LOCK(unp);
 	SOCK_LOCK(so);
 	if (SOLISTENING(so)) {
 		if (how != SHUT_WR) {
@@ -2737,6 +2729,7 @@ uipc_shutdown(struct socket *so, enum shutdown_how how)
 			solisten_wakeup(so);    /* unlocks so */
 		} else
 			SOCK_UNLOCK(so);
+		UNP_PCB_UNLOCK(unp);
 		return (ENOTCONN);
 	} else if ((so->so_state &
 	    (SS_ISCONNECTED | SS_ISCONNECTING | SS_ISDISCONNECTING)) == 0) {
@@ -2756,36 +2749,30 @@ uipc_shutdown(struct socket *so, enum shutdown_how how)
 		error = ENOTCONN;
 		if (so->so_type != SOCK_DGRAM) {
 			SOCK_UNLOCK(so);
+			UNP_PCB_UNLOCK(unp);
 			return (error);
 		}
 	} else
 		error = 0;
 	SOCK_UNLOCK(so);
 
-	switch (how) {
-	case SHUT_RD:
-		if (so->so_type == SOCK_DGRAM)
-			socantrcvmore(so);
-		else
-			uipc_cantrcvmore(so);
-		unp_dispose(so);
-		break;
-	case SHUT_RDWR:
-		if (so->so_type == SOCK_DGRAM)
-			socantrcvmore(so);
-		else
-			uipc_cantrcvmore(so);
-		unp_dispose(so);
-		/* FALLTHROUGH */
-	case SHUT_WR:
+	if (how == SHUT_WR || how == SHUT_RDWR) {
 		if (so->so_type == SOCK_DGRAM) {
 			socantsendmore(so);
 		} else {
-			UNP_PCB_LOCK(unp);
 			if (unp->unp_conn != NULL)
 				uipc_cantrcvmore(unp->unp_conn->unp_socket);
-			UNP_PCB_UNLOCK(unp);
 		}
+	}
+	if (how == SHUT_RD || how == SHUT_RDWR) {
+		if (so->so_type == SOCK_DGRAM)
+			socantrcvmore(so);
+		else
+			uipc_cantrcvmore(so);
+		UNP_PCB_UNLOCK(unp);
+		unp_dispose(so);
+	} else {
+		UNP_PCB_UNLOCK(unp);
 	}
 	wakeup(&so->so_timeo);
 
@@ -3888,6 +3875,60 @@ next:
 	return (error);
 }
 
+/*
+ * Copy control messages out for MSG_PEEK.  They aren't externalized, and the
+ * internalized SCM_RIGHTS holds kernel pointers (struct filedescent *), which
+ * must not be copied out.  Return -1 in place of each descriptor instead; the
+ * descriptors are delivered by a later receive without MSG_PEEK.  Anything
+ * else is copied across, as unp_externalize() does.  Returns the new tail of
+ * the chain.
+ */
+static struct mbuf **
+unp_peek_control(struct mbuf *control, struct mbuf **controlp)
+{
+	struct cmsghdr *cm;
+	socklen_t clen;
+
+	cm = mtod(control, struct cmsghdr *);
+	clen = control->m_len;
+	while (cm != NULL) {
+		void *data;
+		socklen_t datalen;
+		int *fdp, newfds;
+
+		MPASS(clen >= sizeof(*cm) && clen >= cm->cmsg_len);
+
+		data = CMSG_DATA(cm);
+		datalen = (char *)cm + cm->cmsg_len - (char *)data;
+		if (cm->cmsg_level == SOL_SOCKET &&
+		    cm->cmsg_type == SCM_RIGHTS) {
+			newfds = datalen / sizeof(struct filedescent *);
+			if (newfds > 0) {
+				*controlp = sbcreatecontrol(NULL,
+				    newfds * sizeof(int), SCM_RIGHTS,
+				    SOL_SOCKET, M_WAITOK);
+				fdp = (int *)CMSG_DATA(mtod(*controlp,
+				    struct cmsghdr *));
+				for (int i = 0; i < newfds; i++)
+					fdp[i] = -1;
+				controlp = &(*controlp)->m_next;
+			}
+		} else {
+			*controlp = sbcreatecontrol(data, datalen,
+			    cm->cmsg_type, cm->cmsg_level, M_WAITOK);
+			controlp = &(*controlp)->m_next;
+		}
+
+		if (CMSG_SPACE(datalen) < clen) {
+			clen -= CMSG_SPACE(datalen);
+			cm = (struct cmsghdr *)
+			    ((char *)cm + CMSG_SPACE(datalen));
+		} else
+			break;
+	}
+	return (controlp);
+}
+
 static void
 unp_zone_change(void *tag)
 {
@@ -4559,18 +4600,21 @@ unp_dispose(struct socket *so)
 	struct mbuf *m;
 	int error __diagused;
 
-	MPASS(!SOLISTENING(so));
+	/*
+	 * Grab our special mbufs before calling sbrelease().
+	 */
+	error = SOCK_IO_RECV_LOCK(so, SBL_WAIT | SBL_NOINTR);
+	if (error != 0) {
+		KASSERT(SOLISTENING(so),
+		    ("%s: socket %p is not listening", __func__, so));
+		return;
+	}
 
 	unp = sotounpcb(so);
 	UNP_LINK_WLOCK();
 	unp->unp_gcflag |= UNPGC_IGNORE_RIGHTS;
 	UNP_LINK_WUNLOCK();
 
-	/*
-	 * Grab our special mbufs before calling sbrelease().
-	 */
-	error = SOCK_IO_RECV_LOCK(so, SBL_WAIT | SBL_NOINTR);
-	MPASS(!error);
 	SOCK_RECVBUF_LOCK(so);
 	switch (so->so_type) {
 	case SOCK_DGRAM:

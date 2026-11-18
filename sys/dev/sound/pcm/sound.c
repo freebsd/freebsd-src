@@ -132,8 +132,6 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 	struct pcm_channel *ch;
 	int err = 0;
 
-	PCM_LOCK(d);
-	PCM_WAIT(d);
 	PCM_ACQUIRE(d);
 	ch = chn_init(d, NULL, cls, dir, devinfo);
 	if (!ch) {
@@ -142,62 +140,8 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 		err = ENODEV;
 	}
 	PCM_RELEASE(d);
-	PCM_UNLOCK(d);
 
 	return (err);
-}
-
-static void
-pcm_killchans(struct snddev_info *d)
-{
-	struct pcm_channel *ch;
-	bool again;
-
-	PCM_BUSYASSERT(d);
-	KASSERT(!PCM_REGISTERED(d), ("%s(): still registered\n", __func__));
-
-	for (;;) {
-		again = false;
-		/* Make sure all channels are stopped. */
-		CHN_FOREACH(ch, d, channels.pcm) {
-			CHN_LOCK(ch);
-			if (ch->inprog == 0 && ch->sleeping == 0 &&
-			    CHN_STOPPED(ch)) {
-				CHN_UNLOCK(ch);
-				continue;
-			}
-			chn_shutdown(ch);
-			if (ch->direction == PCMDIR_PLAY)
-				chn_flush(ch);
-			else
-				chn_abort(ch);
-			CHN_UNLOCK(ch);
-			again = true;
-		}
-		/*
-		 * Some channels are still active. Sleep for a bit and try
-		 * again.
-		 */
-		if (again)
-			pause_sbt("pcmkillchans", mstosbt(5), 0, 0);
-		else
-			break;
-	}
-
-	/* All channels are finally dead. */
-	while (!CHN_EMPTY(d, channels.pcm)) {
-		ch = CHN_FIRST(d, channels.pcm);
-		chn_kill(ch);
-	}
-
-	if (d->p_unr != NULL)
-		delete_unrhdr(d->p_unr);
-	if (d->vp_unr != NULL)
-		delete_unrhdr(d->vp_unr);
-	if (d->r_unr != NULL)
-		delete_unrhdr(d->r_unr);
-	if (d->vr_unr != NULL)
-		delete_unrhdr(d->vr_unr);
 }
 
 static int
@@ -241,6 +185,9 @@ void
 pcm_setflags(device_t dev, uint32_t val)
 {
 	struct snddev_info *d = device_get_softc(dev);
+
+	KASSERT(!PCM_REGISTERED(d) || sx_xlocked(&d->sx),
+	    ("%s(): unserialized flag write", __func__));
 
 	d->flags = val;
 }
@@ -287,32 +234,32 @@ sysctl_dev_pcm_bitperfect(SYSCTL_HANDLER_ARGS)
 	int err, val;
 
 	d = oidp->oid_arg1;
-	if (!PCM_REGISTERED(d))
+	bus_topo_lock();
+	if (!PCM_REGISTERED(d)) {
+		bus_topo_unlock();
 		return (ENODEV);
-
-	PCM_LOCK(d);
-	PCM_WAIT(d);
-	val = (d->flags & SD_F_BITPERFECT) ? 1 : 0;
+	}
+	/*
+	 * Do not give up the topology lock until the device is busied, or it
+	 * might detach between unlocking and busying.
+	 */
 	PCM_ACQUIRE(d);
-	PCM_UNLOCK(d);
+	bus_topo_unlock();
+
+	val = (d->flags & SD_F_BITPERFECT) ? 1 : 0;
 
 	err = sysctl_handle_int(oidp, &val, 0, req);
 
 	if (err == 0 && req->newptr != NULL) {
 		if (!(val == 0 || val == 1)) {
-			PCM_RELEASE_QUICK(d);
+			PCM_RELEASE(d);
 			return (EINVAL);
 		}
 
-		PCM_LOCK(d);
-
 		d->flags &= ~SD_F_BITPERFECT;
 		d->flags |= (val != 0) ? SD_F_BITPERFECT : 0;
-
-		PCM_RELEASE(d);
-		PCM_UNLOCK(d);
-	} else
-		PCM_RELEASE_QUICK(d);
+	}
+	PCM_RELEASE(d);
 
 	return (err);
 }
@@ -324,17 +271,25 @@ sysctl_dev_pcm_mode(SYSCTL_HANDLER_ARGS)
 	int mode = 0;
 
 	d = oidp->oid_arg1;
-	if (!PCM_REGISTERED(d))
+	bus_topo_lock();
+	if (!PCM_REGISTERED(d)) {
+		bus_topo_unlock();
 		return (ENODEV);
+	}
+	/*
+	 * Do not give up the topology lock until the device is busied, or it
+	 * might detach between unlocking and busying.
+	 */
+	PCM_ACQUIRE(d);
+	bus_topo_unlock();
 
-	PCM_LOCK(d);
 	if (d->playcount > 0)
 		mode |= PCM_MODE_PLAY;
 	if (d->reccount > 0)
 		mode |= PCM_MODE_REC;
 	if (d->mixer != NULL)
 		mode |= PCM_MODE_MIXER;
-	PCM_UNLOCK(d);
+	PCM_RELEASE(d);
 
 	return (sysctl_handle_int(oidp, &mode, 0, req));
 }
@@ -351,8 +306,8 @@ pcm_init(device_t dev, void *devinfo)
 
 	d = device_get_softc(dev);
 	d->dev = dev;
-	mtx_init(&d->lock, device_get_nameunit(dev), "sound cdev", MTX_DEF);
-	cv_init(&d->cv, device_get_nameunit(dev));
+	mtx_init(&d->lock, "snddev lock", NULL, MTX_DEF);
+	sx_init(&d->sx, "snddev sx");
 
 	i = 0;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
@@ -469,17 +424,30 @@ pcm_unregister(device_t dev)
 		return (0);
 	}
 
-	PCM_LOCK(d);
-	PCM_WAIT(d);
-
+	PCM_ACQUIRE(d);
 	d->flags &= ~SD_F_REGISTERED;
+	chn_shutdownall(d);
+	PCM_RELEASE(d);
+
+	/*
+	 * Destroy the dsp cdev before freeing resources, otherwise threads
+	 * still inside cdev methods will eventually dereference freed
+	 * resources.
+	 */
+	dsp_destroy_dev(dev);
 
 	PCM_ACQUIRE(d);
-	PCM_UNLOCK(d);
+	chn_killall(d);
 
-	pcm_killchans(d);
-
-	PCM_RELEASE_QUICK(d);
+	if (d->p_unr != NULL)
+		delete_unrhdr(d->p_unr);
+	if (d->vp_unr != NULL)
+		delete_unrhdr(d->vp_unr);
+	if (d->r_unr != NULL)
+		delete_unrhdr(d->r_unr);
+	if (d->vr_unr != NULL)
+		delete_unrhdr(d->vr_unr);
+	PCM_RELEASE(d);
 
 	if (d->play_sysctl_tree != NULL) {
 		sysctl_ctx_free(&d->play_sysctl_ctx);
@@ -493,9 +461,8 @@ pcm_unregister(device_t dev)
 	sndstat_unregister(dev);
 	if (d->mixer != NULL)
 		mixer_uninit(dev);
-	dsp_destroy_dev(dev);
 
-	cv_destroy(&d->cv);
+	sx_destroy(&d->sx);
 	mtx_destroy(&d->lock);
 	d->dev = NULL;
 
@@ -557,18 +524,24 @@ sound_oss_sysinfo(oss_sysinfo *si)
 
 	j = 0;
 
-	bus_topo_lock();
-	for (i = 0; pcm_devclass != NULL &&
-	    i < devclass_get_maxunit(pcm_devclass); i++) {
+	for (i = 0; ; i++) {
+		bus_topo_lock();
+		if (pcm_devclass == NULL ||
+		    i >= devclass_get_maxunit(pcm_devclass)) {
+			bus_topo_unlock();
+			break;
+		}
 		d = devclass_get_softc(pcm_devclass, i);
-		if (!PCM_REGISTERED(d))
+		if (!PCM_REGISTERED(d)) {
+			bus_topo_unlock();
 			continue;
-
-		/* XXX Need Giant magic entry ??? */
-
-		/* See note in function's docblock */
-		PCM_UNLOCKASSERT(d);
-		PCM_LOCK(d);
+		}
+		/*
+		 * Do not give up the topology lock until the device is busied,
+		 * or it might detach between unlocking and busying.
+		 */
+		PCM_ACQUIRE(d);
+		bus_topo_unlock();
 
 		si->numaudioengines += PCM_CHANCOUNT(d);
 
@@ -582,9 +555,8 @@ sound_oss_sysinfo(oss_sysinfo *si)
 			j++;
 		}
 
-		PCM_UNLOCK(d);
+		PCM_RELEASE(d);
 	}
-	bus_topo_unlock();
 
 	si->numsynths = 0;	/* OSSv4 docs:  this field is obsolete */
 	/**
@@ -650,17 +622,12 @@ sound_oss_card_info(oss_card_info *si)
 			si->hw_info[0] = '\0';
 			si->intr_count = si->ack_count = 0;
 		} else {
-			PCM_UNLOCKASSERT(d);
-			PCM_LOCK(d);
-
 			strlcpy(si->shortname, device_get_nameunit(d->dev),
 			    sizeof(si->shortname));
 			strlcpy(si->longname, device_get_desc(d->dev),
 			    sizeof(si->longname));
 			strlcpy(si->hw_info, d->status, sizeof(si->hw_info));
 			si->intr_count = si->ack_count = 0;
-
-			PCM_UNLOCK(d);
 		}
 
 		bus_topo_unlock();

@@ -1878,6 +1878,9 @@ pfr_fix_anchor(char *anchor)
 	size_t siz = MAXPATHLEN;
 	int i;
 
+	if (strnlen(anchor, MAXPATHLEN) >= MAXPATHLEN)
+		return (-1);
+
 	if (anchor[0] == '/') {
 		char *path;
 		int off;
@@ -1889,11 +1892,16 @@ pfr_fix_anchor(char *anchor)
 		bcopy(path, anchor, siz - off);
 		memset(anchor + siz - off, 0, off);
 	}
-	if (anchor[siz - 1])
-		return (-1);
 	for (i = strlen(anchor); i < siz; i++)
 		if (anchor[i])
 			return (-1);
+	/*
+	 * Ruleset paths have no empty components.  A table anchor with one
+	 * would not match the path of the ruleset the table is attached to.
+	 */
+	if (strstr(anchor, "//") != NULL ||
+	    (anchor[0] != '\0' && anchor[strlen(anchor) - 1] == '/'))
+		return (-1);
 	return (0);
 }
 

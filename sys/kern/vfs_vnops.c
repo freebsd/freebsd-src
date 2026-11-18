@@ -43,11 +43,13 @@
 #include "opt_hwpmc_hooks.h"
 #include "opt_hwt_hooks.h"
 
+#define	EXTERR_CATEGORY	EXTERR_CAT_VFSVNOPS
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/disk.h>
 #include <sys/dirent.h>
+#include <sys/exterrvar.h>
 #include <sys/fail.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
@@ -405,6 +407,7 @@ restart:
 			fmode &= ~O_CREAT;
 		}
 	} else {
+		fmode &= ~O_CREAT;
 		ndp->ni_cnd.cn_nameiop = LOOKUP;
 		ndp->ni_cnd.cn_flags = open2nameif(fmode, vn_open_flags,
 		    ndp->ni_cnd.cn_flags);
@@ -3993,7 +3996,18 @@ vn_fallocate(struct file *fp, off_t offset, off_t len, struct thread *td)
 		}
 		if (error != 0 || len == 0)
 			break;
-		KASSERT(olen > len, ("Iteration did not make progress?"));
+
+		/*
+		 * A partial result is permitted, but each pass must make some
+		 * progress or we would spin here forever.
+		 */
+		if (len >= olen) {
+			error = EXTERROR(EIO,
+			    "no progress made at offset %jd, len %jd",
+			    (intmax_t)ooffset, (intmax_t)olen);
+			break;
+		}
+
 		maybe_yield();
 	}
 
@@ -4007,7 +4021,7 @@ vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
 {
 	struct mount *mp;
 	void *rl_cookie;
-	off_t off, len;
+	off_t len, off, olen;
 	int error;
 #ifdef AUDIT
 	bool audited_vnode1 = false;
@@ -4048,9 +4062,21 @@ vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
 			error = mac_vnode_check_write(active_cred, file_cred,
 			    vp);
 #endif
-		if (error == 0)
+		if (error == 0) {
+			olen = len;
 			error = VOP_DEALLOCATE(vp, &off, &len, flags, ioflag,
 			    cred);
+
+			/*
+			 * A partial result is permitted, but each pass must
+			 * make some progress or we would spin here forever.
+			 */
+			if (error == 0 && len >= olen) {
+				error = EXTERROR(EIO,
+				    "no progress made at offset %jd, len %jd",
+				    (intmax_t)off, (intmax_t)olen);
+			}
+		}
 
 		if ((ioflag & IO_NODELOCKED) == 0) {
 			VOP_UNLOCK(vp);
