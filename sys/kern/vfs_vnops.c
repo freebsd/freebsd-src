@@ -4003,8 +4003,8 @@ vn_fallocate(struct file *fp, off_t offset, off_t len, struct thread *td)
 		 */
 		if (len >= olen) {
 			error = EXTERROR(EIO,
-			    "no progress on vp %p (off %jd)",
-			    vp, (intmax_t)ooffset);
+			    "no progress made at offset %jd, len %jd",
+			    (intmax_t)ooffset, (intmax_t)olen);
 			break;
 		}
 
@@ -4073,8 +4073,8 @@ vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
 			 */
 			if (error == 0 && len >= olen) {
 				error = EXTERROR(EIO,
-				    "no progress on vp %p (off %jd)",
-				    vp, (intmax_t)off);
+				    "no progress made at offset %jd, len %jd",
+				    (intmax_t)off, (intmax_t)olen);
 			}
 		}
 
