@@ -887,11 +887,11 @@ mixer_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 		return (EBADF);
 
 	PCM_GIANT_ENTER(d);
-	PCM_ACQUIRE_QUICK(d);
+	PCM_ACQUIRE(d);
 
 	ret = mixer_ioctl_cmd(i_dev, cmd, arg, mode, td);
 
-	PCM_RELEASE_QUICK(d);
+	PCM_RELEASE(d);
 	PCM_GIANT_LEAVE(d);
 
 	return (ret);

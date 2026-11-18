@@ -132,17 +132,16 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 	struct pcm_channel *ch;
 	int err = 0;
 
-	PCM_LOCK(d);
-	PCM_WAIT(d);
 	PCM_ACQUIRE(d);
+	PCM_LOCK(d);
 	ch = chn_init(d, NULL, cls, dir, devinfo);
 	if (!ch) {
 		device_printf(d->dev, "chn_init(%s, %d, %p) failed\n",
 		    cls->name, dir, devinfo);
 		err = ENODEV;
 	}
-	PCM_RELEASE(d);
 	PCM_UNLOCK(d);
+	PCM_RELEASE(d);
 
 	return (err);
 }
@@ -235,6 +234,9 @@ pcm_setflags(device_t dev, uint32_t val)
 {
 	struct snddev_info *d = device_get_softc(dev);
 
+	KASSERT(!PCM_REGISTERED(d) || sx_xlocked(&d->sx),
+	    ("%s(): unserialized flag write", __func__));
+
 	d->flags = val;
 }
 
@@ -283,29 +285,21 @@ sysctl_dev_pcm_bitperfect(SYSCTL_HANDLER_ARGS)
 	if (!PCM_REGISTERED(d))
 		return (ENODEV);
 
-	PCM_LOCK(d);
-	PCM_WAIT(d);
-	val = (d->flags & SD_F_BITPERFECT) ? 1 : 0;
 	PCM_ACQUIRE(d);
-	PCM_UNLOCK(d);
+	val = (d->flags & SD_F_BITPERFECT) ? 1 : 0;
 
 	err = sysctl_handle_int(oidp, &val, 0, req);
 
 	if (err == 0 && req->newptr != NULL) {
 		if (!(val == 0 || val == 1)) {
-			PCM_RELEASE_QUICK(d);
+			PCM_RELEASE(d);
 			return (EINVAL);
 		}
 
-		PCM_LOCK(d);
-
 		d->flags &= ~SD_F_BITPERFECT;
 		d->flags |= (val != 0) ? SD_F_BITPERFECT : 0;
-
-		PCM_RELEASE(d);
-		PCM_UNLOCK(d);
-	} else
-		PCM_RELEASE_QUICK(d);
+	}
+	PCM_RELEASE(d);
 
 	return (err);
 }
@@ -344,8 +338,8 @@ pcm_init(device_t dev, void *devinfo)
 
 	d = device_get_softc(dev);
 	d->dev = dev;
-	mtx_init(&d->lock, device_get_nameunit(dev), "sound cdev", MTX_DEF);
-	cv_init(&d->cv, device_get_nameunit(dev));
+	mtx_init(&d->lock, "snddev lock", NULL, MTX_DEF);
+	sx_init(&d->sx, "snddev sx");
 
 	i = 0;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
@@ -462,15 +456,10 @@ pcm_unregister(device_t dev)
 		return (0);
 	}
 
-	PCM_LOCK(d);
-	PCM_WAIT(d);
-	d->flags &= ~SD_F_REGISTERED;
 	PCM_ACQUIRE(d);
-	PCM_UNLOCK(d);
-
+	d->flags &= ~SD_F_REGISTERED;
 	pcm_shutdownchans(d);
-
-	PCM_RELEASE_QUICK(d);
+	PCM_RELEASE(d);
 
 	/*
 	 * Destroy the dsp cdev before freeing resources, otherwise threads
@@ -479,9 +468,9 @@ pcm_unregister(device_t dev)
 	 */
 	dsp_destroy_dev(dev);
 
-	PCM_ACQUIRE_QUICK(d);
+	PCM_ACQUIRE(d);
 	pcm_killchans(d);
-	PCM_RELEASE_QUICK(d);
+	PCM_RELEASE(d);
 
 	if (d->play_sysctl_tree != NULL) {
 		sysctl_ctx_free(&d->play_sysctl_ctx);
@@ -496,7 +485,7 @@ pcm_unregister(device_t dev)
 	if (d->mixer != NULL)
 		mixer_uninit(dev);
 
-	cv_destroy(&d->cv);
+	sx_destroy(&d->sx);
 	mtx_destroy(&d->lock);
 	d->dev = NULL;
 

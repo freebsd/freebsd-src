@@ -265,9 +265,8 @@ dsp_close(void *data)
 
 	PCM_GIANT_ENTER(d);
 
-	PCM_LOCK(d);
-	PCM_WAIT(d);
 	PCM_ACQUIRE(d);
+	PCM_LOCK(d);
 
 	rdch = priv->rdch;
 	wrch = priv->wrch;
@@ -277,76 +276,71 @@ dsp_close(void *data)
 	if (wrch != NULL)
 		CHN_REMOVE(d, wrch, channels.pcm.opened);
 
-	if (rdch != NULL || wrch != NULL) {
-		PCM_UNLOCK(d);
-		if (rdch != NULL) {
-			/*
-			 * The channel itself need not be locked because:
-			 *   a)  Adding a channel to a syncgroup happens only
-			 *       in dsp_ioctl(), which cannot run concurrently
-			 *       to dsp_close().
-			 *   b)  The syncmember pointer (sm) is protected by
-			 *       the global syncgroup list lock.
-			 *   c)  A channel can't just disappear, invalidating
-			 *       pointers, unless it's closed/dereferenced
-			 *       first.
-			 */
-			PCM_SG_LOCK();
-			sg_ids = chn_syncdestroy(rdch);
-			PCM_SG_UNLOCK();
-			if (sg_ids != 0)
-				free_unr(pcmsg_unrhdr, sg_ids);
+	PCM_UNLOCK(d);
 
-			/*
-			 * Go through the channel abort/flush path for both
-			 * primary and virtual channels to ensure that, in the
-			 * case of vchans, the stream is always properly
-			 * stopped, and the primary channels do not keep being
-			 * interrupted even if all vchans are gone.
-			 */
+	if (rdch != NULL) {
+		/*
+		 * The channel itself need not be locked because:
+		 *   a)  Adding a channel to a syncgroup happens only in
+		 *       dsp_ioctl(), which cannot run concurrently to
+		 *       dsp_close().
+		 *   b)  The syncmember pointer (sm) is protected by the global
+		 *       syncgroup list lock.
+		 *   c)  A channel can't just disappear, invalidating pointers,
+		 *       unless it's closed/dereferenced first.
+		 */
+		PCM_SG_LOCK();
+		sg_ids = chn_syncdestroy(rdch);
+		PCM_SG_UNLOCK();
+		if (sg_ids != 0)
+			free_unr(pcmsg_unrhdr, sg_ids);
+
+		/*
+		 * Go through the channel abort/flush path for both primary and
+		 * virtual channels to ensure that, in the case of vchans, the
+		 * stream is always properly stopped, and the primary channels
+		 * do not keep being interrupted even if all vchans are gone.
+		 */
+		CHN_LOCK(rdch);
+		chn_abort(rdch); /* won't sleep */
+		rdch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
+		    CHN_F_DEAD | CHN_F_EXCLUSIVE | CHN_F_NBIO);
+		chn_reset(rdch, 0, 0);
+		chn_release(rdch);
+		if (rdch->flags & CHN_F_VIRTUAL) {
+			parent = rdch->parentchannel;
+			CHN_LOCK(parent);
 			CHN_LOCK(rdch);
-			chn_abort(rdch); /* won't sleep */
-			rdch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
-			    CHN_F_DEAD | CHN_F_EXCLUSIVE | CHN_F_NBIO);
-			chn_reset(rdch, 0, 0);
-			chn_release(rdch);
-			if (rdch->flags & CHN_F_VIRTUAL) {
-				parent = rdch->parentchannel;
-				CHN_LOCK(parent);
-				CHN_LOCK(rdch);
-				vchan_destroy(rdch);
-				CHN_UNLOCK(parent);
-			}
+			vchan_destroy(rdch);
+			CHN_UNLOCK(parent);
 		}
-		if (wrch != NULL) {
-			/*
-			 * Please see block above.
-			 */
-			PCM_SG_LOCK();
-			sg_ids = chn_syncdestroy(wrch);
-			PCM_SG_UNLOCK();
-			if (sg_ids != 0)
-				free_unr(pcmsg_unrhdr, sg_ids);
+	}
+	if (wrch != NULL) {
+		/*
+		 * Please see block above.
+		 */
+		PCM_SG_LOCK();
+		sg_ids = chn_syncdestroy(wrch);
+		PCM_SG_UNLOCK();
+		if (sg_ids != 0)
+			free_unr(pcmsg_unrhdr, sg_ids);
 
+		CHN_LOCK(wrch);
+		chn_flush(wrch); /* may sleep */
+		wrch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
+		    CHN_F_DEAD | CHN_F_EXCLUSIVE | CHN_F_NBIO);
+		chn_reset(wrch, 0, 0);
+		chn_release(wrch);
+		if (wrch->flags & CHN_F_VIRTUAL) {
+			parent = wrch->parentchannel;
+			CHN_LOCK(parent);
 			CHN_LOCK(wrch);
-			chn_flush(wrch); /* may sleep */
-			wrch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
-			    CHN_F_DEAD | CHN_F_EXCLUSIVE | CHN_F_NBIO);
-			chn_reset(wrch, 0, 0);
-			chn_release(wrch);
-			if (wrch->flags & CHN_F_VIRTUAL) {
-				parent = wrch->parentchannel;
-				CHN_LOCK(parent);
-				CHN_LOCK(wrch);
-				vchan_destroy(wrch);
-				CHN_UNLOCK(parent);
-			}
+			vchan_destroy(wrch);
+			CHN_UNLOCK(parent);
 		}
-		PCM_LOCK(d);
 	}
 
 	PCM_RELEASE(d);
-	PCM_UNLOCK(d);
 
 	PCM_GIANT_LEAVE(d);
 skip:
@@ -383,8 +377,8 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	PCM_GIANT_ENTER(d);
 
 	/* Lock snddev so nobody else can monkey with it. */
+	PCM_ACQUIRE(d);
 	PCM_LOCK(d);
-	PCM_WAIT(d);
 
 	error = 0;
 	if (!DSP_F_VALID(flags))
@@ -423,24 +417,18 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 				error = ENOTSUP;
 		}
 	}
+	PCM_UNLOCK(d);
+
 	if (error != 0) {
-		PCM_UNLOCK(d);
+		PCM_RELEASE(d);
 		PCM_GIANT_EXIT(d);
 		return (error);
 	}
 
-	/*
-	 * That is just enough. Acquire and unlock pcm lock so
-	 * the other will just have to wait until we finish doing
-	 * everything.
-	 */
-	PCM_ACQUIRE(d);
-	PCM_UNLOCK(d);
-
 	if (DSP_F_WRITE(flags)) {
 		error = dsp_chn_alloc(d, &priv->wrch, PCMDIR_PLAY, flags, td);
 		if (error != 0) {
-			PCM_RELEASE_QUICK(d);
+			PCM_RELEASE(d);
 			PCM_GIANT_EXIT(d);
 			return (error);
 		}
@@ -451,7 +439,7 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	if (DSP_F_READ(flags)) {
 		error = dsp_chn_alloc(d, &priv->rdch, PCMDIR_REC, flags, td);
 		if (error != 0) {
-			PCM_RELEASE_QUICK(d);
+			PCM_RELEASE(d);
 			PCM_GIANT_EXIT(d);
 			return (error);
 		}
@@ -460,7 +448,7 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 		PCM_UNLOCK(d);
 	}
 
-	PCM_RELEASE_QUICK(d);
+	PCM_RELEASE(d);
 	PCM_GIANT_LEAVE(d);
 
 	return (0);
@@ -735,9 +723,9 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 		}
 
 		if (MIXER_REGISTERED(d->mixer)) {
-			PCM_ACQUIRE_QUICK(d);
+			PCM_ACQUIRE(d);
 			ret = mixer_ioctl_cmd(d->mixer->cdev, cmd, arg, -1, td);
-			PCM_RELEASE_QUICK(d);
+			PCM_RELEASE(d);
 		} else
 			ret = EBADF;
 
@@ -751,7 +739,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 	 * and MIDI).  Handle those special cases here.
 	 */
 	if (IOCGROUP(cmd) == 'X') {
-		PCM_ACQUIRE_QUICK(d);
+		PCM_ACQUIRE(d);
 		switch(cmd) {
 		case SNDCTL_SYSINFO:
 			sound_oss_sysinfo((oss_sysinfo *)arg);
@@ -776,7 +764,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 		default:
 			ret = EINVAL;
 		}
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		PCM_GIANT_EXIT(d);
 		return (ret);
 	}
@@ -812,7 +800,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 
 			p->play_size = 0;
 			p->rec_size = 0;
-			PCM_ACQUIRE_QUICK(d);
+			PCM_ACQUIRE(d);
 			if (wrch) {
 				CHN_LOCK(wrch);
 				chn_setblocksize(wrch, 2, p->play_size);
@@ -825,7 +813,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 				p->rec_size = rdch->bufsoft->blksz;
 				CHN_UNLOCK(rdch);
 			}
-			PCM_RELEASE_QUICK(d);
+			PCM_RELEASE(d);
 		}
 		break;
 	case AIOGSIZE:	/* get the current blocksize */
@@ -872,7 +860,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 				ret = EINVAL;
 				break;
 			}
-			PCM_ACQUIRE_QUICK(d);
+			PCM_ACQUIRE(d);
 			if (wrch) {
 				CHN_LOCK(wrch);
 				if (cmd == AIOSFMT && p->play_format != 0) {
@@ -905,7 +893,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 				p->rec_rate = 0;
 				p->rec_format = 0;
 			}
-			PCM_RELEASE_QUICK(d);
+			PCM_RELEASE(d);
 #ifdef COMPAT_FREEBSD32
 			if (cmd == AIOSFMT32 || cmd == AIOGFMT32) {
 				p32->play_rate = p->play_rate;
@@ -1054,7 +1042,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 
 	case SNDCTL_DSP_SETBLKSIZE:
 		RANGE(*arg_i, 16, 65536);
-		PCM_ACQUIRE_QUICK(d);
+		PCM_ACQUIRE(d);
 		if (wrch) {
 			CHN_LOCK(wrch);
 			chn_setblocksize(wrch, 2, *arg_i);
@@ -1065,7 +1053,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 			chn_setblocksize(rdch, 2, *arg_i);
 			CHN_UNLOCK(rdch);
 		}
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		break;
 
 	case SNDCTL_DSP_RESET:
@@ -1097,7 +1085,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 	case SNDCTL_DSP_SPEED:
 		/* chn_setspeed may sleep */
 		tmp = 0;
-		PCM_ACQUIRE_QUICK(d);
+		PCM_ACQUIRE(d);
 		if (wrch) {
 			CHN_LOCK(wrch);
 			ret = chn_setspeed(wrch, *arg_i);
@@ -1111,7 +1099,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 				tmp = rdch->speed;
 			CHN_UNLOCK(rdch);
 		}
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		*arg_i = tmp;
 		break;
 
@@ -1130,7 +1118,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 	case SNDCTL_DSP_STEREO:
 		tmp = -1;
 		*arg_i = (*arg_i)? 2 : 1;
-		PCM_ACQUIRE_QUICK(d);
+		PCM_ACQUIRE(d);
 		if (wrch) {
 			CHN_LOCK(wrch);
 			ret = chn_setformat(wrch,
@@ -1146,7 +1134,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 				tmp = (AFMT_CHANNEL(rdch->format) > 1)? 1 : 0;
 			CHN_UNLOCK(rdch);
 		}
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		*arg_i = tmp;
 		break;
 
@@ -1178,7 +1166,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 					ext = m->ext;
 			}
 
-			PCM_ACQUIRE_QUICK(d);
+			PCM_ACQUIRE(d);
 			if (wrch) {
 				CHN_LOCK(wrch);
 				ret = chn_setformat(wrch,
@@ -1194,7 +1182,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 					tmp = AFMT_CHANNEL(rdch->format);
 				CHN_UNLOCK(rdch);
 			}
-			PCM_RELEASE_QUICK(d);
+			PCM_RELEASE(d);
 			*arg_i = tmp;
 		} else {
 			chn = wrch ? wrch : rdch;
@@ -1231,7 +1219,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 	case SNDCTL_DSP_SETFMT:	/* sets _one_ format */
 		if (*arg_i != AFMT_QUERY) {
 			tmp = 0;
-			PCM_ACQUIRE_QUICK(d);
+			PCM_ACQUIRE(d);
 			if (wrch) {
 				CHN_LOCK(wrch);
 				ret = chn_setformat(wrch, SND_FORMAT(*arg_i,
@@ -1249,7 +1237,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 					tmp = rdch->format;
 				CHN_UNLOCK(rdch);
 			}
-			PCM_RELEASE_QUICK(d);
+			PCM_RELEASE(d);
 			*arg_i = AFMT_ENCODING(tmp);
 		} else {
 			chn = wrch ? wrch : rdch;
@@ -1271,7 +1259,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 			fragsz = 1 << fragln;
 
 			DEB(printf("SNDCTL_DSP_SETFRAGMENT %d frags, %d sz\n", maxfrags, fragsz));
-			PCM_ACQUIRE_QUICK(d);
+			PCM_ACQUIRE(d);
 			if (rdch) {
 				CHN_LOCK(rdch);
 				ret = chn_setblocksize(rdch,
@@ -1296,7 +1284,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 				maxfrags = r_maxfrags;
 				fragsz = r_fragsz;
 			}
-			PCM_RELEASE_QUICK(d);
+			PCM_RELEASE(d);
 
 			fragln = 0;
 			while (fragsz > 1) {
@@ -1478,10 +1466,10 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 		 * switch to full-duplex mode if card is in half-duplex
 		 * mode and is able to work in full-duplex mode
 		 */
-		PCM_LOCK(d);
+		PCM_ACQUIRE(d);
 		if (rdch && wrch && (pcm_getflags(d->dev) & SD_F_SIMPLEX))
 			pcm_setflags(d->dev, pcm_getflags(d->dev)^SD_F_SIMPLEX);
-		PCM_UNLOCK(d);
+		PCM_RELEASE(d);
 		break;
 
 	/*
@@ -1520,9 +1508,9 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 		}
 
 		if (MIXER_REGISTERED(d->mixer)) {
-			PCM_ACQUIRE_QUICK(d);
+			PCM_ACQUIRE(d);
 			ret = mixer_ioctl_cmd(d->mixer->cdev, xcmd, arg, -1, td);
-			PCM_RELEASE_QUICK(d);
+			PCM_RELEASE(d);
 		} else
 			ret = ENOTSUP;
 
@@ -1532,9 +1520,9 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 	case SNDCTL_DSP_GET_RECSRC:
 	case SNDCTL_DSP_SET_RECSRC:
 		if (MIXER_REGISTERED(d->mixer)) {
-			PCM_ACQUIRE_QUICK(d);
+			PCM_ACQUIRE(d);
 			ret = mixer_ioctl_cmd(d->mixer->cdev, cmd, arg, -1, td);
-			PCM_RELEASE_QUICK(d);
+			PCM_RELEASE(d);
 		} else
 			ret = ENOTSUP;
 		break;
@@ -1741,43 +1729,43 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 		break;
 
 	case SNDCTL_DSP_SYNCGROUP:
-		PCM_ACQUIRE_QUICK(d);
+		PCM_ACQUIRE(d);
 		ret = dsp_oss_syncgroup(wrch, rdch, (oss_syncgroup *)arg);
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		break;
 
 	case SNDCTL_DSP_SYNCSTART:
-		PCM_ACQUIRE_QUICK(d);
+		PCM_ACQUIRE(d);
 		ret = dsp_oss_syncstart(*arg_i);
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		break;
 
 	case SNDCTL_DSP_POLICY:
-		PCM_ACQUIRE_QUICK(d);
+		PCM_ACQUIRE(d);
 		ret = dsp_oss_policy(wrch, rdch, *arg_i);
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		break;
 
 	case SNDCTL_DSP_COOKEDMODE:
-		PCM_ACQUIRE_QUICK(d);
+		PCM_ACQUIRE(d);
 		if (!(pcm_getflags(d->dev) & SD_F_BITPERFECT))
 			ret = dsp_oss_cookedmode(wrch, rdch, *arg_i);
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		break;
 	case SNDCTL_DSP_GET_CHNORDER:
-		PCM_ACQUIRE_QUICK(d);
+		PCM_ACQUIRE(d);
 		ret = dsp_oss_getchnorder(wrch, rdch, (unsigned long long *)arg);
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		break;
 	case SNDCTL_DSP_SET_CHNORDER:
-		PCM_ACQUIRE_QUICK(d);
+		PCM_ACQUIRE(d);
 		ret = dsp_oss_setchnorder(wrch, rdch, (unsigned long long *)arg);
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		break;
 	case SNDCTL_DSP_GETCHANNELMASK:		/* XXX vlc */
-		PCM_ACQUIRE_QUICK(d);
+		PCM_ACQUIRE(d);
 		ret = dsp_oss_getchannelmask(wrch, rdch, (int *)arg);
-		PCM_RELEASE_QUICK(d);
+		PCM_RELEASE(d);
 		break;
 	case SNDCTL_DSP_BIND_CHANNEL:		/* XXX what?!? */
 		ret = EINVAL;
