@@ -2100,6 +2100,10 @@ do_config(void *p, size_t l)
 				err = ENOMEM;
 				break;
 			}
+			if (o.len < sizeof(dn->link)) {
+				err = EINVAL;
+				break;
+			}
 			memcpy(&dn->link, (char *)p + off, sizeof(dn->link));
 			err = config_link(&dn->link, arg);
 			break;
@@ -2108,6 +2112,10 @@ do_config(void *p, size_t l)
 				dn = malloc(sizeof(*dn), M_TEMP, M_NOWAIT);
 			if (dn == NULL) {
 				err = ENOMEM;
+				break;
+			}
+			if (o.len < sizeof(dn->profile)) {
+				err = EINVAL;
 				break;
 			}
 			memcpy(&dn->profile, (char *)p + off,
@@ -2121,6 +2129,10 @@ do_config(void *p, size_t l)
 				err = ENOMEM;
 				break;
 			}
+			if (o.len < sizeof(dn->sched)) {
+				err = EINVAL;
+				break;
+			}
 			memcpy(&dn->sched, (char *)p + off,
 			    sizeof(dn->sched));
 			err = config_sched(&dn->sched, arg);
@@ -2130,6 +2142,10 @@ do_config(void *p, size_t l)
 				dn = malloc(sizeof(*dn), M_TEMP, M_NOWAIT);
 			if (dn == NULL) {
 				err = ENOMEM;
+				break;
+			}
+			if (o.len < sizeof(dn->fs)) {
+				err = EINVAL;
 				break;
 			}
 			memcpy(&dn->fs, (char *)p + off, sizeof(dn->fs));

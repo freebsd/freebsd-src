@@ -4,6 +4,8 @@ TESTSDIR=	${TESTSBASE}/sys/netpfil/common
 BINDIR=		${TESTSDIR}
 
 
+ATF_TESTS_C+=	dummynet_config_test
+
 ATF_TESTS_SH+=	\
 		dummynet \
 		pass_block \
