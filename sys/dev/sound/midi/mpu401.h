@@ -35,13 +35,13 @@
 
 #include <sys/types.h>
 
-#define MPU_DATAPORT   0
-#define MPU_CMDPORT    1
-#define MPU_STATPORT   1
-#define MPU_RESET      0xff
-#define MPU_UART       0x3f
-#define MPU_OUTPUTBUSY 0x40
-#define MPU_INPUTBUSY  0x80
+#define MPU_DATAPORT	0
+#define MPU_CMDPORT	1
+#define MPU_STATPORT	1
+#define MPU_RESET	0xff
+#define MPU_UART	0x3f
+#define MPU_OUTPUTBUSY	0x40
+#define MPU_INPUTBUSY	0x80
 
 struct mpu401_ops {
 	uint8_t	(*read)(void *devinfo, int reg);
@@ -49,11 +49,11 @@ struct mpu401_ops {
 };
 
 struct mpu401_ivars {
-	const struct mpu401_ops	*ops;
-	void	*devinfo;
-	const char *desc;	/* Optional, for device_set_desc(). */
+	const struct mpu401_ops *ops;
+	void		*devinfo;
+	const char	*desc;	/* Optional, for device_set_desc(). */
 };
 
-void mpu401_intr(void *m);
+void	mpu401_intr(void *arg);
 
-#endif
+#endif /* MPU401_H */

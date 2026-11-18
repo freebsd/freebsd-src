@@ -53,7 +53,7 @@ struct midi_softc {
 	void		*devinfo;
 	int		nchan;
 	bool		dying;
-	struct midi_port	*ports;
+	struct midi_port *ports;
 };
 
 int	midi_register(device_t dev, struct mtx *lock, midi_callback_t *cb,
@@ -65,4 +65,4 @@ void	midi_alias(device_t dev, const char *name);
 size_t	midi_in(device_t dev, int chan, uint8_t *buf, size_t size);
 size_t	midi_out(device_t dev, int chan, uint8_t *buf, size_t size);
 
-#endif
+#endif /* MIDI_H */

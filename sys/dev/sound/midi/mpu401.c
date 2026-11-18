@@ -40,16 +40,16 @@
 #include "opt_snd.h"
 #endif
 
-#include <dev/sound/midi/mpu401.h>
 #include <dev/sound/midi/midi.h>
-
+#include <dev/sound/midi/mpu401.h>
 
 #define MPU_QUEUE_SIZE	128
+#define MPU_INTR_BUF	16
 
-#define CMD(m,d)	(m)->ops->write((m)->devinfo, MPU_CMDPORT, (d))
+#define CMD(m, d)	(m)->ops->write((m)->devinfo, MPU_CMDPORT, (d))
 #define STATUS(m)	(m)->ops->read((m)->devinfo, MPU_STATPORT)
 #define READ(m)		(m)->ops->read((m)->devinfo, MPU_DATAPORT)
-#define WRITE(m,d)	(m)->ops->write((m)->devinfo, MPU_DATAPORT, (d))
+#define WRITE(m, d)	(m)->ops->write((m)->devinfo, MPU_DATAPORT, (d))
 
 struct mpu401 {
 	/*
@@ -69,7 +69,7 @@ mpu401_mcallback(void *arg, int chan __unused, int flags)
 {
 	struct mpu401 *m = arg;
 
-	if (flags & M_TXPEND)
+	if ((flags & M_TXPEND) != 0)
 		callout_reset(&m->timer, 1, mpu401_intr, m);
 	m->flags = flags;
 }
@@ -77,11 +77,9 @@ mpu401_mcallback(void *arg, int chan __unused, int flags)
 void
 mpu401_intr(void *arg)
 {
-#define MPU_INTR_BUF	16
 	struct mpu401 *m = arg;
-	uint8_t b[MPU_INTR_BUF];
 	size_t i;
-	int s;
+	uint8_t b[MPU_INTR_BUF], s;
 
 	mtx_lock(&m->lock);
 
@@ -92,19 +90,18 @@ mpu401_intr(void *arg)
 		i++;
 		s = STATUS(m);
 	}
-	if (i)
+	if (i != 0)
 		midi_in(m->midi.dev, 0, b, i);
 	i = 0;
-	while (!(s & MPU_OUTPUTBUSY) && i < MPU_INTR_BUF) {
+	while ((s & MPU_OUTPUTBUSY) == 0 && i < MPU_INTR_BUF) {
 		if (midi_out(m->midi.dev, 0, b, 1) == 0)
 			break;
 		WRITE(m, *b);
 		i++;
-		/* DELAY(100); */
 		s = STATUS(m);
 	}
 
-	if (m->flags & M_TXPEND)
+	if ((m->flags & M_TXPEND) != 0)
 		callout_reset(&m->timer, 1, mpu401_intr, m);
 
 	mtx_unlock(&m->lock);
