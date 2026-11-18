@@ -619,6 +619,37 @@ anchor_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "anchor_slash" "cleanup"
+anchor_slash_head()
+{
+	atf_set descr 'Test tables in anchors with empty path components'
+	atf_set require.user root
+}
+
+anchor_slash_body()
+{
+	pft_init
+
+	atf_check -s exit:0 -e ignore \
+	    pfctl -a foo/bar -t t1 -T add 192.0.2.1
+	atf_check -s exit:0 -e ignore -o match:"192.0.2.1" \
+	    pfctl -a /foo/bar -t t1 -T show
+
+	atf_check -s not-exit:0 -e ignore \
+	    pfctl -a foo/bar/ -t t2 -T add 192.0.2.2
+	atf_check -s not-exit:0 -e ignore \
+	    pfctl -a foo//bar -t t3 -T add 192.0.2.3
+
+	# Used to trip the corruption check in pfr_get_tables()
+	atf_check -s exit:0 -e ignore -o inline:"t1@foo/bar\n" \
+	    pfctl -a foo/bar -sT
+}
+
+anchor_slash_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "flush" "cleanup"
 flush_head()
 {
@@ -1156,6 +1187,7 @@ atf_init_test_cases()
 	atf_add_test_case "pr259689"
 	atf_add_test_case "precreate"
 	atf_add_test_case "anchor"
+	atf_add_test_case "anchor_slash"
 	atf_add_test_case "flush"
 	atf_add_test_case "large"
 	atf_add_test_case "show_recursive"

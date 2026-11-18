@@ -1895,6 +1895,13 @@ pfr_fix_anchor(char *anchor)
 	for (i = strlen(anchor); i < siz; i++)
 		if (anchor[i])
 			return (-1);
+	/*
+	 * Ruleset paths have no empty components.  A table anchor with one
+	 * would not match the path of the ruleset the table is attached to.
+	 */
+	if (strstr(anchor, "//") != NULL ||
+	    (anchor[0] != '\0' && anchor[strlen(anchor) - 1] == '/'))
+		return (-1);
 	return (0);
 }
 
