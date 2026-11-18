@@ -46,6 +46,7 @@ mntfs_reclaim(struct vop_reclaim_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 
+	vp->v_data = NULL;
 	dev_rel(vp->v_rdev);
 	return (0);
 }
@@ -77,7 +78,7 @@ mntfs_allocvp(struct mount *mp, struct vnode *ovp)
 
 	getnewvnode("mntfs", mp, &mntfs_vnodeops, &vp);
 	vp->v_type = VCHR;
-	vp->v_data = NULL;
+	vp->v_data = mp;
 	dev_ref(dev);
 	vp->v_rdev = dev;
 
