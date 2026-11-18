@@ -266,7 +266,6 @@ dsp_close(void *data)
 	PCM_GIANT_ENTER(d);
 
 	PCM_ACQUIRE(d);
-	PCM_LOCK(d);
 
 	rdch = priv->rdch;
 	wrch = priv->wrch;
@@ -275,8 +274,6 @@ dsp_close(void *data)
 		CHN_REMOVE(d, rdch, channels.pcm.opened);
 	if (wrch != NULL)
 		CHN_REMOVE(d, wrch, channels.pcm.opened);
-
-	PCM_UNLOCK(d);
 
 	if (rdch != NULL) {
 		/*
@@ -376,9 +373,7 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 
 	PCM_GIANT_ENTER(d);
 
-	/* Lock snddev so nobody else can monkey with it. */
 	PCM_ACQUIRE(d);
-	PCM_LOCK(d);
 
 	error = 0;
 	if (!DSP_F_VALID(flags))
@@ -417,7 +412,6 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 				error = ENOTSUP;
 		}
 	}
-	PCM_UNLOCK(d);
 
 	if (error != 0) {
 		PCM_RELEASE(d);
@@ -432,9 +426,7 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 			PCM_GIANT_EXIT(d);
 			return (error);
 		}
-		PCM_LOCK(d);
 		CHN_INSERT_HEAD(d, priv->wrch, channels.pcm.opened);
-		PCM_UNLOCK(d);
 	}
 	if (DSP_F_READ(flags)) {
 		error = dsp_chn_alloc(d, &priv->rdch, PCMDIR_REC, flags, td);
@@ -443,9 +435,7 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 			PCM_GIANT_EXIT(d);
 			return (error);
 		}
-		PCM_LOCK(d);
 		CHN_INSERT_HEAD(d, priv->rdch, channels.pcm.opened);
-		PCM_UNLOCK(d);
 	}
 
 	PCM_RELEASE(d);
