@@ -126,6 +126,14 @@ errors_body()
 		-e ignore \
 		-s exit:1 \
 		sh -c 'soelim basic.in > /dev/full'
+
+	# Self-inclusion is bounded.
+	printf '.so self\n' > self
+	atf_check \
+		-o empty \
+		-e match:"too many nested includes" \
+		-s exit:1 \
+		soelim self
 }
 
 atf_init_test_cases()

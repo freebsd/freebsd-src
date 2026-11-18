@@ -37,7 +37,11 @@
 
 #define C_OPTION 0x1
 
+/* Maximum number of nested .so files to process. */
+#define MAX_INCLUDE_DEPTH 64
+
 static StringList *includes;
+static int include_depth;
 
 static void
 usage(void)
@@ -90,6 +94,7 @@ soelim_file(FILE *f, const char *name, int flag)
 	if (f == NULL)
 		return (1);
 
+	include_depth++;
 	ret = 0;
 	while ((linelen = getline(&line, &linecap, f)) > 0) {
 		if (strncmp(line, ".so", 3) != 0) {
@@ -117,20 +122,27 @@ soelim_file(FILE *f, const char *name, int flag)
 			printf("%s", line);
 			continue;
 		}
+		if (include_depth >= MAX_INCLUDE_DEPTH) {
+			warnx("%s: too many nested includes", walk);
+			ret = 1;
+			break;
+		}
 		if (soelim_file(soelim_fopen(walk), walk, flag) == 1) {
-			free(line);
-			return (1);
+			ret = 1;
+			break;
 		}
 		if (*cp != '\0')
 			printf("%s", cp);
 	}
+	include_depth--;
 
 	if (ferror(f)) {
 		warn("%s", name);
 		ret = 1;
 	}
 	free(line);
-	fclose(f);
+	if (f != stdin)
+		fclose(f);
 
 	return (ret);
 }
