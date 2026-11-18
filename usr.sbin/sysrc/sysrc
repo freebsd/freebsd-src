@@ -16,7 +16,7 @@ pgm="${0##*/}" # Program basename
 #
 # Version information
 #
-SYSRC_VERSION="8.2 Nov-16,2026"
+SYSRC_VERSION="8.3 Nov-16,2026"
 
 #
 # Options
@@ -63,7 +63,7 @@ die()
 usage()
 {
 	f_err "Usage: %s [OPTIONS] %s\n" "$pgm" \
-		"{name[[+|-]=value] ... | -a | -A | -l | -L [name ...]}"
+		"{name[[+|-|.]=value] ... | -a | -A | -l | -L [name ...]}"
 	f_err "Try \`%s --help' for more information.\n" "$pgm"
 	die
 }
@@ -77,7 +77,7 @@ help()
 	local optfmt="\t%-11s%s\n"
 	local envfmt="\t%-17s%s\n"
 
-	f_err "Usage: %s [OPTIONS] name[[+|-]=value] ...\n" "$pgm"
+	f_err "Usage: %s [OPTIONS] name[[+|-|.]=value] ...\n" "$pgm"
 	f_err "Usage: %s [OPTIONS] -a | -A\n" "$pgm"
 	f_err "Usage: %s [OPTIONS] -l | -L [name ...]\n" "$pgm"
 
@@ -332,6 +332,7 @@ fi
 for name in "$@"; do
 	# NB: shell expansion syntax removed first
 	name="${name%%:[+=-]*}"
+	name="${name%%.=*}" # string append
 	name="${name%%[%#+=-]*}"
 	[ "$name" = "${name#*[!$VALID_VARNAME_CHARS]}" ] || die \
 		"%s: %s: name contains characters not allowed in shell" \
@@ -688,8 +689,9 @@ while [ $# -gt 0 ]; do
 	NAME="${1%%=*}"
 
 	case "$NAME" in
-	*+) mode=APPEND NAME="${NAME%+}" ;;
-	*-) mode=REMOVE NAME="${NAME%-}" ;;
+	*+) mode=LISTAPPEND NAME="${NAME%+}" ;;
+	*-) mode=LISTREMOVE NAME="${NAME%-}" ;;
+	*.) mode=STRAPPEND NAME="${NAME%.}" ;;
 	 *) mode=ASSIGN
 	esac
 
@@ -729,7 +731,7 @@ while [ $# -gt 0 ]; do
 		# Determine both `before' value and appropriate `new' value
 		#
 		case "$mode" in
-		APPEND)
+		LISTAPPEND)
 			before=$( f_sysrc_get_raw "$NAME" )
 			add="${1#*=}"
 			delim="${add%"${add#?}"}" # first character
@@ -753,7 +755,7 @@ while [ $# -gt 0 ]; do
 			unset add delim oldIFS a skip b
 			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
 			;;
-		REMOVE)
+		LISTREMOVE)
 			before=$( f_sysrc_get_raw "$NAME" )
 			remove="${1#*=}"
 			delim="${remove%"${remove#?}"}" # first character
@@ -775,6 +777,14 @@ while [ $# -gt 0 ]; do
 			set +f # glob
 			new="${new#"$delim"}" IFS="$oldIFS"
 			unset remove delim oldIFS b add r
+			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
+			;;
+		STRAPPEND)
+			before=$( f_sysrc_get_raw "$NAME" )
+			add="${1#*=}"
+			new="$add"
+			[ "$before" ] && new="$before $add"
+			unset add
 			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
 			;;
 		*) # ASSIGN

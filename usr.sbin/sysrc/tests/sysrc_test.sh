@@ -434,12 +434,63 @@ r_flag_body()
 	atf_check -o inline:'test_flags="-J 16"\n' cat "${SYSRC_CONF}"
 }
 
+atf_test_case strappend
+strappend_head()
+{
+	atf_set "descr" "String-append with .= inserts a space"
+}
+strappend_body()
+{
+	local msg
+
+	# NULL value: no leading space
+	atf_check -o inline:'cron_flags:  -> -J 15\n' \
+	    sysrc -f "${SYSRC_CONF}" 'cron_flags.=-J 15'
+	atf_check -o inline:'cron_flags="-J 15"\n' cat "${SYSRC_CONF}"
+
+	printf '%s\n' 'cron_flags="$cron_flags"' > "${SYSRC_CONF}"
+
+	# A space is inserted. The text is not scanned for a delimiter
+	msg='cron_flags: $cron_flags -> $cron_flags -J 15'
+	atf_check -o inline:"$msg\n" \
+	    sysrc -f "${SYSRC_CONF}" 'cron_flags.=-J 15'
+	atf_check -o inline:'cron_flags="$cron_flags -J 15"\n' \
+	    cat "${SYSRC_CONF}"
+
+	# A second append adds the text again, with another space
+	msg='cron_flags: $cron_flags -J 15 ->'
+	msg="$msg "'$cron_flags -J 15 -J 15'
+	atf_check -o inline:"$msg\n" \
+	    sysrc -f "${SYSRC_CONF}" 'cron_flags.=-J 15'
+
+	# -c reports the result and does not write
+	printf '%s\n' 'cron_flags="$cron_flags"' > "${SYSRC_CONF}"
+	msg="${SYSRC_CONF}: cron_flags: would change from"
+	msg="$msg \`\$cron_flags' to \`\$cron_flags -J 15'"
+	atf_check -s exit:1 -o inline:"$msg\n" \
+	    sysrc -f "${SYSRC_CONF}" -v -c 'cron_flags.=-J 15'
+	atf_check -o inline:'cron_flags="$cron_flags"\n' \
+	    cat "${SYSRC_CONF}"
+
+	# A comma stays text. .= does not take it as a delimiter
+	printf '%s\n' 'foo="bar"' > "${SYSRC_CONF}"
+	atf_check -o inline:'foo: bar -> bar ,extra\n' \
+	    sysrc -f "${SYSRC_CONF}" 'foo.=,extra'
+	atf_check -o inline:'foo="bar ,extra"\n' cat "${SYSRC_CONF}"
+
+	# += is still an exclusive list: -J is present, 15 is not
+	printf '%s\n' 'cron_flags="-J 10"' > "${SYSRC_CONF}"
+	atf_check -o inline:'cron_flags: -J 10 -> -J 10 15\n' \
+	    sysrc -f "${SYSRC_CONF}" 'cron_flags+=-J 15'
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case check_variable
 	atf_add_test_case set_variable
 	atf_add_test_case remove_variable_x_flag
 	atf_add_test_case append_list
+	atf_add_test_case strappend
 	atf_add_test_case subtract_list
 	atf_add_test_case multiple_operations
 	atf_add_test_case a_flag
