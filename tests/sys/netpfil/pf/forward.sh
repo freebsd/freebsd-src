@@ -211,9 +211,76 @@ v6_hlim_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "v6_hlim_decrement" "cleanup"
+v6_hlim_decrement_head()
+{
+	atf_set descr 'Test that forwarded packets leave with the hop limit decremented once'
+	atf_set require.user root
+	atf_set require.progs python3 scapy
+}
+
+v6_hlim_decrement_body()
+{
+	pft_init
+
+	epair_send=$(vnet_mkepair)
+	epair_recv=$(vnet_mkepair)
+	epair_route=$(vnet_mkepair)
+
+	ifconfig ${epair_send}a inet6 2001:db8:42::1/64 up no_dad -ifdisabled
+	ifconfig ${epair_recv}a up
+	ifconfig ${epair_route}a up
+
+	vnet_mkjail alcatraz ${epair_send}b ${epair_recv}b ${epair_route}b
+
+	jexec alcatraz ifconfig ${epair_send}b inet6 2001:db8:42::2/64 up no_dad
+	jexec alcatraz ifconfig ${epair_recv}b inet6 2001:db8:43::2/64 up no_dad
+	jexec alcatraz ifconfig ${epair_route}b inet6 2001:db8:44::2/64 up no_dad
+	jexec alcatraz sysctl net.inet6.ip6.forwarding=1
+	jexec alcatraz ndp -s 2001:db8:43::3 00:01:02:03:04:05
+	jexec alcatraz ndp -s 2001:db8:44::3 00:01:02:03:04:06
+	jexec alcatraz route add -6 2001:db8:666::/64 2001:db8:43::3
+	route add -6 2001:db8:43::/64 2001:db8:42::2
+	route add -6 2001:db8:666::/64 2001:db8:42::2
+
+	jexec alcatraz pfctl -e
+
+	# Forwarded by the stack, with and without the fast path.
+	pft_set_rules alcatraz "pass"
+	for redirect in 0 1; do
+		jexec alcatraz sysctl net.inet6.ip6.redirect=${redirect}
+		atf_check -s exit:0 ${common_dir}/pft_ping.py \
+		    --sendif ${epair_send}a \
+		    --to 2001:db8:43::3 \
+		    --recvif ${epair_recv}a \
+		    --send-hlim 5 \
+		    --expect-hlim 4
+	done
+
+	# Transmitted by pf's outbound pass (route-to), same expectation.
+	pft_set_rules alcatraz \
+		"pass in" \
+		"pass out route-to (${epair_route}b 2001:db8:44::3) inet6 to 2001:db8:666::1"
+	for redirect in 0 1; do
+		jexec alcatraz sysctl net.inet6.ip6.redirect=${redirect}
+		atf_check -s exit:0 ${common_dir}/pft_ping.py \
+		    --sendif ${epair_send}a \
+		    --to 2001:db8:666::1 \
+		    --recvif ${epair_route}a \
+		    --send-hlim 5 \
+		    --expect-hlim 4
+	done
+}
+
+v6_hlim_decrement_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
 	atf_add_test_case "v6"
 	atf_add_test_case "v6_hlim"
+	atf_add_test_case "v6_hlim_decrement"
 }

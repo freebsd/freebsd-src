@@ -199,6 +199,16 @@ passin:
 		goto dropin;
 	}
 	/*
+	 * Decrement it here, before the route lookup and the outbound hooks,
+	 * as ip_tryforward() and ip6_forward() do: the hooks then see the
+	 * hop limit the packet leaves with, and a hook that transmits the
+	 * packet itself (pf route-to) does not skip the decrement.
+	 */
+#ifdef IPSTEALTH
+	if (!V_ip6stealth)
+#endif
+		ip6->ip6_hlim -= IPV6_HLIMDEC;
+	/*
 	 * Find route to destination.
 	 */
 	if (ip6_findroute(&nh, &dst, m) != 0) {
@@ -245,8 +255,8 @@ passin:
 	 */
 	if (m->m_flags & M_FASTFWD_OURS) {
 		/*
-		 * XXX: we did one hop and should decrement hop limit. But
-		 * now we are the destination and just don't pay attention.
+		 * The hop limit is already decremented, but now we are
+		 * the destination and ip6_input() does not look at it.
 		 */
 		return (m);
 	}
@@ -276,12 +286,6 @@ passin:
 		}
 	}
 passout:
-#ifdef IPSTEALTH
-	if (!V_ip6stealth)
-#endif
-	{
-		ip6->ip6_hlim -= IPV6_HLIMDEC;
-	}
 
 	/*
 	 * If TCP/UDP header still needs a valid checksum and interface will not
