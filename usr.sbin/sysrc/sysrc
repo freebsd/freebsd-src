@@ -16,7 +16,7 @@ pgm="${0##*/}" # Program basename
 #
 # Version information
 #
-SYSRC_VERSION="7.4 Nov-14,2026"
+SYSRC_VERSION="8.0 Nov-16,2026"
 
 #
 # Options
@@ -730,11 +730,7 @@ while [ $# -gt 0 ]; do
 		#
 		case "$mode" in
 		APPEND)
-			if [ "$CHECK_ONLY$RAW" ]; then
-				before=$( f_sysrc_get_raw "$NAME" )
-			else
-				before=$( f_sysrc_get "$NAME" )
-			fi
+			before=$( f_sysrc_get_raw "$NAME" )
 			add="${1#*=}"
 			delim="${add%"${add#?}"}" # first character
 			oldIFS="$IFS"
@@ -756,11 +752,7 @@ while [ $# -gt 0 ]; do
 			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
 			;;
 		REMOVE)
-			if [ "$CHECK_ONLY$RAW" ]; then
-				before=$( f_sysrc_get_raw "$NAME" )
-			else
-				before=$( f_sysrc_get "$NAME" )
-			fi
+			before=$( f_sysrc_get_raw "$NAME" )
 			remove="${1#*=}"
 			delim="${remove%"${remove#?}"}" # first character
 			oldIFS="$IFS"
@@ -784,10 +776,8 @@ while [ $# -gt 0 ]; do
 		*) # ASSIGN
 			if [ "$SHOW_FILE" ]; then
 				before=$( f_sysrc_find "$NAME" )
-			elif [ "$CHECK_ONLY$RAW" ]; then
-				before=$( f_sysrc_get_raw "$NAME" )
 			else
-				before=$( f_sysrc_get "$NAME" )
+				before=$( f_sysrc_get_raw "$NAME" )
 			fi
 			new="${1#*=}"
 		esac
@@ -830,12 +820,10 @@ while [ $# -gt 0 ]; do
 				if [ ! "$QUIET" ]; then
 					if [ "$SHOW_FILE" ]; then
 						after=$( f_sysrc_find "$NAME" )
-					elif [ "$RAW" ]; then
+					else
 						after=$(
 							f_sysrc_get_raw "$NAME"
 						)
-					else
-						after=$( f_sysrc_get "$NAME" )
 					fi
 					echo -n "${SHOW_NAME:+$NAME$SEP}"
 					echo -n "$before${SHOW_EQUALS:+\" #}"
