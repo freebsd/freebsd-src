@@ -41,10 +41,17 @@ according to the Cross Desktop Group Base Directory Specification.
 By default the directory is created under
 .Pa /var/run/xdg/ Ns $ Ns Ev USER .
 .Pp
-The following option may be passed to the authentication module:
+The following options may be passed to the
+.Nm
+module:
 .Bl -tag -width "runtime_dir_prefix=directory"
 .It Cm runtime_dir_prefix Ns = Ns Ar directory
 Use an alternate base directory
+.It Cm linger
+Keeps the runtime directory of a user if they have running processes, even when
+their last session logs out. Allows the user to continue running processes in
+the background that create sockets or files in
+.Ev XDG_RUNTIME_DIR.
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width indent
