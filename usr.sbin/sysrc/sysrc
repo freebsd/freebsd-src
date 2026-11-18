@@ -16,7 +16,7 @@ pgm="${0##*/}" # Program basename
 #
 # Version information
 #
-SYSRC_VERSION="8.0 Nov-16,2026"
+SYSRC_VERSION="8.1 Nov-16,2026"
 
 #
 # Options
@@ -739,6 +739,7 @@ while [ $# -gt 0 ]; do
 			*) IFS="$delim"
 			esac
 			new="$before"
+			set -f # noglob
 			for a in $add; do
 				[ "$a" ] || continue
 				skip=
@@ -747,6 +748,7 @@ while [ $# -gt 0 ]; do
 				done
 				[ "$skip" ] || new="$new$delim$a"
 			done
+			set +f # glob
 			new="${new#"$delim"}" IFS="$oldIFS"
 			unset add delim oldIFS a skip b
 			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
@@ -761,6 +763,7 @@ while [ $# -gt 0 ]; do
 			*) IFS="$delim"
 			esac
 			new=
+			set -f # noglob
 			for b in $before; do
 				[ "$b" ] || continue
 				add=1
@@ -769,6 +772,7 @@ while [ $# -gt 0 ]; do
 				done
 				[ "$add" ] && new="$new$delim$b"
 			done
+			set +f # glob
 			new="${new#"$delim"}" IFS="$oldIFS"
 			unset remove delim oldIFS b add r
 			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
