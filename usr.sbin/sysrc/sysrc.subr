@@ -294,6 +294,488 @@ f_sysrc_get()
 	)
 }
 
+# f_sysrc_get_raw $varname
+#
+# Without expanding the value (e.g., in the case of `-c' check), get a system
+# configuration setting from the collection of system-configuration files (in
+# order: /etc/defaults/rc.conf /etc/rc.conf and /etc/rc.conf.local)
+#
+# Much of the complexity here is to handle things like:
+#
+# 1. Even-vs-Odd backslash count
+# 	a. preceding things like ", ', $, `, NL, etc.
+# 2. Single-vs-Double quoting
+# 3. Dollar quoting
+# 	a. $'\t' to expand escapes (in example, a real tab)
+# 	b. $"File not found." i18n translation; for example:
+# 	   export LC_ALL=es_ES.UTF-8
+# 	   export TEXTDOMAIN=bash
+# 	   export TEXTDOMAINDIR=/usr/local/share/locale
+# 	   bash -c 'echo $"%s: not found"' -> %s: no encontrado
+# 	NB: /bin/sh has no *.mo files but the syntax should still be supported
+# 4. Compound quoting
+# 	a. single-with-double or vice-versa ["a"'b' or 'c'"d"]
+# 	b. bare-with-quoted [abc\ '123' or "def"\ 456]
+# 	c. joined arithmetic ["foo"$(( 1 + 1 ))]
+# 	d. joined command substitutions ["bar"`baz` or "bar"$( baz )]
+# 5. Parameter expansions
+# 	a. Without quotes [${abc#123}]
+# 	b. With quotes [${foo#"bar"} or ${bar#'baz'}]
+# 	c. Quoted with same quotes ["${foo#"bar"}"]
+# 	d. Single-quoted literal compound ['${foo#'bar'}']
+# 	e. With whitespace [${foo#bar baz}]
+# 	f. Nested [${foo#`bar ${baz}`}]
+# 6. Newlines and line continuations
+# 	a. Inside single-quotes
+# 	b. Inside double-quotes
+# 	c. Unquoted using a trailing backslash at the end of the line
+# 7. Multi-assignment lines [foo=bar bar=baz]
+# 	a. With various flavors of quoting or joined statements
+# 	   [foo="abc"`def 123`${ghi#"456"} bar=baz]
+# 	   [foo=abc;bar=baz]
+# 	NB: Only works to return correct value if requested variable
+# 	    is the first word assignment (e.g., asking for foo).
+# 8. Combinations and mixtures of the above
+#
+# NOTE: Additional shell parameter-expansion formats are supported. For
+# example, passing an argument of "hostname%%.*" (properly quoted) will
+# return the hostname up to (but not including) the first `.' (see sh(1),
+# "Parameter Expansion" for more information on additional formats).
+#
+f_sysrc_get_raw_awk='
+# Variables that should be defined on the invocation line:
+# 	-v varname="varname"
+#
+BEGIN {
+	# NB: Should be same regex as f_sysrc_find()
+	regex = sprintf("^[[:space:]]*%s=", varname)
+	value = ""
+}
+
+#
+# Quote-remove one assignment word starting at start
+# NB: Supports varname=value othervar=othervalue ...
+#
+function read_value(start,    out, q, ch)
+{
+	q_i = start
+	q_at_nl = 0
+	sq = "\047"
+	out = ""
+	q = 0
+	while (next_char()) {
+		ch = q_c
+		if ( q == 1 ) {
+			if ( ch == sq ) {
+				q = 0
+				continue
+			}
+			out = out ch
+			continue
+		}
+		if ( q == 2 ) {
+			if ( ch == "\\" ) {
+				if ( !next_char() ) {
+					out = out "\\"
+					break
+				}
+				ch = q_c
+				if ( ch == "\n" ) continue
+				if ( ch == "$" || ch == "`" ||
+				     ch == "\"" || ch == "\\" )
+					out = out ch
+				else
+					out = out "\\" ch
+				continue
+			}
+			if ( ch == "\"" ) {
+				q = 0
+				continue
+			}
+			if ( ch == "$" ) {
+				out = out read_dollar(1)
+				continue
+			}
+			if ( ch == "`" ) {
+				out = out read_bquote()
+				continue
+			}
+			out = out ch
+			continue
+		}
+		if ( ch == sq ) {
+			q = 1
+			continue
+		}
+		if ( ch == "\"" ) {
+			q = 2
+			continue
+		}
+		if ( ch == "\\" ) {
+			if ( !next_char() ) {
+				out = out "\\"
+				break
+			}
+			if ( q_c == "\n" ) continue
+			out = out q_c
+			continue
+		}
+		if ( word_end(ch) ) break
+		if ( ch == "$" ) {
+			out = out read_dollar()
+			continue
+		}
+		if ( ch == "`" ) {
+			out = out read_bquote()
+			continue
+		}
+		out = out ch
+	}
+	return out
+}
+
+function word_end(ch)
+{
+	if ( ch == "\n" || ch == " " || ch == "\t" ) return 1
+	if ( ch == ";" || ch == "&" || ch == "|" ) return 1
+	if ( ch == "<" || ch == ">" || ch == "(" || ch == ")" ) return 1
+	return 0
+}
+
+function next_char(    r)
+{
+	if ( q_i <= length($0) ) {
+		q_c = substr($0, q_i, 1)
+		q_i++
+		return 1
+	}
+	if ( q_at_nl ) {
+		r = getline
+		if ( r <= 0 ) return 0
+		q_at_nl = 0
+		if ( length($0) == 0 ) {
+			q_c = "\n"
+			q_at_nl = 1
+			q_i = 1
+			return 1
+		}
+		q_c = substr($0, 1, 1)
+		q_i = 2
+		return 1
+	}
+	q_c = "\n"
+	q_at_nl = 1
+	return 1
+}
+
+function peek_char()
+{
+	if ( q_i <= length($0) ) return substr($0, q_i, 1)
+	if ( q_at_nl ) return ""
+	return "\n"
+}
+
+# Copy one expansion without running it. inq means the $ is already
+# inside double quotes; a dollar quote is kept whole only when unquoted.
+function read_dollar(inq,    p)
+{
+	p = peek_char()
+	if ( p == "(" ) {
+		next_char()
+		if ( peek_char() == "(" ) {
+			next_char()
+			return read_arith()
+		}
+		return read_cmd()
+	}
+	if ( p == "{" ) {
+		next_char()
+		return read_param()
+	}
+	if ( !inq && (p == sq || p == "\"") )
+		return read_dolquote()
+	return "$"
+}
+
+# Dollar-single or dollar-double quote; marks kept, escapes left as written
+function read_dolquote(    out, qch, ch)
+{
+	qch = peek_char()
+	next_char()
+	out = "$" qch
+	while (next_char()) {
+		ch = q_c
+		if ( ch == "\\" ) {
+			out = out ch
+			if ( !next_char() ) break
+			out = out q_c
+			continue
+		}
+		out = out ch
+		if ( ch == qch ) break
+	}
+	return out
+}
+
+function read_cmd(    out, depth, q, ch)
+{
+	out = "$("
+	depth = 1
+	q = 0
+	while (depth > 0 && next_char()) {
+		ch = q_c
+		if ( q == 1 ) {
+			out = out ch
+			if ( ch == sq ) q = 0
+			continue
+		}
+		if ( q == 2 ) {
+			if ( ch == "\\" ) {
+				out = out ch
+				if ( !next_char() ) break
+				out = out q_c
+				continue
+			}
+			out = out ch
+			if ( ch == "\"" ) q = 0
+			continue
+		}
+		if ( ch == sq ) {
+			out = out ch
+			q = 1
+			continue
+		}
+		if ( ch == "\"" ) {
+			out = out ch
+			q = 2
+			continue
+		}
+		if ( ch == "\\" ) {
+			out = out ch
+			if ( !next_char() ) break
+			out = out q_c
+			continue
+		}
+		if ( ch == "$" ) {
+			out = out read_dollar()
+			continue
+		}
+		if ( ch == "`" ) {
+			out = out read_bquote()
+			continue
+		}
+		if ( ch == "(" ) depth++
+		else if ( ch == ")" ) depth--
+		out = out ch
+	}
+	return out
+}
+
+function read_param(    out, q, ch)
+{
+	out = "${"
+	q = 0
+	while (next_char()) {
+		ch = q_c
+		if ( q == 1 ) {
+			out = out ch
+			if ( ch == sq ) q = 0
+			continue
+		}
+		if ( q == 2 ) {
+			if ( ch == "\\" ) {
+				out = out ch
+				if ( !next_char() ) break
+				out = out q_c
+				continue
+			}
+			out = out ch
+			if ( ch == "\"" ) q = 0
+			continue
+		}
+		if ( ch == sq ) {
+			out = out ch
+			q = 1
+			continue
+		}
+		if ( ch == "\"" ) {
+			out = out ch
+			q = 2
+			continue
+		}
+		if ( ch == "\\" ) {
+			out = out ch
+			if ( !next_char() ) break
+			out = out q_c
+			continue
+		}
+		if ( ch == "$" ) {
+			out = out read_dollar()
+			continue
+		}
+		if ( ch == "`" ) {
+			out = out read_bquote()
+			continue
+		}
+		out = out ch
+		if ( ch == "}" ) break
+	}
+	return out
+}
+
+function read_arith(    out, depth, ch)
+{
+	out = "$(("
+	depth = 0
+	while (next_char()) {
+		ch = q_c
+		if ( ch == "$" ) {
+			out = out read_dollar()
+			continue
+		}
+		if ( ch == "`" ) {
+			out = out read_bquote()
+			continue
+		}
+		if ( ch == "\\" ) {
+			out = out ch
+			if ( !next_char() ) break
+			out = out q_c
+			continue
+		}
+		if ( ch == "(" ) {
+			depth++
+			out = out ch
+			continue
+		}
+		if ( ch == ")" ) {
+			if ( depth > 0 ) {
+				depth--
+				out = out ch
+				continue
+			}
+			out = out ch
+			if ( peek_char() == ")" ) {
+				next_char()
+				out = out q_c
+				break
+			}
+			continue
+		}
+		out = out ch
+	}
+	return out
+}
+
+function read_bquote(    out, q, ch, p)
+{
+	out = "`"
+	q = 0
+	while (next_char()) {
+		ch = q_c
+		if ( q == 1 ) {
+			out = out ch
+			if ( ch == sq ) q = 0
+			continue
+		}
+		if ( q == 2 ) {
+			if ( ch == "\\" ) {
+				out = out ch
+				if ( !next_char() ) break
+				out = out q_c
+				continue
+			}
+			out = out ch
+			if ( ch == "\"" ) q = 0
+			continue
+		}
+		if ( ch == sq ) {
+			out = out ch
+			q = 1
+			continue
+		}
+		if ( ch == "\"" ) {
+			out = out ch
+			q = 2
+			continue
+		}
+		if ( ch == "\\" ) {
+			p = peek_char()
+			out = out ch
+			if ( p == "$" || p == "`" ||
+			     p == "\\" || p == "\n" ) {
+				if ( !next_char() ) break
+				out = out q_c
+			}
+			continue
+		}
+		if ( ch == "`" ) {
+			out = out ch
+			break
+		}
+		if ( ch == "$" ) {
+			out = out read_dollar()
+			continue
+		}
+		out = out ch
+	}
+	return out
+}
+
+/^[[:space:]]*(#|$)/ { next } # skip blank lines and comments
+match($0, regex) { value = read_value(RSTART + RLENGTH) }
+
+END { printf "%s\n", value }
+'
+f_sysrc_get_raw()
+{
+	local varname="${1%%[!$VALID_VARNAME_CHARS]*}"
+	local paramexp="${1#"$varname"}"
+	local file value
+
+	# Taint-check variable name
+	case "$varname" in
+	[0-9]*)
+		# Don't expand possible positional parameters
+		return $FAILURE ;;
+	*)
+		[ "$varname" ] || return $FAILURE
+	esac
+
+	if ! file=$( f_sysrc_find "$varname" ); then
+		#
+		# Like f_sysrc_get() given an unset variable, return no value
+		# with success unless paramexp specifically requests error
+		#
+		case "$paramexp" in
+		"?"*)
+			# Same exit status as: f_sysrc_get 'varname?'
+			return 2 ;;
+		esac
+		echo
+		return $SUCCESS
+	fi
+
+	#
+	# To get the raw value, we cannot simply source the file,
+	# we must instead read the file
+	#
+	value=$( awk -v varname="$varname" "$f_sysrc_get_raw_awk" "$file" )
+
+	#
+	# This must be the last functional line for the function to preserve
+	# the return status from formats such as "varname:?" (see "Parameter
+	# Expansion" in sh(1) for more information).
+	#
+	# NB: The parameter expansion "varname?" cannot work here because if
+	# f_sysrc_find() did not find a setting, we have not reached this point
+	# but instead returned error status. So if we reach here, that means we
+	# already know the variable is set. Parameter expansion "varname:?"
+	# does still have meaning to test that the value is non-NULL.
+	#
+	eval printf "'%s\\n'" '"${value'"$paramexp"'}"' 2> /dev/null
+}
+
 # f_sysrc_service_configs [-a|-p] $name [$var_to_set]
 #
 # Get a list of optional `rc.conf.d' entries sourced by system `rc.d' script

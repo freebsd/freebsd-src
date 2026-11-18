@@ -16,7 +16,7 @@ pgm="${0##*/}" # Program basename
 #
 # Version information
 #
-SYSRC_VERSION="7.3.1 Oct-17,2026"
+SYSRC_VERSION="7.4 Nov-14,2026"
 
 #
 # Options
@@ -31,6 +31,7 @@ JAIL=
 LIST_SERVICE_CONFS=
 LIST_CONFS=
 QUIET=
+RAW=
 ROOTDIR=
 SERVICE=
 SHOW_ALL=
@@ -125,12 +126,14 @@ help()
 	      "Show only variable names, not their values."
 	f_err "$optfmt" "-q" \
 	      "Quiet. Disable verbose and hide certain errors."
+	f_err "$optfmt" "-r" \
+	      "Show raw, unexpanded value(s)."
+	f_err "$optfmt" "-R dir" \
+	      "Operate within the root directory \`dir' rather than \`/'."
 	f_err "$optfmt" "-s name" \
 	      "Process additional \`rc.conf.d' entries for service name."
 	f_err "$optfmt" "" \
 	      "Ignored if \`-f file' is given."
-	f_err "$optfmt" "-R dir" \
-	      "Operate within the root directory \`dir' rather than \`/'."
 	f_err "$optfmt" "-v" \
 	      "Verbose. Print the pathname of the specific rc.conf(5)"
 	f_err "$optfmt" "" \
@@ -216,7 +219,7 @@ unset arg
 #
 # Process command-line flags
 #
-while getopts aAcdDeEf:Fhij:lLnNqR:s:vxX flag; do
+while getopts aAcdDeEf:Fhij:lLnNqrR:s:vxX flag; do
 	case "$flag" in
 	a) SHOW_ALL=${SHOW_ALL:-1} ;;
 	A) SHOW_ALL=2 ;;
@@ -237,6 +240,7 @@ while getopts aAcdDeEf:Fhij:lLnNqR:s:vxX flag; do
 	n) SHOW_NAME= ;;
 	N) SHOW_VALUE= ;;
 	q) QUIET=1 VERBOSE= ;;
+	r) RAW=1 ;;
 	R) [ "$OPTARG" ] ||
 		die "%s: Missing or null argument to \`-R' flag" "$pgm"
 	   ROOTDIR="$OPTARG" ;;
@@ -451,6 +455,7 @@ if [ "$JAIL" -o "$ROOTDIR" ]; then
 	args="
 		${VERBOSE:+-v}
 		${QUIET:+-q}
+		${RAW:+-r}
 		$( [ "$DELETE" = "1" ] && echo \ -x )
 		$( [ "$DELETE" = "2" ] && echo \ -X )
 		$( [ "$SHOW_ALL" = "1" ] && echo \ -a )
@@ -578,8 +583,9 @@ if [ "$SHOW_ALL" ]; then
 		EXCEPT="$EXCEPT|DELETE|SHOW_ALL|SHOW_EQUALS|SHOW_NAME|DEFAULT"
 		EXCEPT="$EXCEPT|SHOW_VALUE|SHOW_FILE|VERBOSE|RC_CONFS|SERVICE"
 		EXCEPT="$EXCEPT|pgm|SUCCESS|FAILURE|CHECK_ONLY|EXISTING_ONLY"
-		EXCEPT="$EXCEPT|LIST_CONFS|LIST_SERVICE_CONFS"
+		EXCEPT="$EXCEPT|LIST_CONFS|LIST_SERVICE_CONFS|RAW"
 		EXCEPT="$EXCEPT|f_sysrc_desc_awk|f_sysrc_delete_awk"
+		EXCEPT="$EXCEPT|f_sysrc_get_raw_awk"
 
 		#
 		# Clean the environment (except for our required variables)
@@ -662,7 +668,8 @@ if [ "$SHOW_ALL" ]; then
 			fi
 
 			echo "${SHOW_NAME:+$NAME$SEP}$(
-			      f_sysrc_get "$NAME" )${SHOW_EQUALS:+\"}"
+				f_sysrc_get${RAW:+_raw} "$NAME"
+			)${SHOW_EQUALS:+\"}"
 
 		done
 	)
@@ -723,7 +730,11 @@ while [ $# -gt 0 ]; do
 		#
 		case "$mode" in
 		APPEND)
-			before=$( f_sysrc_get "$NAME" )
+			if [ "$CHECK_ONLY$RAW" ]; then
+				before=$( f_sysrc_get_raw "$NAME" )
+			else
+				before=$( f_sysrc_get "$NAME" )
+			fi
 			add="${1#*=}"
 			delim="${add%"${add#?}"}" # first character
 			oldIFS="$IFS"
@@ -745,7 +756,11 @@ while [ $# -gt 0 ]; do
 			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
 			;;
 		REMOVE)
-			before=$( f_sysrc_get "$NAME" )
+			if [ "$CHECK_ONLY$RAW" ]; then
+				before=$( f_sysrc_get_raw "$NAME" )
+			else
+				before=$( f_sysrc_get "$NAME" )
+			fi
 			remove="${1#*=}"
 			delim="${remove%"${remove#?}"}" # first character
 			oldIFS="$IFS"
@@ -769,6 +784,8 @@ while [ $# -gt 0 ]; do
 		*) # ASSIGN
 			if [ "$SHOW_FILE" ]; then
 				before=$( f_sysrc_find "$NAME" )
+			elif [ "$CHECK_ONLY$RAW" ]; then
+				before=$( f_sysrc_get_raw "$NAME" )
 			else
 				before=$( f_sysrc_get "$NAME" )
 			fi
@@ -813,6 +830,10 @@ while [ $# -gt 0 ]; do
 				if [ ! "$QUIET" ]; then
 					if [ "$SHOW_FILE" ]; then
 						after=$( f_sysrc_find "$NAME" )
+					elif [ "$RAW" ]; then
+						after=$(
+							f_sysrc_get_raw "$NAME"
+						)
 					else
 						after=$( f_sysrc_get "$NAME" )
 					fi
@@ -886,7 +907,8 @@ while [ $# -gt 0 ]; do
 			echo "$NAME"
 		else
 			echo "${SHOW_NAME:+$NAME$SEP}$(
-			      f_sysrc_get "$NAME" )${SHOW_EQUALS:+\"}"
+				f_sysrc_get${RAW:+_raw} "$NAME"
+			)${SHOW_EQUALS:+\"}"
 		fi
 	esac
 	shift 1
