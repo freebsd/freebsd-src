@@ -5,6 +5,9 @@
  */
 
 #include <sys/param.h>
+#include <sys/elf32.h>
+#include <sys/elf64.h>
+#include <sys/endian.h>
 #include <sys/linker.h>
 
 #include <stand.h>
@@ -25,6 +28,8 @@ static const char efi_tpm_environment_domain[] =
     "FreeBSD loader environment v1";
 static const char efi_tpm_file_identity_domain[] =
     "FreeBSD loader file identity v1";
+static const char efi_tpm_elf_metadata_domain[] =
+    "FreeBSD loader ELF metadata v1";
 
 struct efi_tpm_file_measurement {
 	vm_offset_t	addr;
@@ -310,6 +315,117 @@ efi_tpm_measure_file_identity(struct preloaded_file *fp)
 	free(identity);
 }
 
+/* Normalize loader-assigned addresses without changing the kernel's copy. */
+static void
+efi_tpm_relative_addr(char *buf, size_t size, vm_offset_t base, bool section)
+{
+	Elf64_Addr addr64;
+	Elf32_Addr addr32;
+
+	if (size == sizeof(addr64)) {
+		bcopy(buf, &addr64, sizeof(addr64));
+		if (!section || addr64 != 0)
+			addr64 = addr64 - base + section;
+		bcopy(&addr64, buf, sizeof(addr64));
+	} else {
+		bcopy(buf, &addr32, sizeof(addr32));
+		if (!section || addr32 != 0)
+			addr32 = addr32 - base + section;
+		bcopy(&addr32, buf, sizeof(addr32));
+	}
+}
+
+static void
+efi_tpm_measure_file_metadata(struct preloaded_file *fp)
+{
+	static const uint16_t types[] = {
+		MODINFOMD_ELFHDR, MODINFOMD_SHDR,
+		MODINFOMD_SSYM, MODINFOMD_ESYM, MODINFOMD_DYNAMIC,
+		MODINFOMD_CTORS_ADDR, MODINFOMD_CTORS_SIZE,
+	};
+	struct file_metadata *md, *metadata[nitems(types)];
+	Elf64_Ehdr eh64;
+	Elf32_Ehdr eh32;
+	char description[256], *buf, *cp;
+	size_t addrsize, addrpos, shsize, len, i, j;
+	bool relocatable;
+
+	md = file_findmetadata(fp, MODINFOMD_ELFHDR);
+	if (md == NULL)
+		return;
+	if (md->md_size == sizeof(eh64) &&
+	    md->md_data[EI_CLASS] == ELFCLASS64) {
+		bcopy(md->md_data, &eh64, sizeof(eh64));
+		relocatable = eh64.e_type == ET_REL;
+		addrsize = sizeof(Elf64_Addr);
+		addrpos = offsetof(Elf64_Shdr, sh_addr);
+		shsize = sizeof(Elf64_Shdr);
+	} else if (md->md_size == sizeof(eh32) &&
+	    md->md_data[EI_CLASS] == ELFCLASS32) {
+		bcopy(md->md_data, &eh32, sizeof(eh32));
+		relocatable = eh32.e_type == ET_REL;
+		addrsize = sizeof(Elf32_Addr);
+		addrpos = offsetof(Elf32_Shdr, sh_addr);
+		shsize = sizeof(Elf32_Shdr);
+	} else {
+		efi_tpm_disable("ELF header", EFI_INVALID_PARAMETER);
+		return;
+	}
+
+	/* Bind the type and size as well as the contents of each record. */
+	len = sizeof(efi_tpm_elf_metadata_domain);
+	for (i = 0; i < nitems(types); i++) {
+		md = metadata[i] = file_findmetadata(fp, types[i]);
+		if (md == NULL)
+			continue;
+		if (md->md_size > UINT32_MAX || len > SIZE_MAX - 8 ||
+		    md->md_size > SIZE_MAX - len - 8 ||
+		    (types[i] == MODINFOMD_SHDR && md->md_size % shsize != 0) ||
+		    ((types[i] == MODINFOMD_SSYM ||
+		    types[i] == MODINFOMD_ESYM) && md->md_size != addrsize)) {
+			efi_tpm_disable("ELF metadata", EFI_BAD_BUFFER_SIZE);
+			return;
+		}
+		len += 8 + md->md_size;
+	}
+	buf = malloc(len);
+	if (buf == NULL) {
+		efi_tpm_disable("ELF metadata", EFI_OUT_OF_RESOURCES);
+		return;
+	}
+	bcopy(efi_tpm_elf_metadata_domain, buf,
+	    sizeof(efi_tpm_elf_metadata_domain));
+	cp = buf + sizeof(efi_tpm_elf_metadata_domain);
+	for (i = 0; i < nitems(types); i++) {
+		md = metadata[i];
+		if (md == NULL)
+			continue;
+		le32enc(cp, types[i]);
+		le32enc(cp + 4, md->md_size);
+		cp += 8;
+		bcopy(md->md_data, cp, md->md_size);
+		if (types[i] == MODINFOMD_SHDR && relocatable) {
+			/*
+			 * ET_REL section addresses are assigned by the loader.
+			 * Encode loaded sections as offset + 1, preserving zero
+			 * for sections which were not loaded.
+			 */
+			for (j = 0; j < md->md_size; j += shsize)
+				efi_tpm_relative_addr(cp + j + addrpos,
+				    addrsize, fp->f_addr, true);
+		} else if (types[i] == MODINFOMD_SSYM ||
+		    types[i] == MODINFOMD_ESYM) {
+			efi_tpm_relative_addr(cp, addrsize, fp->f_addr, false);
+		}
+		cp += md->md_size;
+	}
+	snprintf(description, sizeof(description), "FreeBSD ELF metadata: %s",
+	    fp->f_name);
+	efi_tpm_measure(FREEBSD_LOADER_FILE_PCR, buf, len, description,
+	    strlen(description) + 1, description);
+	free(buf);
+}
+
 static void
 efi_tpm_measure_file_contents(struct preloaded_file *fp)
 {
@@ -433,6 +549,9 @@ efi_tpm_measure_boot(void)
 		efi_tpm_measure_file_identity(files[i]);
 	for (i = 0; i < nfiles; i++) {
 		fp = files[i];
+		if (!efi_tpm_measureable(fp))
+			continue;
+		efi_tpm_measure_file_metadata(fp);
 		efi_tpm_measure_file_contents(fp);
 	}
 	free(files);

@@ -1,0 +1,4 @@
+These tests compile stand/efi/libefi/tpm.c against small loader shims and
+mock EFI TCG protocols.  Changes to that source or its includes should be
+checked with `make -C tests/stand/efi all check` as well as a loader build.
+The tests do not require firmware access or a TPM.

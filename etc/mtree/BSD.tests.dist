@@ -554,6 +554,10 @@
         zoneinfo
         ..
     ..
+    stand
+        efi
+        ..
+    ..
     sys
         acl
         ..
