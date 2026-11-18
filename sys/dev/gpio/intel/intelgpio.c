@@ -58,7 +58,7 @@ intelgpio_gpio_to_pad(struct intelgpio_softc *sc, uint32_t pin,
 					local_pad = (pg->first_pad + offset) -
 					    com->groups[0].first_pad;
 					*pad_off = sc->sc_padbar[i] +
-					    (local_pad * INTELGPIO_PAD_SIZE);
+					    (local_pad * sc->sc_padsize[i]);
 				}
 				if (pgp != NULL)
 					*pgp = pg;
@@ -348,6 +348,7 @@ intelgpio_attach(device_t dev, const struct intelgpio_platform *plat)
 {
 	struct intelgpio_softc *sc;
 	bool have_res;
+	uint32_t revid;
 	int i;
 
 	sc = device_get_softc(dev);
@@ -373,6 +374,10 @@ intelgpio_attach(device_t dev, const struct intelgpio_platform *plat)
 		}
 		sc->sc_padbar[i] = bus_read_4(sc->sc_mem_res[i],
 		    INTELGPIO_PADBAR_REG);
+		revid = (bus_read_4(sc->sc_mem_res[i], INTELGPIO_REVID_REG) &
+		    INTELGPIO_REVID_MASK) >> INTELGPIO_REVID_SHIFT;
+		sc->sc_padsize[i] = revid >= INTELGPIO_MIN_REVID_FOR_PADCFG_4DW ?
+		    INTELGPIO_PAD_SIZE_4DW : INTELGPIO_PAD_SIZE_2DW;
 		have_res = true;
 	}
 
