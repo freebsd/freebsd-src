@@ -62,7 +62,7 @@ int	midi_unregister(device_t dev);
 void	midi_alias(device_t dev, const char *name);
 
 /* Must be called with the lock held. */
-size_t	midi_in(device_t dev, int chan, uint8_t *buf, size_t size);
+size_t	midi_in(device_t dev, int chan, const uint8_t *buf, size_t size);
 size_t	midi_out(device_t dev, int chan, uint8_t *buf, size_t size);
 
 #endif /* MIDI_H */

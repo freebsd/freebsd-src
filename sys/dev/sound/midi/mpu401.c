@@ -106,7 +106,7 @@ mpu401_intr(void *arg)
 static int
 mpu401_probe(device_t dev)
 {
-	struct mpu401_ivars *ivars = device_get_ivars(dev);
+	const struct mpu401_ivars *ivars = device_get_ivars(dev);
 
 	if (ivars == NULL)
 		return (ENXIO);
@@ -121,7 +121,7 @@ static int
 mpu401_attach(device_t dev)
 {
 	struct mpu401 *m = device_get_softc(dev);
-	struct mpu401_ivars *ivars = device_get_ivars(dev);
+	const struct mpu401_ivars *ivars = device_get_ivars(dev);
 	int err;
 
 	m->ops = ivars->ops;

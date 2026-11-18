@@ -97,13 +97,13 @@ static struct cdevsw midi_cdevsw = {
 };
 
 static size_t
-midi_queue_avail(struct midi_queue *q)
+midi_queue_avail(const struct midi_queue *q)
 {
 	return (q->size - q->used);
 }
 
 static void
-midi_queue_enq(struct midi_queue *q, uint8_t *src, size_t n)
+midi_queue_enq(struct midi_queue *q, const uint8_t *src, size_t n)
 {
 	KASSERT(n <= midi_queue_avail(q), ("%s: bad length %zu", __func__, n));
 
@@ -273,7 +273,7 @@ midi_alias(device_t dev, const char *name)
  * psignal at most once.
  */
 size_t
-midi_in(device_t dev, int chan, uint8_t *buf, size_t size)
+midi_in(device_t dev, int chan, const uint8_t *buf, size_t size)
 {
 	struct midi_softc *sc = device_get_softc(dev);
 	struct midi_port *m;
