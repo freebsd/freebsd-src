@@ -316,24 +316,26 @@ v6_route_to_discards_body()
 	# the outbound hook, after the route lookup chose ${epair_recv}b, for
 	# route-to on the outbound pass.  Neither is a discard.
 	#
-	# The rules do not keep state: when the outbound pass that pf runs from
-	# the inbound hook creates a state, pf reports the packet it sent as
-	# dropped.
+	# With state, the outbound pass that pf runs from the inbound hook
+	# creates a state of its own and sends the packet; without, the inbound
+	# pass does.
 	#
 	# The host's MLD reports are for a group alcatraz has not joined, and
 	# ip6_input() would count them as discarded.  Block them.
 	for dir in in out; do
-		pft_set_rules alcatraz \
-			"block in quick inet6 to ff02::16" \
-			"pass no state" \
-			"pass ${dir} quick route-to (${epair_route}b 2001:db8:44::3) inet6 to 2001:db8:666::1 no state"
-		in_discards=$(jexec alcatraz netstat -s -p ip6 -I ${epair_send}b |
-		    awk '/input datagrams? discarded/ { print $1 }')
-		atf_check -s exit:2 -o ignore ping -6 -c 1 -W 1 2001:db8:666::1
-		atf_check -o match:"[[:space:]]${in_discards} input datagrams? discarded" \
-		    jexec alcatraz netstat -s -p ip6 -I ${epair_send}b
-		atf_check -o match:"[[:space:]]0 total discarded output datagrams" \
-		    jexec alcatraz netstat -s -p ip6 -I ${epair_recv}b
+		for state in "keep state" "no state"; do
+			pft_set_rules alcatraz \
+				"block in quick inet6 to ff02::16" \
+				"pass ${state}" \
+				"pass ${dir} quick route-to (${epair_route}b 2001:db8:44::3) inet6 to 2001:db8:666::1 ${state}"
+			in_discards=$(jexec alcatraz netstat -s -p ip6 -I ${epair_send}b |
+			    awk '/input datagrams? discarded/ { print $1 }')
+			atf_check -s exit:2 -o ignore ping -6 -c 1 -W 1 2001:db8:666::1
+			atf_check -o match:"[[:space:]]${in_discards} input datagrams? discarded" \
+			    jexec alcatraz netstat -s -p ip6 -I ${epair_send}b
+			atf_check -o match:"[[:space:]]0 total discarded output datagrams" \
+			    jexec alcatraz netstat -s -p ip6 -I ${epair_recv}b
+		done
 	done
 }
 

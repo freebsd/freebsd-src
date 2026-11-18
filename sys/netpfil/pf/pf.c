@@ -9947,8 +9947,10 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 				SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
 				goto bad;
 			} else if (m0 == NULL) {
-				action = PF_DROP;
-				SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
+				/*
+				 * The outbound pass sent the packet on itself
+				 * or queued it, so it is consumed, not dropped.
+				 */
 				goto done;
 			}
 			if (m0->m_len < sizeof(struct ip)) {
@@ -10291,8 +10293,10 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 				SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
 				goto bad;
 			} else if (m0 == NULL) {
-				action = PF_DROP;
-				SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
+				/*
+				 * The outbound pass sent the packet on itself
+				 * or queued it, so it is consumed, not dropped.
+				 */
 				goto done;
 			}
 			if (m0->m_len < sizeof(struct ip6_hdr)) {
