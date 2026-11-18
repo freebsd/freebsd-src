@@ -95,6 +95,7 @@ struct mbuf*
 ip6_tryforward(struct mbuf *m)
 {
 	struct sockaddr_in6 dst;
+	struct in6_addr odst;
 	struct nhop_object *nh;
 	struct m_tag *fwd_tag;
 	struct ip6_hdr *ip6;
@@ -218,6 +219,7 @@ passin:
 	/*
 	 * Outgoing packet firewall processing.
 	 */
+	odst = ip6->ip6_dst;
 	if (pfil_mbuf_fwd(V_inet6_pfil_head, &m, nh->nh_ifp,
 	    NULL) != PFIL_PASS)
 		goto dropout;
@@ -258,7 +260,7 @@ passin:
 		fwd_tag = NULL;
 
 	if (fwd_tag != NULL ||
-	    !IN6_ARE_ADDR_EQUAL(&dst.sin6_addr, &ip6->ip6_dst)) {
+	    !IN6_ARE_ADDR_EQUAL(&odst, &ip6->ip6_dst)) {
 		if (fwd_tag != NULL) {
 			bcopy((fwd_tag + 1), &dst, sizeof(dst));
 			m->m_flags &= ~M_IP6_NEXTHOP;
