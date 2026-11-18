@@ -574,7 +574,7 @@ gve_tx_has_desc_room_dqo(struct gve_tx_ring *tx, int needed_descs)
 		return (false);
 	}
 
-	return (0);
+	return (true);
 }
 
 static void
