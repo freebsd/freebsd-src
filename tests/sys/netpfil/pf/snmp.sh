@@ -100,6 +100,19 @@ table_body()
 	atf_check -s exit:0 -o match:'pfTablesTblNumber.0 = 1' \
 	    bsnmpwalk -s public@192.0.2.1 -i pf_tree.def begemot
 
+	# With one address in it
+	atf_check -s exit:0 -o match:'pfTablesTblCount.* = 1' \
+	    bsnmpwalk -s public@192.0.2.1 -i pf_tree.def pfTables
+
+	jexec alcatraz pfctl -T add -t foo 198.51.100.0/24
+
+	# Give bsnmp time to refresh the table
+	sleep 6
+
+	# And now there are two
+	atf_check -s exit:0 -o match:'pfTablesTblCount.* = 2' \
+	    bsnmpwalk -s public@192.0.2.1 -i pf_tree.def pfTables
+
 	# We have the 'foo' table
 	atf_check -s exit:0 -o match:'pfTablesTblDescr.* = foo' \
 	    bsnmpwalk -s public@192.0.2.1 -i pf_tree.def pfTables
