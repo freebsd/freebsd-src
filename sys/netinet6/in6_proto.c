@@ -358,3 +358,6 @@ SYSCTL_BOOL(_net_inet6_ip6, OID_AUTO,
 	log_cannot_forward, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(ip6_log_cannot_forward), 1,
 	"Log packets that cannot be forwarded");
+SYSCTL_BOOL(_net_inet6_ip6, IPV6CTL_USE_OPTIMISTIC, use_optimistic,
+	CTLFLAG_VNET | CTLFLAG_RWTUN, &VNET_NAME(ip6_use_optimistic), 0,
+	"Enable RFC4429 optimistic DAD");

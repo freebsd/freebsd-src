@@ -1093,8 +1093,17 @@ in6_update_ifa_internal(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	 * an interface with ND6_IFF_IFDISABLED.
 	 */
 	if (in6if_do_dad(ifp) &&
-	    (hostIsNew || (ifp->if_inet6->nd_flags & ND6_IFF_IFDISABLED)))
-		ia->ia6_flags |= IN6_IFF_TENTATIVE;
+	    (hostIsNew || (ifp->if_inet6->nd_flags & ND6_IFF_IFDISABLED))) {
+		/*
+		 * RFC 4429 section 3: A router SHOULD NOT configure an
+		 * Optimistic Address. Optimistic DAD SHOULD only be used
+		 * when the implementation is aware that the address is
+		 * based on a most likely unique interface identifier.
+		 * XXX: A host that does not know the SLLAO of its router
+		 * SHOULD NOT configure a new address as Optimistic.
+		 */
+		in6_ifa_need_dad(ia);
+	}
 
 	/* notify other subsystems */
 	error = in6_notify_ifa(ifp, ia, ifra, hostIsNew);
@@ -1134,8 +1143,8 @@ in6_broadcast_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		}
 	}
 
-	/* Perform DAD, if the address is TENTATIVE. */
-	if ((ia->ia6_flags & IN6_IFF_TENTATIVE)) {
+	/* Perform DAD, if the address is TENTATIVE or OPTIMISTIC. */
+	if ((ia->ia6_flags & IN6_IFF_NEED_DAD) != 0) {
 		int delay, mindelay, maxdelay;
 
 		delay = 0;
@@ -2013,11 +2022,11 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 	int dst_scope =	in6_addrscope(dst), blen = -1, tlen;
 	struct ifaddr *ifa;
 	struct in6_ifaddr *besta = NULL;
-	struct in6_ifaddr *dep[2];	/* last-resort: deprecated */
+	struct in6_ifaddr *dep[4];	/* last-resort: optimistic/deprecated */
 
 	NET_EPOCH_ASSERT();
 
-	dep[0] = dep[1] = NULL;
+	dep[0] = dep[1] = dep[2] = dep[3] = NULL;
 
 	/*
 	 * We first look for addresses in the same scope.
@@ -2034,12 +2043,16 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 			continue; /* don't use this interface */
 		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_DETACHED)
 			continue;
-		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_DEPRECATED) {
-			if (V_ip6_use_deprecated)
+		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_OPTIMISTIC) {
+			if (V_ip6_use_optimistic)
 				dep[0] = (struct in6_ifaddr *)ifa;
 			continue;
 		}
-
+		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_DEPRECATED) {
+			if (V_ip6_use_deprecated)
+				dep[1] = (struct in6_ifaddr *)ifa;
+			continue;
+		}
 		if (dst_scope == in6_addrscope(IFA_IN6(ifa))) {
 			/*
 			 * call in6_matchlen() as few as possible
@@ -2068,22 +2081,26 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 			continue; /* don't use this interface */
 		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_DETACHED)
 			continue;
-		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_DEPRECATED) {
-			if (V_ip6_use_deprecated)
-				dep[1] = (struct in6_ifaddr *)ifa;
+		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_OPTIMISTIC) {
+			if (V_ip6_use_optimistic)
+				dep[2] = (struct in6_ifaddr *)ifa;
 			continue;
 		}
-
+		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_DEPRECATED) {
+			if (V_ip6_use_deprecated)
+				dep[3] = (struct in6_ifaddr *)ifa;
+			continue;
+		}
 		return (struct in6_ifaddr *)ifa;
 	}
 
-	/* use the last-resort values, that are, deprecated addresses */
-	if (dep[0])
-		return dep[0];
-	if (dep[1])
-		return dep[1];
+	/* use the last-resort values */
+	for (int i = 0; i < nitems(dep); i++) {
+		if (dep[i] != NULL)
+			return (dep[i]);
+	}
 
-	return NULL;
+	return (NULL);
 }
 
 /*
@@ -2101,9 +2118,9 @@ in6_if_up(struct ifnet *ifp)
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		ia = (struct in6_ifaddr *)ifa;
-		if (ia->ia6_flags & IN6_IFF_TENTATIVE) {
+		if ((ia->ia6_flags & IN6_IFF_NEED_DAD) != 0) {
 			/*
-			 * The TENTATIVE flag was likely set by hand
+			 * The TENTATIVE/OPTIMISTIC flag was likely set by hand
 			 * beforehand, implicitly indicating the need for DAD.
 			 * We may be able to skip the random delay in this
 			 * case, but we impose delays just in case.
@@ -2133,6 +2150,19 @@ in6_init(void *arg __unused)
 	EVENTHANDLER_REGISTER(ifnet_event, in6_ifevent, NULL, EVENTHANDLER_PRI_ANY);
 }
 SYSINIT(in6_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, in6_init, NULL);
+
+void
+in6_ifa_need_dad(struct in6_ifaddr *ia)
+{
+
+	if ((ia->ia6_flags & IN6_IFF_OPTIMISTIC) != 0 ||
+	    (V_ip6_use_optimistic && !V_ip6_forwarding &&
+	    (ia->ia6_flags & IN6_IFF_AUTOCONF) != 0)) {
+		ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
+		ia->ia6_flags |= IN6_IFF_OPTIMISTIC;
+	} else
+		ia->ia6_flags |= IN6_IFF_TENTATIVE;
+}
 
 int
 in6if_do_dad(struct ifnet *ifp)

@@ -271,6 +271,8 @@ print_flags(int flags6)
 		printf(" temporary");
 	if ((flags6 & IN6_IFF_PREFER_SOURCE) != 0)
 		printf(" prefer_source");
+	if ((flags6 & IN6_IFF_OPTIMISTIC) != 0)
+		printf(" optimistic");
 
 }
 
@@ -730,6 +732,8 @@ static struct cmd inet6_cmds[] = {
 	DEF_CMD("eui64",	0,			setip6eui64),
 	DEF_CMD("stableaddr",	ND6_IFF_STABLEADDR,	setnd6flags),
 	DEF_CMD("-stableaddr",	-ND6_IFF_STABLEADDR,	setnd6flags),
+	DEF_CMD("optimistic",	IN6_IFF_OPTIMISTIC,	setip6flags),
+	DEF_CMD("-optimistic",	-IN6_IFF_OPTIMISTIC,	setip6flags),
 };
 
 static struct afswtch af_inet6 = {

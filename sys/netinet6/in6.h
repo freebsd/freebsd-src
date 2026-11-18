@@ -364,6 +364,8 @@ extern const struct in6_addr in6addr_linklocal_allv2routers;
 	((a)->ia6_lifetime.ia6t_vltime != ND6_INFINITE_LIFETIME && \
 	 (u_int32_t)((time_uptime - (a)->ia6_updatetime)) >= \
 	 (a)->ia6_lifetime.ia6t_vltime)
+#define IFA6_IS_AVOIDED(a) \
+	(IFA6_IS_DEPRECATED(a) || ((a)->ia6_flags & IN6_IFF_OPTIMISTIC) != 0)
 #endif /* _KERNEL */
 
 /*
@@ -644,7 +646,8 @@ struct ip6_mtuinfo {
 #define	IPV6CTL_MAXFRAGSPERPACKET	53 /* Max fragments per packet */
 #define	IPV6CTL_MAXFRAGBUCKETSIZE	54 /* Max reassembly queues per bucket */
 #define	IPV6CTL_GRAND_COUNT	55
-#define	IPV6CTL_MAXID		56
+#define	IPV6CTL_USE_OPTIMISTIC	56
+#define	IPV6CTL_MAXID		57
 #endif /* __BSD_VISIBLE */
 
 /*

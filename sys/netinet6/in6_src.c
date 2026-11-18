@@ -353,10 +353,12 @@ in6_selectsrc(uint32_t fibnum, struct sockaddr_in6 *dstsock,
 		/*
 		 * Rule 3: Avoid deprecated addresses.  Note that the case of
 		 * !ip6_use_deprecated is already rejected above.
+		 * RFC 4429 section 2.1: treat optimistic addresses
+		 * equivalently to deprecated addresses.
 		 */
-		if (!IFA6_IS_DEPRECATED(ia_best) && IFA6_IS_DEPRECATED(ia))
+		if (!IFA6_IS_AVOIDED(ia_best) && IFA6_IS_AVOIDED(ia))
 			NEXT(3);
-		if (IFA6_IS_DEPRECATED(ia_best) && !IFA6_IS_DEPRECATED(ia))
+		if (IFA6_IS_AVOIDED(ia_best) && !IFA6_IS_AVOIDED(ia))
 			REPLACE(3);
 
 		/* Rule 4: Prefer home addresses */

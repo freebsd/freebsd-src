@@ -1026,11 +1026,11 @@ nd6_timer(void *arg)
 					goto addrloop;
 				}
 			}
-		} else if ((ia6->ia6_flags & IN6_IFF_TENTATIVE) != 0) {
+		} else if ((ia6->ia6_flags & IN6_IFF_NEED_DAD) != 0) {
 			/*
-			 * Schedule DAD for a tentative address.  This happens
-			 * if the interface was down or not running
-			 * when the address was configured.
+			 * Schedule DAD for a tentative or optimistic address.
+			 * This happens if the interface was down or not
+			 * running when the address was configured.
 			 */
 			int delay;
 
@@ -1040,7 +1040,8 @@ nd6_timer(void *arg)
 		} else {
 			/*
 			 * Check status of the interface.  If it is down,
-			 * mark the address as tentative for future DAD.
+			 * mark the address as optimistic if available, or
+			 * mark it as tentative for future DAD.
 			 */
 			ifp = ia6->ia_ifp;
 			if ((ifp->if_inet6->nd_flags & ND6_IFF_NO_DAD) == 0 &&
@@ -1048,7 +1049,7 @@ nd6_timer(void *arg)
 			    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
 			    (ifp->if_inet6->nd_flags & ND6_IFF_IFDISABLED))){
 				ia6->ia6_flags &= ~IN6_IFF_DUPLICATED;
-				ia6->ia6_flags |= IN6_IFF_TENTATIVE;
+				in6_ifa_need_dad(ia6);
 			}
 
 			/*
@@ -1764,7 +1765,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 					    AF_INET6)
 						continue;
 					ia = (struct in6_ifaddr *)ifa;
-					ia->ia6_flags |= IN6_IFF_TENTATIVE;
+					in6_ifa_need_dad(ia);
 				}
 				NET_EPOCH_EXIT(et);
 			}

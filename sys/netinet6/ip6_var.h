@@ -342,9 +342,11 @@ VNET_DECLARE(int, ip6_prefer_tempaddr);	/* Whether to prefer temporary
 					 * addresses in the source address
 					 * selection */
 VNET_DECLARE(bool, ip6_use_stableaddr);	/* Whether to use stable address generation (RFC 7217) */
+VNET_DECLARE(bool, ip6_use_optimistic);	/* Whether to use optimistic DAD (RFC 4429) */
 #define	V_ip6_use_tempaddr		VNET(ip6_use_tempaddr)
 #define	V_ip6_prefer_tempaddr		VNET(ip6_prefer_tempaddr)
 #define	V_ip6_use_stableaddr		VNET(ip6_use_stableaddr)
+#define	V_ip6_use_optimistic		VNET(ip6_use_optimistic)
 
 #define IP6_IDGEN_RETRIES		3 /* RFC 7217 section 7 default max retries */
 VNET_DECLARE(u_int, ip6_stableaddr_maxretries);

@@ -154,6 +154,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	int rflag, tentative, tlladdr;
 	u_int lladdr_pad, lladdrlen;
 	uint32_t dflags;
+	bool optimistic;
 
 	ifa = NULL;
 
@@ -296,6 +297,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		dflags |= ND6_QUEUE_FLAG_ANYCAST;
 	myaddr6 = *IFA_IN6(ifa);
 	tentative = ((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_TENTATIVE;
+	optimistic = ((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_OPTIMISTIC;
 	if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_DUPLICATED)
 		goto freeit;
 
@@ -315,7 +317,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 
 	/*
 	 * We have neighbor solicitation packet, with target address equals to
-	 * one of my tentative address.
+	 * one of my tentative/optimistic address.
 	 *
 	 * src addr	how to process?
 	 * ---		---
@@ -325,27 +327,30 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	 *
 	 * The processing is defined in RFC 2462.
 	 */
-	if (tentative) {
+	if (tentative || optimistic) {
 		/*
 		 * If source address is unspecified address, it is for
 		 * duplicate address detection.
 		 *
 		 * If not, the packet is for addess resolution;
+		 * Therefore, if the target address is not optimistic,
 		 * silently ignore it.
 		 */
-		if (IN6_IS_ADDR_UNSPECIFIED(&saddr6))
+		if (IN6_IS_ADDR_UNSPECIFIED(&saddr6)) {
 			nd6_dad_ns_input(ifa, ndopts.nd_opts_nonce);
-
-		goto freeit;
+			goto freeit;
+		}
+		if (tentative)
+			goto freeit;
 	}
 
 	/*
-	 * If the Target Address is either an anycast address or a unicast
-	 * address for which the node is providing proxy service, or the Target
-	 * Link-Layer Address option is not included, the Override flag SHOULD
+	 * If the Target Address is an anycast address, an optimistic address,
+	 * or a unicast address for which the node is providing proxy service,
+	 * or the Target LLA option is not included, the Override flag SHOULD
 	 * be set to zero.  Otherwise, the Override flag SHOULD be set to one.
 	 */
-	if (dflags == 0 && (tlladdr & ND6_NA_OPT_LLA) != 0)
+	if (dflags == 0 && !optimistic && (tlladdr & ND6_NA_OPT_LLA) != 0)
 		rflag |= ND_NA_FLAG_OVERRIDE;
 	/*
 	 * If the source address is unspecified address, entries must not
@@ -507,9 +512,16 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 		 * We use the source address for the prompting packet
 		 * (saddr6), if saddr6 belongs to the outgoing interface.
 		 * Otherwise, we perform the source address selection as usual.
+		 *
+		 * RFC 4429 3.2: NS cannot be sent from Optimistic Addresses.
 		 */
 		if (saddr6 != NULL)
 			ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, saddr6);
+		if (ifa != NULL && (((struct in6_ifaddr *)ifa)->ia6_flags &
+		    IN6_IFF_OPTIMISTIC) != 0) {
+			ifa_free(ifa);
+			ifa = NULL;
+		}
 		if (ifa == NULL) {
 			int error;
 
@@ -521,6 +533,20 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 				    ip6_sprintf(ip6buf, &ip6->ip6_dst),
 				    error));
 				goto bad;
+			}
+			ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, &ip6->ip6_src);
+			if (ifa != NULL && (((struct in6_ifaddr *)ifa)->ia6_flags &
+			    IN6_IFF_OPTIMISTIC) != 0) {
+				ifa_free(ifa);
+				ifa = (struct ifaddr *)in6ifa_ifpforlinklocal(ifp,
+				    IN6_IFF_NOTREADY | IN6_IFF_ANYCAST | IN6_IFF_OPTIMISTIC);
+				if (ifa == NULL) {
+					nd6log((LOG_DEBUG, "%s: no non-optimistic "
+					    "source address: dst=%s\n", __func__,
+					    ip6_sprintf(ip6buf, &ip6->ip6_dst)));
+					goto bad;
+				}
+				ip6->ip6_src = *IFA_IN6(ifa);
 			}
 		} else
 			ip6->ip6_src = *saddr6;
@@ -772,14 +798,14 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	/*
 	 * Target address matches one of my interface address.
 	 *
-	 * If my address is tentative, this means that there's somebody
+	 * If my address is tentative/optimistic, means that there's somebody
 	 * already using the same address as mine.  This indicates DAD failure.
 	 * This is defined in RFC 2462.
 	 *
 	 * Otherwise, process as defined in RFC 2461.
 	 */
 	if (ifa
-	 && (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_TENTATIVE)) {
+	 && (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_NEED_DAD)) {
 		nd6_dad_na_input(ifa);
 		ifa_free(ifa);
 		goto freeit;
@@ -1308,7 +1334,7 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	struct dadq *dp;
 	char ip6buf[INET6_ADDRSTRLEN];
 
-	KASSERT((ia->ia6_flags & IN6_IFF_TENTATIVE) != 0,
+	KASSERT((ia->ia6_flags & IN6_IFF_NEED_DAD) != 0,
 	    ("starting DAD on non-tentative address %p", ifa));
 
 	/*
@@ -1320,7 +1346,7 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	if ((ia->ia6_flags & IN6_IFF_ANYCAST) != 0 ||
 	    V_ip6_dad_count == 0 ||
 	    (ifa->ifa_ifp->if_inet6->nd_flags & ND6_IFF_NO_DAD) != 0) {
-		ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
+		ia->ia6_flags &= ~IN6_IFF_NEED_DAD;
 		return;
 	}
 	if ((ifa->ifa_ifp->if_flags & IFF_UP) == 0 ||
@@ -1428,7 +1454,7 @@ nd6_dad_timer(void *arg)
 			ifa->ifa_ifp ? if_name(ifa->ifa_ifp) : "???");
 		goto err;
 	}
-	if ((ia->ia6_flags & IN6_IFF_TENTATIVE) == 0) {
+	if ((ia->ia6_flags & IN6_IFF_NEED_DAD) == 0) {
 		log(LOG_ERR, "nd6_dad_timer: called with non-tentative address "
 			"%s(%s)\n",
 			ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr),
@@ -1497,7 +1523,7 @@ nd6_dad_timer(void *arg)
 			 * Reset DAD failures counter if using stable addresses.
 			 */
 			if ((ifp->if_inet6->nd_flags & ND6_IFF_IFDISABLED) == 0) {
-				ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
+				ia->ia6_flags &= ~IN6_IFF_NEED_DAD;
 				if ((ifp->if_inet6->nd_flags & ND6_IFF_STABLEADDR) && !(ia->ia6_flags & IN6_IFF_TEMPORARY))
 					atomic_store_int(&DAD_FAILURES(ifp), 0);
 				/*
@@ -1543,7 +1569,7 @@ nd6_dad_duplicated(struct ifaddr *ifa, struct dadq *dp)
 	    dp->dad_ns_icount, dp->dad_ns_ocount, dp->dad_ns_lcount,
 	    dp->dad_na_icount);
 
-	ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
+	ia->ia6_flags &= ~IN6_IFF_NEED_DAD;
 	ia->ia6_flags |= IN6_IFF_DUPLICATED;
 
 	log(LOG_ERR, "%s: DAD complete for %s - duplicate found\n",
@@ -1723,11 +1749,6 @@ nd6_queue_timer(void *arg)
 	 * then the Override flag SHOULD NOT be set.
 	 */
 	if ((ndq->ndq_flags & ND6_QUEUE_FLAG_NEWGUA) != 0) {
-		/*
-		 * XXX: If the address is in the Optimistic state,
-		 * then the Override flag MUST NOT be set.
-		 * We don't support RFC 4429 yet.
-		 */
 		if ((ifp->if_inet6->nd_flags & ND6_IFF_PREFER_SOURCE) == 0)
 			flags |= ND_NA_FLAG_OVERRIDE;
 	}
@@ -1737,6 +1758,12 @@ nd6_queue_timer(void *arg)
 	 */
 	if ((ndq->ndq_flags & ND6_QUEUE_FLAG_LLADDR) != 0)
 		flags |= ND_NA_FLAG_OVERRIDE;
+	/*
+	 * RFC 9131 Section 6.1.2 and RFC 4429 Section 2.2: If the address
+	 * is in the Optimistic state, then the Override flag MUST NOT be set.
+	 */
+	if ((((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_OPTIMISTIC) != 0)
+		flags &= ~ND_NA_FLAG_OVERRIDE;
 	/* anycast advertisement delay rule (RFC 4861 7.2.7, SHOULD) */
 	if ((ndq->ndq_flags & ND6_QUEUE_FLAG_ANYCAST) != 0)
 		flags |= ND_NA_FLAG_SOLICITED;

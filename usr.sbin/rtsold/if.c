@@ -163,6 +163,7 @@ interface_up(char *name)
 	close(s);
 
 	if (cap_llflags_get(capllflags, name, &llflag) != 0) {
+		/* XXX: RFC 4429 section 2.4: don't try with optimistic address */
 		warnmsg(LOG_WARNING, __func__,
 		    "cap_llflags_get() failed, anyway I'll try");
 		return (0);

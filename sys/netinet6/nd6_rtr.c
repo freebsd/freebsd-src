@@ -108,6 +108,7 @@ VNET_DEFINE(int, nd6_defifindex);
 
 VNET_DEFINE(int, ip6_use_tempaddr) = 0;
 VNET_DEFINE(bool, ip6_use_stableaddr) = 1;
+VNET_DEFINE(bool, ip6_use_optimistic) = 1;
 
 VNET_DEFINE(int, ip6_desync_factor);
 VNET_DEFINE(uint32_t, ip6_temp_max_desync_factor) = TEMP_MAX_DESYNC_FACTOR_BASE;
@@ -1985,7 +1986,7 @@ restart:
 			if (find_pfxlist_reachable_router(ifa->ia6_ndpr)) {
 				if (ifa->ia6_flags & IN6_IFF_DETACHED) {
 					ifa->ia6_flags &= ~IN6_IFF_DETACHED;
-					ifa->ia6_flags |= IN6_IFF_TENTATIVE;
+					in6_ifa_need_dad(ifa);
 					nd6_dad_start((struct ifaddr *)ifa, 0);
 				}
 			} else {
@@ -1999,7 +2000,7 @@ restart:
 
 			if (ifa->ia6_flags & IN6_IFF_DETACHED) {
 				ifa->ia6_flags &= ~IN6_IFF_DETACHED;
-				ifa->ia6_flags |= IN6_IFF_TENTATIVE;
+				in6_ifa_need_dad(ifa);
 				/* Do we need a delay in this case? */
 				nd6_dad_start((struct ifaddr *)ifa, 0);
 			}
