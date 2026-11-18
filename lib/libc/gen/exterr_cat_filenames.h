@@ -11,6 +11,7 @@
 	[EXTERR_CAT_FUSE_VNOPS] = "fs/fuse/fuse_vnops.c",
 	[EXTERR_CAT_GEOM] = "geom/geom_subr.c",
 	[EXTERR_CAT_GEOMVFS] = "geom/geom_vfs.c",
+	[EXTERR_CAT_GEOMZONED] = "geom/zoned/g_zoned.c",
 	[EXTERR_CAT_FILEDESC] = "kern/kern_descrip.c",
 	[EXTERR_CAT_PROCEXIT] = "kern/kern_exit.c",
 	[EXTERR_CAT_FORK] = "kern/kern_fork.c",
