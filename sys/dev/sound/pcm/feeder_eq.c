@@ -442,10 +442,18 @@ sysctl_dev_pcm_eq(SYSCTL_HANDLER_ARGS)
 	int err, val, oval;
 
 	d = oidp->oid_arg1;
-	if (!PCM_REGISTERED(d))
+	bus_topo_lock();
+	if (!PCM_REGISTERED(d)) {
+		bus_topo_unlock();
 		return (ENODEV);
-
+	}
+	/*
+	 * Do not give up the topology lock until the device is busied, or it
+	 * might detach between unlocking and busying.
+	 */
 	PCM_ACQUIRE(d);
+	bus_topo_unlock();
+
 	if (d->flags & SD_F_EQ)
 		val = 1;
 	else
@@ -480,10 +488,18 @@ sysctl_dev_pcm_eq_preamp(SYSCTL_HANDLER_ARGS)
 	char buf[32];
 
 	d = oidp->oid_arg1;
-	if (!PCM_REGISTERED(d))
+	bus_topo_lock();
+	if (!PCM_REGISTERED(d)) {
+		bus_topo_unlock();
 		return (ENODEV);
-
+	}
+	/*
+	 * Do not give up the topology lock until the device is busied, or it
+	 * might detach between unlocking and busying.
+	 */
 	PCM_ACQUIRE(d);
+	bus_topo_unlock();
+
 	val = d->eqpreamp;
 	bzero(buf, sizeof(buf));
 	(void)snprintf(buf, sizeof(buf), "%c%d.%ddB",
