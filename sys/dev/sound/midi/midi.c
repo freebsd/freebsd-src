@@ -338,7 +338,7 @@ static int
 midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	struct midi_port *m = i_dev->si_drv1;
-	int retval = 0;
+	int err = 0;
 
 	if (m == NULL)
 		return (ENXIO);
@@ -351,19 +351,19 @@ midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 
 	if ((flags & FREAD) != 0) {
 		if (m->inq.size == 0)
-			retval = ENXIO;
+			err = ENXIO;
 		else if ((m->flags & M_RX) != 0)
-			retval = EBUSY;
-		if (retval != 0)
-			goto err;
+			err = EBUSY;
+		if (err != 0)
+			goto out;
 	}
 	if ((flags & FWRITE) != 0) {
 		if (m->outq.size == 0)
-			retval = ENXIO;
+			err = ENXIO;
 		else if ((m->flags & M_TX) != 0)
-			retval = EBUSY;
-		if (retval != 0)
-			goto err;
+			err = EBUSY;
+		if (err != 0)
+			goto out;
 	}
 
 	if ((flags & FREAD) != 0) {
@@ -380,16 +380,16 @@ midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 
 	m->sc->cb(m->sc->devinfo, m->chan, m->flags);
 
-err:
+out:
 	mtx_unlock(m->sc->lock);
-	return (retval);
+	return (err);
 }
 
 static int
 midi_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	struct midi_port *m = i_dev->si_drv1;
-	int retval = 0;
+	int err = 0;
 
 	if (m == NULL)
 		return (ENXIO);
@@ -402,8 +402,8 @@ midi_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 
 	if (((flags & FREAD) != 0 && (m->flags & M_RX) == 0) ||
 	    ((flags & FWRITE) != 0 && (m->flags & M_TX) == 0)) {
-		retval = ENXIO;
-		goto err;
+		err = ENXIO;
+		goto out;
 	}
 
 	if ((flags & FREAD) != 0)
@@ -413,9 +413,9 @@ midi_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 
 	m->sc->cb(m->sc->devinfo, m->chan, m->flags);
 
-err:
+out:
 	mtx_unlock(m->sc->lock);
-	return (retval);
+	return (err);
 }
 
 static int
@@ -424,36 +424,34 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 	struct midi_port *m = i_dev->si_drv1;
 	ssize_t resid;
 	size_t used;
-	int retval;
+	int err = EIO;
 	uint8_t buf[MIDI_RSIZE];
 
-	retval = EIO;
-
 	if (m == NULL)
-		goto err0;
+		goto out;
 
 	mtx_lock(m->sc->lock);
 
 	if ((m->flags & M_RX) == 0)
-		goto err1;
+		goto out_unlock;
 
 	resid = uio->uio_resid;
 
 	while (uio->uio_resid > 0) {
 		while (m->inq.used == 0) {
 			if (m->sc->dying) {
-				retval = ENXIO;
-				goto err1;
+				err = ENXIO;
+				goto out_unlock;
 			}
 			/* Return what we have instead of waiting for more. */
 			if (uio->uio_resid != resid)
 				goto done;
-			retval = EWOULDBLOCK;
+			err = EWOULDBLOCK;
 			if ((ioflag & O_NONBLOCK) != 0)
-				goto err1;
-			retval = cv_wait_sig(&m->rcv, m->sc->lock);
-			if (retval != 0)
-				goto err1;
+				goto out_unlock;
+			err = cv_wait_sig(&m->rcv, m->sc->lock);
+			if (err != 0)
+				goto out_unlock;
 		}
 		/*
 		 * At this point, it is certain that m->inq has data.
@@ -463,18 +461,18 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 
 		midi_queue_deq(&m->inq, buf, used);
 		mtx_unlock(m->sc->lock);
-		retval = uiomove(buf, used, uio);
-		if (retval != 0)
-			goto err0;
+		err = uiomove(buf, used, uio);
+		if (err != 0)
+			goto out;
 		mtx_lock(m->sc->lock);
 	}
 
 done:
-	retval = 0;
-err1:
+	err = 0;
+out_unlock:
 	mtx_unlock(m->sc->lock);
-err0:
-	return (retval);
+out:
+	return (err);
 }
 
 /*
@@ -485,30 +483,29 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 {
 	struct midi_port *m = i_dev->si_drv1;
 	size_t used, n;
-	int retval;
+	int err = EIO;
 	uint8_t buf[MIDI_WSIZE];
 
-	retval = EIO;
 	if (m == NULL)
-		goto err0;
+		goto out;
 
 	mtx_lock(m->sc->lock);
 
 	if ((m->flags & M_TX) == 0)
-		goto err1;
+		goto out_unlock;
 
 	while (uio->uio_resid > 0) {
 		while (midi_queue_avail(&m->outq) == 0) {
 			if (m->sc->dying) {
-				retval = ENXIO;
-				goto err1;
+				err = ENXIO;
+				goto out_unlock;
 			}
-			retval = EWOULDBLOCK;
+			err = EWOULDBLOCK;
 			if ((ioflag & O_NONBLOCK) != 0)
-				goto err1;
-			retval = cv_wait_sig(&m->wcv, m->sc->lock);
-			if (retval != 0)
-				goto err1;
+				goto out_unlock;
+			err = cv_wait_sig(&m->wcv, m->sc->lock);
+			if (err != 0)
+				goto out_unlock;
 		}
 
 		/*
@@ -518,9 +515,9 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 		used = ulmin(used, MIDI_WSIZE);
 
 		mtx_unlock(m->sc->lock);
-		retval = uiomove(buf, used, uio);
-		if (retval != 0)
-			goto err0;
+		err = uiomove(buf, used, uio);
+		if (err != 0)
+			goto out;
 		mtx_lock(m->sc->lock);
 		/*
 		 * Another thread may have taken the space while the lock was
@@ -547,11 +544,11 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 	/*
 	 * If we made it here then transfer is good.
 	 */
-	retval = 0;
-err1:
+	err = 0;
+out_unlock:
 	mtx_unlock(m->sc->lock);
-err0:
-	return (retval);
+out:
+	return (err);
 }
 
 static int
