@@ -739,7 +739,6 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 	 * and MIDI).  Handle those special cases here.
 	 */
 	if (IOCGROUP(cmd) == 'X') {
-		PCM_ACQUIRE(d);
 		switch(cmd) {
 		case SNDCTL_SYSINFO:
 			sound_oss_sysinfo((oss_sysinfo *)arg);
@@ -764,7 +763,6 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 		default:
 			ret = EINVAL;
 		}
-		PCM_RELEASE(d);
 		PCM_GIANT_EXIT(d);
 		return (ret);
 	}
@@ -2117,27 +2115,24 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai, bool ex)
 			}
 		}
 
-		PCM_UNLOCKASSERT(d);
-		PCM_LOCK(d);
 		if ((ai->dev == -1 && d->dsp_dev == i_dev) ||
-		    (ai->dev == unit)) {
-			PCM_UNLOCK(d);
+		    (ai->dev == unit))
 			break;
-		} else {
-			PCM_UNLOCK(d);
-			d = NULL;
-		}
+		d = NULL;
 	}
-	bus_topo_unlock();
 
-	/* Exhausted the search -- nothing is locked, so return. */
-	if (d == NULL)
+	/* Exhausted the search. */
+	if (d == NULL) {
+		bus_topo_unlock();
 		return (EINVAL);
+	}
 
-	/* XXX Need Giant magic entry ??? */
-
-	PCM_UNLOCKASSERT(d);
-	PCM_LOCK(d);
+	/*
+	 * Do not give up the topology lock until the device is busied, or it
+	 * might detach between unlocking and busying.
+	 */
+	PCM_ACQUIRE(d);
+	bus_topo_unlock();
 
 	bzero((void *)ai, sizeof(oss_audioinfo));
 	ai->dev = unit;
@@ -2223,7 +2218,7 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai, bool ex)
 	if (ai->min_channels == INT_MAX)
 		ai->min_channels = 0;
 
-	PCM_UNLOCK(d);
+	PCM_RELEASE(d);
 
 	return (0);
 }
@@ -2285,18 +2280,24 @@ dsp_oss_engineinfo(struct cdev *i_dev, oss_audioinfo *ai)
 	 * Search for the requested audio device (channel).  Start by
 	 * iterating over pcm devices.
 	 */
-	bus_topo_lock();
-	for (unit = 0; pcm_devclass != NULL &&
-	    unit < devclass_get_maxunit(pcm_devclass); unit++) {
+	for (unit = 0; ; unit++) {
+		bus_topo_lock();
+		if (pcm_devclass == NULL ||
+		    unit >= devclass_get_maxunit(pcm_devclass)) {
+			bus_topo_unlock();
+			break;
+		}
 		d = devclass_get_softc(pcm_devclass, unit);
-		if (!PCM_REGISTERED(d))
+		if (!PCM_REGISTERED(d)) {
+			bus_topo_unlock();
 			continue;
-
-		/* XXX Need Giant magic entry ??? */
-
-		/* See the note in function docblock */
-		PCM_UNLOCKASSERT(d);
-		PCM_LOCK(d);
+		}
+		/*
+		 * Do not give up the topology lock until the device is busied,
+		 * or it might detach between unlocking and busying.
+		 */
+		PCM_ACQUIRE(d);
+		bus_topo_unlock();
 
 		CHN_FOREACH(ch, d, channels.pcm) {
 			CHN_UNLOCKASSERT(ch);
@@ -2310,7 +2311,7 @@ dsp_oss_engineinfo(struct cdev *i_dev, oss_audioinfo *ai)
 		}
 
 		if (ch == NULL) {
-			PCM_UNLOCK(d);
+			PCM_RELEASE(d);
 			continue;
 		}
 
@@ -2434,14 +2435,12 @@ dsp_oss_engineinfo(struct cdev *i_dev, oss_audioinfo *ai)
 		ai->next_rec_engine = 0;
 
 		CHN_UNLOCK(ch);
-		PCM_UNLOCK(d);
-		bus_topo_unlock();
+		PCM_RELEASE(d);
 
 		return (0);
 	}
-	bus_topo_unlock();
 
-	/* Exhausted the search -- nothing is locked, so return. */
+	/* Exhausted the search. */
 	return (EINVAL);
 }
 

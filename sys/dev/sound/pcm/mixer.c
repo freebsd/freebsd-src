@@ -887,6 +887,18 @@ mixer_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 		return (EBADF);
 
 	PCM_GIANT_ENTER(d);
+
+	/*
+	 * This group of ioctls can report info about any device in the system,
+	 * and they busy each one as they inspect it, so they must not run with
+	 * this device already busied, otherwise we will recurse on the sx.
+	 */
+	if (IOCGROUP(cmd) == 'X') {
+		ret = mixer_ioctl_cmd(i_dev, cmd, arg, mode, td);
+		PCM_GIANT_EXIT(d);
+		return (ret);
+	}
+
 	PCM_ACQUIRE(d);
 
 	ret = mixer_ioctl_cmd(i_dev, cmd, arg, mode, td);

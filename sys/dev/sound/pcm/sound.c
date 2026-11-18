@@ -510,18 +510,24 @@ sound_oss_sysinfo(oss_sysinfo *si)
 
 	j = 0;
 
-	bus_topo_lock();
-	for (i = 0; pcm_devclass != NULL &&
-	    i < devclass_get_maxunit(pcm_devclass); i++) {
+	for (i = 0; ; i++) {
+		bus_topo_lock();
+		if (pcm_devclass == NULL ||
+		    i >= devclass_get_maxunit(pcm_devclass)) {
+			bus_topo_unlock();
+			break;
+		}
 		d = devclass_get_softc(pcm_devclass, i);
-		if (!PCM_REGISTERED(d))
+		if (!PCM_REGISTERED(d)) {
+			bus_topo_unlock();
 			continue;
-
-		/* XXX Need Giant magic entry ??? */
-
-		/* See note in function's docblock */
-		PCM_UNLOCKASSERT(d);
-		PCM_LOCK(d);
+		}
+		/*
+		 * Do not give up the topology lock until the device is busied,
+		 * or it might detach between unlocking and busying.
+		 */
+		PCM_ACQUIRE(d);
+		bus_topo_unlock();
 
 		si->numaudioengines += PCM_CHANCOUNT(d);
 
@@ -535,9 +541,8 @@ sound_oss_sysinfo(oss_sysinfo *si)
 			j++;
 		}
 
-		PCM_UNLOCK(d);
+		PCM_RELEASE(d);
 	}
-	bus_topo_unlock();
 
 	si->numsynths = 0;	/* OSSv4 docs:  this field is obsolete */
 	/**

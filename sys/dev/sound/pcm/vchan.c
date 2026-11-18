@@ -258,9 +258,12 @@ sysctl_dev_pcm_vchans(SYSCTL_HANDLER_ARGS)
 		bus_topo_unlock();
 		return (EINVAL);
 	}
-	bus_topo_unlock();
-
+	/*
+	 * Do not give up the topology lock until the device is busied, or it
+	 * might detach between unlocking and busying.
+	 */
 	PCM_ACQUIRE(d);
+	bus_topo_unlock();
 
 	switch (VCHAN_SYSCTL_DIR(oidp->oid_arg1)) {
 	case VCHAN_PLAY:
@@ -316,9 +319,8 @@ sysctl_dev_pcm_vchanmode(SYSCTL_HANDLER_ARGS)
 		bus_topo_unlock();
 		return (EINVAL);
 	}
-	bus_topo_unlock();
-
 	PCM_ACQUIRE(d);
+	bus_topo_unlock();
 
 	switch (VCHAN_SYSCTL_DIR(oidp->oid_arg1)) {
 	case VCHAN_PLAY:
@@ -406,9 +408,8 @@ sysctl_dev_pcm_vchanrate(SYSCTL_HANDLER_ARGS)
 		bus_topo_unlock();
 		return (EINVAL);
 	}
-	bus_topo_unlock();
-
 	PCM_ACQUIRE(d);
+	bus_topo_unlock();
 
 	switch (VCHAN_SYSCTL_DIR(oidp->oid_arg1)) {
 	case VCHAN_PLAY:
@@ -498,9 +499,8 @@ sysctl_dev_pcm_vchanformat(SYSCTL_HANDLER_ARGS)
 		bus_topo_unlock();
 		return (EINVAL);
 	}
-	bus_topo_unlock();
-
 	PCM_ACQUIRE(d);
+	bus_topo_unlock();
 
 	switch (VCHAN_SYSCTL_DIR(oidp->oid_arg1)) {
 	case VCHAN_PLAY:
