@@ -36,10 +36,6 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 
-#ifdef HAVE_KERNEL_OPTION_HEADERS
-#include "opt_snd.h"
-#endif
-
 #include <dev/sound/midi/midi.h>
 #include <dev/sound/midi/mpu401.h>
 
