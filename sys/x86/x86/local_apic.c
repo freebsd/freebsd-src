@@ -74,6 +74,7 @@
 #include <machine/specialreg.h>
 #include <x86/init.h>
 #include <x86/kvm.h>
+#include <x86/vmware.h>
 #include <contrib/xen/arch-x86/cpuid.h>
 #include <x86/bhyve.h>
 #include <dev/hyperv/vmbus/x86/hyperv_reg.h>
@@ -1094,9 +1095,9 @@ lapic_calibrate_initcount_cpuid_vm(void)
 	/* Get value from CPUID leaf if possible. */
 	if (vm_guest == VM_GUEST_NO)
 		return (false);
-	if (hv_high < 0x40000010)
+	if (hv_high < VMW_CPUID_FREQUENCY)
 		return (false);
-	do_cpuid(0x40000010, regs);
+	do_cpuid(VMW_CPUID_FREQUENCY, regs);
 	freq = (uint64_t)(regs[1]) * 1000;
 
 	/* Pick timer divisor. */
