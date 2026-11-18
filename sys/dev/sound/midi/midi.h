@@ -46,6 +46,10 @@ struct midi_port;
 
 typedef void midi_callback_t(void *devinfo, int chan, int flags);
 
+/*
+ * Providers must embed this as the first member of their softc, since midi(4)
+ * fetches it with device_get_softc().
+ */
 struct midi_softc {
 	device_t	dev;
 	struct mtx	*lock;

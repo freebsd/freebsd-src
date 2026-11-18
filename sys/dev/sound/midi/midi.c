@@ -60,14 +60,14 @@ static MALLOC_DEFINE(M_MIDI, "midi buffers", "MIDI data allocation area");
 struct midi_queue {
 	uint8_t	*buf;
 	size_t	size;
-	size_t	used;			/* Bytes queued. */
+	size_t	used;	/* Bytes queued. */
 };
 
 struct midi_port {
 	struct midi_softc *sc;
 	int		chan;
 
-	int		flags;	/* File flags. */
+	int		flags;
 	struct midi_queue inq, outq;
 	struct cv	rcv, wcv;
 	struct selinfo	rsel, wsel;
@@ -267,10 +267,8 @@ midi_alias(device_t dev, const char *name)
 }
 
 /*
- * midi_in: process all data until the queue is full, then discards the rest.
- * Since midi_in is a state machine, data discards can cause it to get out of
- * whack.  Process as much as possible.  It calls, wakeup, selnotify and
- * psignal at most once.
+ * Queue data received by the provider and wake up readers. Return the number
+ * of bytes consumed.
  */
 size_t
 midi_in(device_t dev, int chan, const uint8_t *buf, size_t size)
@@ -285,7 +283,11 @@ midi_in(device_t dev, int chan, const uint8_t *buf, size_t size)
 	m = &sc->ports[chan];
 
 	if ((m->flags & M_RX) == 0) {
-		/* We should return 0 but this may stop receiving/sending. */
+		/*
+		 * Nobody is listening. Drop the data, but report it as
+		 * consumed, since a provider may take 0 as a reason to stop
+		 * receiving.
+		 */
 		return (size);
 	}
 
@@ -300,7 +302,8 @@ midi_in(device_t dev, int chan, const uint8_t *buf, size_t size)
 }
 
 /*
- * midi_out: The only clearer of the M_TXPEND flag.
+ * Dequeue data for the provider to transmit and wake up writers. Clear
+ * M_TXPEND and notify the provider once the queue is empty.
  */
 size_t
 midi_out(device_t dev, int chan, uint8_t *buf, size_t size)
@@ -453,9 +456,6 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 			if (err != 0)
 				goto out_unlock;
 		}
-		/*
-		 * At this point, it is certain that m->inq has data.
-		 */
 		used = ulmin(m->inq.used, (size_t)uio->uio_resid);
 		used = ulmin(used, MIDI_RSIZE);
 
@@ -475,9 +475,6 @@ out:
 	return (err);
 }
 
-/*
- * midi_write: The only setter of M_TXPEND
- */
 static int
 midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 {
@@ -508,9 +505,6 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 				goto out_unlock;
 		}
 
-		/*
-		 * We are certain that data can be placed on the queue.
-		 */
 		used = ulmin(midi_queue_avail(&m->outq), (size_t)uio->uio_resid);
 		used = ulmin(used, MIDI_WSIZE);
 
@@ -525,9 +519,6 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 		 */
 		n = ulmin(used, midi_queue_avail(&m->outq));
 		midi_queue_enq(&m->outq, buf, n);
-		/*
-		 * Inform the bottom half that data can be written.
-		 */
 		if ((m->flags & M_TXPEND) == 0) {
 			m->flags |= M_TXPEND;
 			m->sc->cb(m->sc->devinfo, m->chan, m->flags);
@@ -541,9 +532,6 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 			break;
 		}
 	}
-	/*
-	 * If we made it here then transfer is good.
-	 */
 	err = 0;
 out_unlock:
 	mtx_unlock(m->sc->lock);

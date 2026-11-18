@@ -48,10 +48,6 @@
 #define MPU_WRITE(m, d)	(m)->ops->write((m)->devinfo, MPU_DATAPORT, (d))
 
 struct mpu401 {
-	/*
-	 * Must be first so that it can be easily fetched with
-	 * device_get_softc().
-	 */
 	struct midi_softc	midi;
 	struct mtx		lock;
 	const struct mpu401_ops	*ops;
@@ -60,16 +56,25 @@ struct mpu401 {
 	struct callout		timer;
 };
 
+/*
+ * Called by midi(4) when the port's flags change.
+ */
 static void
 mpu401_mcallback(void *arg, int chan __unused, int flags)
 {
 	struct mpu401 *m = arg;
 
+	/* Arm the callout when there is data to transmit. */
 	if ((flags & M_TXPEND) != 0)
 		callout_reset(&m->timer, 1, mpu401_intr, m);
 	m->flags = flags;
 }
 
+/*
+ * Move received bytes up to midi(4) and queued bytes down to the UART. Called
+ * from the device driver's interrupt handler, and from the callout for as long
+ * as there is pending data.
+ */
 void
 mpu401_intr(void *arg)
 {
@@ -152,8 +157,8 @@ mpu401_detach(device_t dev)
 	MPU_CMD(m, MPU_RESET);
 	err = midi_unregister(dev);
 	/*
-	 * The ports are gone, but a driver interrupt handler can still
-	 * call mpu401_intr(), so stop it re-arming the callout.
+	 * The ports are gone, but a driver interrupt handler can still call
+	 * mpu401_intr(), so stop it re-arming the callout.
 	 */
 	mtx_lock(&m->lock);
 	m->flags = 0;
