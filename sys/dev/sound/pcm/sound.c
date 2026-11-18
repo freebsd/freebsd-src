@@ -614,17 +614,12 @@ sound_oss_card_info(oss_card_info *si)
 			si->hw_info[0] = '\0';
 			si->intr_count = si->ack_count = 0;
 		} else {
-			PCM_UNLOCKASSERT(d);
-			PCM_LOCK(d);
-
 			strlcpy(si->shortname, device_get_nameunit(d->dev),
 			    sizeof(si->shortname));
 			strlcpy(si->longname, device_get_desc(d->dev),
 			    sizeof(si->longname));
 			strlcpy(si->hw_info, d->status, sizeof(si->hw_info));
 			si->intr_count = si->ack_count = 0;
-
-			PCM_UNLOCK(d);
 		}
 
 		bus_topo_unlock();
