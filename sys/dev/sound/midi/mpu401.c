@@ -42,10 +42,10 @@
 #define MPU_QUEUE_SIZE	128
 #define MPU_INTR_BUF	16
 
-#define CMD(m, d)	(m)->ops->write((m)->devinfo, MPU_CMDPORT, (d))
-#define STATUS(m)	(m)->ops->read((m)->devinfo, MPU_STATPORT)
-#define READ(m)		(m)->ops->read((m)->devinfo, MPU_DATAPORT)
-#define WRITE(m, d)	(m)->ops->write((m)->devinfo, MPU_DATAPORT, (d))
+#define MPU_CMD(m, d)	(m)->ops->write((m)->devinfo, MPU_CMDPORT, (d))
+#define MPU_STATUS(m)	(m)->ops->read((m)->devinfo, MPU_STATPORT)
+#define MPU_READ(m)	(m)->ops->read((m)->devinfo, MPU_DATAPORT)
+#define MPU_WRITE(m, d)	(m)->ops->write((m)->devinfo, MPU_DATAPORT, (d))
 
 struct mpu401 {
 	/*
@@ -75,26 +75,26 @@ mpu401_intr(void *arg)
 {
 	struct mpu401 *m = arg;
 	size_t i;
-	uint8_t b[MPU_INTR_BUF], s;
+	uint8_t buf[MPU_INTR_BUF], s;
 
 	mtx_lock(&m->lock);
 
 	i = 0;
-	s = STATUS(m);
+	s = MPU_STATUS(m);
 	while ((s & MPU_INPUTBUSY) == 0 && i < MPU_INTR_BUF) {
-		b[i] = READ(m);
+		buf[i] = MPU_READ(m);
 		i++;
-		s = STATUS(m);
+		s = MPU_STATUS(m);
 	}
 	if (i != 0)
-		midi_in(m->midi.dev, 0, b, i);
+		midi_in(m->midi.dev, 0, buf, i);
 	i = 0;
 	while ((s & MPU_OUTPUTBUSY) == 0 && i < MPU_INTR_BUF) {
-		if (midi_out(m->midi.dev, 0, b, 1) == 0)
+		if (midi_out(m->midi.dev, 0, buf, 1) == 0)
 			break;
-		WRITE(m, *b);
+		MPU_WRITE(m, *buf);
 		i++;
-		s = STATUS(m);
+		s = MPU_STATUS(m);
 	}
 
 	if ((m->flags & M_TXPEND) != 0)
@@ -129,8 +129,8 @@ mpu401_attach(device_t dev)
 	mtx_init(&m->lock, device_get_nameunit(dev), "mpu401", MTX_DEF);
 	callout_init(&m->timer, 1);
 
-	CMD(m, MPU_RESET);
-	CMD(m, MPU_UART);
+	MPU_CMD(m, MPU_RESET);
+	MPU_CMD(m, MPU_UART);
 
 	err = midi_register(dev, &m->lock, mpu401_mcallback, m, 1,
 	    MPU_QUEUE_SIZE, MPU_QUEUE_SIZE);
@@ -149,7 +149,7 @@ mpu401_detach(device_t dev)
 	struct mpu401 *m = device_get_softc(dev);
 	int err;
 
-	CMD(m, MPU_RESET);
+	MPU_CMD(m, MPU_RESET);
 	err = midi_unregister(dev);
 	/*
 	 * The ports are gone, but a driver interrupt handler can still
