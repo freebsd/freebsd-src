@@ -342,9 +342,6 @@ midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	struct midi_port *m = i_dev->si_drv1;
 	int err = 0;
 
-	if (m == NULL)
-		return (ENXIO);
-
 	mtx_lock(m->sc->lock);
 	if (m->sc->dying) {
 		mtx_unlock(m->sc->lock);
@@ -393,9 +390,6 @@ midi_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	struct midi_port *m = i_dev->si_drv1;
 	int err = 0;
 
-	if (m == NULL)
-		return (ENXIO);
-
 	mtx_lock(m->sc->lock);
 	if (m->sc->dying) {
 		mtx_unlock(m->sc->lock);
@@ -428,9 +422,6 @@ midi_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 	size_t used;
 	int err = EIO;
 	uint8_t buf[MIDI_RSIZE];
-
-	if (m == NULL)
-		goto out;
 
 	mtx_lock(m->sc->lock);
 
@@ -481,9 +472,6 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 	size_t used, n;
 	int err = EIO;
 	uint8_t buf[MIDI_WSIZE];
-
-	if (m == NULL)
-		goto out;
 
 	mtx_lock(m->sc->lock);
 
@@ -550,9 +538,6 @@ midi_poll(struct cdev *i_dev, int events, struct thread *td)
 {
 	struct midi_port *m = i_dev->si_drv1;
 	int revents = 0;
-
-	if (m == NULL)
-		return (0);
 
 	mtx_lock(m->sc->lock);
 	if (m->sc->dying) {
@@ -624,9 +609,6 @@ midi_kqfilter(struct cdev *i_dev, struct knote *kn)
 {
 	struct midi_port *m = i_dev->si_drv1;
 	struct knlist *knl;
-
-	if (m == NULL)
-		return (ENXIO);
 
 	switch (kn->kn_filter) {
 	case EVFILT_READ:
