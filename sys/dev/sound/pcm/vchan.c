@@ -623,6 +623,16 @@ vchan_create(struct pcm_channel *parent, struct pcm_channel **child)
 	CHN_UNLOCK(parent);
 	PCM_LOCK(d);
 
+	/*
+	 * This is the only place where channels are created at runtime, so do
+	 * not create any if we are tearing down.
+	 */
+	if (!PCM_REGISTERED(d)) {
+		PCM_UNLOCK(d);
+		CHN_LOCK(parent);
+		return (ENODEV);
+	}
+
 	if (parent->direction == PCMDIR_PLAY) {
 		direction = PCMDIR_PLAY_VIRTUAL;
 		vchanfmt = d->pvchanformat;

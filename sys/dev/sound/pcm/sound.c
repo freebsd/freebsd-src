@@ -148,25 +148,25 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 }
 
 static void
-pcm_killchans(struct snddev_info *d)
+pcm_shutdownchans(struct snddev_info *d)
 {
 	struct pcm_channel *ch;
 	bool again;
 
 	PCM_BUSYASSERT(d);
-	KASSERT(!PCM_REGISTERED(d), ("%s(): still registered\n", __func__));
+	KASSERT(!PCM_REGISTERED(d), ("%s(): still registered", __func__));
 
 	for (;;) {
 		again = false;
-		/* Make sure all channels are stopped. */
+		/* Make sure all channels are woken up and stopped. */
 		CHN_FOREACH(ch, d, channels.pcm) {
 			CHN_LOCK(ch);
+			chn_shutdown(ch);
 			if (ch->inprog == 0 && ch->sleeping == 0 &&
 			    CHN_STOPPED(ch)) {
 				CHN_UNLOCK(ch);
 				continue;
 			}
-			chn_shutdown(ch);
 			if (ch->direction == PCMDIR_PLAY)
 				chn_flush(ch);
 			else
@@ -179,12 +179,20 @@ pcm_killchans(struct snddev_info *d)
 		 * again.
 		 */
 		if (again)
-			pause_sbt("pcmkillchans", mstosbt(5), 0, 0);
+			pause_sbt("pcmshutdownchans", mstosbt(5), 0, 0);
 		else
 			break;
 	}
+}
 
-	/* All channels are finally dead. */
+static void
+pcm_killchans(struct snddev_info *d)
+{
+	struct pcm_channel *ch;
+
+	PCM_BUSYASSERT(d);
+	KASSERT(!PCM_REGISTERED(d), ("%s(): still registered", __func__));
+
 	while (!CHN_EMPTY(d, channels.pcm)) {
 		ch = CHN_FIRST(d, channels.pcm);
 		chn_kill(ch);
@@ -471,14 +479,23 @@ pcm_unregister(device_t dev)
 
 	PCM_LOCK(d);
 	PCM_WAIT(d);
-
 	d->flags &= ~SD_F_REGISTERED;
-
 	PCM_ACQUIRE(d);
 	PCM_UNLOCK(d);
 
-	pcm_killchans(d);
+	pcm_shutdownchans(d);
 
+	PCM_RELEASE_QUICK(d);
+
+	/*
+	 * Destroy the dsp cdev before freeing resources, otherwise threads
+	 * still inside cdev methods will eventually dereference freed
+	 * resources.
+	 */
+	dsp_destroy_dev(dev);
+
+	PCM_ACQUIRE_QUICK(d);
+	pcm_killchans(d);
 	PCM_RELEASE_QUICK(d);
 
 	if (d->play_sysctl_tree != NULL) {
@@ -493,7 +510,6 @@ pcm_unregister(device_t dev)
 	sndstat_unregister(dev);
 	if (d->mixer != NULL)
 		mixer_uninit(dev);
-	dsp_destroy_dev(dev);
 
 	cv_destroy(&d->cv);
 	mtx_destroy(&d->lock);
