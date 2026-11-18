@@ -718,8 +718,15 @@ finished:
 
 	/* Too many loops? */
 	if (count == maxloops) {
-		device_printf(dev, "interrupt loop, status=0x%02x\n",
-		    bus_read_1(sc->io_res, ICH_HST_STA));
+		/*
+		 * Reading the status register acquires the semaphore if it
+		 * was free. Release it again in that case.
+		 */
+		status = bus_read_1(sc->io_res, ICH_HST_STA);
+		if ((status & ICH_HST_STA_INUSE_STS) == 0)
+			bus_write_1(sc->io_res, ICH_HST_STA,
+			    ICH_HST_STA_INUSE_STS);
+		device_printf(dev, "interrupt loop, status=0x%02x\n", status);
 	}
 }
 
