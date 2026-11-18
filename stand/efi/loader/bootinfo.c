@@ -358,6 +358,9 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	vm_offset_t size;
 	char *rootdevname;
 	int howto;
+#ifdef EFI
+	int error;
+#endif
 #ifdef __i386__
 	/*
 	 * The 32-bit UEFI loader is used to
@@ -434,7 +437,9 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	envp = addr;
 	addr = md_copyenv(addr);
 #ifdef EFI
-	efi_tpm_measure_boot();
+	error = efi_tpm_measure_boot();
+	if (error != 0)
+		return (error);
 #endif
 
 	/* Pad to a page boundary. */
