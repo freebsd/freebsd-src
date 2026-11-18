@@ -1232,7 +1232,7 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 	 * as other references may modify it in the meantime.
 	 */
 	if (mb0 && (!M_WRITABLE(mb0) || mb0->m_len < sizeof(struct ip6_hdr)))
-		mb0 = m_pullup(mb0, sizeof(struct ip6_hdr));
+		mb0 = m_copyup(mb0, sizeof(struct ip6_hdr), 0);
 	if (mb0 == NULL) {
 		free(rte, M_MRTABLE6);
 		MFC6_UNLOCK();
@@ -1511,7 +1511,7 @@ ip6_mdq(struct mf6ctable *mfct, struct mbuf *m, struct ifnet *ifp,
 			if (mm &&
 			    (!M_WRITABLE(mm) ||
 			     mm->m_len < sizeof(struct ip6_hdr)))
-				mm = m_pullup(mm, sizeof(struct ip6_hdr));
+				mm = m_copyup(mm, sizeof(struct ip6_hdr), 0);
 			if (mm == NULL)
 				return (ENOBUFS);
 
@@ -1647,7 +1647,7 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 	mb_copy = m_copym(m, 0, M_COPYALL, M_NOWAIT);
 	if (mb_copy &&
 	    (!M_WRITABLE(mb_copy) || mb_copy->m_len < sizeof(struct ip6_hdr)))
-		mb_copy = m_pullup(mb_copy, sizeof(struct ip6_hdr));
+		mb_copy = m_copyup(mb_copy, sizeof(struct ip6_hdr), 0);
 	if (mb_copy == NULL) {
 		return;
 	}

@@ -694,8 +694,8 @@ ng_ether_rcv_lower(hook_p hook, item_p item)
 	/* Drop in the MAC address if desired */
 	if (priv->autoSrcAddr) {
 		/* Make the mbuf writable if it's not already */
-		if (!M_WRITABLE(m)
-		    && (m = m_pullup(m, sizeof(struct ether_header))) == NULL)
+		if (!M_WRITABLE(m) &&
+		    (m = m_copyup(m, sizeof(struct ether_header), 0)) == NULL)
 			return (ENOBUFS);
 
 		/* Overwrite source MAC address */
