@@ -59,8 +59,8 @@ struct dummy_chan {
 };
 
 struct dummy_softc {
-	struct snddev_info info;
 	device_t dev;
+	device_t pcm_dev;
 	uint32_t cap_fmts[4];
 	struct pcmchan_caps caps;
 	int chnum;
@@ -154,7 +154,7 @@ dummy_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 
 	mtx_unlock(&sc->lock);
 
-	bufsz = pcm_getbuffersize(sc->dev, 2048, 2048, 65536);
+	bufsz = pcm_getbuffersize(sc->pcm_dev, 2048, 2048, 65536);
 	buf = malloc(bufsz, M_DEVBUF, M_WAITOK | M_ZERO);
 	if (sndbuf_setup(ch->buf, buf, bufsz) != 0) {
 		dummy_chan_free(obj, ch);
@@ -268,7 +268,7 @@ dummy_mixer_init(struct snd_mixer *m)
 	if (sc == NULL)
 		return (-1);
 
-	pcm_setflags(sc->dev, pcm_getflags(sc->dev) | SD_F_SOFTPCMVOL);
+	pcm_setflags(sc->pcm_dev, pcm_getflags(sc->pcm_dev) | SD_F_SOFTPCMVOL);
 	mix_setdevs(m, SOUND_MASK_PCM | SOUND_MASK_VOLUME | SOUND_MASK_RECLEV);
 	mix_setrecdevs(m, SOUND_MASK_RECLEV);
 
@@ -333,8 +333,6 @@ static int
 dummy_attach(device_t dev)
 {
 	struct dummy_softc *sc;
-	char status[SND_STATUSLEN];
-	int i = 0;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -353,24 +351,9 @@ dummy_attach(device_t dev)
 		0,		/* caps */
 	};
 
-	pcm_setflags(dev, pcm_getflags(dev) | SD_F_MPSAFE);
-	pcm_init(dev, sc);
-	mixer_init(dev, &dummy_mixer_class, sc);
-	for (i = 0; i < DUMMY_NPCHAN; i++)
-		pcm_addchan(dev, PCMDIR_PLAY, &dummy_chan_class, sc);
-	for (i = 0; i < DUMMY_NRCHAN; i++)
-		pcm_addchan(dev, PCMDIR_REC, &dummy_chan_class, sc);
-
-	snprintf(status, SND_STATUSLEN, "on %s",
-	    device_get_nameunit(device_get_parent(dev)));
-	if (pcm_register(dev, status))
+	sc->pcm_dev = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
+	if (sc->pcm_dev == NULL)
 		return (ENXIO);
-
-	/*
-	 * Create an alias so that tests do not need to guess which one is the
-	 * dummy device if there are more devices present in the system.
-	 */
-	make_dev_alias(sc->info.dsp_dev, "dsp.dummy");
 
 	sc->mpu_ivars.ops = &dummy_mpu_ops;
 	sc->mpu_ivars.devinfo = sc;
@@ -395,9 +378,8 @@ dummy_detach(device_t dev)
 	callout_drain(&sc->callout);
 	if ((err = bus_generic_detach(dev)) != 0)
 		return (err);
+	sc->pcm_dev = NULL;
 	sc->midi_dev = NULL;
-	if ((err = pcm_unregister(dev)) != 0)
-		return (err);
 	mtx_destroy(&sc->lock);
 
 	return (0);
@@ -413,7 +395,7 @@ static device_method_t dummy_methods[] = {
 };
 
 static driver_t dummy_driver = {
-	"pcm",
+	"snd_dummy",
 	dummy_methods,
 	sizeof(struct dummy_softc),
 };
@@ -421,3 +403,66 @@ static driver_t dummy_driver = {
 DRIVER_MODULE(snd_dummy, nexus, dummy_driver, 0, 0);
 MODULE_DEPEND(snd_dummy, sound, 1, 1, 1);
 MODULE_VERSION(snd_dummy, 1);
+
+static int
+dummy_pcm_probe(device_t dev)
+{
+	device_set_desc(dev, "Dummy Audio Device");
+
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+dummy_pcm_attach(device_t dev)
+{
+	struct dummy_softc *sc = device_get_softc(device_get_parent(dev));
+	struct snddev_info *d = device_get_softc(dev);
+	char status[SND_STATUSLEN];
+	int i;
+
+	pcm_setflags(dev, pcm_getflags(dev) | SD_F_MPSAFE);
+	pcm_init(dev, sc);
+	mixer_init(dev, &dummy_mixer_class, sc);
+	for (i = 0; i < DUMMY_NPCHAN; i++)
+		pcm_addchan(dev, PCMDIR_PLAY, &dummy_chan_class, sc);
+	for (i = 0; i < DUMMY_NRCHAN; i++)
+		pcm_addchan(dev, PCMDIR_REC, &dummy_chan_class, sc);
+
+	snprintf(status, SND_STATUSLEN, "on %s",
+	    device_get_nameunit(device_get_parent(dev)));
+	if (pcm_register(dev, status))
+		return (ENXIO);
+
+	/*
+	 * Create an alias so that tests do not need to guess which one is the
+	 * dummy device if there are more devices present in the system.
+	 */
+	make_dev_alias(d->dsp_dev, "dsp.dummy");
+
+	return (0);
+}
+
+static int
+dummy_pcm_detach(device_t dev)
+{
+	return (pcm_unregister(dev));
+}
+
+static device_method_t dummy_pcm_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		dummy_pcm_probe),
+	DEVMETHOD(device_attach,	dummy_pcm_attach),
+	DEVMETHOD(device_detach,	dummy_pcm_detach),
+	DEVMETHOD_END
+};
+
+static driver_t dummy_pcm_driver = {
+	"pcm",
+	dummy_pcm_methods,
+	PCM_SOFTC_SIZE,
+};
+
+DRIVER_MODULE(snd_dummy_pcm, snd_dummy, dummy_pcm_driver, 0, 0);
+MODULE_DEPEND(snd_dummy_pcm, snd_dummy, 1, 1, 1);
+MODULE_DEPEND(snd_dummy_pcm, sound, 1, 1, 1);
+MODULE_VERSION(snd_dummy_pcm, 1);

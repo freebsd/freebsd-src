@@ -188,3 +188,4 @@ static driver_t mpu401_driver = {
 DRIVER_MODULE(midi, pcm, mpu401_driver, 0, 0);
 DRIVER_MODULE(midi, csa, mpu401_driver, 0, 0);
 DRIVER_MODULE(midi, emu10kx, mpu401_driver, 0, 0);
+DRIVER_MODULE(midi, snd_dummy, mpu401_driver, 0, 0);
