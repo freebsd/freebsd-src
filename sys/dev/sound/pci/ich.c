@@ -79,7 +79,6 @@
 
 #define ICH_LOCK(sc)		mtx_lock(&(sc)->ich_lock)
 #define ICH_UNLOCK(sc)		mtx_unlock(&(sc)->ich_lock)
-#define ICH_LOCK_ASSERT(sc)	mtx_assert(&(sc)->ich_lock, MA_OWNED)
 
 #if 0
 #define ICH_DEBUG(stmt)		do {	\

@@ -59,7 +59,6 @@ extern SLIST_HEAD(pcm_synclist, pcmchan_syncgroup) snd_pcm_syncgroups;
 
 #define PCM_SG_LOCKPTR()	(&snd_pcm_syncgroups_mtx)
 #define PCM_SG_LOCK()		mtx_lock(PCM_SG_LOCKPTR())
-#define PCM_SG_TRYLOCK()	mtx_trylock(PCM_SG_LOCKPTR())
 #define PCM_SG_UNLOCK()		mtx_unlock(PCM_SG_LOCKPTR())
 #define PCM_SG_LOCKASSERT(arg)	mtx_assert(PCM_SG_LOCKPTR(), arg)
 

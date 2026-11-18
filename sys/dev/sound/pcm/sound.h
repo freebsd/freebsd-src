@@ -207,10 +207,8 @@ int	sound_oss_card_info(oss_card_info *);
 #define	PCM_MODE_PLAY		0x02
 #define	PCM_MODE_REC		0x04
 
-#define PCM_LOCKOWNED(d)	mtx_owned(&(d)->lock)
 #define	PCM_LOCK(d)		mtx_lock(&(d)->lock)
 #define	PCM_UNLOCK(d)		mtx_unlock(&(d)->lock)
-#define PCM_TRYLOCK(d)		mtx_trylock(&(d)->lock)
 #define PCM_LOCKASSERT(d)	mtx_assert(&(d)->lock, MA_OWNED)
 #define PCM_UNLOCKASSERT(d)	mtx_assert(&(d)->lock, MA_NOTOWNED)
 
