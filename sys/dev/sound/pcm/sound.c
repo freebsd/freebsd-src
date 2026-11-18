@@ -151,37 +151,22 @@ static void
 pcm_shutdownchans(struct snddev_info *d)
 {
 	struct pcm_channel *ch;
-	bool again;
 
 	PCM_BUSYASSERT(d);
 	KASSERT(!PCM_REGISTERED(d), ("%s(): still registered", __func__));
 
-	for (;;) {
-		again = false;
-		/* Make sure all channels are woken up and stopped. */
-		CHN_FOREACH(ch, d, channels.pcm) {
-			CHN_LOCK(ch);
-			chn_shutdown(ch);
-			if (ch->inprog == 0 && ch->sleeping == 0 &&
-			    CHN_STOPPED(ch)) {
-				CHN_UNLOCK(ch);
-				continue;
-			}
-			if (ch->direction == PCMDIR_PLAY)
-				chn_flush(ch);
-			else
-				chn_abort(ch);
+	CHN_FOREACH(ch, d, channels.pcm) {
+		CHN_LOCK(ch);
+		chn_shutdown(ch);
+		if (ch->inprog == 0 && CHN_STOPPED(ch)) {
 			CHN_UNLOCK(ch);
-			again = true;
+			continue;
 		}
-		/*
-		 * Some channels are still active. Sleep for a bit and try
-		 * again.
-		 */
-		if (again)
-			pause_sbt("pcmshutdownchans", mstosbt(5), 0, 0);
+		if (ch->direction == PCMDIR_PLAY)
+			chn_flush(ch);
 		else
-			break;
+			chn_abort(ch);
+		CHN_UNLOCK(ch);
 	}
 }
 

@@ -122,8 +122,6 @@ struct pcm_channel {
 	 * lock.
 	 */
 	unsigned int inprog;
-	/* Incrememnt/decrement around cv_timedwait_sig() in chn_sleep(). */
-	unsigned int sleeping;
 	/**
 	 * Special channel operations should examine @c inprog after acquiring
 	 * lock.  If zero, operations may continue.  Else, thread should
