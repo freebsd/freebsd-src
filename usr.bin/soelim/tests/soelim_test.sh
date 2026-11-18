@@ -136,9 +136,27 @@ errors_body()
 		soelim self
 }
 
+atf_test_case whitespace
+whitespace_head()
+{
+	atf_set "descr" "white space after the file name"
+}
+
+whitespace_body()
+{
+	printf 'included\n' > inc
+	printf '.so inc  \nnext\n' > trailing
+	atf_check \
+		-o inline:"included\nnext\n" \
+		-e empty \
+		-s exit:0 \
+		soelim trailing
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case stdin
 	atf_add_test_case files
 	atf_add_test_case errors
+	atf_add_test_case whitespace
 }

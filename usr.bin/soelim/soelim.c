@@ -58,6 +58,7 @@ soelim_fopen(const char *name)
 	FILE *f;
 	char path[PATH_MAX];
 	size_t i;
+	int len;
 
 	if (strcmp(name, "-") == 0)
 		return (stdin);
@@ -71,8 +72,10 @@ soelim_fopen(const char *name)
 	}
 
 	for (i = 0; i < includes->sl_cur; i++) {
-		snprintf(path, sizeof(path), "%s/%s", includes->sl_str[i],
-		    name);
+		len = snprintf(path, sizeof(path), "%s/%s",
+		    includes->sl_str[i], name);
+		if (len < 0 || (size_t)len >= sizeof(path))
+			continue;
 		if ((f = fopen(path, "r")) != NULL)
 			return (f);
 	}
@@ -86,9 +89,8 @@ static int
 soelim_file(FILE *f, const char *name, int flag)
 {
 	char *line = NULL;
-	char *walk, *cp;
+	char *walk, *cp, *end;
 	size_t linecap = 0;
-	ssize_t linelen;
 	int ret;
 
 	if (f == NULL)
@@ -96,30 +98,32 @@ soelim_file(FILE *f, const char *name, int flag)
 
 	include_depth++;
 	ret = 0;
-	while ((linelen = getline(&line, &linecap, f)) > 0) {
+	while (getline(&line, &linecap, f) > 0) {
 		if (strncmp(line, ".so", 3) != 0) {
-			printf("%s", line);
+			fputs(line, stdout);
 			continue;
 		}
 
 		walk = line + 3;
-		if (!isspace(*walk) && ((flag & C_OPTION) == 0)) {
-			printf("%s", line);
+		if (!isspace((unsigned char)*walk) &&
+		    ((flag & C_OPTION) == 0)) {
+			fputs(line, stdout);
 			continue;
 		}
 
-		while (isspace(*walk))
+		while (isspace((unsigned char)*walk))
 			walk++;
 
 		cp = walk;
-		while (*cp != '\0' && !isspace(*cp))
+		while (*cp != '\0' && !isspace((unsigned char)*cp))
 			cp++;
-		*cp = 0;
-		if (cp < line + linelen)
+		end = cp;
+		while (isspace((unsigned char)*cp))
 			cp++;
+		*end = '\0';
 
 		if (*walk == '\0') {
-			printf("%s", line);
+			fputs(line, stdout);
 			continue;
 		}
 		if (include_depth >= MAX_INCLUDE_DEPTH) {
@@ -132,7 +136,7 @@ soelim_file(FILE *f, const char *name, int flag)
 			break;
 		}
 		if (*cp != '\0')
-			printf("%s", cp);
+			fputs(cp, stdout);
 	}
 	include_depth--;
 
