@@ -1354,7 +1354,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 		break;
 
 	case SNDCTL_DSP_GETCAPS:
-		PCM_LOCK(d);
+		PCM_ACQUIRE(d);
 		*arg_i = PCM_CAP_REALTIME | PCM_CAP_MMAP | PCM_CAP_TRIGGER;
 		if (rdch && wrch && !(pcm_getflags(d->dev) & SD_F_SIMPLEX))
 			*arg_i |= PCM_CAP_DUPLEX;
@@ -1362,7 +1362,7 @@ dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
 			*arg_i |= PCM_CAP_VIRTUAL;
 		if (wrch && (wrch->flags & CHN_F_VIRTUAL) != 0)
 			*arg_i |= PCM_CAP_VIRTUAL;
-		PCM_UNLOCK(d);
+		PCM_RELEASE(d);
 		break;
 
 	case SOUND_PCM_READ_BITS:
