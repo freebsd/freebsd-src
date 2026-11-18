@@ -1028,7 +1028,7 @@ mps_hostboot(struct mps_softc *sc, uint8_t *fw_image, uint32_t fw_len)
 	mps_regwrite(sc, MPI2_HCB_ADDRESS_LOW_OFFSET,
 	    (uint32_t)(hcb_busaddr & 0xffffffff));
 	mps_regwrite(sc, MPI2_HCB_ADDRESS_HIGH_OFFSET,
-	    (uint32_t)(hcb_busaddr >> 32));
+	    (uint32_t)((uint64_t)hcb_busaddr >> 32));
 
 	/* Select HCDW as the boot device, then release the IOC from reset. */
 	mps_dprint(sc, MPS_INIT, "hostboot: booting IOC from host memory\n");
