@@ -605,14 +605,12 @@ vchan_create(struct pcm_channel *parent, struct pcm_channel **child)
 		return (EINVAL);
 
 	CHN_UNLOCK(parent);
-	PCM_LOCK(d);
 
 	/*
 	 * This is the only place where channels are created at runtime, so do
 	 * not create any if we are tearing down.
 	 */
 	if (!PCM_REGISTERED(d)) {
-		PCM_UNLOCK(d);
 		CHN_LOCK(parent);
 		return (ENODEV);
 	}
@@ -630,11 +628,9 @@ vchan_create(struct pcm_channel *parent, struct pcm_channel **child)
 	/* create a new playback channel */
 	ch = chn_init(d, parent, &vchan_class, direction, parent);
 	if (ch == NULL) {
-		PCM_UNLOCK(d);
 		CHN_LOCK(parent);
 		return (ENODEV);
 	}
-	PCM_UNLOCK(d);
 
 	CHN_LOCK(parent);
 	CHN_INSERT_SORT_ASCEND(parent, ch, children);

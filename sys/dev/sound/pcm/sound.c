@@ -133,14 +133,12 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 	int err = 0;
 
 	PCM_ACQUIRE(d);
-	PCM_LOCK(d);
 	ch = chn_init(d, NULL, cls, dir, devinfo);
 	if (!ch) {
 		device_printf(d->dev, "chn_init(%s, %d, %p) failed\n",
 		    cls->name, dir, devinfo);
 		err = ENODEV;
 	}
-	PCM_UNLOCK(d);
 	PCM_RELEASE(d);
 
 	return (err);

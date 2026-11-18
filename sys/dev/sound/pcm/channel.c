@@ -1151,7 +1151,6 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	int err, i, direction, *vchanrate, *vchanformat;
 
 	PCM_BUSYASSERT(d);
-	PCM_LOCKASSERT(d);
 
 	switch (dir) {
 	case PCMDIR_PLAY:
@@ -1181,7 +1180,6 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 		return (NULL);
 	}
 
-	PCM_UNLOCK(d);
 	b = NULL;
 	bs = NULL;
 
@@ -1261,7 +1259,6 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 			goto fail;
 	}
 
-	PCM_LOCK(d);
 	CHN_INSERT_SORT_ASCEND(d, c, channels.pcm);
 	if ((c->flags & CHN_F_VIRTUAL) == 0) {
 		CHN_INSERT_SORT_ASCEND(d, c, channels.pcm.primary);
@@ -1274,7 +1271,6 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 
 fail:
 	chn_kill(c);
-	PCM_LOCK(d);
 
 	return (NULL);
 }
@@ -1288,7 +1284,6 @@ chn_kill(struct pcm_channel *c)
 
 	PCM_BUSYASSERT(c->parentsnddev);
 
-	PCM_LOCK(d);
 	CHN_REMOVE(d, c, channels.pcm);
 	if ((c->flags & CHN_F_VIRTUAL) == 0)
 		CHN_REMOVE(d, c, channels.pcm.primary);
@@ -1309,7 +1304,6 @@ chn_kill(struct pcm_channel *c)
 	default:
 		__assert_unreachable();
 	}
-	PCM_UNLOCK(d);
 
 	if (CHN_STARTED(c)) {
 		CHN_LOCK(c);
