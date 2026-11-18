@@ -181,6 +181,8 @@ int snd_setup_intr(device_t dev, struct resource *res, int flags,
  * Lock order:
  *
  * Giant -> PCM_ACQUIRE() -> PCM_LOCK() -> CHN_LOCK(parent) -> CHN_LOCK(child).
+ *
+ * A dsp_cdevpriv's record channel is locked before its play channel.
  */
 struct snddev_info {
 	struct {

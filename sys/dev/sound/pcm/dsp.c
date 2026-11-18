@@ -2487,14 +2487,14 @@ dsp_oss_syncgroup(struct pcm_channel *wrch, struct pcm_channel *rdch, oss_syncgr
 	/*
 	 * If device's channels are already mapped to a group, unmap them.
 	 */
-	if (wrch) {
-		CHN_LOCK(wrch);
-		sg_ids[0] = chn_syncdestroy(wrch);
-	}
-
 	if (rdch) {
 		CHN_LOCK(rdch);
 		sg_ids[1] = chn_syncdestroy(rdch);
+	}
+
+	if (wrch) {
+		CHN_LOCK(wrch);
+		sg_ids[0] = chn_syncdestroy(wrch);
 	}
 
 	/*
