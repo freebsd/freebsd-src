@@ -277,10 +277,76 @@ v6_hlim_decrement_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "v6_route_to_discards" "cleanup"
+v6_route_to_discards_head()
+{
+	atf_set descr 'Test that packets pf sends on with route-to are not counted as discarded'
+	atf_set require.user root
+}
+
+v6_route_to_discards_body()
+{
+	pft_init
+
+	epair_send=$(vnet_mkepair)
+	epair_recv=$(vnet_mkepair)
+	epair_route=$(vnet_mkepair)
+
+	ifconfig ${epair_send}a inet6 2001:db8:42::1/64 up no_dad -ifdisabled
+	ifconfig ${epair_recv}a up
+	ifconfig ${epair_route}a up
+
+	vnet_mkjail alcatraz ${epair_send}b ${epair_recv}b ${epair_route}b
+
+	jexec alcatraz ifconfig ${epair_send}b inet6 2001:db8:42::2/64 up no_dad
+	jexec alcatraz ifconfig ${epair_recv}b inet6 2001:db8:43::2/64 up no_dad
+	jexec alcatraz ifconfig ${epair_route}b inet6 2001:db8:44::2/64 up no_dad
+	jexec alcatraz sysctl net.inet6.ip6.forwarding=1
+	# ip6_tryforward() only forwards while redirects are off.
+	jexec alcatraz sysctl net.inet6.ip6.redirect=0
+	jexec alcatraz ndp -s 2001:db8:43::3 00:01:02:03:04:05
+	jexec alcatraz ndp -s 2001:db8:44::3 00:01:02:03:04:06
+	jexec alcatraz route add -6 2001:db8:666::/64 2001:db8:43::3
+	route add -6 2001:db8:666::/64 2001:db8:42::2
+
+	jexec alcatraz pfctl -e
+
+	# pf sends the packet on itself and tells ip6_tryforward() that it
+	# consumed it: in the inbound hook for route-to on the inbound pass, in
+	# the outbound hook, after the route lookup chose ${epair_recv}b, for
+	# route-to on the outbound pass.  Neither is a discard.
+	#
+	# The rules do not keep state: when the outbound pass that pf runs from
+	# the inbound hook creates a state, pf reports the packet it sent as
+	# dropped.
+	#
+	# The host's MLD reports are for a group alcatraz has not joined, and
+	# ip6_input() would count them as discarded.  Block them.
+	for dir in in out; do
+		pft_set_rules alcatraz \
+			"block in quick inet6 to ff02::16" \
+			"pass no state" \
+			"pass ${dir} quick route-to (${epair_route}b 2001:db8:44::3) inet6 to 2001:db8:666::1 no state"
+		in_discards=$(jexec alcatraz netstat -s -p ip6 -I ${epair_send}b |
+		    awk '/input datagrams? discarded/ { print $1 }')
+		atf_check -s exit:2 -o ignore ping -6 -c 1 -W 1 2001:db8:666::1
+		atf_check -o match:"[[:space:]]${in_discards} input datagrams? discarded" \
+		    jexec alcatraz netstat -s -p ip6 -I ${epair_send}b
+		atf_check -o match:"[[:space:]]0 total discarded output datagrams" \
+		    jexec alcatraz netstat -s -p ip6 -I ${epair_recv}b
+	done
+}
+
+v6_route_to_discards_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
 	atf_add_test_case "v6"
 	atf_add_test_case "v6_hlim"
 	atf_add_test_case "v6_hlim_decrement"
+	atf_add_test_case "v6_route_to_discards"
 }

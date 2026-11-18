@@ -156,9 +156,15 @@ ip6_tryforward(struct mbuf *m)
 	 */
 	if (!PFIL_HOOKED_IN(V_inet6_pfil_head))
 		goto passin;
-	if (pfil_mbuf_in(V_inet6_pfil_head, &m, rcvif, NULL) !=
-	    PFIL_PASS)
+	switch (pfil_mbuf_in(V_inet6_pfil_head, &m, rcvif, NULL)) {
+	case PFIL_PASS:
+		break;
+	case PFIL_CONSUMED:
+		/* A hook sent the packet on itself (pf route-to). */
+		return (NULL);
+	default:
 		goto dropin;
+	}
 	/*
 	 * If packet filter sets the M_FASTFWD_OURS flag, this means
 	 * that new destination or next hop is our local address.
@@ -230,9 +236,18 @@ passin:
 	 * Outgoing packet firewall processing.
 	 */
 	odst = ip6->ip6_dst;
-	if (pfil_mbuf_fwd(V_inet6_pfil_head, &m, nh->nh_ifp,
-	    NULL) != PFIL_PASS)
+	switch (pfil_mbuf_fwd(V_inet6_pfil_head, &m, nh->nh_ifp, NULL)) {
+	case PFIL_PASS:
+		break;
+	case PFIL_CONSUMED:
+		/*
+		 * A hook sent the packet on itself (pf route-to) or in
+		 * fragments (pf refragmentation).
+		 */
+		return (NULL);
+	default:
 		goto dropout;
+	}
 
 	/*
 	 * We used slow path processing for packets with scoped addresses.
