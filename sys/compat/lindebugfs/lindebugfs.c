@@ -88,6 +88,27 @@ struct dentry_meta {
 	int dm_type;
 };
 
+/*
+ * pseudofs makes a node visible to lookups as soon as pfs_create_*() has added
+ * it to its parent, but pn_data can only be set once these functions return.
+ * Report the node as not visible until then, so that nothing can reach it
+ * (lookups fail with ENOENT) while pn_data is still NULL.  The release store
+ * makes the dentry_meta contents visible to whoever sees the pointer.
+ */
+static int
+debugfs_vis(PFS_VIS_ARGS)
+{
+
+	return (atomic_load_acq_ptr((volatile uintptr_t *)&pn->pn_data) != 0);
+}
+
+static void
+debugfs_set_data(struct pfs_node *pn, struct dentry_meta *dm)
+{
+
+	atomic_store_rel_ptr((volatile uintptr_t *)&pn->pn_data, (uintptr_t)dm);
+}
+
 static int
 debugfs_attr(PFS_ATTR_ARGS)
 {
@@ -235,12 +256,13 @@ debugfs_create_file(const char *name, umode_t mode,
 
 	flags = fops->write ? PFS_RDWR : PFS_RD;
 	pfs_create_file(pnode, &dnode->d_pfs_node, name, debugfs_fill,
-	    debugfs_attr, NULL, debugfs_destroy, flags | PFS_RAW | PFS_NOWAIT);
+	    debugfs_attr, debugfs_vis, debugfs_destroy,
+	    flags | PFS_RAW | PFS_NOWAIT);
 	if (dnode->d_pfs_node == NULL) {
 		free(dm, M_DFSINT);
 		return (NULL);
 	}
-	dnode->d_pfs_node->pn_data = dm;
+	debugfs_set_data(dnode->d_pfs_node, dm);
 
 	return (dnode);
 }
@@ -314,13 +336,13 @@ debugfs_create_dir(const char *name, struct dentry *parent)
 	else
 		pnode = debugfs_root;
 
-	pfs_create_dir(pnode, &dnode->d_pfs_node, name, debugfs_attr, NULL,
-	    debugfs_destroy, PFS_RD | PFS_NOWAIT);
+	pfs_create_dir(pnode, &dnode->d_pfs_node, name, debugfs_attr,
+	    debugfs_vis, debugfs_destroy, PFS_RD | PFS_NOWAIT);
 	if (dnode->d_pfs_node == NULL) {
 		free(dm, M_DFSINT);
 		return (NULL);
 	}
-	dnode->d_pfs_node->pn_data = dm;
+	debugfs_set_data(dnode->d_pfs_node, dm);
 	return (dnode);
 }
 
@@ -349,10 +371,10 @@ debugfs_create_symlink(const char *name, struct dentry *parent,
 		pnode = debugfs_root;
 
 	pfs_create_link(pnode, &dnode->d_pfs_node, name, &debugfs_fill_data,
-	    NULL, NULL, debugfs_destroy, PFS_NOWAIT);
+	    NULL, debugfs_vis, debugfs_destroy, PFS_NOWAIT);
 	if (dnode->d_pfs_node == NULL)
 		goto fail;
-	dnode->d_pfs_node->pn_data = dm;
+	debugfs_set_data(dnode->d_pfs_node, dm);
 	return (dnode);
  fail:
 	free(dm, M_DFSINT);
@@ -372,7 +394,10 @@ debugfs_lookup(const char *name, struct dentry *parent)
 	if (pnode == NULL)
 		return (NULL);
 
-	dm = (struct dentry_meta *)pnode->pn_data;
+	dm = (struct dentry_meta *)atomic_load_acq_ptr(
+	    (volatile uintptr_t *)&pnode->pn_data);
+	if (dm == NULL)
+		return (NULL);
 	dnode = &dm->dm_dnode;
 
 	return (dnode);
