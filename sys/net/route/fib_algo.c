@@ -707,7 +707,11 @@ apply_rtable_changes(struct fib_data *fd)
 	return (result == FLM_SUCCESS);
 }
 
-static bool
+/*
+ * Fills in queue entry @ce with the change described by @rc.
+ * The caller holds the reference to the new nexthop.
+ */
+static void
 fill_change_entry(struct fib_data *fd, struct fib_change_entry *ce, struct rib_cmd_info *rc)
 {
 	int plen = 0;
@@ -728,12 +732,6 @@ fill_change_entry(struct fib_data *fd, struct fib_change_entry *ce, struct rib_c
 	ce->plen = plen;
 	ce->nh_old = rc->rc_nh_old;
 	ce->nh_new = rc->rc_nh_new;
-	if (ce->nh_new != NULL) {
-		if (fib_ref_nhop(fd, ce->nh_new) == 0)
-			return (false);
-	}
-
-	return (true);
 }
 
 static bool
@@ -760,7 +758,9 @@ queue_rtable_change(struct fib_data *fd, struct rib_cmd_info *rc)
 		q->size = q_size;
 	}
 
-	return (fill_change_entry(fd, &q->entries[q->count++], rc));
+	fill_change_entry(fd, &q->entries[q->count++], rc);
+
+	return (true);
 }
 
 /*
@@ -801,6 +801,19 @@ handle_rtable_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc,
 	}
 
 	/*
+	 * Maintain guarantee that every nexthop returned by the dataplane
+	 *  lookup has > 0 refcount, so can be safely referenced within current
+	 *  epoch.
+	 */
+	if (rc->rc_nh_new != NULL) {
+		if (fib_ref_nhop(fd, rc->rc_nh_new) == 0) {
+			/* ran out of indexes */
+			schedule_fd_rebuild(fd, "ran out of nhop indexes");
+			return;
+		}
+	}
+
+	/*
 	 * Algo requested updates to be delivered in batches.
 	 * Add the current change to the queue and return.
 	 */
@@ -813,19 +826,6 @@ handle_rtable_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc,
 				schedule_fd_rebuild(fd, "batch queue failed");
 		}
 		return;
-	}
-
-	/*
-	 * Maintain guarantee that every nexthop returned by the dataplane
-	 *  lookup has > 0 refcount, so can be safely referenced within current
-	 *  epoch.
-	 */
-	if (rc->rc_nh_new != NULL) {
-		if (fib_ref_nhop(fd, rc->rc_nh_new) == 0) {
-			/* ran out of indexes */
-			schedule_fd_rebuild(fd, "ran out of nhop indexes");
-			return;
-		}
 	}
 
 	result = fd->fd_flm->flm_change_rib_item_cb(rnh, rc, fd->fd_algo_data);
