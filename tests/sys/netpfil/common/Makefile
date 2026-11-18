@@ -4,6 +4,8 @@ PACKAGE=	tests
 TESTSDIR=	${TESTSBASE}/sys/netpfil/common
 
 
+ATF_TESTS_C+=	dummynet_config_test
+
 ATF_TESTS_SH+=	\
 		dummynet \
 		pass_block \
