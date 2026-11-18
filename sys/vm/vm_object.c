@@ -2523,7 +2523,7 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 	vm_object_t obj;
 	vm_page_t m;
 	u_long sp;
-	int count, error;
+	int count, error, flags;
 	key_t key;
 	unsigned short seq;
 	bool want_path;
@@ -2556,12 +2556,13 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 	 */
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_FOREACH(obj, &vm_object_list, object_list) {
-		if (obj->type == OBJT_DEAD ||
+		if (obj->type == OBJT_DEAD || (obj->flags & OBJ_DEAD) != 0 ||
 		    (swap_only && (obj->flags & (OBJ_ANON | OBJ_SWAP)) == 0))
 			continue;
 		VM_OBJECT_RLOCK(obj);
-		if (obj->type == OBJT_DEAD ||
-		    (swap_only && (obj->flags & (OBJ_ANON | OBJ_SWAP)) == 0)) {
+		flags = obj->flags;
+		if (obj->type == OBJT_DEAD || (flags & OBJ_DEAD) != 0 ||
+		    (swap_only && (flags & (OBJ_ANON | OBJ_SWAP)) == 0)) {
 			VM_OBJECT_RUNLOCK(obj);
 			continue;
 		}
@@ -2604,7 +2605,7 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 		    NULL);
 		if (vp != NULL) {
 			vref(vp);
-		} else if ((obj->flags & OBJ_ANON) != 0) {
+		} else if ((flags & OBJ_ANON) != 0) {
 			MPASS(kvo->kvo_type == KVME_TYPE_SWAP);
 			kvo->kvo_me = (uintptr_t)obj;
 			/* tmpfs objs are reported as vnodes */
@@ -2617,13 +2618,18 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 			    sizeof(kvo->kvo_path));
 		}
 		VM_OBJECT_RUNLOCK(obj);
-		if ((obj->flags & OBJ_SYSVSHM) != 0) {
+
+		/*
+		 * Note, it is safe to invoke shmobjinfo() and shm_get_path()
+		 * concurrent with teardown of the object.
+		 */
+		if ((flags & OBJ_SYSVSHM) != 0) {
 			kvo->kvo_flags |= KVMO_FLAG_SYSVSHM;
 			shmobjinfo(obj, &key, &seq);
 			kvo->kvo_vn_fileid = key;
 			kvo->kvo_vn_fsid_freebsd11 = seq;
 		}
-		if ((obj->flags & OBJ_POSIXSHM) != 0) {
+		if ((flags & OBJ_POSIXSHM) != 0) {
 			kvo->kvo_flags |= KVMO_FLAG_POSIXSHM;
 			shm_get_path(obj, kvo->kvo_path,
 			    sizeof(kvo->kvo_path));
