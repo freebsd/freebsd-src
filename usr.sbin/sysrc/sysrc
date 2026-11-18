@@ -16,7 +16,7 @@ pgm="${0##*/}" # Program basename
 #
 # Version information
 #
-SYSRC_VERSION="8.1 Nov-16,2026"
+SYSRC_VERSION="8.2 Nov-16,2026"
 
 #
 # Options
@@ -735,7 +735,7 @@ while [ $# -gt 0 ]; do
 			delim="${add%"${add#?}"}" # first character
 			oldIFS="$IFS"
 			case "$delim" in
-			""|[$IFS]|[a-zA-Z0-9./]) delim=" " ;;
+			""|[$IFS]|[-a-zA-Z0-9./_*~$]) delim=" " ;;
 			*) IFS="$delim"
 			esac
 			new="$before"
@@ -759,7 +759,7 @@ while [ $# -gt 0 ]; do
 			delim="${remove%"${remove#?}"}" # first character
 			oldIFS="$IFS"
 			case "$delim" in
-			""|[$IFS]|[a-zA-Z0-9./]) delim=" " ;;
+			""|[$IFS]|[-a-zA-Z0-9./_*~$]) delim=" " ;;
 			*) IFS="$delim"
 			esac
 			new=
