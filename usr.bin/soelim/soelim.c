@@ -79,16 +79,18 @@ soelim_fopen(const char *name)
 }
 
 static int
-soelim_file(FILE *f, int flag)
+soelim_file(FILE *f, const char *name, int flag)
 {
 	char *line = NULL;
 	char *walk, *cp;
 	size_t linecap = 0;
 	ssize_t linelen;
+	int ret;
 
 	if (f == NULL)
 		return (1);
 
+	ret = 0;
 	while ((linelen = getline(&line, &linecap, f)) > 0) {
 		if (strncmp(line, ".so", 3) != 0) {
 			printf("%s", line);
@@ -115,7 +117,7 @@ soelim_file(FILE *f, int flag)
 			printf("%s", line);
 			continue;
 		}
-		if (soelim_file(soelim_fopen(walk), flag) == 1) {
+		if (soelim_file(soelim_fopen(walk), walk, flag) == 1) {
 			free(line);
 			return (1);
 		}
@@ -123,10 +125,14 @@ soelim_file(FILE *f, int flag)
 			printf("%s", cp);
 	}
 
+	if (ferror(f)) {
+		warn("%s", name);
+		ret = 1;
+	}
 	free(line);
 	fclose(f);
 
-	return (0);
+	return (ret);
 }
 
 int
@@ -163,12 +169,16 @@ main(int argc, char **argv)
 	argv += optind;
 
 	if (argc == 0)
-		ret = soelim_file(stdin, flags);
+		ret = soelim_file(stdin, "stdin", flags);
 
 	for (i = 0; i < argc; i++)
-		ret = soelim_file(soelim_fopen(argv[i]), flags);
+		if (soelim_file(soelim_fopen(argv[i]), argv[i], flags) != 0)
+			ret = 1;
 
 	sl_free(includes, 0);
+
+	if (fflush(stdout) != 0)
+		err(EXIT_FAILURE, "stdout");
 
 	return (ret);
 }
