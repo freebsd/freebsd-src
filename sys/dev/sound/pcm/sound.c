@@ -265,17 +265,25 @@ sysctl_dev_pcm_mode(SYSCTL_HANDLER_ARGS)
 	int mode = 0;
 
 	d = oidp->oid_arg1;
-	if (!PCM_REGISTERED(d))
+	bus_topo_lock();
+	if (!PCM_REGISTERED(d)) {
+		bus_topo_unlock();
 		return (ENODEV);
+	}
+	/*
+	 * Do not give up the topology lock until the device is busied, or it
+	 * might detach between unlocking and busying.
+	 */
+	PCM_ACQUIRE(d);
+	bus_topo_unlock();
 
-	PCM_LOCK(d);
 	if (d->playcount > 0)
 		mode |= PCM_MODE_PLAY;
 	if (d->reccount > 0)
 		mode |= PCM_MODE_REC;
 	if (d->mixer != NULL)
 		mode |= PCM_MODE_MIXER;
-	PCM_UNLOCK(d);
+	PCM_RELEASE(d);
 
 	return (sysctl_handle_int(oidp, &mode, 0, req));
 }
