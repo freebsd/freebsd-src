@@ -33,8 +33,11 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/callout.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 
 #include <dev/sound/midi/midi.h>
 #include <dev/sound/midi/mpu401.h>
