@@ -261,7 +261,8 @@ char *chn_mkname(char *buf, size_t len, struct pcm_channel *c);
 struct pcm_channel *chn_init(struct snddev_info *d, struct pcm_channel *parent,
     kobj_class_t cls, int dir, void *devinfo);
 void chn_kill(struct pcm_channel *c);
-void chn_shutdown(struct pcm_channel *c);
+void chn_shutdownall(struct snddev_info *d);
+void chn_killall(struct snddev_info *d);
 int chn_release(struct pcm_channel *c);
 int chn_reset(struct pcm_channel *c, uint32_t fmt, uint32_t spd);
 int chn_setvolume_multi(struct pcm_channel *c, int vc, int left, int right,

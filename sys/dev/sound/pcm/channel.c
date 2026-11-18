@@ -1334,13 +1334,50 @@ chn_kill(struct pcm_channel *c)
 	free(c, M_DEVBUF);
 }
 
-void
+static void
 chn_shutdown(struct pcm_channel *c)
 {
 	CHN_LOCKASSERT(c);
 
 	chn_wakeup(c);
 	c->flags |= CHN_F_DEAD;
+}
+
+void
+chn_shutdownall(struct snddev_info *d)
+{
+	struct pcm_channel *c;
+
+	PCM_BUSYASSERT(d);
+	KASSERT(!PCM_REGISTERED(d), ("%s(): still registered", __func__));
+
+	CHN_FOREACH(c, d, channels.pcm) {
+		CHN_LOCK(c);
+		chn_shutdown(c);
+		if (c->inprog == 0 && CHN_STOPPED(c)) {
+			CHN_UNLOCK(c);
+			continue;
+		}
+		if (c->direction == PCMDIR_PLAY)
+			chn_flush(c);
+		else
+			chn_abort(c);
+		CHN_UNLOCK(c);
+	}
+}
+
+void
+chn_killall(struct snddev_info *d)
+{
+	struct pcm_channel *c;
+
+	PCM_BUSYASSERT(d);
+	KASSERT(!PCM_REGISTERED(d), ("%s(): still registered", __func__));
+
+	while (!CHN_EMPTY(d, channels.pcm)) {
+		c = CHN_FIRST(d, channels.pcm);
+		chn_kill(c);
+	}
 }
 
 /* release a locked channel and unlock it */

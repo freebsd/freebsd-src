@@ -146,52 +146,6 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 	return (err);
 }
 
-static void
-pcm_shutdownchans(struct snddev_info *d)
-{
-	struct pcm_channel *ch;
-
-	PCM_BUSYASSERT(d);
-	KASSERT(!PCM_REGISTERED(d), ("%s(): still registered", __func__));
-
-	CHN_FOREACH(ch, d, channels.pcm) {
-		CHN_LOCK(ch);
-		chn_shutdown(ch);
-		if (ch->inprog == 0 && CHN_STOPPED(ch)) {
-			CHN_UNLOCK(ch);
-			continue;
-		}
-		if (ch->direction == PCMDIR_PLAY)
-			chn_flush(ch);
-		else
-			chn_abort(ch);
-		CHN_UNLOCK(ch);
-	}
-}
-
-static void
-pcm_killchans(struct snddev_info *d)
-{
-	struct pcm_channel *ch;
-
-	PCM_BUSYASSERT(d);
-	KASSERT(!PCM_REGISTERED(d), ("%s(): still registered", __func__));
-
-	while (!CHN_EMPTY(d, channels.pcm)) {
-		ch = CHN_FIRST(d, channels.pcm);
-		chn_kill(ch);
-	}
-
-	if (d->p_unr != NULL)
-		delete_unrhdr(d->p_unr);
-	if (d->vp_unr != NULL)
-		delete_unrhdr(d->vp_unr);
-	if (d->r_unr != NULL)
-		delete_unrhdr(d->r_unr);
-	if (d->vr_unr != NULL)
-		delete_unrhdr(d->vr_unr);
-}
-
 static int
 pcm_best_unit(int old)
 {
@@ -458,7 +412,7 @@ pcm_unregister(device_t dev)
 
 	PCM_ACQUIRE(d);
 	d->flags &= ~SD_F_REGISTERED;
-	pcm_shutdownchans(d);
+	chn_shutdownall(d);
 	PCM_RELEASE(d);
 
 	/*
@@ -469,7 +423,16 @@ pcm_unregister(device_t dev)
 	dsp_destroy_dev(dev);
 
 	PCM_ACQUIRE(d);
-	pcm_killchans(d);
+	chn_killall(d);
+
+	if (d->p_unr != NULL)
+		delete_unrhdr(d->p_unr);
+	if (d->vp_unr != NULL)
+		delete_unrhdr(d->vp_unr);
+	if (d->r_unr != NULL)
+		delete_unrhdr(d->r_unr);
+	if (d->vr_unr != NULL)
+		delete_unrhdr(d->vr_unr);
 	PCM_RELEASE(d);
 
 	if (d->play_sysctl_tree != NULL) {
