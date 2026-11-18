@@ -157,6 +157,31 @@ void *pcm_getdevinfo(device_t dev);
 int snd_setup_intr(device_t dev, struct resource *res, int flags,
 		   driver_intr_t hand, void *param, void **cookiep);
 
+/*
+ * Locking protocol:
+ *
+ * Giant: Taken with PCM_GIANT_ENTER() or bus_topo_lock(). Used with non-MPSAFE
+ * drivers and when accessing the devclass, as well as for synchronizing device
+ * teardown.
+ *
+ * snddev_info->sx: Taken with PCM_ACQUIRE(). Busies the device and serializes
+ * writes to the flags (but not reads). It is held across sleeps and long
+ * operations: opening and closing the dsp cdev, creating and destroying
+ * channels, the ioctl and sysctl handlers, and detach. Holding it also blocks
+ * pcm_unregister() from destroying the device mid-operation, which is why
+ * handlers which never sleep also take the sx.
+ *
+ * snddev_info->lock: Taken with PCM_LOCK(). Also the primary mixer's lock (see
+ * mixer_obj_create()). It covers code which cannot sleep: the mixer, which is
+ * sometimes accessed from interrupt handlers, and channels.pcm.busy, mutated
+ * by chn_trigger(), which is only sometimes called with the sx already held.
+ *
+ * pcm_channel->lock: Taken with CHN_LOCK(). Covers the channel's own state.
+ *
+ * Lock order:
+ *
+ * Giant -> PCM_ACQUIRE() -> PCM_LOCK() -> CHN_LOCK(parent) -> CHN_LOCK(child).
+ */
 struct snddev_info {
 	struct {
 		struct {
@@ -178,14 +203,6 @@ struct snddev_info {
 	device_t dev;
 	char status[SND_STATUSLEN];
 	struct mtx lock;
-	/*
-	 * Unlike the mutex, this can be held across sleeps, in order to guard
-	 * long operations such as opening, closing and reconfiguring. It also
-	 * makes sure pcm_unregister() blocks until the operation finishes
-	 * before it tears down the channels. Drivers may change the flags
-	 * without it while attaching, since the device is not yet visible to
-	 * userland.
-	 */
 	struct sx sx;
 	struct cdev *dsp_dev;
 	struct snd_mixer *mixer;
