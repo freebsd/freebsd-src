@@ -28,8 +28,7 @@
  */
 
 #include <sys/param.h>
-#include <sys/queue.h>
-#include <sys/types.h>
+#include <sys/jail.h>
 #include <sys/wait.h>
 
 #include <archive.h>
@@ -41,6 +40,7 @@
 #include <fcntl.h>
 #include <fetch.h>
 #include <getopt.h>
+#include <jail.h>
 #include <libutil.h>
 #include <paths.h>
 #include <stdbool.h>
@@ -92,6 +92,8 @@ struct fingerprint {
 };
 
 static const char *bootstrap_name = "pkg.pkg";
+static const char *jailname = NULL;
+static const char *rootdir = NULL;
 
 STAILQ_HEAD(fingerprint_list, fingerprint);
 
@@ -168,7 +170,8 @@ extract_pkg_static(int fd, char *p, int sz)
 {
 	struct archive *a;
 	struct archive_entry *ae;
-	const char *end;
+	const char *name, *end;
+	char *rname;
 	int ret, r;
 
 	ret = -1;
@@ -192,11 +195,22 @@ extract_pkg_static(int fd, char *p, int sz)
 
 	ae = NULL;
 	while ((r = archive_read_next_header(a, &ae)) == ARCHIVE_OK) {
-		end = strrchr(archive_entry_pathname(ae), '/');
+		name = archive_entry_pathname(ae);
+		end = strrchr(name, '/');
 		if (end == NULL)
 			continue;
 
 		if (strcmp(end, "/pkg-static") == 0) {
+			if (rootdir) {
+				if (asprintf(&rname, "%s%s", rootdir, name) < 0)
+					err(1, NULL);
+				archive_entry_copy_pathname(ae, rname);
+				free(rname);
+			}
+			if (debug) {
+				fprintf(stderr, "extracting %s...\n",
+				    archive_entry_pathname(ae));
+			}
 			r = archive_read_extract(a, ae,
 			    ARCHIVE_EXTRACT_OWNER | ARCHIVE_EXTRACT_PERM |
 			    ARCHIVE_EXTRACT_TIME | ARCHIVE_EXTRACT_ACL |
@@ -221,32 +235,55 @@ cleanup:
 static int
 install_pkg_static(const char *path, const char *pkgpath, bool force)
 {
+	const char *argv[16];
+	int argc = 0;
 	int pstat;
 	pid_t pid;
 
-	switch ((pid = fork())) {
-	case -1:
-		return (-1);
-	case 0:
-		if (force)
-			execl(path, "pkg-static", "add", "-f", pkgpath,
-			    (char *)NULL);
-		else
-			execl(path, "pkg-static", "add", pkgpath,
-			    (char *)NULL);
-		_exit(1);
-	default:
-		break;
+	/* assemble the command line */
+	argv[argc++] = "pkg-static";
+	if (rootdir) {
+		argv[argc++] = "-r";
+		argv[argc++] = rootdir;
+	}
+	argv[argc++] = "add";
+	if (jailname || rootdir) {
+		/*
+		 * Installing into an empty directory will normally fail
+		 * because none of the shared libraries required by pkg
+		 * are present, but pkg-static will still work and can be
+		 * used to install a packaged base, so tell pkg-static to
+		 * ignore missing dependencies.
+		 */
+		argv[argc++] = "-M";
+	}
+	if (force)
+		argv[argc++] = "-f";
+	argv[argc++] = pkgpath;
+	argv[argc] = NULL;
+
+	if (debug) {
+		fprintf(stderr, "%s", path);
+		for (int i = 1; i < argc; i++)
+			fprintf(stderr, " %s", argv[i]);
+		fprintf(stderr, "\n");
 	}
 
+	/* fork and exec */
+	if ((pid = fork()) < 0)
+		return (-1);
+	if (pid == 0) {
+		/* child */
+		execv(path, __DECONST(char **, argv));
+		_exit(1);
+	}
+
+	/* wait for pkg-static to complete */
 	while (waitpid(pid, &pstat, 0) == -1)
 		if (errno != EINTR)
 			return (-1);
 
-	if (WEXITSTATUS(pstat))
-		return (WEXITSTATUS(pstat));
-	else if (WIFSIGNALED(pstat))
-		return (128 & (WTERMSIG(pstat)));
+	/* this will be zero iff pkg-static exited zero */
 	return (pstat);
 }
 
@@ -946,7 +983,7 @@ static const char non_interactive_message[] =
 
 static const char args_bootstrap_message[] =
 "Too many arguments\n"
-"Usage: pkg [-4|-6] bootstrap [-f] [-y]\n";
+"Usage: pkg [-46d] [-j jail] [-r rootdir] bootstrap [-fy]\n";
 
 static int
 pkg_query_yes_no(void)
@@ -978,7 +1015,7 @@ bootstrap_pkg_local(const char *pkgpath, bool force)
 	fd_sig = -1;
 	ret = -1;
 
-	fd_pkg = open(pkgpath, O_RDONLY);
+	fd_pkg = open(pkgpath, O_RDONLY | O_CLOEXEC);
 	if (fd_pkg == -1)
 		err(EXIT_FAILURE, "Unable to open %s", pkgpath);
 
@@ -992,7 +1029,8 @@ bootstrap_pkg_local(const char *pkgpath, bool force)
 
 			snprintf(path, sizeof(path), "%s.sig", pkgpath);
 
-			if ((fd_sig = open(path, O_RDONLY)) == -1) {
+			fd_sig = open(path, O_RDONLY | O_CLOEXEC);
+			if (fd_sig == -1) {
 				fprintf(stderr, "Signature for pkg not "
 				    "available.\n");
 				goto cleanup;
@@ -1005,7 +1043,8 @@ bootstrap_pkg_local(const char *pkgpath, bool force)
 
 			snprintf(path, sizeof(path), "%s.pubkeysig", pkgpath);
 
-			if ((fd_sig = open(path, O_RDONLY)) == -1) {
+			fd_sig = open(path, O_RDONLY | O_CLOEXEC);
+			if (fd_sig == -1) {
 				fprintf(stderr, "Signature for pkg not "
 				    "available.\n");
 				goto cleanup;
@@ -1073,56 +1112,119 @@ pkg_is_pkg_pkg(const char *pkg)
 int
 main(int argc, char *argv[])
 {
-	char pkgpath[MAXPATHLEN];
-	char **original_argv;
-	const char *pkgarg, *repo_name;
-	bool activation_test, add_pkg, bootstrap_only, force, yes;
-	signed char ch;
-	const char *fetchOpts;
+	char pathbuf[MAXPATHLEN], *pkgpath = pathbuf, *arg;
 	struct repositories *repositories;
+	const char *fetchOpts, *localbase, **pkgargv, *posarg, *repo_name;
+	int ch, jid, pkgargc, pkgargn, rootd;
+	bool activation_test, add_pkg, bootstrap_only, force, yes;
 
 	activation_test = false;
 	add_pkg = false;
 	bootstrap_only = false;
 	fetchOpts = "";
 	force = false;
-	original_argv = argv;
-	pkgarg = NULL;
+	posarg = NULL;
 	repo_name = NULL;
 	yes = false;
 
-	struct option longopts[] = {
+	static const struct option longopts[] = {
 		{ "debug",		no_argument,		NULL,	'd' },
+		{ "jail",		required_argument,	NULL,	'j' },
 		{ "only-ipv4",		no_argument,		NULL,	'4' },
 		{ "only-ipv6",		no_argument,		NULL,	'6' },
+		{ "option",		required_argument,	NULL,	'o' },
+		{ "rootdir",		required_argument,	NULL,	'r' },
 		{ NULL,			0,			NULL,	0   },
 	};
 
-	snprintf(pkgpath, MAXPATHLEN, "%s/sbin/pkg", getlocalbase());
+	pkgargn = 16;
+	if ((pkgargv = malloc(pkgargn * sizeof(*pkgargv))) == NULL)
+		err(1, NULL);
+	pkgargv[0] = pkgpath;
+	pkgargc = 1;
 
-	while ((ch = getopt_long(argc, argv, "+:dN46", longopts, NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv, "+:dj:No:r:46", longopts, NULL)) != -1) {
+		if (pkgargc + 2 >= pkgargn) {
+			pkgargn *= 2;
+			pkgargv = reallocarray(pkgargv, pkgargn, sizeof(*pkgargv));
+			if (pkgargv == NULL)
+				err(1, NULL);
+		}
 		switch (ch) {
-		case 'd':
-			debug++;
-			break;
-		case 'N':
-			activation_test = true;
-			break;
 		case '4':
 			fetchOpts = "4";
+			pkgargv[pkgargc++] = "-4";
 			break;
 		case '6':
 			fetchOpts = "6";
+			pkgargv[pkgargc++] = "-6";
+			break;
+		case 'd':
+			debug++;
+			pkgargv[pkgargc++] = "-d";
+			break;
+		case 'j':
+			jailname = optarg;
+			if ((jid = jail_getid(jailname)) == -1)
+				err(1, "%s", jail_errmsg);
+			if (jail_attach(jid) != 0)
+				err(1, "jail_attach(%s)", jailname);
+			/* do not pass on to pkg(8) */
+			break;
+		case 'l':
+			pkgargv[pkgargc++] = "-l";
+			break;
+		case 'N':
+			activation_test = true;
+			pkgargv[pkgargc++] = "-N";
+			break;
+		case 'o':
+			/* just pass it on */
+			pkgargv[pkgargc++] = "-o";
+			pkgargv[pkgargc++] = optarg;
+			break;
+		case 'r':
+			rootdir = optarg;
+			pkgargv[pkgargc++] = "-r";
+			pkgargv[pkgargc++] = rootdir;
 			break;
 		default:
+			if (optopt == 0) {
+				/* unrecognized long option */
+				pkgargv[pkgargc++] = argv[optind - 1];
+			} else {
+				/* unrecognized short option */
+				if (asprintf(&arg, "-%c", optopt) < 0)
+					err(1, NULL);
+				pkgargv[pkgargc++] = arg;
+			}
+			/* did it have an argument? */
+			if (optarg != NULL)
+				pkgargv[pkgargc++] = optarg;
 			break;
 		}
 	}
+
 	if (debug > 1)
 		fetchDebug = 1;
 
 	argc -= optind;
 	argv += optind;
+
+	if (pkgargc + argc >= pkgargn) {
+		pkgargn = pkgargc + argc + 1;
+		pkgargv = reallocarray(pkgargv, pkgargn, sizeof(*pkgargv));
+		if (pkgargv == NULL)
+			err(1, NULL);
+	}
+	for (int i = 0; i < argc; i++)
+		pkgargv[pkgargc++] = argv[i];
+	pkgargv[pkgargc] = NULL;
+
+	localbase = getlocalbase();
+	if (localbase[0] == '/' && localbase[1] == '\0')
+		localbase++;
+	snprintf(pkgpath, MAXPATHLEN, "%s/sbin/pkg", localbase);
 
 	if (argc >= 1) {
 		if (strcmp(argv[0], "bootstrap") == 0) {
@@ -1134,7 +1236,7 @@ main(int argc, char *argv[])
 		optreset = 1;
 		optind = 1;
 		if (bootstrap_only || add_pkg) {
-			struct option sub_longopts[] = {
+			static const struct option sub_longopts[] = {
 				{ "force",	no_argument,	NULL,	'f' },
 				{ "yes",	no_argument,	NULL,	'y' },
 				{ NULL,		0,		NULL,	0   },
@@ -1166,7 +1268,7 @@ main(int argc, char *argv[])
 			 * `pkg install -y foobar` work as expected when pkg is
 			 * not yet bootstrapped.
 			 */
-			struct option sub_longopts[] = {
+			static const struct option sub_longopts[] = {
 				{ "yes",	no_argument,	NULL,	'y' },
 				{ NULL,		0,		NULL,	0   },
 			};
@@ -1195,7 +1297,7 @@ main(int argc, char *argv[])
 				fprintf(stderr, "Path to pkg.pkg required\n");
 				exit(EXIT_FAILURE);
 			} else if (argc == 1 && pkg_is_pkg_pkg(argv[0])) {
-				pkgarg = argv[0];
+				posarg = argv[0];
 			} else {
 				/*
 				 * If the target package is not pkg.pkg
@@ -1207,7 +1309,13 @@ main(int argc, char *argv[])
 		}
 	}
 
-	if ((bootstrap_only && force) || access(pkgpath, X_OK) == -1) {
+	rootd = open(rootdir ? rootdir : "/",
+	    O_DIRECTORY | O_SEARCH | O_CLOEXEC);
+	if (rootd < 0)
+		err(1, "%s", rootdir ? rootdir : "/");
+
+	if ((bootstrap_only && force) ||
+	    faccessat(rootd, pkgpath + 1, X_OK, 0) == -1) {
 		struct repository *repo;
 		int ret = 0;
 		/*
@@ -1221,12 +1329,12 @@ main(int argc, char *argv[])
 		config_init(repo_name);
 
 		if (add_pkg) {
-			assert(pkgarg != NULL);
-			if (access(pkgarg, R_OK) == -1) {
-				fprintf(stderr, "No such file: %s\n", pkgarg);
+			assert(posarg != NULL);
+			if (access(posarg, R_OK) == -1) {
+				fprintf(stderr, "No such file: %s\n", posarg);
 				exit(EXIT_FAILURE);
 			}
-			if (bootstrap_pkg_local(pkgarg, force) != 0)
+			if (bootstrap_pkg_local(posarg, force) != 0)
 				exit(EXIT_FAILURE);
 			exit(EXIT_SUCCESS);
 		}
@@ -1259,11 +1367,18 @@ main(int argc, char *argv[])
 		if (bootstrap_only)
 			exit(EXIT_SUCCESS);
 	} else if (bootstrap_only) {
-		printf("pkg already bootstrapped at %s\n", pkgpath);
+		printf("pkg already bootstrapped at %s%s\n",
+		    rootdir ? rootdir : "", pkgpath);
 		exit(EXIT_SUCCESS);
 	}
 
-	execv(pkgpath, original_argv);
+	if (rootdir) {
+		if (fchdir(rootd) != 0)
+			err(1, "%s", rootdir);
+		while (*pkgpath == '/')
+			pkgpath++;
+	}
+	execv(pkgpath, __DECONST(char **, pkgargv));
 
 	/* NOT REACHED */
 	return (EXIT_FAILURE);

@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 29, 2025
+.Dd July 20, 2026
 .Dt PKG 7
 .Os
 .Sh NAME
@@ -31,17 +31,25 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl d
+.Op Fl j Ar jail
+.Op Fl r Ar rootdir
 .Ar command ...
 .Nm
 .Op Fl d
+.Op Fl j Ar jail
+.Op Fl r Ar rootdir
 .Cm add
 .Op Fl fy
 .Op Fl r Ar reponame
 .Ar pkg.pkg
 .Nm
+.Op Fl j Ar jail
+.Op Fl r Ar rootdir
 .Fl N
 .Nm
 .Op Fl 46d
+.Op Fl j Ar jail
+.Op Fl r Ar rootdir
 .Cm bootstrap
 .Op Fl fy
 .Op Fl r Ar reponame
@@ -61,14 +69,14 @@ will bootstrap the real
 .Xr pkg 8
 from a remote repository.
 .Bl -tag
-.It Nm Ar command ...
+.It Nm Oo Fl j Ar jail Oc Oo Fl r Ar rootdir Oc Ar command ...
 If
 .Xr pkg 8
 is not installed yet, it will be fetched, have its signature verified,
 installed, and then have the original command forwarded to it.
 If already installed, the command requested will be forwarded to the real
 .Xr pkg 8 .
-.It Nm Cm add Oo Fl fy Oc Oo Fl r Ar reponame Oc Ar pkg.pkg
+.It Nm Oo Fl j Ar jail Oc Oo Fl r Ar rootdir Oc Cm add Oo Fl fy Oc Oo Fl r Ar reponame Oc Ar pkg.pkg
 Install
 .Xr pkg 8
 from a local package instead of fetching from remote.
@@ -88,13 +96,13 @@ If a
 .Ar reponame
 has been specified, then the signature configuration for that repository will be
 used.
-.It Nm Fl N
+.It Nm Oo Fl j Ar jail Oc Oo Fl r Ar rootdir Oc Fl N
 Do not bootstrap, just determine if
 .Xr pkg 8
 is actually installed or not.
 Returns 0 and the number of packages installed
 if it is, otherwise 1.
-.It Nm Oo Fl 46 Oc Cm bootstrap Oo Fl fy Oc \
+.It Nm Oo Fl 46d Oc Oo Fl j Ar jail Oc Oo Fl r Ar rootdir Oc Cm bootstrap Oo Fl fy Oc \
 Oo Fl r Ar reponame Oc
 Attempt to bootstrap and do not forward anything to
 .Xr pkg 8
@@ -131,6 +139,16 @@ May be specified more than once to increase the level of detail.
 When specified twice,
 .Xr fetch 3
 debug output is enabled.
+.It Fl j Ar jail , Fl -jail Ar jail
+Attach to the jail designated by the name or numerical identifier
+.Ar jail .
+Note that
+.Nm
+will attach to the jail immediately upon encountering this option, so
+any paths provided should be relative to the root of the jail.
+.It Fl r Ar rootdir , Fl -rootdir Ar rootdir
+Operate on the system rooted at
+.Ar rootdir .
 .El
 .Sh CONFIGURATION
 Configuration varies in whether it is in a repository configuration file
