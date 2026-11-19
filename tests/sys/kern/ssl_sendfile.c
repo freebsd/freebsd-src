@@ -60,6 +60,7 @@ struct ctx {
 	off_t offset;		/* SSL_sendfile offset */
 	size_t size;		/* SSL_sendfile size */
 	bool nb;		/* SSL_sendfile mode */
+	int sbsize;		/* socket buffer size, 0 for default */
 	ossl_ssize_t sbytes;	/* SSL_sendfile returned sbytes */
 	enum {
 		INIT,
@@ -74,7 +75,7 @@ struct ctx {
 static void *server_thread(void *arg);
 
 static void
-common_init(struct ctx *c)
+common_init(struct ctx *c, int sbsize)
 {
 	char hostname[sizeof("localhost:65536")];
 	char tempname[] = "/tmp/ssl_sendfile_test.XXXXXXXXXX";
@@ -93,6 +94,7 @@ common_init(struct ctx *c)
 		atf_tc_skip("kern.ipc.tls.enable is off");
 
 	c->state = INIT;
+	c->sbsize = sbsize;
 
 	/*
 	 * Generate self signed key & certificate.
@@ -152,6 +154,9 @@ common_init(struct ctx *c)
 	ssl = c->cln = SSL_new(c->ctx);
 	ATF_REQUIRE(c->cln != NULL);
 	ATF_REQUIRE((c->cs = socket(AF_INET, SOCK_STREAM, 0)) > 0);
+	if (c->sbsize != 0)
+		ATF_REQUIRE(setsockopt(c->cs, SOL_SOCKET, SO_RCVBUF,
+		    &c->sbsize, sizeof(int)) == 0);
 	ATF_REQUIRE(connect(c->cs, (struct sockaddr *)&(struct sockaddr_in)
 	    { .sin_family = AF_INET, .sin_len = sizeof(struct sockaddr_in),
 	      .sin_addr.s_addr = htonl(INADDR_LOOPBACK), .sin_port = c->port },
@@ -207,6 +212,9 @@ server_thread(void *arg)
 	ATF_REQUIRE((s = socket(AF_INET, SOCK_STREAM, 0)) > 0);
 	ATF_REQUIRE(setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &(socklen_t){1},
 	     sizeof(int)) == 0);
+	if (c->sbsize != 0)
+		ATF_REQUIRE(setsockopt(s, SOL_SOCKET, SO_SNDBUF, &c->sbsize,
+		    sizeof(int)) == 0);
 	ATF_REQUIRE(bind(s, (struct sockaddr *)&sin, sizeof(sin)) == 0);
 	ATF_REQUIRE(getsockname(s, (struct sockaddr *)&sin,
 	    &(socklen_t){ sizeof(sin) }) == 0);
@@ -308,7 +316,7 @@ ATF_TC_BODY(basic, tc)
 	size_t nread;
 	int n;
 
-	common_init(&c);
+	common_init(&c, 0);
 
 	sendme(&c, 0, 0, false);
 	nread = 0;
@@ -328,7 +336,7 @@ ATF_TC_BODY(random, tc)
 	struct ctx c;
 #define	RSIZE	(256*1024)
 
-	common_init(&c);
+	common_init(&c, 0);
 
 	for (u_int i = 0; i < 10; i++) {
 		char buf[RSIZE];
@@ -363,12 +371,7 @@ ATF_TC_BODY(truncate, tc)
 	int n;
 #define	TRUNC	(FSIZE - 1024)
 
-	common_init(&c);
-
-	ATF_REQUIRE(setsockopt(c.ss, SOL_SOCKET, SO_SNDBUF, &(int){FSIZE / 16},
-	    sizeof(int)) == 0);
-	ATF_REQUIRE(setsockopt(c.cs, SOL_SOCKET, SO_RCVBUF, &(int){FSIZE / 16},
-	    sizeof(int)) == 0);
+	common_init(&c, FSIZE / 16);
 
 	sendme(&c, 0, 0, false);
 	/* Make sure sender is waiting on the socket buffer. */
@@ -398,12 +401,7 @@ ATF_TC_BODY(grow, tc)
 	int n;
 #define	GROW	(FSIZE/2)
 
-	common_init(&c);
-
-	ATF_REQUIRE(setsockopt(c.ss, SOL_SOCKET, SO_SNDBUF, &(int){FSIZE / 16},
-	    sizeof(int)) == 0);
-	ATF_REQUIRE(setsockopt(c.cs, SOL_SOCKET, SO_RCVBUF, &(int){FSIZE / 16},
-	    sizeof(int)) == 0);
+	common_init(&c, FSIZE / 16);
 
 	sendme(&c, 0, 0, false);
 	/* Make sure sender is waiting on the socket buffer. */
@@ -441,7 +439,7 @@ ATF_TC_BODY(offset_beyond_eof, tc)
 {
 	struct ctx c;
 
-	common_init(&c);
+	common_init(&c, 0);
 
 	c.sbytes = -1;
 	sendme(&c, FSIZE + 1, 0, false);
@@ -466,7 +464,7 @@ ATF_TC_BODY(eagain_vs_eof, tc)
 	ssize_t nread, offset = 0;
 	int n;
 
-	common_init(&c);
+	common_init(&c, FSIZE / 16);
 
 	/*
 	 * Exercise short write due to no buffer space on non-blocking
