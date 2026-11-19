@@ -70,11 +70,13 @@
 #define	SDHCI_FDT_ARMADA38X	1
 #define	SDHCI_FDT_XLNX_ZY7	2
 #define	SDHCI_FDT_QUALCOMM	3
+#define	SDHCI_FDT_BCM2712	4
 
 static struct ofw_compat_data compat_data[] = {
 	{ "marvell,armada-380-sdhci",	SDHCI_FDT_ARMADA38X },
 	{ "qcom,sdhci-msm-v4",		SDHCI_FDT_QUALCOMM },
 	{ "xlnx,zy7_sdhci",		SDHCI_FDT_XLNX_ZY7 },
+	{ "brcm,bcm2712-sdhci",		SDHCI_FDT_BCM2712 },
 	{ NULL, 0 }
 };
 
@@ -366,6 +368,9 @@ sdhci_fdt_probe(device_t dev)
 	case SDHCI_FDT_XLNX_ZY7:
 		sc->quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK;
 		device_set_desc(dev, "Zynq-7000 generic fdt SDHCI controller");
+		break;
+	case SDHCI_FDT_BCM2712:
+		device_set_desc(dev, "Broadcom BCM2712 SDHCI controller");
 		break;
 	default:
 		return (ENXIO);
