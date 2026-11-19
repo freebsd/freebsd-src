@@ -653,6 +653,7 @@ parse_cert(int fd) {
 			fwrite(line, 1, linelen, tmpfp);
 	}
 
+	free(line);
 	fclose(fp);
 	fclose(sigfp);
 	fclose(certfp);
@@ -688,11 +689,11 @@ static bool
 verify_pubsignature(int fd_pkg, int fd_sig, struct repository *r)
 {
 	struct pubkey *pk;
-	char *data;
 	struct pkgsign_ctx *sctx;
+	const char *pubkey;
+	char *data;
 	size_t datasz;
 	bool ret;
-	const char *pubkey;
 
 	pk = NULL;
 	sctx = NULL;
@@ -743,8 +744,8 @@ verify_pubsignature(int fd_pkg, int fd_sig, struct repository *r)
 	}
 
 	/* Verify the signature. */
-	printf("Verifying signature with public key %s.a.. ", r->pubkey);
-	if (pkgsign_verify_data(sctx, data, datasz, r->pubkey, NULL, 0, pk->sig,
+	printf("Verifying signature with public key %s.a.. ", pubkey);
+	if (pkgsign_verify_data(sctx, data, datasz, pubkey, NULL, 0, pk->sig,
 	    pk->siglen) == false) {
 		fprintf(stderr, "Signature is not valid\n");
 		goto cleanup;
@@ -1381,5 +1382,5 @@ main(int argc, char *argv[])
 	execv(pkgpath, __DECONST(char **, pkgargv));
 
 	/* NOT REACHED */
-	return (EXIT_FAILURE);
+	exit(EXIT_FAILURE);
 }

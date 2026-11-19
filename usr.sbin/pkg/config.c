@@ -31,15 +31,16 @@
 #include <sys/utsname.h>
 #include <sys/sysctl.h>
 
+#include <assert.h>
+#include <ctype.h>
 #include <dirent.h>
-#include <ucl.h>
 #include <err.h>
 #include <errno.h>
 #include <libutil.h>
 #include <paths.h>
 #include <stdbool.h>
+#include <ucl.h>
 #include <unistd.h>
-#include <ctype.h>
 
 #include "config.h"
 
@@ -237,12 +238,17 @@ config_parse(const ucl_object_t *obj)
 			continue;
 		if (buf != NULL)
 			memset(buf, 0, bufsz);
+		errno = 0;
 		rewind(buffp);
+		assert(errno == 0); /* rewinding a memstream never fails */
 
-			for (j = 0; j < strlen(key); ++j)
-				fputc(toupper(key[j]), buffp);
-			fflush(buffp);
+		for (j = 0; key[j] != '\0'; ++j)
+			if (fputc(toupper(key[j]), buffp) == EOF)
+				err(1, NULL); /* failed to allocate */
+		if (fflush(buffp) != 0)
+			err(1, NULL); /* failed to allocate */
 
+		assert(buf != NULL);
 		for (i = 0; i < CONFIG_SIZE; i++) {
 			if (strcmp(buf, c[i].key) == 0)
 				break;

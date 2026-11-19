@@ -306,7 +306,6 @@ ecc_extract_key_params(const uint8_t *oid, size_t oidlen,
 		if (oidlen != 1)
 			return (1);
 
-		ret = -1;
 		switch (*oid) {
 		case 0x0a:	/* secp256k1 */
 			ret = import_params(rawparams, &secp256k1_str_params);
@@ -318,12 +317,10 @@ ecc_extract_key_params(const uint8_t *oid, size_t oidlen,
 			ret = import_params(rawparams, &secp521r1_str_params);
 			break;
 		default:
-			return (1);
+			ret = -1;
 		}
 
-		if (ret == 0)
-			return (0);
-		return (1);
+		return (ret != 0);
 	}
 
 	if (oidlen >= sizeof(oid_brainpoolP) &&
@@ -334,7 +331,6 @@ ecc_extract_key_params(const uint8_t *oid, size_t oidlen,
 		if (oidlen != 1)
 			return (1);
 
-		ret = -1;
 		switch (*oid) {
 		case 0x07:	/* brainpoolP256r1 */
 			ret = import_params(rawparams, &brainpoolp256r1_str_params);
@@ -361,12 +357,10 @@ ecc_extract_key_params(const uint8_t *oid, size_t oidlen,
 			ret = import_params(rawparams, &brainpoolp512t1_str_params);
 			break;
 		default:
-			return (1);
+			ret = -1;
 		}
 
-		if (ret == 0)
-			return (0);
-		return (1);
+		return (ret != 0);
 	}
 
 #ifdef ECC_DEBUG
@@ -526,14 +520,14 @@ ecc_verify_data(const struct pkgsign_ctx *sctx,
 	int ret;
 	struct ecc_verify_cbdata cbdata;
 
-	ret = 1;
-
 	if (sigfile != NULL) {
 		cbdata.keyfp = fopen(sigfile, "r");
 		if (cbdata.keyfp == NULL) {
 			warn("fopen: %s", sigfile);
 			return (false);
 		}
+		cbdata.key = NULL;
+		cbdata.keylen = SIZE_MAX;
 	} else {
 		cbdata.keyfp = NULL;
 		cbdata.key = key;
