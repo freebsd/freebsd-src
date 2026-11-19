@@ -30,6 +30,7 @@ ATF_TESTS_SH+=	altq \
 		modulate \
 		names \
 		nat \
+		nat46 \
 		nat64 \
 		pass_block \
 		pflog \

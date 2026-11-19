@@ -1302,12 +1302,12 @@ pf_get_transaddr_af(struct pf_krule *r, struct pf_pdesc *pd)
 			pd->ndport = ICMP_ECHOREPLY;
 		pd->ndport = htons(pd->ndport);
 	} else if (pd->proto == IPPROTO_ICMP && pd->naf == AF_INET6) {
-		pd->nsport = ntohs(pd->nsport);
+		pd->ndport = ntohs(pd->ndport);
 		if (pd->ndport == ICMP_ECHO)
 			pd->ndport = ICMP6_ECHO_REQUEST;
 		else if (pd->ndport == ICMP_ECHOREPLY)
 			pd->ndport = ICMP6_ECHO_REPLY;
-		pd->nsport = htons(pd->nsport);
+		pd->ndport = htons(pd->ndport);
 	}
 
 	/* get the destination address and port */
