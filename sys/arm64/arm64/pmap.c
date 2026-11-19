@@ -8205,9 +8205,16 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 	pd_entry_t *l0, *l1, *l2, oldl2;
 	pt_entry_t *l3, *dl3, oldl3;
 
-	PMAP_ASSERT_STAGE1(pmap);
-
 	if (advice != MADV_DONTNEED && advice != MADV_FREE)
+		return;
+
+	/*
+	 * The code below changes stage 1 permission bits and invalidates
+	 * stage 1 TLB entries.  vm_fault() reaches here for a stage 2 pmap
+	 * when it drops pages behind a sequential fault.  MADV_DONTNEED and
+	 * MADV_FREE are advisory, so skip them entirely for stage 2 pmaps.
+	 */
+	if (pmap->pm_stage != PM_STAGE1)
 		return;
 
 	PMAP_LOCK(pmap);
