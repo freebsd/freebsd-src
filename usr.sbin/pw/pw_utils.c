@@ -56,7 +56,8 @@ pw_checkid(char *nptr, uintmax_t maxval)
 	const char *errstr = NULL;
 	uintmax_t id;
 
-	id = strtounum(nptr, 0, maxval, &errstr);
+	/* maxval is UID_MAX/GID_MAX, which is (uid_t)-1 and not a valid id. */
+	id = strtounum(nptr, 0, maxval - 1, &errstr);
 	if (errstr)
 		errx(EX_USAGE, "Bad id '%s': %s", nptr, errstr);
 	return (id);

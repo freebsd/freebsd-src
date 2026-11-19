@@ -1552,7 +1552,7 @@ __gr_parse_entry(char *line, size_t linesize, struct group *grp, char *membuf,
 		return (NS_NOTFOUND);
 	s_mem = line;
 	n = strtoul(s_gid, &s_gid, 10);
-	if (s_gid[0] != '\0')
+	if (s_gid[0] != '\0' || n >= GID_MAX)
 		return (NS_NOTFOUND);
 	grp->gr_gid = (gid_t)n;
 	grp->gr_mem = members;
