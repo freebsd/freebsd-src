@@ -3,6 +3,9 @@
 /* Define to the optind value to reset getopt processing */
 #undef GETOPT_OPTIND_RESET_VALUE
 
+/* Define to 1 if you have the 'clock_gettime' function. */
+#undef HAVE_CLOCK_GETTIME
+
 /* define if the compiler supports basic C++20 syntax */
 #undef HAVE_CXX20
 

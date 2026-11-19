@@ -38,6 +38,7 @@ extern "C" {
 #include <stdint.h>
 }
 
+#include <compare>
 #include <cstddef>
 #include <memory>
 #include <ostream>
@@ -83,6 +84,33 @@ public:
 
 
 std::ostream& operator<<(std::ostream&, const delta&);
+
+
+/// Represents a monotonic time point for deadlines.
+///
+/// Unlike timestamp, this value cannot be formatted as a calendar date or
+/// mixed with wall-clock time. Values are stored without heap allocation so
+/// that reading the clock is suitable for the timer's signal handler.
+class monotonic_timestamp {
+    /// Microseconds since the clock's origin.
+    int64_t _useconds;
+
+    explicit monotonic_timestamp(const int64_t);
+
+public:
+    static monotonic_timestamp from_microseconds(const int64_t);
+    static monotonic_timestamp now(void);
+
+    int64_t to_microseconds(void) const;
+
+    auto operator<=>(const monotonic_timestamp&) const = default;
+
+    monotonic_timestamp operator+(const delta&) const;
+    delta operator-(const monotonic_timestamp&) const;
+};
+
+
+std::ostream& operator<<(std::ostream&, const monotonic_timestamp&);
 
 
 /// Represents a fixed date/time.

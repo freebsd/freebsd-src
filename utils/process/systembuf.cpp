@@ -32,7 +32,8 @@ extern "C" {
 #include <unistd.h>
 }
 
-#include "utils/auto_array.ipp"
+#include <memory>
+
 #include "utils/noncopyable.hpp"
 #include "utils/sanity.hpp"
 
@@ -48,10 +49,10 @@ struct systembuf::impl : utils::noncopyable {
     std::size_t _bufsize;
 
     /// In-memory buffer for read operations.
-    utils::auto_array< char > _read_buf;
+    std::unique_ptr< char[] > _read_buf;
 
     /// In-memory buffer for write operations.
-    utils::auto_array< char > _write_buf;
+    std::unique_ptr< char[] > _write_buf;
 
     /// Initializes private implementation data.
     ///

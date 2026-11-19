@@ -41,10 +41,7 @@ UTILS_LIBS += $(LUTOK_LIBS)
 
 noinst_LTLIBRARIES += libutils.la
 libutils_la_CPPFLAGS = -DGDB=\"$(GDB)\"
-libutils_la_SOURCES  = utils/auto_array.hpp
-libutils_la_SOURCES += utils/auto_array.ipp
-libutils_la_SOURCES += utils/auto_array_fwd.hpp
-libutils_la_SOURCES += utils/datetime.cpp
+libutils_la_SOURCES  = utils/datetime.cpp
 libutils_la_SOURCES += utils/datetime.hpp
 libutils_la_SOURCES += utils/datetime_fwd.hpp
 libutils_la_SOURCES += utils/env.hpp
@@ -79,12 +76,7 @@ tests_utilsdir = $(pkgtestsdir)/utils
 tests_utils_DATA = utils/Kyuafile
 EXTRA_DIST += $(tests_utils_DATA)
 
-tests_utils_PROGRAMS = utils/auto_array_test
-utils_auto_array_test_SOURCES = utils/auto_array_test.cpp
-utils_auto_array_test_CXXFLAGS = $(UTILS_CFLAGS) $(ATF_CXX_CFLAGS)
-utils_auto_array_test_LDADD = $(UTILS_LIBS) $(ATF_CXX_LIBS)
-
-tests_utils_PROGRAMS += utils/datetime_test
+tests_utils_PROGRAMS = utils/datetime_test
 utils_datetime_test_SOURCES = utils/datetime_test.cpp
 utils_datetime_test_CXXFLAGS = $(UTILS_CFLAGS) $(ATF_CXX_CFLAGS)
 utils_datetime_test_LDADD = $(UTILS_LIBS) $(ATF_CXX_LIBS)

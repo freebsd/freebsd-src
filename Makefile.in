@@ -950,8 +950,7 @@ host_triplet = @host@
 @WITH_ATF_TRUE@	$(tests_utils_signals_DATA) \
 @WITH_ATF_TRUE@	$(tests_utils_sqlite_DATA) \
 @WITH_ATF_TRUE@	$(tests_utils_text_DATA)
-@WITH_ATF_TRUE@tests_utils_PROGRAMS = utils/auto_array_test$(EXEEXT) \
-@WITH_ATF_TRUE@	utils/datetime_test$(EXEEXT) \
+@WITH_ATF_TRUE@tests_utils_PROGRAMS = utils/datetime_test$(EXEEXT) \
 @WITH_ATF_TRUE@	utils/env_test$(EXEEXT) \
 @WITH_ATF_TRUE@	utils/memory_test$(EXEEXT) \
 @WITH_ATF_TRUE@	utils/optional_test$(EXEEXT) \
@@ -1931,15 +1930,6 @@ store_write_transaction_test_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CXXLD) \
 	$(store_write_transaction_test_CXXFLAGS) $(CXXFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-am__utils_auto_array_test_SOURCES_DIST = utils/auto_array_test.cpp
-@WITH_ATF_TRUE@am_utils_auto_array_test_OBJECTS = utils/auto_array_test-auto_array_test.$(OBJEXT)
-utils_auto_array_test_OBJECTS = $(am_utils_auto_array_test_OBJECTS)
-@WITH_ATF_TRUE@utils_auto_array_test_DEPENDENCIES =  \
-@WITH_ATF_TRUE@	$(am__DEPENDENCIES_3) $(am__DEPENDENCIES_1)
-utils_auto_array_test_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX \
-	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CXXLD) \
-	$(utils_auto_array_test_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
-	$(LDFLAGS) -o $@
 am__utils_cmdline_base_command_test_SOURCES_DIST =  \
 	utils/cmdline/base_command_test.cpp
 @WITH_ATF_TRUE@am_utils_cmdline_base_command_test_OBJECTS = utils/cmdline/base_command_test-base_command_test.$(OBJEXT)
@@ -2736,7 +2726,6 @@ am__depfiles_remade = ./$(DEPDIR)/kyua-main.Po \
 	store/$(DEPDIR)/store_transaction_test-transaction_test.Po \
 	store/$(DEPDIR)/store_write_transaction_test-write_transaction_test.Po \
 	store/$(DEPDIR)/write_backend_test-write_backend_test.Po \
-	utils/$(DEPDIR)/auto_array_test-auto_array_test.Po \
 	utils/$(DEPDIR)/datetime_test-datetime_test.Po \
 	utils/$(DEPDIR)/env_test-env_test.Po \
 	utils/$(DEPDIR)/libutils_la-datetime.Plo \
@@ -2944,7 +2933,6 @@ SOURCES = $(libcli_la_SOURCES) $(libdrivers_la_SOURCES) \
 	$(store_transaction_test_SOURCES) \
 	$(store_write_backend_test_SOURCES) \
 	$(store_write_transaction_test_SOURCES) \
-	$(utils_auto_array_test_SOURCES) \
 	$(utils_cmdline_base_command_test_SOURCES) \
 	$(utils_cmdline_commands_map_test_SOURCES) \
 	$(utils_cmdline_exceptions_test_SOURCES) \
@@ -3070,7 +3058,6 @@ DIST_SOURCES = $(libcli_la_SOURCES) $(libdrivers_la_SOURCES) \
 	$(am__store_transaction_test_SOURCES_DIST) \
 	$(am__store_write_backend_test_SOURCES_DIST) \
 	$(am__store_write_transaction_test_SOURCES_DIST) \
-	$(am__utils_auto_array_test_SOURCES_DIST) \
 	$(am__utils_cmdline_base_command_test_SOURCES_DIST) \
 	$(am__utils_cmdline_commands_map_test_SOURCES_DIST) \
 	$(am__utils_cmdline_exceptions_test_SOURCES_DIST) \
@@ -3875,8 +3862,7 @@ libutils_la_CPPFLAGS = -DGDB=\"$(GDB)\" $(LUTOK_CFLAGS) \
 # The following two files are only supposed to be used from test code.  They
 # should not be bundled into libutils.la, but doing so simplifies the build
 # significantly.
-libutils_la_SOURCES = utils/auto_array.hpp utils/auto_array.ipp \
-	utils/auto_array_fwd.hpp utils/datetime.cpp utils/datetime.hpp \
+libutils_la_SOURCES = utils/datetime.cpp utils/datetime.hpp \
 	utils/datetime_fwd.hpp utils/env.hpp utils/env.cpp \
 	utils/memory.hpp utils/memory.cpp utils/noncopyable.hpp \
 	utils/optional.hpp utils/optional_fwd.hpp utils/optional.ipp \
@@ -3961,9 +3947,6 @@ libutils_la_LIBADD = $(LUTOK_LIBS) $(LUTOK_LIBS)
 nodist_libutils_la_SOURCES = utils/defs.hpp
 @WITH_ATF_TRUE@tests_utilsdir = $(pkgtestsdir)/utils
 @WITH_ATF_TRUE@tests_utils_DATA = utils/Kyuafile
-@WITH_ATF_TRUE@utils_auto_array_test_SOURCES = utils/auto_array_test.cpp
-@WITH_ATF_TRUE@utils_auto_array_test_CXXFLAGS = $(UTILS_CFLAGS) $(ATF_CXX_CFLAGS)
-@WITH_ATF_TRUE@utils_auto_array_test_LDADD = $(UTILS_LIBS) $(ATF_CXX_LIBS)
 @WITH_ATF_TRUE@utils_datetime_test_SOURCES = utils/datetime_test.cpp
 @WITH_ATF_TRUE@utils_datetime_test_CXXFLAGS = $(UTILS_CFLAGS) $(ATF_CXX_CFLAGS)
 @WITH_ATF_TRUE@utils_datetime_test_LDADD = $(UTILS_LIBS) $(ATF_CXX_LIBS)
@@ -5877,12 +5860,6 @@ store/store_write_transaction_test-write_transaction_test.$(OBJEXT):  \
 store/write_transaction_test$(EXEEXT): $(store_write_transaction_test_OBJECTS) $(store_write_transaction_test_DEPENDENCIES) $(EXTRA_store_write_transaction_test_DEPENDENCIES) store/$(am__dirstamp)
 	@rm -f store/write_transaction_test$(EXEEXT)
 	$(AM_V_CXXLD)$(store_write_transaction_test_LINK) $(store_write_transaction_test_OBJECTS) $(store_write_transaction_test_LDADD) $(LIBS)
-utils/auto_array_test-auto_array_test.$(OBJEXT):  \
-	utils/$(am__dirstamp) utils/$(DEPDIR)/$(am__dirstamp)
-
-utils/auto_array_test$(EXEEXT): $(utils_auto_array_test_OBJECTS) $(utils_auto_array_test_DEPENDENCIES) $(EXTRA_utils_auto_array_test_DEPENDENCIES) utils/$(am__dirstamp)
-	@rm -f utils/auto_array_test$(EXEEXT)
-	$(AM_V_CXXLD)$(utils_auto_array_test_LINK) $(utils_auto_array_test_OBJECTS) $(utils_auto_array_test_LDADD) $(LIBS)
 utils/cmdline/base_command_test-base_command_test.$(OBJEXT):  \
 	utils/cmdline/$(am__dirstamp) \
 	utils/cmdline/$(DEPDIR)/$(am__dirstamp)
@@ -6519,7 +6496,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@store/$(DEPDIR)/store_transaction_test-transaction_test.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@store/$(DEPDIR)/store_write_transaction_test-write_transaction_test.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@store/$(DEPDIR)/write_backend_test-write_backend_test.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@utils/$(DEPDIR)/auto_array_test-auto_array_test.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@utils/$(DEPDIR)/datetime_test-datetime_test.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@utils/$(DEPDIR)/env_test-env_test.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@utils/$(DEPDIR)/libutils_la-datetime.Plo@am__quote@ # am--include-marker
@@ -8351,20 +8327,6 @@ store/store_write_transaction_test-write_transaction_test.obj: store/write_trans
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='store/write_transaction_test.cpp' object='store/store_write_transaction_test-write_transaction_test.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(store_write_transaction_test_CXXFLAGS) $(CXXFLAGS) -c -o store/store_write_transaction_test-write_transaction_test.obj `if test -f 'store/write_transaction_test.cpp'; then $(CYGPATH_W) 'store/write_transaction_test.cpp'; else $(CYGPATH_W) '$(srcdir)/store/write_transaction_test.cpp'; fi`
-
-utils/auto_array_test-auto_array_test.o: utils/auto_array_test.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(utils_auto_array_test_CXXFLAGS) $(CXXFLAGS) -MT utils/auto_array_test-auto_array_test.o -MD -MP -MF utils/$(DEPDIR)/auto_array_test-auto_array_test.Tpo -c -o utils/auto_array_test-auto_array_test.o `test -f 'utils/auto_array_test.cpp' || echo '$(srcdir)/'`utils/auto_array_test.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) utils/$(DEPDIR)/auto_array_test-auto_array_test.Tpo utils/$(DEPDIR)/auto_array_test-auto_array_test.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='utils/auto_array_test.cpp' object='utils/auto_array_test-auto_array_test.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(utils_auto_array_test_CXXFLAGS) $(CXXFLAGS) -c -o utils/auto_array_test-auto_array_test.o `test -f 'utils/auto_array_test.cpp' || echo '$(srcdir)/'`utils/auto_array_test.cpp
-
-utils/auto_array_test-auto_array_test.obj: utils/auto_array_test.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(utils_auto_array_test_CXXFLAGS) $(CXXFLAGS) -MT utils/auto_array_test-auto_array_test.obj -MD -MP -MF utils/$(DEPDIR)/auto_array_test-auto_array_test.Tpo -c -o utils/auto_array_test-auto_array_test.obj `if test -f 'utils/auto_array_test.cpp'; then $(CYGPATH_W) 'utils/auto_array_test.cpp'; else $(CYGPATH_W) '$(srcdir)/utils/auto_array_test.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) utils/$(DEPDIR)/auto_array_test-auto_array_test.Tpo utils/$(DEPDIR)/auto_array_test-auto_array_test.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='utils/auto_array_test.cpp' object='utils/auto_array_test-auto_array_test.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(utils_auto_array_test_CXXFLAGS) $(CXXFLAGS) -c -o utils/auto_array_test-auto_array_test.obj `if test -f 'utils/auto_array_test.cpp'; then $(CYGPATH_W) 'utils/auto_array_test.cpp'; else $(CYGPATH_W) '$(srcdir)/utils/auto_array_test.cpp'; fi`
 
 utils/cmdline/base_command_test-base_command_test.o: utils/cmdline/base_command_test.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(utils_cmdline_base_command_test_CXXFLAGS) $(CXXFLAGS) -MT utils/cmdline/base_command_test-base_command_test.o -MD -MP -MF utils/cmdline/$(DEPDIR)/base_command_test-base_command_test.Tpo -c -o utils/cmdline/base_command_test-base_command_test.o `test -f 'utils/cmdline/base_command_test.cpp' || echo '$(srcdir)/'`utils/cmdline/base_command_test.cpp
@@ -10276,7 +10238,6 @@ distclean: distclean-am
 	-rm -f store/$(DEPDIR)/store_transaction_test-transaction_test.Po
 	-rm -f store/$(DEPDIR)/store_write_transaction_test-write_transaction_test.Po
 	-rm -f store/$(DEPDIR)/write_backend_test-write_backend_test.Po
-	-rm -f utils/$(DEPDIR)/auto_array_test-auto_array_test.Po
 	-rm -f utils/$(DEPDIR)/datetime_test-datetime_test.Po
 	-rm -f utils/$(DEPDIR)/env_test-env_test.Po
 	-rm -f utils/$(DEPDIR)/libutils_la-datetime.Plo
@@ -10589,7 +10550,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f store/$(DEPDIR)/store_transaction_test-transaction_test.Po
 	-rm -f store/$(DEPDIR)/store_write_transaction_test-write_transaction_test.Po
 	-rm -f store/$(DEPDIR)/write_backend_test-write_backend_test.Po
-	-rm -f utils/$(DEPDIR)/auto_array_test-auto_array_test.Po
 	-rm -f utils/$(DEPDIR)/datetime_test-datetime_test.Po
 	-rm -f utils/$(DEPDIR)/env_test-env_test.Po
 	-rm -f utils/$(DEPDIR)/libutils_la-datetime.Plo
