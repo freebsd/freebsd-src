@@ -48,6 +48,8 @@
 #include <sys/elf64.h>	/* Definitions common to all 64 bit architectures. */
 #include <sys/elf_generic.h>
 
+#include <machine/cpu_flags.h>	/* Definitions of CPU feature flags */
+
 #if __ELF_WORD_SIZE == 64
 #define	ELF_ARCH	EM_PPC64
 #define	ELF_MACHINE_OK(x) ((x) == EM_PPC64)
