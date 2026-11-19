@@ -39,8 +39,8 @@ extern "C" {
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <vector>
 
-#include "utils/auto_array.ipp"
 #include "utils/cmdline/exceptions.hpp"
 #include "utils/cmdline/options.hpp"
 #include "utils/format/macros.hpp"
@@ -61,7 +61,7 @@ struct getopt_data : utils::noncopyable {
     std::string short_options;
 
     /// Representation of the long options as expected by getopt_long(3).
-    utils::auto_array< ::option > long_options;
+    std::vector< ::option > long_options;
 
     /// Auto-generated identifiers to be able to parse long options.
     std::map< int, const cmdline::base_option* > ids;
@@ -78,7 +78,7 @@ options_to_getopt_data(const cmdline::options_vector& options,
                        getopt_data& data)
 {
     data.short_options.clear();
-    data.long_options.reset(new ::option[options.size() + 1]);
+    data.long_options.resize(options.size() + 1);
 
     int cur_id = 512;
 
@@ -189,7 +189,7 @@ find_option_name(const getopt_data& data, const int getopt_optopt,
         const char ch = static_cast< char >(getopt_optopt);
         return F("-%s") % ch;
     } else {
-        for (const ::option* opt = &data.long_options[0]; opt->name != NULL;
+        for (const ::option* opt = data.long_options.data(); opt->name != NULL;
              opt++) {
             if (opt->val == getopt_optopt)
                 return F("--%s") % opt->name;
@@ -284,11 +284,11 @@ cmdline::parse(const cmdline::args_vector& args,
 {
     PRE_MSG(args.size() >= 1, "No progname or command name found");
 
-    utils::auto_array< const char* > argv(new const char*[args.size() + 1]);
+    std::vector< const char* > argv(args.size() + 1);
     for (args_vector::size_type i = 0; i < args.size(); i++)
         argv[i] = args[i].c_str();
-    argv[args.size()] = NULL;
-    return parse(static_cast< int >(args.size()), argv.get(), options);
+    argv.back() = nullptr;
+    return parse(static_cast< int >(args.size()), argv.data(), options);
 }
 
 
@@ -342,7 +342,7 @@ cmdline::parse(const int argc, const char* const* argv,
 
         while ((ch = ::getopt_long(mutable_argc, mutable_argv,
                                    ("+:" + data.short_options).c_str(),
-                                   data.long_options.get(), NULL)) != -1) {
+                                   data.long_options.data(), NULL)) != -1) {
             if (ch == ':' ) {
                 const std::string name = find_option_name(
                     data, ::optopt, mutable_argv, ::optind);

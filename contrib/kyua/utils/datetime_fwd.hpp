@@ -37,6 +37,7 @@ namespace datetime {
 
 
 class delta;
+class monotonic_timestamp;
 class timestamp;
 
 

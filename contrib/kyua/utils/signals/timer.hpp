@@ -55,7 +55,8 @@ void invoke_do_fired(timer*);
 /// Individual timer.
 ///
 /// Asynchronously executes its callback() method, which can be overridden by
-/// subclasses, when the timeout given at construction expires.
+/// subclasses, when the timeout or absolute deadline given at construction
+/// expires.
 class timer : noncopyable {
     struct impl;
 
@@ -64,15 +65,18 @@ class timer : noncopyable {
 
     friend void detail::invoke_do_fired(timer*);
     void do_fired(void);
+    void start(const utils::datetime::monotonic_timestamp&,
+               const utils::datetime::monotonic_timestamp&);
 
 protected:
     virtual void callback(void);
 
 public:
     timer(const utils::datetime::delta&);
+    timer(const utils::datetime::monotonic_timestamp&);
     virtual ~timer(void);
 
-    const utils::datetime::timestamp& when(void) const;
+    const utils::datetime::monotonic_timestamp& when(void) const;
 
     bool fired(void) const;
 
