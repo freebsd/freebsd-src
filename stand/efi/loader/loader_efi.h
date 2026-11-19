@@ -52,6 +52,7 @@ struct preloaded_file;
 int	efi_autoload(void);
 
 int	efi_copy_init(void);
+bool	efi_copy_reserve(vm_offset_t end, bool allow_slop);
 
 ssize_t	efi_copyin(const void *src, vm_offset_t dest, const size_t len);
 ssize_t	efi_copyout(const vm_offset_t src, void *dest, const size_t len);

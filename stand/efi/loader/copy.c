@@ -467,6 +467,24 @@ expand:
 	return (false);
 }
 
+/*
+ * Reserve through a logical load address while boot services can grow it.
+ * If growth fails, allow_slop permits the caller to use existing slack.
+ * Set it only when subsequent copies will follow ExitBootServices; copies
+ * made while boot services remain active still require full staging slop.
+ */
+bool
+efi_copy_reserve(vm_offset_t end, bool allow_slop)
+{
+
+	if (!stage_offset_set)
+		return (false);
+	end += stage_offset;
+	if (efi_check_space(end))
+		return (true);
+	return (allow_slop && end <= staging_end);
+}
+
 void *
 efi_translate(vm_offset_t ptr)
 {

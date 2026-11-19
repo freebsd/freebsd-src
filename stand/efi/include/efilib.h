@@ -119,9 +119,15 @@ EFI_STATUS errno_to_efi_status(int errno);
 void efi_time_init(void);
 void efi_time_fini(void);
 
+/* TPM measurements and firmware event logs. */
 struct preloaded_file;
+struct efi_tpm_eventlog;
 void efi_tpm_measure_file(struct preloaded_file *, vm_offset_t, size_t);
 void efi_tpm_measure_boot(void);
+struct efi_tpm_eventlog *efi_tpm_log_prepare(struct preloaded_file *);
+void efi_tpm_log_free(struct efi_tpm_eventlog *);
+void efi_tpm_log_finish(struct efi_tpm_eventlog *, EFI_MEMORY_DESCRIPTOR *,
+    size_t, size_t);
 
 int parse_uefi_con_out(void);
 EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab);
