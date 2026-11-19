@@ -32,6 +32,7 @@ ATF_TESTS_SH+=	altq \
 		modulate \
 		names \
 		nat \
+		nat46 \
 		nat64 \
 		once \
 		osfp \
