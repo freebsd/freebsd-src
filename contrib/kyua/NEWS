@@ -1,5 +1,23 @@
 # Major changes between releases
 
+## Changes in version 0.15.2
+
+**Released on 2026/11/19.**
+
+### Bugfixes
+
+* #345: Use monotonic time for timer deadlines
+* #352: Get rid of utils::auto_array
+* #355: Use absolute deadlines in some timer activation tests
+* #357: Fix UB related to iterator lifetime in text templates
+* #360: fix(ci): update LLVM toolchains on macOS and Ubuntu
+
+### Developer Workflow Changes
+
+* #361: Port over dev workflow items from ATF project (commit-check, pre-commit)
+
+**Full Changelog**: https://github.com/freebsd/lutok/compare/kyua-0.15.1...kyua-0.15.2
+
 ## Changes in version 0.15.1
 
 **Released on 2026/10/25.**

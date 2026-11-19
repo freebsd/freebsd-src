@@ -556,6 +556,115 @@ ATF_TEST_CASE_BODY(timestamp__output)
 }
 
 
+ATF_TEST_CASE_WITHOUT_HEAD(monotonic_timestamp__add_delta);
+ATF_TEST_CASE_BODY(monotonic_timestamp__add_delta)
+{
+    const datetime::monotonic_timestamp start =
+        datetime::monotonic_timestamp::from_microseconds(1999999);
+
+    ATF_REQUIRE_EQ(2000001,
+                   (start + datetime::delta(0, 2)).to_microseconds());
+    ATF_REQUIRE_EQ(5000001,
+                   (start + datetime::delta(3, 2)).to_microseconds());
+}
+
+
+ATF_TEST_CASE_WITHOUT_HEAD(monotonic_timestamp__subtraction);
+ATF_TEST_CASE_BODY(monotonic_timestamp__subtraction)
+{
+    const datetime::monotonic_timestamp start =
+        datetime::monotonic_timestamp::from_microseconds(1999999);
+    const datetime::monotonic_timestamp end =
+        datetime::monotonic_timestamp::from_microseconds(5000001);
+
+    ATF_REQUIRE_EQ(datetime::delta(3, 2), end - start);
+    ATF_REQUIRE_EQ(datetime::delta(0, 0), start - start);
+}
+
+
+ATF_TEST_CASE_WITHOUT_HEAD(monotonic_timestamp__subtraction__negative);
+ATF_TEST_CASE_BODY(monotonic_timestamp__subtraction__negative)
+{
+    const datetime::monotonic_timestamp start =
+        datetime::monotonic_timestamp::from_microseconds(1999999);
+    const datetime::monotonic_timestamp end =
+        datetime::monotonic_timestamp::from_microseconds(2000001);
+
+    ATF_REQUIRE_THROW(std::runtime_error, start - end);
+}
+
+
+ATF_TEST_CASE_WITHOUT_HEAD(monotonic_timestamp__equals);
+ATF_TEST_CASE_BODY(monotonic_timestamp__equals)
+{
+    using datetime::monotonic_timestamp;
+
+    ATF_REQUIRE(monotonic_timestamp::from_microseconds(1999999) ==
+                monotonic_timestamp::from_microseconds(1999999));
+    ATF_REQUIRE(!(monotonic_timestamp::from_microseconds(1999999) ==
+                  monotonic_timestamp::from_microseconds(2000000)));
+}
+
+
+ATF_TEST_CASE_WITHOUT_HEAD(monotonic_timestamp__differs);
+ATF_TEST_CASE_BODY(monotonic_timestamp__differs)
+{
+    using datetime::monotonic_timestamp;
+
+    ATF_REQUIRE(!(monotonic_timestamp::from_microseconds(1999999) !=
+                  monotonic_timestamp::from_microseconds(1999999)));
+    ATF_REQUIRE(monotonic_timestamp::from_microseconds(1999999) !=
+                monotonic_timestamp::from_microseconds(2000000));
+}
+
+
+ATF_TEST_CASE_WITHOUT_HEAD(monotonic_timestamp__sorting);
+ATF_TEST_CASE_BODY(monotonic_timestamp__sorting)
+{
+    const datetime::monotonic_timestamp first =
+        datetime::monotonic_timestamp::from_microseconds(1999999);
+    const datetime::monotonic_timestamp equal =
+        datetime::monotonic_timestamp::from_microseconds(1999999);
+    const datetime::monotonic_timestamp later =
+        datetime::monotonic_timestamp::from_microseconds(2000000);
+
+    ATF_REQUIRE(!(first < equal));
+    ATF_REQUIRE(  first <= equal);
+    ATF_REQUIRE(!(first > equal));
+    ATF_REQUIRE(  first >= equal);
+
+    ATF_REQUIRE(  first < later);
+    ATF_REQUIRE(  first <= later);
+    ATF_REQUIRE(!(first > later));
+    ATF_REQUIRE(!(first >= later));
+
+    ATF_REQUIRE(!(later < first));
+    ATF_REQUIRE(!(later <= first));
+    ATF_REQUIRE(  later > first);
+    ATF_REQUIRE(  later >= first);
+}
+
+
+ATF_TEST_CASE_WITHOUT_HEAD(monotonic_timestamp__now__real);
+ATF_TEST_CASE_BODY(monotonic_timestamp__now__real)
+{
+    ::timespec before, after;
+    ATF_REQUIRE_EQ(0, ::clock_gettime(CLOCK_MONOTONIC, &before));
+    const datetime::monotonic_timestamp now =
+        datetime::monotonic_timestamp::now();
+    ATF_REQUIRE_EQ(0, ::clock_gettime(CLOCK_MONOTONIC, &after));
+
+    // Compare in the public type's units as consecutive readings may be equal
+    const int64_t before_us = static_cast< int64_t >(before.tv_sec) * 1000000 +
+        before.tv_nsec / 1000;
+    const int64_t after_us = static_cast< int64_t >(after.tv_sec) * 1000000 +
+        after.tv_nsec / 1000;
+
+    ATF_REQUIRE(now.to_microseconds() >= before_us);
+    ATF_REQUIRE(now.to_microseconds() <= after_us);
+}
+
+
 ATF_INIT_TEST_CASES(tcs)
 {
     ATF_ADD_TEST_CASE(tcs, delta__defaults);
@@ -590,4 +699,12 @@ ATF_INIT_TEST_CASES(tcs)
     ATF_ADD_TEST_CASE(tcs, timestamp__subtract_delta_and_set);
     ATF_ADD_TEST_CASE(tcs, timestamp__subtraction);
     ATF_ADD_TEST_CASE(tcs, timestamp__output);
+
+    ATF_ADD_TEST_CASE(tcs, monotonic_timestamp__add_delta);
+    ATF_ADD_TEST_CASE(tcs, monotonic_timestamp__subtraction);
+    ATF_ADD_TEST_CASE(tcs, monotonic_timestamp__subtraction__negative);
+    ATF_ADD_TEST_CASE(tcs, monotonic_timestamp__equals);
+    ATF_ADD_TEST_CASE(tcs, monotonic_timestamp__differs);
+    ATF_ADD_TEST_CASE(tcs, monotonic_timestamp__sorting);
+    ATF_ADD_TEST_CASE(tcs, monotonic_timestamp__now__real);
 }

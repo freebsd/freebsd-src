@@ -350,8 +350,8 @@ class templates_parser : utils::noncopyable {
                 input.seekg(loop.position);
             } else {
                 _loop_level--;
-                _loops.pop();
                 _templates.remove_variable(loop.iterator);
+                _loops.pop();
             }
         } break;
 
