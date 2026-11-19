@@ -101,7 +101,8 @@ class global_state : utils::noncopyable {
     ///
     /// This collection is ordered intentionally so that it can be scanned
     /// sequentially to find either expired or expiring-now timers.
-    typedef std::map< datetime::timestamp, timers_set > timers_by_timestamp_map;
+    typedef std::map< datetime::monotonic_timestamp, timers_set >
+        timers_by_timestamp_map;
 
     /// The original timer before any timer was programmed.
     ::itimerval _old_timeval;
@@ -110,7 +111,7 @@ class global_state : utils::noncopyable {
     std::unique_ptr< signals::programmer > _sigalrm_programmer;
 
     /// Time of the current activation of the timer.
-    datetime::timestamp _timer_activation;
+    datetime::monotonic_timestamp _timer_activation;
 
     /// Mapping of all active timers using their timestamp as the key.
     timers_by_timestamp_map _all_timers;
@@ -161,7 +162,7 @@ class global_state : utils::noncopyable {
     /// activations in the past.
     timers_vector
     compute_timers_to_run_and_prune_old(
-        const datetime::timestamp& now,
+        const datetime::monotonic_timestamp& now,
         const signals::interrupts_inhibiter& /* inhibiter */)
     {
         timers_vector to_run;
@@ -189,7 +190,7 @@ class global_state : utils::noncopyable {
     /// \throw system_error If the programming fails.
     void
     reprogram_system_timer(
-        const datetime::timestamp& now,
+        const datetime::monotonic_timestamp& now,
         const signals::interrupts_inhibiter& /* inhibiter */)
     {
         if (_all_timers.empty()) {
@@ -207,7 +208,7 @@ class global_state : utils::noncopyable {
         // the first entry represents the desired value.
         timers_by_timestamp_map::const_iterator iter = _all_timers.begin();
         PRE(!(*iter).second.empty());
-        datetime::timestamp next = (*iter).first;
+        datetime::monotonic_timestamp next = (*iter).first;
         while (next < now) {
             ++iter;
             if (iter == _all_timers.end()) {
@@ -239,7 +240,8 @@ public:
     /// \param now The current timestamp.
     ///
     /// \throw system_error If the programming fails.
-    global_state(signals::timer* timer, const datetime::timestamp& now) :
+    global_state(signals::timer* timer,
+                 const datetime::monotonic_timestamp& now) :
         _timer_activation(timer->when())
     {
         PRE(now < timer->when());
@@ -290,7 +292,7 @@ public:
     ///
     /// \throw system_error If the programming fails.
     void
-    program_new(signals::timer* timer, const datetime::timestamp& now)
+    program_new(signals::timer* timer, const datetime::monotonic_timestamp& now)
     {
         signals::interrupts_inhibiter inhibiter;
 
@@ -318,7 +320,8 @@ public:
         if (_all_timers.empty()) {
             return false;
         } else {
-            reprogram_system_timer(datetime::timestamp::now(), inhibiter);
+            reprogram_system_timer(datetime::monotonic_timestamp::now(),
+                                   inhibiter);
             return true;
         }
     }
@@ -329,7 +332,7 @@ public:
     ///
     /// \param now The current time.
     void
-    fire(const datetime::timestamp& now)
+    fire(const datetime::monotonic_timestamp& now)
     {
         timers_vector to_run;
         {
@@ -357,7 +360,7 @@ static void
 sigalrm_handler(const int signo)
 {
     PRE(signo == SIGALRM);
-    globals->fire(datetime::timestamp::now());
+    globals->fire(datetime::monotonic_timestamp::now());
 }
 
 
@@ -386,7 +389,7 @@ struct utils::signals::timer::impl : utils::noncopyable {
     /// Note that the timer might be processed after this timestamp, so users of
     /// this field need to check for timers that fire on or before the
     /// activation time.
-    datetime::timestamp when;
+    datetime::monotonic_timestamp when;
 
     /// True until unprogram() is called.
     bool programmed;
@@ -400,7 +403,7 @@ struct utils::signals::timer::impl : utils::noncopyable {
     /// Constructor.
     ///
     /// \param when_ Timestamp when this timer is expected to fire.
-    impl(const datetime::timestamp& when_) :
+    impl(const datetime::monotonic_timestamp& when_) :
         when(when_), programmed(true), fired(false)
     {
     }
@@ -422,8 +425,38 @@ signals::timer::timer(const datetime::delta& delta)
 {
     signals::interrupts_inhibiter inhibiter;
 
-    const datetime::timestamp now = datetime::timestamp::now();
-    _pimpl.reset(new impl(now + delta));
+    const datetime::monotonic_timestamp now =
+        datetime::monotonic_timestamp::now();
+    start(now + delta, now);
+}
+
+
+/// Constructor; programs a run-once timer at an absolute monotonic deadline.
+///
+/// \pre If this is the first timer, the deadline must be in the future.
+///
+/// \param when The absolute deadline at which the timer should fire.
+signals::timer::timer(const datetime::monotonic_timestamp& when)
+{
+    signals::interrupts_inhibiter inhibiter;
+
+    const datetime::monotonic_timestamp now =
+        datetime::monotonic_timestamp::now();
+    start(when, now);
+}
+
+
+/// Initializes and registers a timer using the constructor's time sample.
+///
+/// \pre Signals must be inhibited.
+///
+/// \param when The absolute deadline at which the timer should fire.
+/// \param now The current timestamp sampled by the constructor.
+void
+signals::timer::start(const datetime::monotonic_timestamp& when,
+                      const datetime::monotonic_timestamp& now)
+{
+    _pimpl.reset(new impl(when));
     if (globals.get() == NULL) {
         globals.reset(new global_state(this, now));
     } else {
@@ -451,7 +484,8 @@ signals::timer::~timer(void)
     }
 
     if (!_pimpl->fired) {
-        const datetime::timestamp now = datetime::timestamp::now();
+        const datetime::monotonic_timestamp now =
+            datetime::monotonic_timestamp::now();
         if (now > _pimpl->when) {
             LW("Expired timer never fired; the code never called unprogram()!");
         }
@@ -459,11 +493,11 @@ signals::timer::~timer(void)
 }
 
 
-/// Returns the time of the timer activation.
+/// Returns the monotonic time of the timer activation.
 ///
-/// \return A timestamp that has no relation to the current time (i.e. can be in
-/// the future or in the past) nor the timer's activation status.
-const datetime::timestamp&
+/// \return A monotonic deadline, which may be in the past or future regardless
+/// of the timer's activation status.
+const datetime::monotonic_timestamp&
 signals::timer::when(void) const
 {
     return _pimpl->when;
@@ -537,7 +571,8 @@ signals::timer::unprogram(void)
     // Handle the case where the timer has expired before we ever got its
     // corresponding signal.  Do so by invoking its callback now.
     if (!_pimpl->fired) {
-        const datetime::timestamp now = datetime::timestamp::now();
+        const datetime::monotonic_timestamp now =
+            datetime::monotonic_timestamp::now();
         if (now > _pimpl->when) {
             LW(F("Firing expired timer on destruction (was to fire on %s)") %
                _pimpl->when);

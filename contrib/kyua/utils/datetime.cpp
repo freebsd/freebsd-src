@@ -612,3 +612,91 @@ datetime::operator<<(std::ostream& output, const timestamp& object)
 {
     return (output << object.to_microseconds() << "us");
 }
+
+
+/// Constructs a monotonic time point measured in microseconds.
+///
+/// \param useconds Microseconds since the monotonic clock's origin.
+datetime::monotonic_timestamp::monotonic_timestamp(const int64_t useconds) :
+    _useconds(useconds)
+{
+}
+
+
+/// Constructs a monotonic time point from a count of microseconds.
+///
+/// \param useconds Microseconds since the monotonic clock's origin.
+///
+/// \return A new monotonic time point.
+datetime::monotonic_timestamp
+datetime::monotonic_timestamp::from_microseconds(const int64_t useconds)
+{
+    return monotonic_timestamp(useconds);
+}
+
+
+/// Constructs a time point representing the current monotonic time.
+///
+/// The monotonic clock is independent of calendar clock adjustments.
+///
+/// \return A new monotonic time point.
+datetime::monotonic_timestamp
+datetime::monotonic_timestamp::now(void)
+{
+    ::timespec data;
+    if (::clock_gettime(CLOCK_MONOTONIC, &data) == -1)
+        UNREACHABLE_MSG("clock_gettime(CLOCK_MONOTONIC) failed");
+    return monotonic_timestamp(static_cast< int64_t >(data.tv_sec) * 1000000 +
+                               data.tv_nsec / 1000);
+}
+
+
+/// Returns the number of microseconds since the monotonic clock's origin.
+///
+/// \return A number of microseconds, unrelated to the calendar epoch.
+int64_t
+datetime::monotonic_timestamp::to_microseconds(void) const
+{
+    return _useconds;
+}
+
+
+/// Calculates the addition of a delta to a monotonic time point.
+///
+/// \param other The delta to add.
+///
+/// \return A new monotonic time point at the resulting deadline.
+datetime::monotonic_timestamp
+datetime::monotonic_timestamp::operator+(const datetime::delta& other) const
+{
+    return monotonic_timestamp(_useconds + other.to_microseconds());
+}
+
+
+/// Calculates the delta between two monotonic time points.
+///
+/// \param other The subtrahend.
+///
+/// \return The difference between this object and the other object.
+///
+/// \throw std::runtime_error If the subtraction would result in a negative time
+///     delta, which is not supported.
+datetime::delta
+datetime::monotonic_timestamp::operator-(
+    const monotonic_timestamp& other) const
+{
+    return delta::from_microseconds(_useconds - other._useconds);
+}
+
+
+/// Injects the object into a stream.
+///
+/// \param output The stream into which to inject the object.
+/// \param object The object to format.
+///
+/// \return The output stream.
+std::ostream&
+datetime::operator<<(std::ostream& output, const monotonic_timestamp& object)
+{
+    return output << object.to_microseconds() << "us";
+}

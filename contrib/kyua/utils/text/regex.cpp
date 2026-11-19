@@ -34,7 +34,8 @@ extern "C" {
 #include <regex.h>
 }
 
-#include "utils/auto_array.ipp"
+#include <vector>
+
 #include "utils/defs.hpp"
 #include "utils/format/macros.hpp"
 #include "utils/noncopyable.hpp"
@@ -86,13 +87,8 @@ struct utils::text::regex_matches::impl : utils::noncopyable {
     /// tests).  Just go for the safer case here.
     const std::string _string;
 
-    /// Maximum number of matching groups we expect, including the full match.
-    ///
-    /// In other words, this is the size of the _matches array.
-    const std::size_t _nmatches;
-
-    /// Native regular expression match representation.
-    utils::auto_array< ::regmatch_t > _matches;
+    /// Native match results, including the full match; empty if no match.
+    std::vector< ::regmatch_t > _matches;
 
     /// Constructor.
     ///
@@ -108,13 +104,12 @@ struct utils::text::regex_matches::impl : utils::noncopyable {
     impl(const ::regex_t* preg, const std::string& str,
          const std::size_t ngroups) :
         _string(str),
-        _nmatches(ngroups + 1),
-        _matches(new ::regmatch_t[_nmatches])
+        _matches(ngroups + 1)
     {
-        const int error = ::regexec(preg, _string.c_str(), _nmatches,
-                                    _matches.get(), 0);
+        const int error = ::regexec(preg, _string.c_str(), _matches.size(),
+                                    _matches.data(), 0);
         if (error == REG_NOMATCH) {
-            _matches.reset(NULL);
+            std::vector< ::regmatch_t >().swap(_matches); // clear memory
         } else if (error != 0) {
             throw_regex_error(error, preg,
                               F("regexec on '%s' failed") % _string);
@@ -154,13 +149,11 @@ std::size_t
 text::regex_matches::count(void) const
 {
     std::size_t total = 0;
-    if (_pimpl->_matches.get() != NULL) {
-        for (std::size_t i = 0; i < _pimpl->_nmatches; ++i) {
-            if (_pimpl->_matches[i].rm_so != -1)
-                ++total;
-        }
-        INV(total <= _pimpl->_nmatches);
+    for (std::size_t i = 0; i < _pimpl->_matches.size(); ++i) {
+        if (_pimpl->_matches[i].rm_so != -1)
+            ++total;
     }
+    INV(total <= _pimpl->_matches.size());
     return total;
 }
 
@@ -192,7 +185,7 @@ text::regex_matches::get(const std::size_t index) const
 /// \return True if the object contains one or more matches; false otherwise.
 text::regex_matches::operator bool(void) const
 {
-    return _pimpl->_matches.get() != NULL;
+    return !_pimpl->_matches.empty();
 }
 
 

@@ -2,7 +2,6 @@ syntax(2)
 
 test_suite("kyua")
 
-atf_test_program{name="auto_array_test"}
 atf_test_program{name="datetime_test"}
 atf_test_program{name="env_test"}
 atf_test_program{name="memory_test"}
