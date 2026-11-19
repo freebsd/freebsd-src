@@ -10,6 +10,8 @@ LOADER_TFTP_SUPPORT?=	no
 LOADER_GZIP_SUPPORT?=	no
 LOADER_BZIP2_SUPPORT?=	no
 
+KBOOT_HTTP_TEST?=	no
+
 .include <bsd.init.mk>
 
 PROG=		loader.kboot
@@ -60,8 +62,12 @@ CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/arch/${MACHINE_ARCH}
 
 CFLAGS+=	-Wall
 
-DPADD=		${LDR_INTERP} ${LIBOFW} ${LIBSAFDT} ${LIBSA} ${LIBKBOOT}
-LDADD=		${LDR_INTERP} ${LIBOFW} ${LIBSAFDT} ${LIBSA} ${LIBKBOOT}
+.if ${KBOOT_HTTP_TEST} != "no"
+CFLAGS+=	-DKBOOT_HTTP_TEST
+.endif
+
+DPADD=		${LDR_INTERP} ${LIBOFW} ${LIBSAFDT} ${LIBSA} ${LIBKBOOT} ${LIBBEARSSL} ${LIBMUSL}
+LDADD=		${LDR_INTERP} ${LIBOFW} ${LIBSAFDT} ${LIBSA} ${LIBKBOOT} ${LIBBEARSSL} ${LIBMUSL}
 
 # Add our own lua bindings until they are universal
 .if ${LOADER_INTERP} == "lua"
