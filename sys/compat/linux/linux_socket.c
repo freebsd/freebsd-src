@@ -2633,6 +2633,7 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 		error = copyin(PTRIN(args->optlen), &len, sizeof(len));
                 if (error != 0)
                         return (error);
+		len = min(len, SOCK_MAXADDRLEN);
 		sa = malloc(len, M_SONAME, M_WAITOK);
 
 		error = kern_getsockopt(td, args->s, level,

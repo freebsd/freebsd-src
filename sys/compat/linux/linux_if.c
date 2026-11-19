@@ -224,6 +224,7 @@ ifname_linux_to_ifp(const char *lxname)
 	struct ifname_linux_to_ifp_cb_s arg = {
 		.lxname = lxname,
 	};
+	u_long ulunit;
 	int len;
 	char *ep;
 
@@ -239,9 +240,13 @@ ifname_linux_to_ifp(const char *lxname)
 	 * we translate lo to lo0, loX to loX.
 	 */
 	arg.is_lo = (len == 2 && strncmp(lxname, "lo", LINUX_IFNAMSIZ) == 0);
-	arg.unit = (int)strtoul(lxname + len, &ep, 10);
-	if ((ep == NULL || ep == lxname + len || ep >= lxname + LINUX_IFNAMSIZ) &&
-	    arg.is_lo == 0)
+	/* Require a digit: strtoul() would accept signs and whitespace. */
+	if (isdigit(lxname[len])) {
+		ulunit = strtoul(lxname + len, &ep, 10);
+		if (ulunit > INT_MAX || ep >= lxname + LINUX_IFNAMSIZ)
+			return (NULL);
+		arg.unit = (int)ulunit;
+	} else if (arg.is_lo == 0)
 		return (NULL);
 	arg.is_eth = (len == 3 && strncmp(lxname, "eth", len) == 0);
 
