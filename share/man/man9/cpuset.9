@@ -22,7 +22,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd August 7, 2025
+.Dd November 19, 2026
 .Dt CPUSET 9
 .Os
 .Sh NAME
@@ -39,6 +39,7 @@
 .Nm CPU_EMPTY ,
 .Nm CPU_ISFULLSET ,
 .Nm CPU_FFS ,
+.Nm CPU_FFS_AT ,
 .Nm CPU_COUNT ,
 .Nm CPU_SUBSET ,
 .Nm CPU_OVERLAP ,
@@ -78,6 +79,8 @@
 .Fn CPU_ISFULLSET "cpuset_t *cpuset"
 .Ft int
 .Fn CPU_FFS "cpuset_t *cpuset"
+.Ft int
+.Fn CPU_FFS_AT "cpuset_t *cpuset" "long start"
 .Ft int
 .Fn CPU_COUNT "cpuset_t *cpuset"
 .\"
@@ -246,6 +249,25 @@ as a
 index parameter to any other
 .Nm
 macro, you must subtract one from the result.
+.Pp
+The
+.Fn CPU_FFS_AT
+macro returns the 1-index of the first (lowest) CPU in
+.Fa cpuset
+at or after the 0-indexed
+.Fa start ,
+or zero if there is none.
+Passing a non-zero result of
+.Fn CPU_FFS
+or
+.Fn CPU_FFS_AT
+as
+.Fa start
+finds the next CPU in the set.
+A
+.Fa start
+of zero searches from the first CPU again,
+so a loop over the set must stop when the result is zero.
 .Pp
 The
 .Fn CPU_COUNT

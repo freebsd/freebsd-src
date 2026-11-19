@@ -1423,6 +1423,7 @@ SCHED_STAT_DEFINE(pickcpu_affinity, "Picked cpu based on affinity");
 SCHED_STAT_DEFINE(pickcpu_lowest, "Selected lowest load");
 SCHED_STAT_DEFINE(pickcpu_local, "Migrated to current cpu");
 SCHED_STAT_DEFINE(pickcpu_migration, "Selection may have caused migration");
+SCHED_STAT_DEFINE(pickcpu_onecpu, "Cpuset allows a single cpu");
 
 static int
 sched_pickcpu(struct thread *td, int flags)
@@ -1431,7 +1432,7 @@ sched_pickcpu(struct thread *td, int flags)
 	struct td_sched *ts;
 	struct tdq *tdq;
 	cpuset_t *mask;
-	int cpu, pri, r, self, intr;
+	int cpu, cpu_ffs, pri, r, self, intr;
 
 	self = PCPU_GET(cpuid);
 	ts = td_get_sched(td);
@@ -1444,6 +1445,17 @@ sched_pickcpu(struct thread *td, int flags)
 	 */
 	if ((flags & SRQ_OURSELF) || !THREAD_CAN_MIGRATE(td))
 		return (ts->ts_cpu);
+	/*
+	 * A thread whose cpuset holds one cpu can only run there, so skip
+	 * the topology search.
+	 */
+	mask = &td->td_cpuset->cs_mask;
+	cpu_ffs = CPU_FFS(mask);
+	MPASS(cpu_ffs > 0);
+	if (cpu_ffs == CPU_SETSIZE || CPU_FFS_AT(mask, cpu_ffs) == 0) {
+		SCHED_STAT_INC(pickcpu_onecpu);
+		return (cpu_ffs - 1);
+	}
 	/*
 	 * Prefer to run interrupt threads on the processors that generate
 	 * the interrupt.
@@ -1509,7 +1521,6 @@ llc:
 	if (ccg == cpu_top)
 		ccg = NULL;
 	cpu = -1;
-	mask = &td->td_cpuset->cs_mask;
 	pri = td->td_priority;
 	r = TD_IS_RUNNING(td);
 	/*

@@ -964,6 +964,7 @@ MLINKS+=cpuset.9 CPUSET_T_INITIALIZER.9 \
 	cpuset.9 CPU_EMPTY.9 \
 	cpuset.9 CPU_ISFULLSET.9 \
 	cpuset.9 CPU_FFS.9 \
+	cpuset.9 CPU_FFS_AT.9 \
 	cpuset.9 CPU_COUNT.9 \
 	cpuset.9 CPU_SUBSET.9 \
 	cpuset.9 CPU_OVERLAP.9 \

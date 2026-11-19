@@ -69,6 +69,7 @@
 #define	CPU_OR_ATOMIC(d, s)		__BIT_OR_ATOMIC(CPU_SETSIZE, d, s)
 #define	CPU_COPY_STORE_REL(f, t)	__BIT_COPY_STORE_REL(CPU_SETSIZE, f, t)
 #define	CPU_FFS(p)			__BIT_FFS(CPU_SETSIZE, p)
+#define	CPU_FFS_AT(p, start)		__BIT_FFS_AT(CPU_SETSIZE, p, start)
 #define	CPU_FLS(p)			__BIT_FLS(CPU_SETSIZE, p)
 #define	CPU_FOREACH_ISSET(i, p)		__BIT_FOREACH_ISSET(CPU_SETSIZE, i, p)
 #define	CPU_FOREACH_ISCLR(i, p)		__BIT_FOREACH_ISCLR(CPU_SETSIZE, i, p)
