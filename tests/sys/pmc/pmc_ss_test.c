@@ -213,22 +213,26 @@ run_owner(int cpu, struct result *r)
 static int
 sample(struct result *r)
 {
-	struct pmc_op_pmcallocate cfg;
 	cpuset_t mask;
+	pmc_id_t id;
 	pid_t child;
 	ssize_t n;
 	int cpu, fds[2], status;
 
 	if (pmc_init() != 0)
 		atf_tc_skip("hwpmc(4) is not loaded: %s", strerror(errno));
-	memset(&cfg, 0, sizeof(cfg));
-	if (pmc_pmu_pmcallocate(EVENT, &cfg) != 0)
-		atf_tc_skip("no %s event in the pmu-events tables", EVENT);
 
 	ATF_REQUIRE(cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
 	    sizeof(mask), &mask) == 0);
 	cpu = CPU_FFS(&mask) - 1;
 	ATF_REQUIRE(cpu >= 0);
+
+	/* A guest without a PMU has the event name but no counter for it. */
+	id = PMC_ID_INVALID;
+	if (pmc_allocate(EVENT, PMC_MODE_SS, 0, cpu, &id, PERIOD) != 0)
+		atf_tc_skip("pmc_allocate(%s) failed: %s", EVENT,
+		    strerror(errno));
+	ATF_REQUIRE(pmc_release(id) == 0);
 
 	ATF_REQUIRE(pipe(fds) == 0);
 	child = fork();

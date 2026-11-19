@@ -126,7 +126,9 @@ ATF_TC_BODY(getmsr_refusals, tc)
 	setup();
 
 	id = PMC_ID_INVALID;
-	ATF_REQUIRE(pmc_allocate(EVENT, PMC_MODE_SC, 0, 0, &id, 0) == 0);
+	if (pmc_allocate(EVENT, PMC_MODE_SC, 0, 0, &id, 0) != 0)
+		atf_tc_skip("pmc_allocate(%s) failed: %s", EVENT,
+		    strerror(errno));
 	error = getmsr_errno(id);
 	ATF_CHECK_MSG(error == EINVAL, "system mode: errno %d", error);
 	ATF_CHECK(pmc_release(id) == 0);
