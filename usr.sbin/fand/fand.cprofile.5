@@ -1,0 +1,109 @@
+.\" Copyright (c) 2026 Stéphane Rochoy <sheda@FreeBSD.org>
+.\" SPDX-License-Identifier: BSD-2-Clause
+.Dd November 26, 2026
+.Dt FAND.CPROFILE 5
+.Os
+.Sh NAME
+.Nm fand.cprofile
+.Nd Cooling profile file format
+.Sh DESCRIPTION
+A cooling profile is a list of temperature steps with their corresponding target
+duty cycle.
+The steps must be in ascending temperature order.
+Temperatures must be expressed consistently with the temperature sensor read by
+.Pa fand ,
+i.e., both the
+.Fl K
+and
+.Fl m
+options apply to them.
+The profile is read from a file in
+.Xr libucl 3
+format with the following properties:
+.Bl -bullet -compact
+.It
+.Pa lo_duty
+The duty cycle, expressed in nanoseconds, to use when temperature is lower than
+the first temperature step.
+.It
+.Pa steps
+A list of at most 10 temperature steps in ascending order.
+The name of the step is arbitrary.
+Each step must have the following properties:
+.Bl -bullet -compact
+.It
+.Pa temp
+The step's low boundary temperature.
+Its high boundary temperature, if any, is its next step's
+.Pa temp
+property.
+.It
+.Pa duty
+The step's duty cycle, expressed in nanoseconds.
+.El
+.El
+When a cooling profile is used,
+.Pa fand
+will keep the PWM enabled until it exit.
+This is in contrast with manual configuration where the
+.Fl o
+option will disable it.
+.Sh EXAMPLES
+Here is a sample cooling profile assuming neither the
+.Fl K
+nor the
+.Fl m
+options are
+used:
+.Bd -literal
+lo_duty = 532;   # nanoseconds, 1%
+steps {
+    #          °C           nanoseconds
+    0 { temp = 25.0; duty =   532; } #  1%
+    1 { temp = 30.0; duty = 10649; } # 20%
+    2 { temp = 35.0; duty = 25026; } # 47%
+    3 { temp = 40.0; duty = 41533; } # 78%
+    4 { temp = 45.0; duty = 52183; } # 98%
+}
+.Ed
+This sample cooling profile will set duty cycle to:
+.Bl -bullet -compact
+.It
+532 ns when under 25 degrees Celsius, honoring
+.Pa lo_duty
+.It
+532 ns when between 25 and 29 degrees Celsius, honoring
+.Pa steps 0
+.It
+10649 ns when between 30 and 34 degrees Celsius, honoring
+.Pa steps 1
+.It
+25026 ns when between 35 and 39 degrees Celsius, honoring
+.Pa steps 2
+.It
+41533 ns when between 40 and 44 degrees Celsius, honoring
+.Pa steps 3
+.It
+and 52183 ns when above 45 degrees Celsius, honoring
+.Pa steps 4
+.El
+.Sh SEE ALSO
+.Xr libucl 3 ,
+.Xr fand 8
+.Sh AUTHORS
+.An -nosplit
+This manual page were originally written by
+.An Stéphane Rochoy Aq Mt sheda@FreeBSD.org .
+.Sh BUGS
+Cooling profile lake support for:
+.Bl -bullet -compact
+.It
+setting the PWM period
+.It
+enabling polarity inversion
+.It
+setting the temperature unit
+.It
+setting the temperature multiplier
+.El
+And the number of temperature steps is limited to 10.

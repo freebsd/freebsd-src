@@ -1,0 +1,8 @@
+Cooling Profile:
+    Low Duty: 532 ns
+    Steps:
+        25.00 °C → 532 ns
+        30.00 °C → 10649 ns
+        35.00 °C → 25026 ns
+        40.00 °C → 41533 ns
+        45.00 °C → 52183 ns
