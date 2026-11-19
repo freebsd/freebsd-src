@@ -61,6 +61,11 @@ xmbrtowc(wint_t *wi, const char *s, size_t n, mbstate_t *mbs, wint_t dummy)
 	size_t nr;
 	wchar_t wc;
 
+	if (n == 0) {
+		if (wi != NULL)
+			*wi = dummy;
+		return (1);
+	}
 	nr = mbrtowc(&wc, s, n, mbs);
 	if (wi != NULL)
 		*wi = wc;

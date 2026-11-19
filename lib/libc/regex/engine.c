@@ -106,6 +106,7 @@ static const char *backref(struct match *m, const char *start, const char *stop,
 static const char *walk(struct match *m, const char *start, const char *stop, sopno startst, sopno stopst, bool fast);
 static states step(struct re_guts *g, sopno start, sopno stop, states bef, wint_t ch, states aft, int sflags);
 #define MAX_RECURSION	100
+#define MAX_BACKREF_RECURSION	2048
 #define	BOL	(OUT-1)
 #define	EOL	(BOL-1)
 #define	BOLEOL	(BOL-2)
@@ -210,8 +211,11 @@ matcher(struct re_guts *g,
 	if (g->cflags&REG_NOSUB)
 		nmatch = 0;
 	if (eflags&REG_STARTEND) {
-		start = string + pmatch[0].rm_so;
-		stop = string + pmatch[0].rm_eo;
+		if (pmatch == NULL || pmatch[0].rm_so < 0 ||
+		    pmatch[0].rm_eo < pmatch[0].rm_so)
+			return (REG_INVARG);
+		start = string + (size_t)pmatch[0].rm_so;
+		stop = string + (size_t)pmatch[0].rm_eo;
 	} else {
 		start = string;
 		stop = start + strlen(start);
@@ -451,7 +455,7 @@ dissect(struct match *m,
 			assert(nope);
 			break;
 		case OCHAR:
-			sp += XMBRTOWC(NULL, sp, stop - start, &m->mbs, 0);
+			sp += XMBRTOWC(NULL, sp, stop - sp, &m->mbs, 0);
 			break;
 		case OBOL:
 		case OEOL:
@@ -464,7 +468,7 @@ dissect(struct match *m,
 			break;
 		case OANY:
 		case OANYOF:
-			sp += XMBRTOWC(NULL, sp, stop - start, &m->mbs, 0);
+			sp += XMBRTOWC(NULL, sp, stop - sp, &m->mbs, 0);
 			break;
 		case OBACK_:
 		case O_BACK:
@@ -632,6 +636,9 @@ backref(struct match *m,
 	cset *cs;
 	wint_t wc;
 
+	if (++rec > MAX_BACKREF_RECURSION)
+		return (NULL);
+
 	AT("back", start, stop, startst, stopst);
 	sp = start;
 
@@ -696,13 +703,20 @@ backref(struct match *m,
 				return(NULL);
 			break;
 		case ONWBND:
-			if (((sp == m->beginp) && !ISWORD(*sp)) ||
-			    (sp == m->endp && !ISWORD(*(sp - 1))))
-				{ /* yes, beginning/end of subject */ }
-			else if (ISWORD(*(sp - 1)) == ISWORD(*sp))
-				{ /* yes, beginning/end of subject */ }
-			else
-				return(NULL);
+			if (sp == m->beginp && sp == m->endp)
+				break;	/* empty subject has no word chars */
+			if (sp == m->beginp) {
+				if (ISWORD(*sp))
+					return (NULL);
+				break;
+			}
+			if (sp == m->endp) {
+				if (ISWORD(*(sp - 1)))
+					return (NULL);
+				break;
+			}
+			if (ISWORD(*(sp - 1)) != ISWORD(*sp))
+				return (NULL);
 			break;
 		case OBOW:
 			if (ISBOW(m, sp))
@@ -830,7 +844,7 @@ backref(struct match *m,
 	/* "can't happen" */
 	assert(nope);
 	/* NOTREACHED */
-	return "shut up gcc";
+	return (NULL);
 }
 
 /*
@@ -932,7 +946,7 @@ walk(struct match *m, const char *start, const char *stop, sopno startst,
 		if (lastc != OUT && c != OUT &&
 		    ISWORD(lastc) == ISWORD(c)) {
 			flagch = NWBND;
-		} else if ((lastc == OUT && !ISWORD(c)) ||
+		} else if ((lastc == OUT && (c == OUT || !ISWORD(c))) ||
 		    (c == OUT && !ISWORD(lastc))) {
 			flagch = NWBND;
 		}
