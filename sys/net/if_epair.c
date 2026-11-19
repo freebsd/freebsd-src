@@ -202,35 +202,67 @@ epair_tx_start_deferred(void *arg, int pending)
 static struct epair_queue *
 epair_select_queue(struct epair_softc *sc, struct mbuf *m)
 {
-	uint32_t bucket;
+	uint32_t bucket = 0;
 #ifdef RSS
 	struct ether_header *eh;
-	int ret;
+	uint32_t hash, hashtype;
+	uint16_t etype;
+	int i, off, ret;
 
 	ret = rss_m2bucket(m, &bucket);
 	if (ret) {
-		/* Actually hash the packet. */
+		/*
+		 * Actually hash the packet.  The software hash reads the IP
+		 * header at the start of the mbuf, so step over the Ethernet
+		 * header, and over any inline 802.1Q or 802.1ad tags, while
+		 * it runs.  Frames we cannot parse go to the first queue.
+		 */
+		off = ETHER_HDR_LEN;
+		if (m->m_len < off)
+			goto done;
 		eh = mtod(m, struct ether_header *);
+		etype = ntohs(eh->ether_type);
+		for (i = 0; i < 2 && (etype == ETHERTYPE_VLAN ||
+		    etype == ETHERTYPE_QINQ); i++) {
+			if (m->m_len < off + ETHER_VLAN_ENCAP_LEN)
+				goto done;
+			memcpy(&etype, mtod(m, char *) + off +
+			    sizeof(uint16_t), sizeof(etype));
+			etype = ntohs(etype);
+			off += ETHER_VLAN_ENCAP_LEN;
+		}
 
-		switch (ntohs(eh->ether_type)) {
+		m->m_data += off;
+		m->m_len -= off;
+		m->m_pkthdr.len -= off;
+		switch (etype) {
 #ifdef INET
 		case ETHERTYPE_IP:
-			rss_soft_m2cpuid_v4(m, 0, &bucket);
+			ret = rss_mbuf_software_hash_v4(m,
+			    RSS_HASH_PKT_INGRESS, &hash, &hashtype);
 			break;
 #endif
 #ifdef INET6
 		case ETHERTYPE_IPV6:
-			rss_soft_m2cpuid_v6(m, 0, &bucket);
+			ret = rss_mbuf_software_hash_v6(m,
+			    RSS_HASH_PKT_INGRESS, &hash, &hashtype);
 			break;
 #endif
 		default:
-			bucket = 0;
+			ret = -1;
 			break;
 		}
+		m->m_data -= off;
+		m->m_len += off;
+		m->m_pkthdr.len += off;
+		if (ret == 0) {
+			m->m_pkthdr.flowid = hash;
+			M_HASHTYPE_SET(m, hashtype);
+			bucket = rss_getbucket(hash);
+		}
 	}
+done:
 	bucket %= sc->num_queues;
-#else
-	bucket = 0;
 #endif
 	return (&sc->queues[bucket]);
 }

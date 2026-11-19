@@ -1395,6 +1395,7 @@ pfsync_in_upd(struct mbuf *m, int offset, int count, int flags, int action)
 			pfsync_undefer_state(st, 1);
 		}
 
+		pfsync_alloc_scrub_memory(&sp.pfs_1301.dst, &st->dst);
 		if (st->key[PF_SK_WIRE]->proto == IPPROTO_TCP)
 			sync = pfsync_upd_tcp(st, &sp.pfs_1301.src, &sp.pfs_1301.dst);
 		else {
@@ -1414,8 +1415,6 @@ pfsync_in_upd(struct mbuf *m, int offset, int count, int flags, int action)
 				pf_state_peer_ntoh(&sp.pfs_1301.dst, &st->dst);
 		}
 		if (sync < 2) {
-			pfsync_alloc_scrub_memory(&sp.pfs_1301.dst, &st->dst);
-			pf_state_peer_ntoh(&sp.pfs_1301.dst, &st->dst);
 			st->expire = pf_get_uptime();
 			st->timeout = timeout;
 		}
@@ -1479,6 +1478,7 @@ pfsync_in_upd_c(struct mbuf *m, int offset, int count, int flags, int action)
 			pfsync_undefer_state(st, 1);
 		}
 
+		pfsync_alloc_scrub_memory(&up.dst, &st->dst);
 		if (st->key[PF_SK_WIRE]->proto == IPPROTO_TCP)
 			sync = pfsync_upd_tcp(st, &up.src, &up.dst);
 		else {
@@ -1498,8 +1498,6 @@ pfsync_in_upd_c(struct mbuf *m, int offset, int count, int flags, int action)
 				pf_state_peer_ntoh(&up.dst, &st->dst);
 		}
 		if (sync < 2) {
-			pfsync_alloc_scrub_memory(&up.dst, &st->dst);
-			pf_state_peer_ntoh(&up.dst, &st->dst);
 			st->expire = pf_get_uptime();
 			st->timeout = up.timeout;
 		}

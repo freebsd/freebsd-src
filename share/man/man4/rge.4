@@ -3,49 +3,40 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd May 11, 2026
+.Dd November 18, 2026
 .Dt RGE 4
 .Os
 .Sh NAME
 .Nm rge
-.Nd RealTek RTL8125/RTL8126/RTL8127/Killer E3000 PCIe Ethernet adapter driver
+.Nd RealTek RTL8125/RTL8126/RTL8127/Killer E3000 PCIe Ethernet driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device rge"
-.Ed
+.Cd device rge
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-if_rge_load="YES"
-.Ed
+.Cd dev.rge.%d.disable_aspm
+.Cd if_rge_load="YES"
+.Pp
+In
+.Xr loader.conf 5
+or
+.Xr sysctl.conf 5 :
+.Cd dev.rge.%d.debug
+.Cd dev.rge.%d.rx_process_limit
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for various NICs based on the RealTek RTL8125,
-RTL8126 and RTL8127 PCIe Ethernet controllers.
-.Pp
-All of the NICs supported by this driver support 10, 100 and 1000Mbit
-over CAT5 cable.
-NICs based on the RTL8125 additionally support 2.5Gbit over CAT6 cable.
-NICs based on the RTL8126 additionally support 2.5Gbit and 5Gbit over CAT6
-cable.
-NICs based on the RTL8127 additionally support 2.5Gbit, 5Gbit and 10Gbit
-over CAT6 cable.
+driver provides support for NICs based on the
+RealTek RTL8125, RTL8126 and RTL8127 PCIe Ethernet controllers.
 .Pp
 All NICs supported by the
 .Nm
 driver have TCP/IP checksum offload, hardware VLAN tagging/insertion
 features, Wake On Lan (WOL), and use a descriptor-based DMA mechanism.
-They are also
-capable of TCP large send (TCP segmentation offload).
+They are also capable of TCP large send (TCP segmentation offload).
 .Pp
-The RTL8125, RTL8126 and RTL8127 devices are single-chip solutions combining
-both a MAC and PHY.
+The RTL8125, RTL8126 and RTL8127 devices are single-chip solutions
+combining both a MAC and PHY.
 The
 .Nm
 driver manages the PHY directly rather than using the
@@ -53,8 +44,8 @@ driver manages the PHY directly rather than using the
 interface.
 Standalone cards are available in 1x PCIe models.
 .Pp
-The RTL8125, RTL8126 and RTL8127 also support jumbo frames, which can be
-configured via the interface MTU setting.
+The RTL8125, RTL8126 and RTL8127 also support jumbo frames,
+which can be configured via the interface MTU setting.
 The MTU is limited to 9126.
 Selecting an MTU larger than 1500 bytes with the
 .Xr ifconfig 8
@@ -130,15 +121,15 @@ driver supports the following PCIe Ethernet adapters:
 .Pp
 .Bl -bullet -compact
 .It
-RealTek RTL8125 (up to 2.5 Gbps)
+RealTek RTL8127 (10Gb/5Gb/2.5Gb/1Gb/100Mb/10Mb)
 .It
-RealTek RTL8126 (up to 5 Gbps)
+RealTek RTL8126 (5Gb/2.5Gb/1Gb/100Mb/10Mb)
 .It
-RealTek RTL8127 (up to 10 Gbps)
+RealTek RTL8125 (2.5Gb/1Gb/100Mb/10Mb)
 .It
-Killer E3000 (up to 2.5 Gbps)
+Killer E5000 (5Gb/2.5Gb/1Gb/100Mb/10Mb)
 .It
-Killer E5000 (up to 5 Gbps)
+Killer E3000 (2.5Gb/1Gb/100Mb/10Mb)
 .El
 .Sh SYSCTL VARIABLES
 The following variables are available as both
@@ -146,9 +137,10 @@ The following variables are available as both
 variables and
 .Xr loader 8
 tunables:
-.Bl -tag -width "xxxxxx"
+.Bl -tag -width indent
 .It Va dev.rge.%d.debug
-Configure runtime debug output.  This is a 32 bit bitmask.
+Configure runtime debug output.
+This is a 32 bit bitmask.
 .It Va dev.rge.%d.rx_process_limit
 Maximum number of RX packets to process per interrupt.
 The default value is 16.
@@ -167,8 +159,8 @@ and requires a reboot to take effect.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "rge%d: watchdog timeout"
-The device has stopped responding to the network, or there is a problem with
-the network connection (cable).
+The device has stopped responding to the network,
+or there is a problem with the network connection (cable).
 .El
 .Sh SEE ALSO
 .Xr altq 4 ,
@@ -180,18 +172,20 @@ the network connection (cable).
 .Xr re 4 ,
 .Xr vlan 4 ,
 .Xr ifconfig 8
-.Rs
-.%U https://www.realtek.com/
-.Re
+.Pp
+.Lk https://www.realtek.com/
 .Sh HISTORY
 The
 .Nm
 device driver first appeared in
-.Fx 16.0 .
+.Fx 15.2 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 driver was written by
 .An Kevin Lo Aq Mt kevlo@openbsd.org
-and ported to FreeBSD by
+and ported to
+.Fx
+by
 .An Adrian Chadd Aq Mt adrian@FreeBSD.org .

@@ -313,7 +313,7 @@ is reaped, and all its process descriptors are closed.
 A debugger attached by
 .Xr ptrace 2
 can execute the
-.Fn waitpid
+.Xr waitpid 2
 calls against the alive target regardless of the way
 the target process was forked.
 .Ss Interaction of Process Descriptors with other System Calls
@@ -357,7 +357,7 @@ The PID of the referenced process is not reused until the process
 descriptor is closed,
 whether or not the zombie process is reaped by
 .Fn pdwait ,
-.Fn wait6 ,
+.Xr wait6 2 ,
 or similar system calls.
 .Sh RETURN VALUES
 .Fn pdfork
@@ -392,13 +392,13 @@ Note that the child process was already created when this condition
 is detected,
 and the child continues execution, same as the parent.
 If this error must be handled, it is advisable to memoize the
-.Fn getpid
+.Xr getpid 2
 result before the call to
 .Fn pdfork
 or
 .Fn pdrfork ,
 and compare it to the value returned by
-.Fn getpid
+.Xr getpid 2
 after, to see if code is executing in parent or child.
 .It Bq Er EINVAL
 The signal number given to
@@ -502,10 +502,13 @@ capability enabled.
 .Xr close 2 ,
 .Xr fork 2 ,
 .Xr fstat 2 ,
+.Xr getpid 2 ,
 .Xr kill 2 ,
 .Xr kqueue 2 ,
 .Xr poll 2 ,
 .Xr wait4 2 ,
+.Xr wait6 2 ,
+.Xr waitpid 2 ,
 .Xr capsicum 4 ,
 .Xr procdesc 4
 .Sh HISTORY

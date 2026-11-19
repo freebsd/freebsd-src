@@ -35,6 +35,7 @@ extern "C" {
 
 #include <cstddef>
 #include <iostream>
+#include <memory>
 #include <vector>
 
 #include <atf-c++.hpp>
@@ -78,6 +79,17 @@ public:
     delayed_inserter(const datetime::delta& delta,
                      std::vector< int >& destination, const int item) :
         signals::timer(delta), _destination(destination), _item(item)
+    {
+    }
+
+    /// Constructor with an absolute deadline.
+    ///
+    /// \param when Absolute monotonic time of the activation.
+    /// \param destination Vector into which to insert the element.
+    /// \param item Element to insert into destination on activation.
+    delayed_inserter(const datetime::monotonic_timestamp& when,
+                     std::vector< int >& destination, const int item) :
+        signals::timer(when), _destination(destination), _item(item)
     {
     }
 };
@@ -183,25 +195,37 @@ ATF_TEST_CASE_BODY(multiprogram_reorder_next_activations)
     std::vector< signals::timer* > timers;
     std::vector< int > items;
 
-    // First timer with an activation in the future.
-    timers.push_back(new delayed_inserter(
-                         datetime::delta(0, 100000), items, 1));
-    ATF_REQUIRE(!timers[timers.size() - 1]->fired());
+    {
+        // Register the whole group before any callback can run.
+        signals::interrupts_inhibiter inhibiter;
 
-    // Timer with an activation earlier than the previous one.
-    timers.push_back(new delayed_inserter(
-                         datetime::delta(0, 50000), items, 2));
-    ATF_REQUIRE(!timers[timers.size() - 1]->fired());
+        // First timer with an activation in the future.
+        const datetime::delta initial_delay(0, 100000);
+        timers.push_back(new delayed_inserter(initial_delay, items, 1));
+        ATF_REQUIRE(!timers[timers.size() - 1]->fired());
 
-    // Timer with an activation later than all others.
-    timers.push_back(new delayed_inserter(
-                         datetime::delta(0, 200000), items, 3));
-    ATF_REQUIRE(!timers[timers.size() - 1]->fired());
+        // Use the first timer's time origin so registration delays cannot
+        // change the order of the deadlines.
+        const datetime::monotonic_timestamp base =
+            datetime::monotonic_timestamp::from_microseconds(
+                timers[0]->when().to_microseconds() -
+                initial_delay.to_microseconds());
 
-    // Timer with an activation in between.
-    timers.push_back(new delayed_inserter(
-                         datetime::delta(0, 150000), items, 4));
-    ATF_REQUIRE(!timers[timers.size() - 1]->fired());
+        // Timer with an activation earlier than the previous one.
+        timers.push_back(new delayed_inserter(
+                             base + datetime::delta(0, 50000), items, 2));
+        ATF_REQUIRE(!timers[timers.size() - 1]->fired());
+
+        // Timer with an activation later than all others.
+        timers.push_back(new delayed_inserter(
+                             base + datetime::delta(0, 200000), items, 3));
+        ATF_REQUIRE(!timers[timers.size() - 1]->fired());
+
+        // Timer with an activation in between.
+        timers.push_back(new delayed_inserter(
+                             base + datetime::delta(0, 150000), items, 4));
+        ATF_REQUIRE(!timers[timers.size() - 1]->fired());
+    }
 
     wait_timers(timers);
 
@@ -269,13 +293,18 @@ ATF_TEST_CASE_BODY(multiprogram_and_expire_before_activations)
         signals::interrupts_inhibiter inhibiter;
 
         // First timer with an activation in the future.
-        timers.push_back(new delayed_inserter(
-                             datetime::delta(0, 100000), items, 1));
+        const datetime::delta initial_delay(0, 100000);
+        timers.push_back(new delayed_inserter(initial_delay, items, 1));
         ATF_REQUIRE(!timers[timers.size() - 1]->fired());
+
+        const datetime::monotonic_timestamp base =
+            datetime::monotonic_timestamp::from_microseconds(
+                timers[0]->when().to_microseconds() -
+                initial_delay.to_microseconds());
 
         // Timer with an activation earlier than the previous one.
         timers.push_back(new delayed_inserter(
-                             datetime::delta(0, 50000), items, 2));
+                             base + datetime::delta(0, 50000), items, 2));
         ATF_REQUIRE(!timers[timers.size() - 1]->fired());
 
         ::sleep(1);
@@ -411,8 +440,52 @@ ATF_TEST_CASE_BODY(infinitesimal)
 }
 
 
+ATF_TEST_CASE(calendar_backward);
+ATF_TEST_CASE_HEAD(calendar_backward)
+{
+    set_md_var("timeout", "10");
+}
+ATF_TEST_CASE_BODY(calendar_backward)
+{
+    std::unique_ptr< signals::timer > timer;
+    {
+        // Ensure the calendar jump happens before any alarm is processed.
+        signals::interrupts_inhibiter inhibiter;
+        datetime::set_mock_now(
+            datetime::timestamp::from_microseconds(2000000000));
+        timer.reset(new signals::timer(datetime::delta(0, 100000)));
+        datetime::set_mock_now(
+            datetime::timestamp::from_microseconds(1000000000));
+    }
+
+    // Moving calendar time backwards must not prevent the alarm from firing.
+    while (!timer->fired())
+        ::usleep(1000);
+}
+
+
+ATF_TEST_CASE(calendar_forward);
+ATF_TEST_CASE_HEAD(calendar_forward)
+{
+    set_md_var("timeout", "10");
+}
+ATF_TEST_CASE_BODY(calendar_forward)
+{
+    datetime::set_mock_now(datetime::timestamp::from_microseconds(1000000000));
+    // The deadline is beyond the test's timeout, so it cannot expire normally.
+    signals::timer timer(datetime::delta(60, 0));
+    datetime::set_mock_now(datetime::timestamp::from_microseconds(9000000000));
+
+    // Processing an alarm must not treat the calendar jump as elapsed time.
+    ::raise(SIGALRM);
+    ATF_REQUIRE(!timer.fired());
+}
+
+
 ATF_INIT_TEST_CASES(tcs)
 {
+    ATF_ADD_TEST_CASE(tcs, calendar_backward);
+    ATF_ADD_TEST_CASE(tcs, calendar_forward);
     ATF_ADD_TEST_CASE(tcs, program_seconds);
     ATF_ADD_TEST_CASE(tcs, program_useconds);
     ATF_ADD_TEST_CASE(tcs, multiprogram_ordered);

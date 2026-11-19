@@ -29,7 +29,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd September 2, 2026
+.Dd November 19, 2026
 .Dt IX 4
 .Os
 .Sh NAME
@@ -63,6 +63,7 @@ or
 .Cd dev.ix.?.eee_state
 .Cd dev.ix.?.eee.tx_lpi_count
 .Cd dev.ix.?.eee.rx_lpi_count
+.Cd dev.ix.?.wake
 .Sh DESCRIPTION
 The
 .Nm
@@ -88,6 +89,7 @@ corresponding device wake source when it is exposed, for example:
 .Bd -literal -offset indent
 sysctl dev.ix.0.wake=1
 .Ed
+.Pp
 The interface wake capabilities select the controller packet filters; they do
 not enable the ACPI wake source.
 .Pp
@@ -286,6 +288,8 @@ Enable or disable Energy Efficient Ethernet on supported devices.
 Count transmit Low Power Idle events.
 .It Va dev.ix.?.eee.rx_lpi_count
 Count receive Low Power Idle events.
+.It Va dev.ix.?.wake
+Allow system to be woke from this device.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag

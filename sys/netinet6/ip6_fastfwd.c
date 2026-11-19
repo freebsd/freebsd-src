@@ -95,6 +95,7 @@ struct mbuf*
 ip6_tryforward(struct mbuf *m)
 {
 	struct sockaddr_in6 dst;
+	struct in6_addr odst;
 	struct nhop_object *nh;
 	struct m_tag *fwd_tag;
 	struct ip6_hdr *ip6;
@@ -155,9 +156,15 @@ ip6_tryforward(struct mbuf *m)
 	 */
 	if (!PFIL_HOOKED_IN(V_inet6_pfil_head))
 		goto passin;
-	if (pfil_mbuf_in(V_inet6_pfil_head, &m, rcvif, NULL) !=
-	    PFIL_PASS)
+	switch (pfil_mbuf_in(V_inet6_pfil_head, &m, rcvif, NULL)) {
+	case PFIL_PASS:
+		break;
+	case PFIL_CONSUMED:
+		/* A hook sent the packet on itself (pf route-to). */
+		return (NULL);
+	default:
 		goto dropin;
+	}
 	/*
 	 * If packet filter sets the M_FASTFWD_OURS flag, this means
 	 * that new destination or next hop is our local address.
@@ -198,6 +205,16 @@ passin:
 		goto dropin;
 	}
 	/*
+	 * Decrement it here, before the route lookup and the outbound hooks,
+	 * as ip_tryforward() and ip6_forward() do: the hooks then see the
+	 * hop limit the packet leaves with, and a hook that transmits the
+	 * packet itself (pf route-to) does not skip the decrement.
+	 */
+#ifdef IPSTEALTH
+	if (!V_ip6stealth)
+#endif
+		ip6->ip6_hlim -= IPV6_HLIMDEC;
+	/*
 	 * Find route to destination.
 	 */
 	if (ip6_findroute(&nh, &dst, m) != 0) {
@@ -218,9 +235,19 @@ passin:
 	/*
 	 * Outgoing packet firewall processing.
 	 */
-	if (pfil_mbuf_fwd(V_inet6_pfil_head, &m, nh->nh_ifp,
-	    NULL) != PFIL_PASS)
+	odst = ip6->ip6_dst;
+	switch (pfil_mbuf_fwd(V_inet6_pfil_head, &m, nh->nh_ifp, NULL)) {
+	case PFIL_PASS:
+		break;
+	case PFIL_CONSUMED:
+		/*
+		 * A hook sent the packet on itself (pf route-to) or in
+		 * fragments (pf refragmentation).
+		 */
+		return (NULL);
+	default:
 		goto dropout;
+	}
 
 	/*
 	 * We used slow path processing for packets with scoped addresses.
@@ -243,8 +270,8 @@ passin:
 	 */
 	if (m->m_flags & M_FASTFWD_OURS) {
 		/*
-		 * XXX: we did one hop and should decrement hop limit. But
-		 * now we are the destination and just don't pay attention.
+		 * The hop limit is already decremented, but now we are
+		 * the destination and ip6_input() does not look at it.
 		 */
 		return (m);
 	}
@@ -258,7 +285,7 @@ passin:
 		fwd_tag = NULL;
 
 	if (fwd_tag != NULL ||
-	    !IN6_ARE_ADDR_EQUAL(&dst.sin6_addr, &ip6->ip6_dst)) {
+	    !IN6_ARE_ADDR_EQUAL(&odst, &ip6->ip6_dst)) {
 		if (fwd_tag != NULL) {
 			bcopy((fwd_tag + 1), &dst, sizeof(dst));
 			m->m_flags &= ~M_IP6_NEXTHOP;
@@ -274,12 +301,6 @@ passin:
 		}
 	}
 passout:
-#ifdef IPSTEALTH
-	if (!V_ip6stealth)
-#endif
-	{
-		ip6->ip6_hlim -= IPV6_HLIMDEC;
-	}
 
 	/*
 	 * If TCP/UDP header still needs a valid checksum and interface will not

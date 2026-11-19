@@ -1509,7 +1509,7 @@ igmp_input(struct mbuf **mp, int *offp, int proto)
 	else
 		minlen += IGMP_MINLEN;
 	if ((!M_WRITABLE(m) || m->m_len < minlen) &&
-	    (m = m_pullup(m, minlen)) == NULL) {
+	    (m = m_copyup(m, minlen, 0)) == NULL) {
 		IGMPSTAT_INC(igps_rcv_tooshort);
 		return (IPPROTO_DONE);
 	}
@@ -1601,7 +1601,7 @@ igmp_input(struct mbuf **mp, int *offp, int proto)
 			   sizeof(struct in_addr) * nsrc;
 			if ((!M_WRITABLE(m) ||
 			     m->m_len < igmpv3len) &&
-			    (m = m_pullup(m, igmpv3len)) == NULL) {
+			    (m = m_copyup(m, igmpv3len, 0)) == NULL) {
 				IGMPSTAT_INC(igps_rcv_tooshort);
 				return (IPPROTO_DONE);
 			}

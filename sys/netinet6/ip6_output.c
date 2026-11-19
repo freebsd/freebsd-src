@@ -3149,7 +3149,7 @@ ip6_mloopback(struct ifnet *ifp, struct mbuf *m)
 	 */
 	if (!M_WRITABLE(copym) ||
 	    copym->m_len < sizeof(struct ip6_hdr)) {
-		copym = m_pullup(copym, sizeof(struct ip6_hdr));
+		copym = m_copyup(copym, sizeof(struct ip6_hdr), 0);
 		if (copym == NULL)
 			return;
 	}

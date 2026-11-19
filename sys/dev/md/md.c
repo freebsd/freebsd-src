@@ -2080,7 +2080,7 @@ g_md_init(struct g_class *mp __unused)
 	caddr_t mod;
 	u_char *ptr, *name, *type;
 	u_char scratch[40];
-	unsigned len;
+	size_t len;
 	int i;
 	vm_offset_t paddr;
 
@@ -2129,7 +2129,7 @@ g_md_init(struct g_class *mp __unused)
 	for (int i = 0; i < 32; i++) {
 		if (resource_long_value("md", i, "physaddr",
 			(long *) &paddr) != 0 ||
-		    resource_int_value("md", i, "len", &len) != 0)
+		    resource_long_value("md", i, "len", (long *)&len) != 0)
 		        break;
 		/*
 		 * Map the memory into the kernel pmap, if not already present.

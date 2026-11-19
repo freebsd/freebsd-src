@@ -51,13 +51,11 @@ extern "C" {
 
 #include <cerrno>
 #include <cstdlib>
-#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
 
-#include "utils/auto_array.ipp"
 #include "utils/defs.hpp"
 #include "utils/env.hpp"
 #include "utils/format/macros.hpp"
@@ -469,15 +467,14 @@ fs::mkdtemp_public(const std::string& path_template)
     const fs::path tmpdir(utils::getenv_with_default("TMPDIR", "/tmp"));
     const fs::path full_template = tmpdir / path_template;
 
-    utils::auto_array< char > buf(new char[full_template.str().length() + 1]);
-    std::strcpy(buf.get(), full_template.c_str());
-    if (::mkdtemp(buf.get()) == NULL) {
+    std::string buf = full_template.str();
+    if (::mkdtemp(buf.data()) == NULL) {
         const int original_errno = errno;
         throw fs::system_error(F("Cannot create temporary directory using "
                                  "template %s") % full_template,
                                original_errno);
     }
-    const fs::path path(buf.get());
+    const fs::path path(buf.c_str());
 
     if (::chmod(path.c_str(), 0755) == -1) {
         const int original_errno = errno;
@@ -521,14 +518,13 @@ fs::mkstemp(const std::string& path_template)
     const fs::path tmpdir(utils::getenv_with_default("TMPDIR", "/tmp"));
     const fs::path full_template = tmpdir / path_template;
 
-    utils::auto_array< char > buf(new char[full_template.str().length() + 1]);
-    std::strcpy(buf.get(), full_template.c_str());
-    if (::mkstemp(buf.get()) == -1) {
+    std::string buf = full_template.str();
+    if (::mkstemp(buf.data()) == -1) {
         const int original_errno = errno;
         throw fs::system_error(F("Cannot create temporary file using template "
                                  "%s") % full_template, original_errno);
     }
-    return fs::path(buf.get());
+    return fs::path(buf.c_str());
 }
 
 

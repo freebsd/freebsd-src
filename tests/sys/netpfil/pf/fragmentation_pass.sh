@@ -202,6 +202,20 @@ v6_refrag_hlim_body()
 
 	# The fast path: pf must refragment through ip6_forward().
 	refrag_hlim 0
+	# The slow path: ip6_forward() has already decremented the hop limit,
+	# and pf must not have it decremented again.
+	refrag_hlim 1
+
+	# A rule that raises the hop limit to the maximum leaves no room to
+	# give the hop back, but the packet must still get through.
+	pft_set_rules alcatraz \
+		"set reassemble yes" \
+		"pass in" \
+		"pass out scrub (min-ttl 255)"
+	for redirect in 0 1; do
+		jexec alcatraz sysctl net.inet6.ip6.redirect=${redirect}
+		atf_check -o ignore ping -6 -c 1 -s 4500 2001:db8:43::3
+	done
 }
 
 v6_refrag_hlim_cleanup()

@@ -1460,7 +1460,7 @@ mfc_find_retry:
 
 	mb0 = m_copypacket(m, M_NOWAIT);
 	if (mb0 && (!M_WRITABLE(mb0) || mb0->m_len < hlen))
-		mb0 = m_pullup(mb0, hlen);
+		mb0 = m_copyup(mb0, hlen, 0);
 	if (mb0 == NULL) {
 		free(rte, M_MRTABLE);
 		MRW_WUNLOCK();
@@ -1688,7 +1688,7 @@ ip_mdq(struct mfctable *mfct, struct mbuf *m, struct ifnet *ifp, struct mfc *rt,
 				struct mbuf *mm = m_copym(m, 0, hlen, M_NOWAIT);
 
 				if (mm && (!M_WRITABLE(mm) || mm->m_len < hlen))
-					mm = m_pullup(mm, hlen);
+					mm = m_copyup(mm, hlen, 0);
 				if (mm == NULL)
 					return ENOBUFS;
 
@@ -1832,7 +1832,7 @@ phyint_send(struct ip *ip, struct vif *vifp, struct mbuf *m)
 	 */
 	mb_copy = m_copypacket(m, M_NOWAIT);
 	if (mb_copy && (!M_WRITABLE(mb_copy) || mb_copy->m_len < hlen))
-		mb_copy = m_pullup(mb_copy, hlen);
+		mb_copy = m_copyup(mb_copy, hlen, 0);
 	if (mb_copy == NULL)
 		return;
 

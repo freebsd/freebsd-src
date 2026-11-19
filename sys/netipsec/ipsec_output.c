@@ -106,7 +106,7 @@
 		IPCOMPSTAT_INC(ipcomps_##name);	\
 } while (0)
 
-static int ipsec_encap(struct mbuf **mp, struct secasindex *saidx);
+static int ipsec_encap(struct mbuf **mp, struct secasvar *sav);
 static size_t ipsec_get_pmtu(struct secasvar *sav);
 
 /*
@@ -289,7 +289,7 @@ ipsec4_perform_request(struct ifnet *ifp, struct mbuf *m, struct ip *ip1,
 		ip->ip_len = htons(m->m_pkthdr.len);
 		ip->ip_sum = 0;
 		ip->ip_sum = in_cksum(m, ip->ip_hl << 2);
-		error = ipsec_encap(&m, &sav->sah->saidx);
+		error = ipsec_encap(&m, sav);
 		if (error != 0) {
 			DPRINTF(("%s: encapsulation for SPI 0x%08x failed "
 			    "with error %d\n", __func__, ntohl(sav->spi),
@@ -712,7 +712,7 @@ ipsec6_perform_request(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
 			error = ENXIO;   /*XXX*/
 			goto bad;
 		}
-		error = ipsec_encap(&m, &sav->sah->saidx);
+		error = ipsec_encap(&m, sav);
 		if (error != 0) {
 			DPRINTF(("%s: encapsulation for SPI 0x%08x failed "
 			    "with error %d\n", __func__, ntohl(sav->spi),
@@ -929,6 +929,10 @@ ipsec_process_done(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 #ifdef INET
 	struct ip *ip;
 #endif
+#ifdef INET6
+	struct ip6_hdr *ip6;
+	u_int i;
+#endif
 	int error;
 
 	if (sav->state >= SADB_SASTATE_DEAD) {
@@ -1018,6 +1022,28 @@ ipsec_process_done(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 			goto bad;
 		}
 	}
+#ifdef INET6
+	/*
+	 * Transport mode requests that follow a tunnel mode request in a
+	 * bundle leave the outer IPv6 header in place.  Relabel it from the
+	 * outermost SA: it is the one whose sequence numbers reorder first
+	 * when the path differs between packets, and the inner SAs ride
+	 * along.  The policy's requests decide the mode, not the SA's own,
+	 * which may be "any".
+	 */
+	if (idx > 1 && saidx->dst.sa.sa_family == AF_INET6 &&
+	    sp->req[idx - 1]->saidx.mode == IPSEC_MODE_TRANSPORT) {
+		for (i = 0; i < idx - 1; i++) {
+			if (sp->req[i]->saidx.mode == IPSEC_MODE_TUNNEL)
+				break;
+		}
+		if (i < idx - 1) {
+			ip6 = mtod(m, struct ip6_hdr *);
+			ip6->ip6_flow = (ip6->ip6_flow & ~IPV6_FLOWLABEL_MASK) |
+			    (htonl(sav->flowid) & IPV6_FLOWLABEL_MASK);
+		}
+	}
+#endif
 
 	key_freesp(&sp), sp = NULL;	/* Release reference to SP */
 #if defined(INET) || defined(INET6)
@@ -1161,8 +1187,9 @@ ipsec_get_pmtu(struct secasvar *sav)
 }
 
 static int
-ipsec_encap(struct mbuf **mp, struct secasindex *saidx)
+ipsec_encap(struct mbuf **mp, struct secasvar *sav)
 {
+	struct secasindex *saidx;
 #ifdef INET6
 	struct ip6_hdr *ip6;
 #endif
@@ -1172,6 +1199,7 @@ ipsec_encap(struct mbuf **mp, struct secasindex *saidx)
 #endif
 	uint8_t itos, proto;
 
+	saidx = &sav->sah->saidx;
 	ip = mtod(*mp, struct ip *);
 	switch (ip->ip_v) {
 #ifdef INET
@@ -1233,7 +1261,12 @@ ipsec_encap(struct mbuf **mp, struct secasindex *saidx)
 		if (*mp == NULL)
 			return (ENOBUFS);
 		ip6 = mtod(*mp, struct ip6_hdr *);
-		ip6->ip6_flow = 0;
+		/*
+		 * Derive the outer flow label from the SA, so that routers
+		 * and link aggregates hashing on it keep the packets of one
+		 * SA on one path, which limits sequence number reordering.
+		 */
+		ip6->ip6_flow = htonl(sav->flowid) & IPV6_FLOWLABEL_MASK;
 		ip6->ip6_vfc = IPV6_VERSION;
 		ip6->ip6_hlim = V_ip6_defhlim;
 		ip6->ip6_nxt = proto;
