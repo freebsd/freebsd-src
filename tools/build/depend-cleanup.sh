@@ -187,7 +187,7 @@ clean_obj()
 	for libcompat in "" $ALL_libcompats; do
 		dirprfx=${libcompat:+obj-lib${libcompat}}
 		dir="${OBJTOP%/}/${dirprfx}/$1"
-		if strings "${dir}"/$2.*o 2>/dev/null | egrep -qw "${4}"; then
+		if strings -a "${dir}"/$2.*o 2>/dev/null | egrep -qw "${4}"; then
 			echo "Removing stale ${libcompat:+lib${libcompat} }objects for $2.$3"
 			run rm -fv "${dir}"/$2.*o
 		fi
@@ -316,6 +316,10 @@ check_epoch_and_opts
 #       run rm -fv "$OBJTOP"/tests/sys/kqueue/libkqueue/.depend.* \
 #          "$OBJTOP"/tests/sys/kqueue/libkqueue/*
 #fi
+
+# 20261106 # OpenSSL build changes
+clean_obj secure/lib/libcrypto/modules/legacy cpuid c OPENSSL_rdtsc
+clean_obj secure/lib/libcrypto cpuid c OPENSSL_rdtsc
 
 # 20260427 # bc / dc test scripts no longer generated
 dir="${OBJTOP%/}"/usr.bin/gh-bc/tests
