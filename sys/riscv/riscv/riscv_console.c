@@ -44,6 +44,7 @@
 #include <sys/tty.h>
 #include <sys/bus.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/rman.h>
 
 #include <dev/ofw/openfirm.h>
@@ -101,13 +102,30 @@ static cn_ungrab_t	riscv_cnungrab;
 
 CONSOLE_DRIVER(riscv);
 
-#define	MAX_BURST_LEN		1
+#define	MAX_BURST_LEN		256
+#define	PUTC_BUFSZ		128
+
+static char putc_buf[PUTC_BUFSZ] __aligned(128);
+static size_t putc_len = 0;
+static struct mtx putc_mtx;
+MTX_SYSINIT(putc_mtx, &putc_mtx, "rcons_putc", MTX_SPIN | MTX_NOWITNESS);
 
 static void
 riscv_putc(int c)
 {
 
-	sbi_console_putchar(c);
+	if (!mtx_initialized(&putc_mtx)) {
+		sbi_console_putchar(c);
+		return;
+	}
+
+	mtx_lock_spin(&putc_mtx);
+	putc_buf[putc_len++] = (char)c;
+	if (c == '\n' || putc_len == PUTC_BUFSZ) {
+		sbi_console_write(putc_buf, putc_len);
+		putc_len = 0;
+	}
+	mtx_unlock_spin(&putc_mtx);
 }
 
 #if CHECK_EARLY_PRINTF(sbi)
@@ -138,17 +156,13 @@ riscvtty_outwakeup(struct tty *tp)
 {
 	u_char buf[MAX_BURST_LEN];
 	int len;
-	int i;
 
 	for (;;) {
 		len = ttydisc_getc(tp, buf, sizeof(buf));
 		if (len == 0)
 			break;
 
-		KASSERT(len == 1, ("tty error"));
-
-		for (i = 0; i < len; i++)
-			riscv_putc(buf[i]);
+		sbi_console_write(buf, len);
 	}
 }
 
@@ -204,7 +218,7 @@ riscv_cngetc(struct consdev *cp)
 	int ch;
 
 	ch = sbi_console_getchar();
-	if (ch > 0 && ch < 0xff) {
+	if (ch >= 0 && ch < 0xff) {
 #if defined(KDB)
 		kdb_alt_break(ch, &alt_break_state);
 #endif
