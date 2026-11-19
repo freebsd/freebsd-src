@@ -25,12 +25,12 @@ end
 for _, name in ipairs({"underscore_", "0"}) do
 	pw = {}
 	pw.name = name
-	-- Call adduser twice to test both addding and looking up an existing
+	-- Call adduser twice to test both adding and looking up an existing
 	-- user.
-	for i = 1, 2 do
+	for _ = 1, 2 do
 		local res = n.adduser(pw)
 		if not ends_with(res, "/" .. name) then
-			n.err("expected .../" .. name ..  " for username " ..
+			n.err("expected .../" .. name .. " for username " ..
 			    name .. ", got " .. tostring(res))
 		end
 	end
