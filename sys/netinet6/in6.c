@@ -852,10 +852,14 @@ in6_validate_ifra(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		return (EAFNOSUPPORT);
 
 	/*
-	 * Validate address
+	 * Validate addresses
 	 */
 	if (ifra->ifra_addr.sin6_len != sizeof(struct sockaddr_in6) ||
 	    ifra->ifra_addr.sin6_family != AF_INET6)
+		return (EINVAL);
+
+	if (ifra->ifra_dstaddr.sin6_family == AF_INET6 &&
+	    ifra->ifra_dstaddr.sin6_len != sizeof(struct sockaddr_in6))
 		return (EINVAL);
 
 	/*

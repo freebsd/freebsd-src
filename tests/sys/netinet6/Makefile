@@ -4,7 +4,8 @@ TESTSDIR=	${TESTSBASE}/sys/netinet6
 BINDIR=		${TESTSDIR}
 FILESDIR=	${TESTSDIR}
 
-ATF_TESTS_C=		udp6
+ATF_TESTS_C=		in6_control \
+			udp6
 ATF_TESTS_PYTEST=	test_ip6_output.py
 ATF_TESTS_SH=		exthdr \
 			mld \
@@ -25,6 +26,8 @@ TEST_METADATA.exthdr+=	execenv="jail"		\
 			execenv_jail_params="vnet allow.raw_sockets"
 TEST_METADATA.forward6+= execenv="jail"		\
 			execenv_jail_params="vnet allow.raw_sockets"
+TEST_METADATA.in6_control+= execenv="jail"	\
+			execenv_jail_params="vnet"
 TEST_METADATA.ndp+=	execenv="jail"		\
 			execenv_jail_params="vnet allow.raw_sockets"
 TEST_METADATA.output6+=	execenv="jail"		\
