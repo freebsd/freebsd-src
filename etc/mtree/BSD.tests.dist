@@ -1323,6 +1323,8 @@
         ..
         praudit
         ..
+        pkg
+        ..
         pw
         ..
 	pwd_mkdb

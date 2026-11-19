@@ -1,3 +1,5 @@
+.include <src.opts.mk>
+
 PACKAGE=	pkg-bootstrap
 
 .MAKEFLAGS: -W
@@ -31,5 +33,8 @@ LIBADD=	archive der fetch jail pkgecc ucl crypto ssl util md
 
 CFLAGS+=-I${SRCTOP}/contrib/libder/libder
 CFLAGS+=-I${SRCTOP}/crypto/libecc/include
+
+HAS_TESTS=
+SUBDIR.${MK_TESTS}=	tests
 
 .include <bsd.prog.mk>
