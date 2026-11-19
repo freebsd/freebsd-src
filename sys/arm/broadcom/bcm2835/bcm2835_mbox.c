@@ -551,6 +551,26 @@ bcm2835_mbox_fb_get_bpp(struct bcm2835_fb_config *fb)
 }
 
 int
+bcm2835_mbox_fb_get_pixel_order(struct bcm2835_fb_config *fb)
+{
+	int err;
+	struct msg_fb_get_pixel_order msg;
+
+	memset(&msg, 0, sizeof(msg));
+	msg.hdr.buf_size = sizeof(msg);
+	msg.hdr.code = BCM2835_MBOX_CODE_REQ;
+	BCM2835_MBOX_INIT_TAG(&msg.pixel_order, GET_PIXEL_ORDER);
+	msg.pixel_order.tag_hdr.val_len = 0;
+	msg.end_tag = 0;
+
+	err = bcm2835_mbox_property(&msg, sizeof(msg));
+	if (err == 0)
+		fb->pixel_order = msg.pixel_order.body.resp.order;
+
+	return (err);
+}
+
+int
 bcm2835_mbox_fb_init(struct bcm2835_fb_config *fb)
 {
 	int err;

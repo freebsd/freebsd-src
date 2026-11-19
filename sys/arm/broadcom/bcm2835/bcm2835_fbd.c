@@ -103,6 +103,10 @@ bcm_fb_init(struct bcmsc_softc *sc, struct bcm2835_fb_config *fb)
 		return (ENXIO);
 	}
 
+	/* Not fatal: without it the colors keep the default layout. */
+	fb->pixel_order = BCM2835_MBOX_PIXEL_ORDER_UNKNOWN;
+	(void)bcm2835_mbox_fb_get_pixel_order(fb);
+
 	return (0);
 }
 
@@ -132,19 +136,36 @@ bcm_fb_setup_fbd(struct bcmsc_softc *sc)
 	sc->info.fb_memattr = VM_MEMATTR_WRITE_COMBINING;
 #endif
 
-	if (sc->fbswap) {
-		switch (sc->info.fb_bpp) {
-		case 24:
+	switch (sc->info.fb_bpp) {
+	case 24:
+		if (sc->fbswap) {
 			vt_config_cons_colors(&sc->info,
 			    COLOR_FORMAT_RGB, 0xff, 0, 0xff, 8, 0xff, 16);
 			sc->info.fb_cmsize = 16;
-			break;
-		case 32:
-			vt_config_cons_colors(&sc->info,
-			    COLOR_FORMAT_RGB, 0xff, 16, 0xff, 8, 0xff, 0);
-			sc->info.fb_cmsize = 16;
-			break;
 		}
+		break;
+	case 32:
+		/*
+		 * The order of the pixels is the pixel order that was
+		 * requested through the mailbox (U-Boot asks for RGB)
+		 * combined with framebuffer_swap in config.txt, which the
+		 * firmware reports as bcm2708_fb.fbswap=1 in the bootargs
+		 * (it is the default).  The firmware inverts the requested
+		 * order relative to framebuffer_swap: when the two differ
+		 * the red component is in bits 16-23, which is the default
+		 * layout of vt(4), when they are the same it is in bits
+		 * 0-7.  The firmware does not report the resulting order
+		 * itself.
+		 */
+		if (fb.pixel_order == BCM2835_MBOX_PIXEL_ORDER_UNKNOWN)
+			break;
+		if ((fb.pixel_order == BCM2835_MBOX_PIXEL_ORDER_RGB) ==
+		    (sc->fbswap != 0)) {
+			vt_config_cons_colors(&sc->info,
+			    COLOR_FORMAT_RGB, 0xff, 0, 0xff, 8, 0xff, 16);
+			sc->info.fb_cmsize = 16;
+		}
+		break;
 	}
 
 	fbd = device_add_child(sc->dev, "fbd", device_get_unit(sc->dev));
@@ -162,8 +183,9 @@ bcm_fb_setup_fbd(struct bcmsc_softc *sc)
 	device_printf(sc->dev, "%dx%d(%dx%d@%d,%d) %dbpp\n", fb.xres, fb.yres,
 	    fb.vxres, fb.vyres, fb.xoffset, fb.yoffset, fb.bpp);
 	device_printf(sc->dev,
-	    "fbswap: %d, pitch %d, base 0x%08x, screen_size %d\n",
-	    sc->fbswap, fb.pitch, fb.base, fb.size);
+	    "fbswap: %d, pixel order: %d, pitch %d, base 0x%08x, "
+	    "screen_size %d\n", sc->fbswap, (int)fb.pixel_order, fb.pitch,
+	    fb.base, fb.size);
 
 	return (0);
 }

@@ -322,6 +322,24 @@ struct bcm2835_mbox_tag_depth {
 	} body;
 };
 
+#define	BCM2835_MBOX_TAG_GET_PIXEL_ORDER	0x00040006
+#define	BCM2835_MBOX_TAG_SET_PIXEL_ORDER	0x00048006
+
+#define	BCM2835_MBOX_PIXEL_ORDER_BGR		0
+#define	BCM2835_MBOX_PIXEL_ORDER_RGB		1
+
+struct bcm2835_mbox_tag_pixel_order {
+	struct bcm2835_mbox_tag_hdr tag_hdr;
+	union {
+		struct {
+			uint32_t order;
+		} req;
+		struct {
+			uint32_t order;
+		} resp;
+	} body;
+};
+
 #define	BCM2835_MBOX_TAG_GET_ALPHA_MODE		0x00040007
 #define	BCM2835_MBOX_TAG_SET_ALPHA_MODE		0x00048007
 
@@ -424,7 +442,11 @@ struct bcm2835_fb_config {
 	uint32_t pitch;
 	uint32_t base;
 	uint32_t size;
+	uint32_t pixel_order;	/* BCM2835_MBOX_PIXEL_ORDER_*, or _UNKNOWN */
 };
+
+/* Not a firmware value: the pixel order could not be read. */
+#define	BCM2835_MBOX_PIXEL_ORDER_UNKNOWN	0xffffffff
 
 struct msg_fb_get_w_h {
 	struct bcm2835_mbox_hdr hdr;
@@ -441,6 +463,14 @@ struct msg_fb_get_bpp {
 };
 
 int bcm2835_mbox_fb_get_bpp(struct bcm2835_fb_config *);
+
+struct msg_fb_get_pixel_order {
+	struct bcm2835_mbox_hdr hdr;
+	struct bcm2835_mbox_tag_pixel_order pixel_order;
+	uint32_t end_tag;
+};
+
+int bcm2835_mbox_fb_get_pixel_order(struct bcm2835_fb_config *);
 
 struct msg_fb_setup {
 	struct bcm2835_mbox_hdr hdr;
