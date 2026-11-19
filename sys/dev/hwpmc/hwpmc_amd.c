@@ -413,6 +413,7 @@ static int
 amd_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v)
 {
 	const struct amd_descr *pd;
+	struct pmc_pcpu_state *pps;
 	pmc_value_t tmp;
 	enum pmc_mode mode;
 
@@ -431,7 +432,19 @@ amd_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v)
 
 	tmp = rdmsr(pd->pm_perfctr); /* RDMSR serializes */
 	PMCDBG2(MDP, REA, 2, "amd-read (pre-munge) id=%d -> %jd", ri, tmp);
-	if (PMC_IS_SAMPLING_MODE(mode)) {
+	if (pd->pm_subclass == PMC_AMD_SUB_CLASS_UMC) {
+		/*
+		 * UMC counters saturate at 2^48 instead of wrapping.  Clear
+		 * bit 47 once it is set and keep the carries in software.
+		 */
+		pps = &pm->pm_pcpu_state[cpu];
+		if ((tmp & (1ULL << 47)) != 0) {
+			tmp &= ~(1ULL << 47);
+			wrmsr(pd->pm_perfctr, tmp);
+			pps->pps_overflowcnt++;
+		}
+		tmp += (pmc_value_t)pps->pps_overflowcnt << 47;
+	} else if (PMC_IS_SAMPLING_MODE(mode)) {
 		/*
 		 * Clamp value to 0 if the counter just overflowed,
 		 * otherwise the returned reload count would wrap to a
@@ -469,9 +482,14 @@ amd_write_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t v)
 	pd = &amd_pmcdesc[ri];
 	mode = PMC_TO_MODE(pm);
 
-	/* use 2's complement of the count for sampling mode PMCs */
-	if (PMC_IS_SAMPLING_MODE(mode))
+	if (pd->pm_subclass == PMC_AMD_SUB_CLASS_UMC) {
+		/* Bits 47 and up are kept in software, see amd_read_pmc(). */
+		pm->pm_pcpu_state[cpu].pps_overflowcnt = v >> 47;
+		v &= (1ULL << 47) - 1;
+	} else if (PMC_IS_SAMPLING_MODE(mode)) {
+		/* use 2's complement of the count for sampling mode PMCs */
 		v = AMD_RELOAD_COUNT_TO_PERFCTR_VALUE(v);
+	}
 
 	PMCDBG3(MDP, WRI, 1, "amd-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
