@@ -1583,7 +1583,7 @@ pf_normalize_sctp_init(struct pf_pdesc *pd, struct pf_state_peer *src,
 
 	dst->scrub = uma_zalloc(V_pf_state_scrub_z, M_ZERO | M_NOWAIT);
 	if (dst->scrub == NULL) {
-		uma_zfree(V_pf_state_scrub_z, src);
+		uma_zfree(V_pf_state_scrub_z, src->scrub);
 		return (1);
 	}
 
