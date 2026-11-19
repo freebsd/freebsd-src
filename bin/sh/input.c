@@ -225,7 +225,7 @@ again:
 		return (PEOF);
 	}
 	end = parsenextc + parselleft;
-	q = strchrnul(parsenextc, '\n');
+	q = strchrnul(parsefile->buf + (parsenextc - parsefile->buf), '\n');
 	if (*q == '\0' && q != end) {
 		/* delete nul characters */
 		for (r = q++; q != end; q++)
