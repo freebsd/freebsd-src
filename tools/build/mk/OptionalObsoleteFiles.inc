@@ -7006,7 +7006,7 @@ OLD_FILES+=usr/sbin/pkg
 OLD_FILES+=usr/share/man/man7/pkg.7.gz
 OLD_FILES+=usr/tests/usr.sbin/pkg/Kyuafile
 OLD_FILES+=usr/tests/usr.sbin/pkg/pkg_test
-OLD_DIRS+=usr/tests/usr/sbin/pkg
+OLD_DIRS+=usr/tests/usr.sbin/pkg
 .endif
 
 .if ${MK_PMC} == no
