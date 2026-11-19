@@ -40,6 +40,8 @@
 
 #include <machine/resource.h>
 
+#include <contrib/libfdt/libfdt.h>
+
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -486,6 +488,41 @@ fdt_foreach_reserved_mem(fdt_mem_region_cb cb, void *arg)
 		memset(&mr, 0, sizeof(mr));
 		fdt_data_to_res(reg, addr_cells, size_cells,
 		    (u_long *)&mr.mr_start, (u_long *)&mr.mr_size);
+
+		cb(&mr, arg);
+	}
+
+	return (0);
+}
+
+/*
+ * The devicetree /memreserve/ entries are not part of the tree itself, but live
+ * in the DTB header, so read them with libfdt.
+ */
+int
+fdt_foreach_memreserve(const void *fdt, fdt_mem_region_cb cb, void *arg)
+{
+	struct mem_region mr;
+	uint64_t addr, size;
+	int i, tuples;
+
+	if (fdt == NULL)
+		return (EINVAL);
+
+	tuples = fdt_num_mem_rsv(fdt);
+	if (tuples < 0)
+		return (ENXIO);
+
+	for (i = 0; i < tuples; i++) {
+		if (fdt_get_mem_rsv(fdt, i, &addr, &size) != 0)
+			return (ENXIO);
+
+		memset(&mr, 0, sizeof(mr));
+		/* libfdt returns these in native endian */
+		mr.mr_start = addr;
+		mr.mr_size = size;
+		if (mr.mr_size == 0)
+			continue;
 
 		cb(&mr, arg);
 	}
