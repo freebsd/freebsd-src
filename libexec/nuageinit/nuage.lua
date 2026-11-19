@@ -322,7 +322,7 @@ local function adduser(pwd)
 	if root then
 		cmd = cmd .. "-R " .. root .. " "
 	end
-	local f = io.popen(cmd .. " usershow " .. shell_escape(pwd.name) .. " -7 2> /dev/null")
+	local f = io.popen(cmd .. " usershow -n " .. shell_escape(pwd.name) .. " -7 2> /dev/null")
 	local pwdstr = f:read("*a")
 	f:close()
 	if pwdstr:len() ~= 0 then
