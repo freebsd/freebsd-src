@@ -346,6 +346,14 @@ ATF_TC_BODY(settflags, tc)
 	if (ioctl(dev, DIOCRSETTFLAGS, &io) != 0)
 		atf_tc_fail("Request with size 1 << 24 failed");
 
+	/*
+	 * Actually add a table, otherwise we don't do anything and a NULL buffer
+	 * succeeds.
+	 */
+	io.pfrio_size = 1;
+	if (ioctl(dev, DIOCRADDTABLES, &io) != 0)
+		atf_tc_fail("Failed to add a table.");
+
 	/* NULL buffer */
 	io.pfrio_buffer = NULL;
 	if (ioctl(dev, DIOCRSETTFLAGS, &io) != -1)
