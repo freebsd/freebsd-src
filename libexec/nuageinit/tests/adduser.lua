@@ -15,12 +15,23 @@ if not res then
 	n.err("valid adduser should return a path")
 end
 
-pw = {}
-pw.name = "underscore_"
--- Call adduser twice to test both addding and looking up an existing user.
-for i = 1, 2 do
-	local res = n.adduser(pw)
-	if not res then
-		n.err("no path returned for username ending with _")
+local function ends_with(s, suffix)
+	if not s then
+		return false
+	end
+	return suffix == "" or s:sub(-#suffix) == suffix
+end
+
+for _, name in ipairs({"underscore_", "0"}) do
+	pw = {}
+	pw.name = name
+	-- Call adduser twice to test both addding and looking up an existing
+	-- user.
+	for i = 1, 2 do
+		local res = n.adduser(pw)
+		if not ends_with(res, "/" .. name) then
+			n.err("expected .../" .. name ..  " for username " ..
+			    name .. ", got " .. tostring(res))
+		end
 	end
 end
