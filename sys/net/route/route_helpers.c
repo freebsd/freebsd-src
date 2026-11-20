@@ -330,17 +330,17 @@ decompose_change_notification(const struct rib_cmd_info *rc, route_notification_
 	 *  of primitive (RTM_DEL, RTM_ADD) operations.
 	 *
 	 * Leverage the fact that each nexthop group has its nexthops sorted
-	 *  by their indices.
+	 *  by their metrics first and by their indices second. The numbers
+	 *  below are the positions of the nexthops in that order.
 	 * [1] -> [1, 2] = A{2}
 	 * [1, 2] -> [1] = D{2}
 	 * [1, 2, 4] -> [1, 3, 4] = D{2}, A{3}
 	 * [1, 2] -> [3, 4] = D{1}, D{2}, A{3}, A{4]
 	 */
 	while ((idx_old < num_old) && (idx_new < num_new)) {
-		uint32_t nh_idx_old = wn_old[idx_old].nh->nh_priv->nh_idx;
-		uint32_t nh_idx_new = wn_new[idx_new].nh->nh_priv->nh_idx;
+		int cmp = nhgrp_cmp_wn(&wn_old[idx_old], &wn_new[idx_new]);
 
-		if (nh_idx_old == nh_idx_new) {
+		if (cmp == 0) {
 			if (wn_old[idx_old].weight != wn_new[idx_new].weight) {
 				/* Update weight by providing del/add notifications */
 				notify_del(&rc_del, &wn_old[idx_old], cb, cbdata);
@@ -348,12 +348,12 @@ decompose_change_notification(const struct rib_cmd_info *rc, route_notification_
 			}
 			idx_old++;
 			idx_new++;
-		} else if (nh_idx_old < nh_idx_new) {
+		} else if (cmp < 0) {
 			/* [1, ~2~, 4], [1, ~3~, 4] */
 			notify_del(&rc_del, &wn_old[idx_old], cb, cbdata);
 			idx_old++;
 		} else {
-			/* nh_idx_old > nh_idx_new. */
+			/* The new nexthop sorts before the old one. */
 			notify_add(&rc_add, &wn_new[idx_new], cb, cbdata);
 			idx_new++;
 		}
