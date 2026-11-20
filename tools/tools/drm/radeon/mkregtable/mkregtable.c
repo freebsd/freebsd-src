@@ -637,6 +637,7 @@ static int parser_auth(struct table *t, const char *filename)
 	regex_t mask_rex;
 	regmatch_t match[4];
 	char buf[1024];
+	char extra;
 	size_t end;
 	int len;
 	int done = 0;
@@ -668,7 +669,11 @@ static int parser_auth(struct table *t, const char *filename)
 
 	/* first line will contain the last register
 	 * and gpu name */
-	sscanf(buf, "%s %s", gpu_name, last_reg_s);
+	if (sscanf(buf, "%9s %9s %c", gpu_name, last_reg_s, &extra) != 2) {
+		fprintf(stderr, "Invalid header: %s\n", filename);
+		fclose(file);
+		return (-1);
+	}
 	t->gpu_prefix = gpu_name;
 	last_reg = strtol(last_reg_s, NULL, 16);
 
