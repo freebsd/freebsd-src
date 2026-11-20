@@ -43,6 +43,7 @@
 #include <linux/shrinker.h>
 #include <linux/page.h>
 #include <linux/page-flags.h>
+#include <linux/fs.h>
 
 #include <asm/pgtable.h>
 

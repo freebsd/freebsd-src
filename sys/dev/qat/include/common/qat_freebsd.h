@@ -16,6 +16,15 @@
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <linux/device.h>
+/*
+ * `linux/device.h` redefines `file` to be `linux_file` to manage the
+ * name conflict between the Linux and FreeBSD structures, while avoiding a
+ * extensive rewrite and use of macros in the original drm_fb_helper.[ch]
+ * files.
+ *
+ * We need to undo this here because we use FreeBSD structures.
+ */
+#undef file
 #include <linux/dma-mapping.h>
 #include <linux/completion.h>
 #include <linux/list.h>
