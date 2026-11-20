@@ -1,3 +1,5 @@
+PACKAGE=	efi-tools
+
 PROG=	efisign
 SRCS=	efisign.c child.c pe.c
 MAN=	efisign.8
