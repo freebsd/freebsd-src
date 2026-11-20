@@ -221,6 +221,61 @@ pr255852_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "unref_kif" "cleanup"
+unref_kif_head()
+{
+	atf_set descr 'Create a situation where we unref a kif and states still reference it'
+	atf_set require.user root
+}
+
+unref_kif_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig lo0 127.0.0.1/8 up
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"pass"
+
+	# Create a state
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	# Note: flushing avoid the issue
+	pft_set_rules noflush alcatraz \
+		"set skip on ${epair}b" \
+		"pass"
+
+	# The state should still exist here
+	atf_check -e ignore -o match:"all icmp 192.0.2.2:8.*" \
+	    jexec alcatraz pfctl -ss -vv
+
+	# Delete the epair interface
+	ifconfig ${epair}a destroy
+
+	# Now clear the skip flag.
+	pft_set_rules noflush alcatraz \
+		"pass"
+
+	# The state still exists, and references the kif
+	atf_check -e ignore -o match:"all icmp 192.0.2.2:8.*" \
+	    jexec alcatraz pfctl -ss -vv
+}
+
+unref_kif_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "unset"
@@ -228,4 +283,5 @@ atf_init_test_cases()
 	atf_add_test_case "set_skip_group_lo"
 	atf_add_test_case "set_skip_dynamic"
 	atf_add_test_case "pr255852"
+	atf_add_test_case "unref_kif"
 }

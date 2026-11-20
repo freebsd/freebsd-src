@@ -1005,12 +1005,8 @@ pfi_clear_flags(const char *name, int flags)
 			continue;
 		atomic_clear_int(&p->pfik_flags, flags);
 
-		if (p->pfik_ifp == NULL && p->pfik_group == NULL &&
-		    p->pfik_flags == 0 && p->pfik_rulerefs == 0) {
-			/* Delete this kif. */
-			RB_REMOVE(pfi_ifhead, &V_pfi_ifs, p);
-			pf_kkif_free(p);
-		}
+		/* Delete this kif. */
+		pfi_kkif_remove_if_unref(p);
 	}
 	NET_EPOCH_EXIT(et);
 	return (0);
