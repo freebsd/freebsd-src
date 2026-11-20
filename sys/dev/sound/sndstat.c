@@ -3,15 +3,14 @@
  *
  * Copyright (c) 2005-2009 Ariff Abdullah <ariff@FreeBSD.org>
  * Copyright (c) 2001 Cameron Grant <cg@FreeBSD.org>
- * Copyright (c) 2020 The FreeBSD Foundation
+ * Copyright (c) 2020-2026 The FreeBSD Foundation
  * All rights reserved.
- * Copyright (c) 2024-2025 The FreeBSD Foundation
- *
- * Portions of this software were developed by Christos Margiolis
- * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Portions of this software were developed by Ka Ho Ng
  * under sponsorship from the FreeBSD Foundation.
+ *
+ * Portions of this software were developed by Christos Margiolis
+ * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,6 +46,7 @@
 #include <sys/sndstat.h>
 #include <sys/sx.h>
 
+#include <dev/sound/midi/midi.h>
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/sndstat.h>
 
@@ -668,6 +668,26 @@ done:
 	return (err);
 }
 
+static int
+sndstat_build_midi_nvlist(struct midi_softc *m, int chan, nvlist_t **dip)
+{
+	nvlist_t *di;
+
+	di = nvlist_create(0);
+	if (di == NULL)
+		return (ENOMEM);
+
+	nvlist_add_string(di, SNDST_MIDIS_NAMEUNIT,
+	    device_get_nameunit(m->dev));
+	nvlist_add_stringf(di, SNDST_MIDIS_DEVNODE, "midi%d.%d",
+	    device_get_unit(m->dev), chan);
+	nvlist_add_string(di, SNDST_MIDIS_DESC, device_get_desc(m->dev));
+
+	*dip = di;
+
+	return (0);
+}
+
 /*
  * Should only be called with the following locks held:
  * * sndstat_lock
@@ -703,7 +723,23 @@ sndstat_create_devs_nvlist(nvlist_t **nvlp)
 			if (err)
 				goto done;
 		} else if (ent->type == SNDST_TYPE_MIDI) {
-			/* TODO */
+			struct midi_softc *m;
+			nvlist_t *di;
+			int i;
+
+			m = device_get_softc(ent->dev);
+			for (i = 0; i < m->nchan; i++) {
+				err = sndstat_build_midi_nvlist(m, i, &di);
+				if (err)
+					goto done;
+
+				nvlist_append_nvlist_array(nvl, SNDST_MIDIS,
+				    di);
+				nvlist_destroy(di);
+				err = nvlist_error(nvl);
+				if (err)
+					goto done;
+			}
 		}
 	}
 
@@ -1173,14 +1209,10 @@ sndstat_register(device_t dev, enum sndstat_type type, char *str)
 	SNDSTAT_LOCK();
 	/* sorted list insertion */
 	TAILQ_FOREACH(pre, &sndstat_devlist, link) {
-		if (pre->unit > unit)
-			break;
-		else if (pre->unit < unit)
-			continue;
 		if (pre->type > type)
 			break;
-		else if (pre->type < unit)
-			continue;
+		if (pre->type == type && pre->unit > unit)
+			break;
 	}
 	if (pre == NULL) {
 		TAILQ_INSERT_TAIL(&sndstat_devlist, ent, link);
@@ -1367,6 +1399,7 @@ sndstat_prepare(struct sndstat_file *pf_self)
 	struct sbuf *s = &pf_self->sbuf;
 	struct sndstat_entry *ent;
 	struct snddev_info *d;
+	struct midi_softc *m;
 	struct sndstat_file *pf;
 	int k;
 
@@ -1395,7 +1428,13 @@ sndstat_prepare(struct sndstat_file *pf_self)
 			PCM_RELEASE(d);
 			sbuf_printf(s, "\n");
 		} else if (ent->type == SNDST_TYPE_MIDI) {
-			/* TODO */
+			m = device_get_softc(ent->dev);
+			if (!k++)
+				sbuf_printf(s, "Installed devices:\n");
+			sbuf_printf(s, "%s: <%s> (%d port%s)\n",
+			    device_get_nameunit(ent->dev),
+			    device_get_desc(ent->dev), m->nchan,
+			    m->nchan > 1 ? "s" : "");
 		}
 	}
 	if (k == 0)

@@ -46,6 +46,8 @@
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pci/csareg.h>
+#include <dev/sound/midi/midi.h>
+#include <dev/sound/midi/mpu401.h>
 #include <dev/sound/pci/csavar.h>
 
 #include <dev/pci/pcireg.h>
@@ -72,6 +74,7 @@ struct csa_softc {
 	void *ih; /* cookie */
 
 	struct csa_card *card;
+	struct mpu401_ivars mpu_ivars; /* midi child ivars */
 	struct csa_bridgeinfo binfo; /* The state of this bridge. */
 };
 
@@ -277,8 +280,13 @@ csa_attach(device_t dev)
 	device_set_ivars(scp->pcm, &scp->binfo);
 
 	/* Midi Interface */
+	csamidi_init(resp->io);
+	scp->mpu_ivars.ops = &csamidi_mpu_ops;
+	scp->mpu_ivars.devinfo = resp->io;
+	scp->mpu_ivars.desc = "CS461x MIDI";
 	scp->midi = device_add_child(dev, "midi", DEVICE_UNIT_ANY);
-	device_set_ivars(scp->midi, &scp->binfo);
+	if (scp->midi != NULL)
+		device_set_ivars(scp->midi, &scp->mpu_ivars);
 
 	bus_attach_children(dev);
 

@@ -59,7 +59,6 @@
 #include <dev/sound/midi/mpu401.h>
 
 #include "mixer_if.h"
-#include "mpufoi_if.h"
 
 /* Supported chip ID's */
 #define CMI8338A_PCI_ID   0x010013f6
@@ -122,8 +121,8 @@ struct sc_info {
 	unsigned int		bufsz;
 	struct sc_chinfo	pch, rch;
 
-	struct mpu401	*mpu;
-	mpu401_intr_t		*mpu_intr;
+	struct mpu401_ivars mpu_ivars;
+	device_t	midi_dev;
 	struct resource *mpu_reg;
 	int mpu_regid;
 	bus_space_tag_t	mpu_bt;
@@ -570,9 +569,8 @@ cmi_intr(void *data)
 			cmi_set4(sc, CMPCI_REG_INTR_CTRL, toclear);
 		}
 	}
-	if(sc->mpu_intr) {
-		(sc->mpu_intr)(sc->mpu);
-	}
+	if (sc->midi_dev != NULL)
+		mpu401_intr(device_get_softc(sc->midi_dev));
 	mtx_unlock(&sc->lock);
 	return;
 }
@@ -778,7 +776,7 @@ MIXER_DECLARE(cmi_mixer);
  */
 
 static unsigned char
-cmi_mread(struct mpu401 *arg, void *sc, int reg)
+cmi_mread(void *sc, int reg)
 {
 	unsigned int d;
 
@@ -789,33 +787,16 @@ cmi_mread(struct mpu401 *arg, void *sc, int reg)
 }
 
 static void
-cmi_mwrite(struct mpu401 *arg, void *sc, int reg, unsigned char b)
+cmi_mwrite(void *sc, int reg, uint8_t b)
 {
 
 	bus_space_write_1(0,0,0x330 + reg , b);
 }
 
-static int
-cmi_muninit(struct mpu401 *arg, void *cookie)
-{
-	struct sc_info *sc = cookie;
-
-	mtx_lock(&sc->lock);
-	sc->mpu_intr = NULL;
-	sc->mpu = NULL;
-	mtx_unlock(&sc->lock);
-
-	return 0;
-}
-
-static kobj_method_t cmi_mpu_methods[] = {
-	KOBJMETHOD(mpufoi_read,		cmi_mread),
-	KOBJMETHOD(mpufoi_write,	cmi_mwrite),
-	KOBJMETHOD(mpufoi_uninit,	cmi_muninit),
-	KOBJMETHOD_END
+static const struct mpu401_ops cmi_mpu_ops = {
+	cmi_mread,
+	cmi_mwrite,
 };
-
-static DEFINE_CLASS(cmi_mpu, cmi_mpu_methods, 0);
 
 static void
 cmi_midiattach(struct sc_info *sc) {
@@ -837,7 +818,12 @@ cmi_midiattach(struct sc_info *sc) {
 	cmi_set4(sc, CMPCI_REG_LEGACY_CTRL,
 			0 << CMPCI_REG_VMPUSEL_SHIFT );
 	cmi_set4(sc, CMPCI_REG_FUNC_1, CMPCI_REG_UART_ENABLE);
-	sc->mpu = mpu401_init(&cmi_mpu_class, sc, cmi_intr, &sc->mpu_intr);
+	sc->mpu_ivars.ops = &cmi_mpu_ops;
+	sc->mpu_ivars.devinfo = sc;
+	sc->midi_dev = device_add_child(sc->dev, "midi", DEVICE_UNIT_ANY);
+	if (sc->midi_dev != NULL)
+		device_set_ivars(sc->midi_dev, &sc->mpu_ivars);
+	bus_attach_children(sc->dev);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -897,8 +883,6 @@ cmi_uninit(struct sc_info *sc)
 		 CMPCI_REG_CH0_ENABLE | CMPCI_REG_CH1_ENABLE);
 	cmi_clr4(sc, CMPCI_REG_FUNC_1, CMPCI_REG_UART_ENABLE);
 
-	if( sc->mpu )
-		sc->mpu_intr = NULL;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1021,18 +1005,19 @@ cmi_detach(device_t dev)
 	struct sc_info *sc;
 	int r;
 
+	r = bus_generic_detach(dev);
+	if (r) return r;
+	sc = pcm_getdevinfo(dev);
+	sc->midi_dev = NULL;
 	r = pcm_unregister(dev);
 	if (r) return r;
 
-	sc = pcm_getdevinfo(dev);
 	cmi_uninit(sc);
 	cmi_power(sc, 3);
 
 	bus_dma_tag_destroy(sc->parent_dmat);
 	bus_teardown_intr(dev, sc->irq, sc->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
-	if(sc->mpu)
-		mpu401_uninit(sc->mpu);
 	bus_release_resource(dev, SYS_RES_IOPORT, sc->regid, sc->reg);
 	if (sc->mpu_reg)
 	    bus_release_resource(dev, SYS_RES_IOPORT, sc->mpu_regid, sc->mpu_reg);

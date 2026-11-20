@@ -4,7 +4,10 @@
 .\" This software was developed by Ka Ho Ng
 .\" under sponsorship from the FreeBSD Foundation.
 .\"
-.\" Copyright (c) 2020 The FreeBSD Foundation
+.\" Copyright (c) 2020-2026 The FreeBSD Foundation
+.\"
+.\" Portions of this software were developed by Christos Margiolis
+.\" <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -29,23 +32,18 @@
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
-.Dd July 26, 2024
+.Dd November 16, 2026
 .Dt SNDSTAT 4
 .Os
 .Sh NAME
 .Nm sndstat
-.Nd "nvlist-based PCM audio device enumeration interface"
+.Nd nvlist-based audio device enumeration interface
 .Sh SYNOPSIS
-To compile the driver into the kernel,
-place the following lines in the
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device sound"
-.Ed
+.Cd device sound
 .Sh DESCRIPTION
 The ioctl interface provided by
 .Pa /dev/sndstat
-device allows callers to enumerate PCM audio devices available for use.
+device allows callers to enumerate PCM and MIDI devices available for use.
 In other words, it provides means to get the list of all audio devices
 available to the system.
 .Sh IOCTLS
@@ -259,25 +257,41 @@ Channel feeder chain.
 .El
 .El
 .It Dv provider
-A string specifying the provider of the PCm audio device.
+A string specifying the provider of the PCM audio device.
+.El
+.Pp
+MIDI ports are listed in a separate array:
+.Bd -literal -offset indent
+midis (NVLIST ARRAY): 1
+	nameunit (STRING): [midi0]
+	devnode (STRING): [midi0.0]
+	desc (STRING): [AKAI LPK25]
+.Ed
+.Bl -tag -width "nameunit"
+.It Dv nameunit
+The device identification in the form of subsystem plus a unit number.
+.It Dv devnode
+The MIDI port device node relative path in devfs.
+.It Dv desc
+The description of the MIDI device.
 .El
 .Pp
 The following ioctls are provided for use:
 .Bl -tag -width ".Dv SNDSTIOC_FLUSH_USER_DEVS"
 .It Dv SNDSTIOC_REFRESH_DEVS
-Drop any previously fetched PCM audio devices list snapshots.
+Drop any previously fetched device list snapshots.
 This ioctl takes no arguments.
 .It Dv SNDSTIOC_GET_DEVS
-Generate and/or return PCM audio devices list snapshots to callers.
+Generate and/or return device list snapshots to callers.
 This ioctl takes a pointer to
 .Fa struct sndstioc_nv_arg
 as the first and the only argument.
 Callers need to provide a sufficiently large buffer to hold a serialized
 nvlist.
-If there is no existing PCM audio device list snapshot available in the
+If there is no existing device list snapshot available in the
 internal structure of the opened sndstat.
 .Fa fd ,
-a new PCM audio device list snapshot will be automatically generated.
+a new device list snapshot will be automatically generated.
 Callers have to set
 .Fa nbytes
 to either 0 or the size of buffer provided.
@@ -296,7 +310,7 @@ will be set to 0.
 If the buffer provided is sufficiently large,
 .Fa nbytes
 will be set to the size of the serialized nvlist written to the provided buffer.
-Once a PCM audio device list snapshot is returned to user-space successfully,
+Once a device list snapshot is returned to user-space successfully,
 the snapshot stored in the subsystem's internal structure of the given
 .Fa fd
 will be freed.
@@ -323,8 +337,8 @@ This ioctl takes no arguments.
 .It Pa /dev/sndstat
 .El
 .Sh EXAMPLES
-The following code enumerates all available PCM audio devices:
-.Bd -literal -offset indent
+.Ss Enumerate all available PCM audio devices
+.Bd -literal
 #include <sys/types.h>
 #include <err.h>
 #include <fcntl.h>

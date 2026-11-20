@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2022 Goran Mekić
- * Copyright (c) 2024 The FreeBSD Foundation
+ * Copyright (c) 2024-2026 The FreeBSD Foundation
  *
  * Portions of this software were developed by Christos Margiolis
  * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
@@ -47,7 +47,7 @@ main(int argc, char *argv[])
 	int fd;
 	unsigned char raw, type, channel, b1, b2;
 
-	if ((fd = open("/dev/umidi0.0", O_RDWR)) < 0)
+	if ((fd = open("/dev/midi0.0", O_RDWR)) < 0)
 		err(1, "Error opening MIDI device");
 
 	for (;;) {

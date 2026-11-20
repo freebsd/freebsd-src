@@ -43,7 +43,6 @@
 #include <dev/sound/midi/mpu401.h>
 
 #include <mixer_if.h>
-#include <mpufoi_if.h>
 
 #define DUMMY_NPCHAN	2
 #define DUMMY_NRCHAN	2
@@ -60,8 +59,8 @@ struct dummy_chan {
 };
 
 struct dummy_softc {
-	struct snddev_info info;
 	device_t dev;
+	device_t pcm_dev;
 	uint32_t cap_fmts[4];
 	struct pcmchan_caps caps;
 	int chnum;
@@ -69,8 +68,8 @@ struct dummy_softc {
 	struct callout callout;
 	struct mtx lock;
 	bool stopped;
-	struct mpu401 *mpu;
-	mpu401_intr_t *mpu_intr;
+	struct mpu401_ivars mpu_ivars;
+	device_t midi_dev;
 };
 
 static bool
@@ -155,7 +154,7 @@ dummy_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 
 	mtx_unlock(&sc->lock);
 
-	bufsz = pcm_getbuffersize(sc->dev, 2048, 2048, 65536);
+	bufsz = pcm_getbuffersize(sc->pcm_dev, 2048, 2048, 65536);
 	buf = malloc(bufsz, M_DEVBUF, M_WAITOK | M_ZERO);
 	if (sndbuf_setup(ch->buf, buf, bufsz) != 0) {
 		dummy_chan_free(obj, ch);
@@ -269,7 +268,7 @@ dummy_mixer_init(struct snd_mixer *m)
 	if (sc == NULL)
 		return (-1);
 
-	pcm_setflags(sc->dev, pcm_getflags(sc->dev) | SD_F_SOFTPCMVOL);
+	pcm_setflags(sc->pcm_dev, pcm_getflags(sc->pcm_dev) | SD_F_SOFTPCMVOL);
 	mix_setdevs(m, SOUND_MASK_PCM | SOUND_MASK_VOLUME | SOUND_MASK_RECLEV);
 	mix_setrecdevs(m, SOUND_MASK_RECLEV);
 
@@ -298,46 +297,20 @@ static kobj_method_t dummy_mixer_methods[] = {
 MIXER_DECLARE(dummy_mixer);
 
 static uint8_t
-dummy_mpu_read(struct mpu401 *arg, void *sc, int reg)
+dummy_mpu_read(void *sc, int reg)
 {
 	return (0);
 }
 
 static void
-dummy_mpu_write(struct mpu401 *arg, void *sc, int reg, unsigned char b)
+dummy_mpu_write(void *sc, int reg, uint8_t b)
 {
 }
 
-static int
-dummy_mpu_uninit(struct mpu401 *arg, void *cookie)
-{
-	struct dummy_softc *sc = cookie;
-
-	mtx_lock(&sc->lock);
-	sc->mpu_intr = NULL;
-	sc->mpu = NULL;
-	mtx_unlock(&sc->lock);
-
-	return (0);
-}
-
-static void
-dummy_mpu_intr(void *arg)
-{
-	struct dummy_softc *sc = arg;
-
-	if (sc->mpu_intr != NULL)
-		(sc->mpu_intr)(sc->mpu);
-}
-
-static kobj_method_t dummy_mpu_methods[] = {
-	KOBJMETHOD(mpufoi_read,		dummy_mpu_read),
-	KOBJMETHOD(mpufoi_write,	dummy_mpu_write),
-	KOBJMETHOD(mpufoi_uninit,	dummy_mpu_uninit),
-	KOBJMETHOD_END
+static const struct mpu401_ops dummy_mpu_ops = {
+	dummy_mpu_read,
+	dummy_mpu_write,
 };
-
-static DEFINE_CLASS(dummy_mpu, dummy_mpu_methods, 0);
 
 static void
 dummy_identify(driver_t *driver, device_t parent)
@@ -360,8 +333,6 @@ static int
 dummy_attach(device_t dev)
 {
 	struct dummy_softc *sc;
-	char status[SND_STATUSLEN];
-	int i = 0;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -380,6 +351,75 @@ dummy_attach(device_t dev)
 		0,		/* caps */
 	};
 
+	sc->pcm_dev = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
+	if (sc->pcm_dev == NULL)
+		return (ENXIO);
+
+	sc->mpu_ivars.ops = &dummy_mpu_ops;
+	sc->mpu_ivars.devinfo = sc;
+	sc->mpu_ivars.desc = "Dummy MPU-401 MIDI";
+	sc->midi_dev = device_add_child(dev, "midi", DEVICE_UNIT_ANY);
+	if (sc->midi_dev != NULL)
+		device_set_ivars(sc->midi_dev, &sc->mpu_ivars);
+	bus_attach_children(dev);
+
+	return (0);
+}
+
+static int
+dummy_detach(device_t dev)
+{
+	struct dummy_softc *sc = device_get_softc(dev);
+	int err;
+
+	mtx_lock(&sc->lock);
+	sc->stopped = true;
+	mtx_unlock(&sc->lock);
+	callout_drain(&sc->callout);
+	if ((err = bus_generic_detach(dev)) != 0)
+		return (err);
+	sc->pcm_dev = NULL;
+	sc->midi_dev = NULL;
+	mtx_destroy(&sc->lock);
+
+	return (0);
+}
+
+static device_method_t dummy_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_identify,	dummy_identify),
+	DEVMETHOD(device_probe,		dummy_probe),
+	DEVMETHOD(device_attach,	dummy_attach),
+	DEVMETHOD(device_detach,	dummy_detach),
+	DEVMETHOD_END
+};
+
+static driver_t dummy_driver = {
+	"snd_dummy",
+	dummy_methods,
+	sizeof(struct dummy_softc),
+};
+
+DRIVER_MODULE(snd_dummy, nexus, dummy_driver, 0, 0);
+MODULE_DEPEND(snd_dummy, sound, 1, 1, 1);
+MODULE_VERSION(snd_dummy, 1);
+
+static int
+dummy_pcm_probe(device_t dev)
+{
+	device_set_desc(dev, "Dummy Audio Device");
+
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+dummy_pcm_attach(device_t dev)
+{
+	struct dummy_softc *sc = device_get_softc(device_get_parent(dev));
+	struct snddev_info *d = device_get_softc(dev);
+	char status[SND_STATUSLEN];
+	int i;
+
 	pcm_setflags(dev, pcm_getflags(dev) | SD_F_MPSAFE);
 	pcm_init(dev, sc);
 	mixer_init(dev, &dummy_mixer_class, sc);
@@ -397,48 +437,32 @@ dummy_attach(device_t dev)
 	 * Create an alias so that tests do not need to guess which one is the
 	 * dummy device if there are more devices present in the system.
 	 */
-	make_dev_alias(sc->info.dsp_dev, "dsp.dummy");
-
-	sc->mpu = mpu401_init(&dummy_mpu_class, sc, dummy_mpu_intr,
-	    &sc->mpu_intr);
-	if (sc->mpu == NULL)
-		return (ENXIO);
+	make_dev_alias(d->dsp_dev, "dsp.dummy");
 
 	return (0);
 }
 
 static int
-dummy_detach(device_t dev)
+dummy_pcm_detach(device_t dev)
 {
-	struct dummy_softc *sc = device_get_softc(dev);
-	int err;
-
-	mtx_lock(&sc->lock);
-	sc->stopped = true;
-	mtx_unlock(&sc->lock);
-	callout_drain(&sc->callout);
-	err = pcm_unregister(dev);
-	mpu401_uninit(sc->mpu);
-	mtx_destroy(&sc->lock);
-
-	return (err);
+	return (pcm_unregister(dev));
 }
 
-static device_method_t dummy_methods[] = {
+static device_method_t dummy_pcm_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	dummy_identify),
-	DEVMETHOD(device_probe,		dummy_probe),
-	DEVMETHOD(device_attach,	dummy_attach),
-	DEVMETHOD(device_detach,	dummy_detach),
+	DEVMETHOD(device_probe,		dummy_pcm_probe),
+	DEVMETHOD(device_attach,	dummy_pcm_attach),
+	DEVMETHOD(device_detach,	dummy_pcm_detach),
 	DEVMETHOD_END
 };
 
-static driver_t dummy_driver = {
+static driver_t dummy_pcm_driver = {
 	"pcm",
-	dummy_methods,
-	sizeof(struct dummy_softc),
+	dummy_pcm_methods,
+	PCM_SOFTC_SIZE,
 };
 
-DRIVER_MODULE(snd_dummy, nexus, dummy_driver, 0, 0);
-MODULE_DEPEND(snd_dummy, sound, 1, 1, 1);
-MODULE_VERSION(snd_dummy, 1);
+DRIVER_MODULE(snd_dummy_pcm, snd_dummy, dummy_pcm_driver, 0, 0);
+MODULE_DEPEND(snd_dummy_pcm, snd_dummy, 1, 1, 1);
+MODULE_DEPEND(snd_dummy_pcm, sound, 1, 1, 1);
+MODULE_VERSION(snd_dummy_pcm, 1);

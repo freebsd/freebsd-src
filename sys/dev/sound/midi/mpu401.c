@@ -33,158 +33,159 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/callout.h>
 #include <sys/kernel.h>
-#include <sys/kobj.h>
+#include <sys/lock.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 
-#ifdef HAVE_KERNEL_OPTION_HEADERS
-#include "opt_snd.h"
-#endif
-
-#include <dev/sound/midi/mpu401.h>
 #include <dev/sound/midi/midi.h>
-
-#include "mpu_if.h"
-#include "mpufoi_if.h"
+#include <dev/sound/midi/mpu401.h>
 
 #define MPU_QUEUE_SIZE	128
+#define MPU_INTR_BUF	16
 
-#define CMD(m,d)	MPUFOI_WRITE(m, m->cookie, MPU_CMDPORT,d)
-#define STATUS(m)	MPUFOI_READ(m, m->cookie, MPU_STATPORT)
-#define READ(m)		MPUFOI_READ(m, m->cookie, MPU_DATAPORT)
-#define WRITE(m,d)	MPUFOI_WRITE(m, m->cookie, MPU_DATAPORT,d)
+#define MPU_CMD(m, d)	(m)->ops->write((m)->devinfo, MPU_CMDPORT, (d))
+#define MPU_STATUS(m)	(m)->ops->read((m)->devinfo, MPU_STATPORT)
+#define MPU_READ(m)	(m)->ops->read((m)->devinfo, MPU_DATAPORT)
+#define MPU_WRITE(m, d)	(m)->ops->write((m)->devinfo, MPU_DATAPORT, (d))
 
 struct mpu401 {
-	KOBJ_FIELDS;
-	struct snd_midi *mid;
-	int	flags;
-	driver_intr_t *si;
-	void   *cookie;
-	struct callout timer;
+	struct midi_softc	midi;
+	struct mtx		lock;
+	const struct mpu401_ops	*ops;
+	void			*devinfo;
+	int			flags;
+	struct callout		timer;
 };
 
-static void mpu401_timeout(void *m);
-static mpu401_intr_t mpu401_intr;
-
-static int mpu401_minit(struct snd_midi *, void *);
-static int mpu401_muninit(struct snd_midi *, void *);
-static void mpu401_mcallback(struct snd_midi *, void *, int);
-
-static kobj_method_t mpu401_methods[] = {
-	KOBJMETHOD(mpu_init, mpu401_minit),
-	KOBJMETHOD(mpu_uninit, mpu401_muninit),
-	KOBJMETHOD(mpu_callback, mpu401_mcallback),
-	KOBJMETHOD_END
-};
-
-DEFINE_CLASS(mpu401, mpu401_methods, 0);
-
-void
-mpu401_timeout(void *a)
-{
-	struct mpu401 *m = (struct mpu401 *)a;
-
-	if (m->si)
-		(m->si)(m->cookie);
-
-}
-static int
-mpu401_intr(struct mpu401 *m)
-{
-#define MPU_INTR_BUF	16
-	uint8_t b[MPU_INTR_BUF];
-	size_t i;
-	int s;
-
-	i = 0;
-	s = STATUS(m);
-	while ((s & MPU_INPUTBUSY) == 0 && i < MPU_INTR_BUF) {
-		b[i] = READ(m);
-		i++;
-		s = STATUS(m);
-	}
-	if (i)
-		midi_in(m->mid, b, i);
-	i = 0;
-	while (!(s & MPU_OUTPUTBUSY) && i < MPU_INTR_BUF) {
-		if (midi_out(m->mid, b, 1)) {
-
-			WRITE(m, *b);
-		} else {
-			return 0;
-		}
-		i++;
-		/* DELAY(100); */
-		s = STATUS(m);
-	}
-
-	if ((m->flags & M_TXPEND) && (m->si)) {
-		callout_reset(&m->timer, 1, mpu401_timeout, m);
-	}
-	return (m->flags & M_TXPEND) == M_TXPEND;
-}
-
-struct mpu401 *
-mpu401_init(kobj_class_t cls, void *cookie, driver_intr_t softintr,
-    mpu401_intr_t ** cb)
-{
-	struct mpu401 *m;
-
-	*cb = NULL;
-	m = malloc(sizeof(*m), M_MIDI, M_WAITOK | M_ZERO);
-
-	kobj_init((kobj_t)m, cls);
-
-	callout_init(&m->timer, 1);
-
-	m->si = softintr;
-	m->cookie = cookie;
-
-	m->mid = midi_init(&mpu401_class, m, MPU_QUEUE_SIZE, MPU_QUEUE_SIZE);
-	if (!m->mid)
-		goto err;
-	*cb = mpu401_intr;
-	return m;
-err:
-	printf("mpu401_init error\n");
-	kobj_delete((kobj_t)m, M_MIDI);
-	return NULL;
-}
-
-int
-mpu401_uninit(struct mpu401 *m)
-{
-	CMD(m, MPU_RESET);
-	midi_uninit(m->mid);
-	callout_drain(&m->timer);
-	kobj_delete((kobj_t)m, M_MIDI);
-	return 0;
-}
-
-static int
-mpu401_minit(struct snd_midi *sm __unused, void *arg)
-{
-	struct mpu401 *m = arg;
-
-	CMD(m, MPU_RESET);
-	CMD(m, MPU_UART);
-	return 0;
-}
-
-static int
-mpu401_muninit(struct snd_midi *sm __unused, void *arg)
-{
-	struct mpu401 *m = arg;
-
-	return MPUFOI_UNINIT(m, m->cookie);
-}
-
+/*
+ * Called by midi(4) when the port's flags change.
+ */
 static void
-mpu401_mcallback(struct snd_midi *sm __unused, void *arg, int flags)
+mpu401_mcallback(void *arg, int chan __unused, int flags)
 {
 	struct mpu401 *m = arg;
 
-	if (flags & M_TXPEND && m->si) {
-		callout_reset(&m->timer, 1, mpu401_timeout, m);
-	}
+	/* Arm the callout when there is data to transmit. */
+	if ((flags & M_TXPEND) != 0)
+		callout_reset(&m->timer, 1, mpu401_intr, m);
 	m->flags = flags;
 }
+
+/*
+ * Move received bytes up to midi(4) and queued bytes down to the UART. Called
+ * from the device driver's interrupt handler, and from the callout for as long
+ * as there is pending data.
+ */
+void
+mpu401_intr(void *arg)
+{
+	struct mpu401 *m = arg;
+	size_t i;
+	uint8_t buf[MPU_INTR_BUF], s;
+
+	mtx_lock(&m->lock);
+
+	i = 0;
+	s = MPU_STATUS(m);
+	while ((s & MPU_INPUTBUSY) == 0 && i < MPU_INTR_BUF) {
+		buf[i] = MPU_READ(m);
+		i++;
+		s = MPU_STATUS(m);
+	}
+	if (i != 0)
+		midi_in(m->midi.dev, 0, buf, i);
+	i = 0;
+	while ((s & MPU_OUTPUTBUSY) == 0 && i < MPU_INTR_BUF) {
+		if (midi_out(m->midi.dev, 0, buf, 1) == 0)
+			break;
+		MPU_WRITE(m, *buf);
+		i++;
+		s = MPU_STATUS(m);
+	}
+
+	if ((m->flags & M_TXPEND) != 0)
+		callout_reset(&m->timer, 1, mpu401_intr, m);
+
+	mtx_unlock(&m->lock);
+}
+
+static int
+mpu401_probe(device_t dev)
+{
+	const struct mpu401_ivars *ivars = device_get_ivars(dev);
+
+	if (ivars == NULL)
+		return (ENXIO);
+
+	device_set_desc(dev, ivars->desc != NULL ? ivars->desc :
+	    "MPU-401 MIDI");
+
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+mpu401_attach(device_t dev)
+{
+	struct mpu401 *m = device_get_softc(dev);
+	const struct mpu401_ivars *ivars = device_get_ivars(dev);
+	int err;
+
+	m->ops = ivars->ops;
+	m->devinfo = ivars->devinfo;
+	mtx_init(&m->lock, device_get_nameunit(dev), "mpu401", MTX_DEF);
+	callout_init(&m->timer, 1);
+
+	MPU_CMD(m, MPU_RESET);
+	MPU_CMD(m, MPU_UART);
+
+	err = midi_register(dev, &m->lock, mpu401_mcallback, m, 1,
+	    MPU_QUEUE_SIZE, MPU_QUEUE_SIZE);
+	if (err != 0) {
+		callout_drain(&m->timer);
+		mtx_destroy(&m->lock);
+		return (err);
+	}
+
+	return (0);
+}
+
+static int
+mpu401_detach(device_t dev)
+{
+	struct mpu401 *m = device_get_softc(dev);
+	int err;
+
+	MPU_CMD(m, MPU_RESET);
+	err = midi_unregister(dev);
+	/*
+	 * The ports are gone, but a driver interrupt handler can still call
+	 * mpu401_intr(), so stop it re-arming the callout.
+	 */
+	mtx_lock(&m->lock);
+	m->flags = 0;
+	mtx_unlock(&m->lock);
+	callout_drain(&m->timer);
+	mtx_destroy(&m->lock);
+
+	return (err);
+}
+
+static device_method_t mpu401_methods[] = {
+	DEVMETHOD(device_probe,		mpu401_probe),
+	DEVMETHOD(device_attach,	mpu401_attach),
+	DEVMETHOD(device_detach,	mpu401_detach),
+	DEVMETHOD_END
+};
+
+static driver_t mpu401_driver = {
+	"midi",
+	mpu401_methods,
+	sizeof(struct mpu401),
+};
+
+DRIVER_MODULE(midi, pcm, mpu401_driver, 0, 0);
+DRIVER_MODULE(midi, csa, mpu401_driver, 0, 0);
+DRIVER_MODULE(midi, emu10kx, mpu401_driver, 0, 0);
+DRIVER_MODULE(midi, snd_dummy, mpu401_driver, 0, 0);

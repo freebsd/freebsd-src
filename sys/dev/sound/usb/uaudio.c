@@ -87,6 +87,7 @@
 #include "opt_snd.h"
 #endif
 
+#include <dev/sound/midi/midi.h>
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/usb/uaudioreg.h>
 #include <dev/sound/usb/uaudio.h>
@@ -280,6 +281,7 @@ struct uaudio_chan {
 #define	UMIDI_EMB_JACK_MAX   16		/* units */
 #define	UMIDI_TX_FRAMES	   256		/* units */
 #define	UMIDI_TX_BUFFER    (UMIDI_TX_FRAMES * 4)	/* bytes */
+#define	UMIDI_QUEUE_SIZE   UMIDI_TX_BUFFER	/* bytes */
 
 enum {
 	UMIDI_TX_TRANSFER,
@@ -288,7 +290,6 @@ enum {
 };
 
 struct umidi_sub_chan {
-	struct usb_fifo_sc fifo;
 	uint8_t *temp_cmd;
 	uint8_t	temp_0[4];
 	uint8_t	temp_1[4];
@@ -307,6 +308,7 @@ struct umidi_sub_chan {
 };
 
 struct umidi_chan {
+	struct midi_softc midi;		/* Must be first. */
 	struct umidi_sub_chan sub[UMIDI_EMB_JACK_MAX];
 	struct mtx mtx;
 
@@ -315,13 +317,19 @@ struct umidi_chan {
 	uint8_t	iface_index;
 	uint8_t	iface_alt_index;
 
-	uint8_t	read_open_refcount;
 	uint8_t	write_open_refcount;
 
 	uint8_t	curr_cable;
 	uint8_t	max_emb_jack;
 	uint8_t	valid;
 	uint8_t single_command;
+};
+
+struct umidi_ivars {
+	struct uaudio_softc *sc;
+	uint8_t	iface_index;
+	uint8_t	iface_alt_index;
+	uint8_t	max_emb_jack;
 };
 
 struct uaudio_search_result {
@@ -376,7 +384,9 @@ struct uaudio_softc_child {
 struct uaudio_softc {
 	struct uaudio_chan sc_rec_chan[UAUDIO_MAX_CHILD];
 	struct uaudio_chan sc_play_chan[UAUDIO_MAX_CHILD];
-	struct umidi_chan sc_midi_chan;
+	struct umidi_ivars sc_midi_ivars;
+	device_t sc_midi_dev;
+	uint8_t	sc_midi_valid;
 	struct uaudio_hid sc_hid;
 	struct uaudio_search_result sc_mixer_clocks;
 	struct uaudio_mixer_node sc_mixer_node;
@@ -552,18 +562,10 @@ static void	uaudio_mixer_fill_info(struct uaudio_softc *,
 static int	uaudio_mixer_signext(uint8_t, int);
 static void	uaudio_mixer_init(struct uaudio_softc *, unsigned);
 static uint8_t	umidi_convert_to_usb(struct umidi_sub_chan *, uint8_t, uint8_t);
-static struct	umidi_sub_chan *umidi_sub_by_fifo(struct usb_fifo *);
-static void	umidi_start_read(struct usb_fifo *);
-static void	umidi_stop_read(struct usb_fifo *);
-static void	umidi_start_write(struct usb_fifo *);
-static void	umidi_stop_write(struct usb_fifo *);
-static int	umidi_open(struct usb_fifo *, int);
-static int	umidi_ioctl(struct usb_fifo *, unsigned long cmd, void *,
-		    int);
-static void	umidi_close(struct usb_fifo *, int);
-static void	umidi_init(device_t dev);
-static int	umidi_attach(device_t dev);
-static int	umidi_detach(device_t dev);
+static midi_callback_t umidi_callback;
+static device_probe_t umidi_probe;
+static device_attach_t umidi_attach;
+static device_detach_t umidi_detach;
 static int	uaudio_hid_attach(struct uaudio_softc *sc,
 		    struct usb_attach_arg *uaa);
 static void	uaudio_hid_detach(struct uaudio_softc *sc);
@@ -720,6 +722,22 @@ static driver_t uaudio_driver = {
 	.methods = uaudio_methods,
 	.size = sizeof(struct uaudio_softc),
 };
+
+static device_method_t umidi_methods[] = {
+	DEVMETHOD(device_probe, umidi_probe),
+	DEVMETHOD(device_attach, umidi_attach),
+	DEVMETHOD(device_detach, umidi_detach),
+
+	DEVMETHOD_END
+};
+
+static driver_t umidi_driver = {
+	.name = "midi",
+	.methods = umidi_methods,
+	.size = sizeof(struct umidi_chan),
+};
+
+DRIVER_MODULE(midi, uaudio, umidi_driver, NULL, NULL);
 
 static const STRUCT_USB_HOST_ID uaudio_vendor_audio[] = {
 	{ USB_VPI(USB_VENDOR_ROLAND, USB_PRODUCT_ROLAND_UA33, 0) },
@@ -1015,7 +1033,6 @@ uaudio_attach(device_t dev)
 	else
 		sc->sc_set_spdif_fn = uaudio_set_spdif_dummy;
 
-	umidi_init(dev);
 
 	device_set_usb_desc(dev);
 
@@ -1105,20 +1122,22 @@ uaudio_attach(device_t dev)
 	if (i == 0)
 		device_printf(dev, "No recording.\n");
 
-	if (sc->sc_midi_chan.valid == 0) {
+	if (sc->sc_midi_valid == 0) {
 		if (usbd_lookup_id_by_uaa(uaudio_vendor_midi,
 		    sizeof(uaudio_vendor_midi), uaa) == 0) {
-			sc->sc_midi_chan.iface_index =
+			sc->sc_midi_ivars.iface_index =
 			    (uint8_t)uaa->driver_info;
-			sc->sc_midi_chan.iface_alt_index = 0;
-			sc->sc_midi_chan.valid = 1;
+			sc->sc_midi_ivars.iface_alt_index = 0;
+			sc->sc_midi_valid = 1;
 		}
 	}
 
-	if (sc->sc_midi_chan.valid) {
-		if (umidi_attach(dev)) {
-			goto detach;
-		}
+	if (sc->sc_midi_valid) {
+		sc->sc_midi_ivars.sc = sc;
+		sc->sc_midi_dev = device_add_child(dev, "midi",
+		    DEVICE_UNIT_ANY);
+		if (sc->sc_midi_dev != NULL)
+			device_set_ivars(sc->sc_midi_dev, &sc->sc_midi_ivars);
 		device_printf(dev, "MIDI sequencer.\n");
 	} else {
 		device_printf(dev, "No MIDI sequencer.\n");
@@ -1304,8 +1323,6 @@ uaudio_detach(device_t dev)
 	if (bus_generic_detach(dev) != 0) {
 		DPRINTF("detach failed!\n");
 	}
-
-	umidi_detach(dev);
 
 	/* free mixer data */
 
@@ -1894,11 +1911,11 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 				 */
 				midi_if = 1;
 
-				if ((sc->sc_midi_chan.valid == 0) &&
+				if ((sc->sc_midi_valid == 0) &&
 				    (usbd_get_iface(udev, curidx) != NULL)) {
-					sc->sc_midi_chan.iface_index = curidx;
-					sc->sc_midi_chan.iface_alt_index = alt_index;
-					sc->sc_midi_chan.valid = 1;
+					sc->sc_midi_ivars.iface_index = curidx;
+					sc->sc_midi_ivars.iface_alt_index = alt_index;
+					sc->sc_midi_valid = 1;
 				}
 			} else {
 				midi_if = 0;
@@ -1938,8 +1955,8 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 				if (msid->bLength >= sizeof(*msid) &&
 				    msid->bDescriptorType == UDESC_CS_ENDPOINT &&
 				    msid->bDescriptorSubtype == MS_GENERAL &&
-				    msid->bNumEmbMIDIJack > sc->sc_midi_chan.max_emb_jack) {
-					sc->sc_midi_chan.max_emb_jack = msid->bNumEmbMIDIJack;
+				    msid->bNumEmbMIDIJack > sc->sc_midi_ivars.max_emb_jack) {
+					sc->sc_midi_ivars.max_emb_jack = msid->bNumEmbMIDIJack;
 				}
 			}
 			/*
@@ -5717,9 +5734,8 @@ umidi_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			if ((cmd_len != 0) && (cn < chan->max_emb_jack) &&
 			    (sub->read_open != 0)) {
 				/* Send data to the application */
-				usb_fifo_put_data_linear(
-				    sub->fifo.fp[USB_FIFO_RX],
-				    buf + 1, cmd_len, 1);
+				midi_in(chan->midi.dev, cn, buf + 1,
+				    cmd_len);
 			}
 			actlen -= 4;
 			pos += 4;
@@ -5917,8 +5933,8 @@ tr_setup:
 			sub = &chan->sub[chan->curr_cable];
 
 			if (sub->write_open) {
-				usb_fifo_get_data_linear(sub->fifo.fp[USB_FIFO_TX],
-				    &buf, 1, &actlen, 0);
+				actlen = midi_out(chan->midi.dev,
+				    chan->curr_cable, &buf, 1);
 			} else {
 				actlen = 0;
 			}
@@ -5975,166 +5991,56 @@ tr_setup:
 	}
 }
 
-static struct umidi_sub_chan *
-umidi_sub_by_fifo(struct usb_fifo *fifo)
-{
-	struct umidi_chan *chan = usb_fifo_softc(fifo);
-	struct umidi_sub_chan *sub;
-	uint32_t n;
-
-	for (n = 0; n < UMIDI_EMB_JACK_MAX; n++) {
-		sub = &chan->sub[n];
-		if ((sub->fifo.fp[USB_FIFO_RX] == fifo) ||
-		    (sub->fifo.fp[USB_FIFO_TX] == fifo)) {
-			return (sub);
-		}
-	}
-
-	panic("%s:%d cannot find usb_fifo!\n",
-	    __FILE__, __LINE__);
-
-	return (NULL);
-}
-
 static void
-umidi_start_read(struct usb_fifo *fifo)
+umidi_callback(void *devinfo, int chan_idx, int flags)
 {
-	struct umidi_chan *chan = usb_fifo_softc(fifo);
+	struct umidi_chan *chan = devinfo;
+	struct umidi_sub_chan *sub = &chan->sub[chan_idx];
 
-	usbd_transfer_start(chan->xfer[UMIDI_RX_TRANSFER]);
-}
+	mtx_assert(&chan->mtx, MA_OWNED);
 
-static void
-umidi_stop_read(struct usb_fifo *fifo)
-{
-	struct umidi_chan *chan = usb_fifo_softc(fifo);
-	struct umidi_sub_chan *sub = umidi_sub_by_fifo(fifo);
+	sub->read_open = (flags & M_RX) != 0;
 
-	DPRINTF("\n");
-
-	sub->read_open = 0;
-
-	if (--(chan->read_open_refcount) == 0) {
-		/*
-		 * XXX don't stop the read transfer here, hence that causes
-		 * problems with some MIDI adapters
-		 */
-		DPRINTF("(stopping read transfer)\n");
-	}
-}
-
-static void
-umidi_start_write(struct usb_fifo *fifo)
-{
-	struct umidi_chan *chan = usb_fifo_softc(fifo);
-
-	if (chan->xfer[UMIDI_TX_TRANSFER] == NULL) {
-		uint8_t buf[1];
-		int actlen;
-		do {
-			/* dump data */
-			usb_fifo_get_data_linear(fifo, buf, 1, &actlen, 0);
-		} while (actlen > 0);
-	} else {
-		usbd_transfer_start(chan->xfer[UMIDI_TX_TRANSFER]);
-	}
-}
-
-static void
-umidi_stop_write(struct usb_fifo *fifo)
-{
-	struct umidi_chan *chan = usb_fifo_softc(fifo);
-	struct umidi_sub_chan *sub = umidi_sub_by_fifo(fifo);
-
-	DPRINTF("\n");
-
-	sub->write_open = 0;
-
-	if (--(chan->write_open_refcount) == 0) {
-		DPRINTF("(stopping write transfer)\n");
-		usbd_transfer_stop(chan->xfer[UMIDI_TX_TRANSFER]);
-	}
-}
-
-static int
-umidi_open(struct usb_fifo *fifo, int fflags)
-{
-	struct umidi_chan *chan = usb_fifo_softc(fifo);
-	struct umidi_sub_chan *sub = umidi_sub_by_fifo(fifo);
-
-	if (fflags & FREAD) {
-		if (usb_fifo_alloc_buffer(fifo, 4, (1024 / 4))) {
-			return (ENOMEM);
-		}
-		mtx_lock(&chan->mtx);
-		chan->read_open_refcount++;
-		sub->read_open = 1;
-		mtx_unlock(&chan->mtx);
-	}
-	if (fflags & FWRITE) {
-		if (usb_fifo_alloc_buffer(fifo, 32, (1024 / 32))) {
-			return (ENOMEM);
-		}
-		/* clear stall first */
-		mtx_lock(&chan->mtx);
-		chan->write_open_refcount++;
+	if ((flags & M_TX) != 0 && sub->write_open == 0) {
 		sub->write_open = 1;
-
-		/* reset */
 		sub->state = UMIDI_ST_UNKNOWN;
-		mtx_unlock(&chan->mtx);
+		chan->write_open_refcount++;
+	} else if ((flags & M_TX) == 0 && sub->write_open != 0) {
+		sub->write_open = 0;
+		if (--chan->write_open_refcount == 0)
+			usbd_transfer_stop(chan->xfer[UMIDI_TX_TRANSFER]);
 	}
-	return (0);			/* success */
-}
 
-static void
-umidi_close(struct usb_fifo *fifo, int fflags)
-{
-	if (fflags & FREAD) {
-		usb_fifo_free_buffer(fifo);
-	}
-	if (fflags & FWRITE) {
-		usb_fifo_free_buffer(fifo);
-	}
+	if (flags & M_RX)
+		usbd_transfer_start(chan->xfer[UMIDI_RX_TRANSFER]);
+	if (flags & M_TXPEND)
+		usbd_transfer_start(chan->xfer[UMIDI_TX_TRANSFER]);
 }
 
 static int
-umidi_ioctl(struct usb_fifo *fifo, unsigned long cmd, void *data,
-    int fflags)
+umidi_probe(device_t dev)
 {
-	return (ENODEV);
+	if (device_get_ivars(dev) == NULL)
+		return (ENXIO);
+
+	device_set_desc_copy(dev, device_get_desc(device_get_parent(dev)));
+
+	return (BUS_PROBE_DEFAULT);
 }
-
-static void
-umidi_init(device_t dev)
-{
-	struct uaudio_softc *sc = device_get_softc(dev);
-	struct umidi_chan *chan = &sc->sc_midi_chan;
-
-	mtx_init(&chan->mtx, "umidi lock", NULL, MTX_DEF | MTX_RECURSE);
-}
-
-static struct usb_fifo_methods umidi_fifo_methods = {
-	.f_start_read = &umidi_start_read,
-	.f_start_write = &umidi_start_write,
-	.f_stop_read = &umidi_stop_read,
-	.f_stop_write = &umidi_stop_write,
-	.f_open = &umidi_open,
-	.f_close = &umidi_close,
-	.f_ioctl = &umidi_ioctl,
-	.basename[0] = "umidi",
-};
 
 static int
 umidi_attach(device_t dev)
 {
-	struct uaudio_softc *sc = device_get_softc(dev);
-	struct usb_attach_arg *uaa = device_get_ivars(dev);
-	struct umidi_chan *chan = &sc->sc_midi_chan;
-	struct umidi_sub_chan *sub;
-	int unit = device_get_unit(dev);
+	struct umidi_chan *chan = device_get_softc(dev);
+	struct umidi_ivars *ivars = device_get_ivars(dev);
+	struct uaudio_softc *sc = ivars->sc;
+	struct usb_attach_arg *uaa = device_get_ivars(device_get_parent(dev));
 	int error;
-	uint32_t n;
+
+	mtx_init(&chan->mtx, "umidi lock", NULL, MTX_DEF);
+	chan->iface_index = ivars->iface_index;
+	chan->iface_alt_index = ivars->iface_alt_index;
+	chan->max_emb_jack = ivars->max_emb_jack;
 
 	if (usb_test_quirk(uaa, UQ_SINGLE_CMD_MIDI))
 		chan->single_command = 1;
@@ -6186,17 +6092,11 @@ umidi_attach(device_t dev)
 		chan->max_emb_jack = UMIDI_EMB_JACK_MAX;
 	}
 
-	for (n = 0; n < chan->max_emb_jack; n++) {
-		sub = &chan->sub[n];
-
-		error = usb_fifo_attach(sc->sc_udev, chan, &chan->mtx,
-		    &umidi_fifo_methods, &sub->fifo, unit, n,
-		    chan->iface_index,
-		    UID_ROOT, GID_AUDIO, 0660);
-		if (error) {
-			goto detach;
-		}
-	}
+	error = midi_register(dev, &chan->mtx, umidi_callback, chan,
+	    chan->max_emb_jack, UMIDI_QUEUE_SIZE, UMIDI_QUEUE_SIZE);
+	if (error)
+		goto detach;
+	midi_alias(dev, "umidi");
 
 	mtx_lock(&chan->mtx);
 
@@ -6213,18 +6113,20 @@ umidi_attach(device_t dev)
 	return (0);			/* success */
 
 detach:
+	usbd_transfer_unsetup(chan->xfer, UMIDI_N_TRANSFER);
+	mtx_destroy(&chan->mtx);
+
 	return (ENXIO);			/* failure */
 }
 
 static int
 umidi_detach(device_t dev)
 {
-	struct uaudio_softc *sc = device_get_softc(dev);
-	struct umidi_chan *chan = &sc->sc_midi_chan;
-	uint32_t n;
+	struct umidi_chan *chan = device_get_softc(dev);
+	int error;
 
-	for (n = 0; n < UMIDI_EMB_JACK_MAX; n++)
-		usb_fifo_detach(&chan->sub[n].fifo);
+	if ((error = midi_unregister(dev)) != 0)
+		return (error);
 
 	mtx_lock(&chan->mtx);
 
