@@ -238,8 +238,10 @@ dsp_chn_alloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
 	strlcpy((*ch)->comm, (comm != NULL) ? comm : CHN_COMM_UNKNOWN,
 	    sizeof((*ch)->comm));
 
-	if ((err = chn_reset(*ch, (*ch)->format, (*ch)->speed)) != 0)
+	if ((err = chn_reset(*ch, (*ch)->format, (*ch)->speed)) != 0) {
+		CHN_UNLOCK(*ch);
 		return (err);
+	}
 	chn_vpc_reset(*ch, SND_VOL_C_PCM, 0);
 
 	CHN_UNLOCK(*ch);
