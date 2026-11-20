@@ -1729,9 +1729,11 @@ OLD_FILES+=usr/share/nls/uk_UA.KOI8-U/ee.cat
 .if ${MK_EFI} == no
 OLD_FILES+=usr/sbin/efibootmgr
 OLD_FILES+=usr/sbin/efidp
+OLD_FILES+=usr/sbin/efisign
 OLD_FILES+=usr/sbin/efivar
 OLD_FILES+=usr/sbin/uefisign
-OLD_FILES+=usr/share/examples/uefisign/uefikeys
+OLD_FILES+=usr/share/examples/efisign/uefikeys
+OLD_DIRS+=usr/share/examples/efisign
 .endif
 
 .if ${MK_EXAMPLES} == no

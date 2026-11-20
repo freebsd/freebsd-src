@@ -46,7 +46,7 @@
 #include <openssl/err.h>
 #include <openssl/pem.h>
 
-#include "uefisign.h"
+#include "efisign.h"
 
 static void
 load(struct executable *x)

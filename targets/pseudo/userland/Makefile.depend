@@ -525,6 +525,7 @@ DIRDEPS+= \
 	usr.sbin/dumpcis \
 	usr.sbin/editmap \
 	usr.sbin/edquota \
+	usr.sbin/efisign \
 	usr.sbin/etcupdate \
 	usr.sbin/extattr \
 	usr.sbin/extattrctl \
@@ -691,7 +692,6 @@ DIRDEPS+= \
 	usr.sbin/traceroute6 \
 	usr.sbin/tzsetup \
 	usr.sbin/uathload \
-	usr.sbin/uefisign \
 	usr.sbin/ugidfw \
 	usr.sbin/uhsoctl \
 	usr.sbin/unbound/anchor \

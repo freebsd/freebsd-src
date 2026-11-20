@@ -135,7 +135,7 @@ SUBDIR.${MK_OPENSSL}+=	certctl
 SUBDIR.${MK_CXGBETOOL}+=	cxgbetool
 SUBDIR.${MK_EFI}+=	efivar efidp efibootmgr efitable efiwake
 .if ${MK_OPENSSL} != "no"
-SUBDIR.${MK_EFI}+=	uefisign
+SUBDIR.${MK_EFI}+=	efisign
 .endif
 SUBDIR.${MK_FDT}+=	ofwdump
 SUBDIR.${MK_FLOPPY}+=	fdcontrol

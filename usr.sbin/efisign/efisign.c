@@ -44,15 +44,15 @@
 #include <openssl/pem.h>
 #include <openssl/pkcs7.h>
 
-#include "uefisign.h"
+#include "efisign.h"
 #include "magic.h"
 
 static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: uefisign -c cert -k key -o outfile [-v] file\n"
-			"       uefisign -V [-c cert] [-v] file\n");
+	fprintf(stderr, "usage: efisign -c cert -k key -o outfile [-v] file\n"
+			"       efisign -V [-c cert] [-v] file\n");
 	exit(1);
 }
 

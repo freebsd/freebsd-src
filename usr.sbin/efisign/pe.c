@@ -45,7 +45,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "uefisign.h"
+#include "efisign.h"
 
 #ifndef CTASSERT
 #define CTASSERT(x)		_CTASSERT(x, __LINE__)

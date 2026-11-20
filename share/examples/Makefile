@@ -349,10 +349,10 @@ SE_SUNRPC_SORT= \
 	sort_proc.c
 
 .if ${MK_EFI} != "no"
-LDIRS+=		uefisign
-SE_DIRS+=	uefisign
-SE_UEFISIGN=	uefikeys
-SE_UEFISIGNPACKAGE=efi-tools
+LDIRS+=		efisign
+SE_DIRS+=	efisign
+SE_EFISIGN=	uefikeys
+SE_EFISIGNPACKAGE=efi-tools
 .endif
 
 SE_DIRS+=	ypldap

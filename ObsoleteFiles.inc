@@ -51,6 +51,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20261120: uefisign(8) -> efisign(8) collateral damage
+OLD_FILES+=usr/share/examples/uefisign/uefikeys
+OLD_DIRS+=usr/share/examples/uefisign
+
 # 20261020: Regenerate trust store
 OLD_FILES+=usr/share/certs/trusted/Atos_TrustedRoot_2011.pem
 OLD_FILES+=usr/share/certs/trusted/SecureSign_Root_CA12.pem
