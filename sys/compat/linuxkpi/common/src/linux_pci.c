@@ -44,6 +44,7 @@
 #include <sys/sysctl.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/fbio.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filio.h>
@@ -82,6 +83,7 @@
 #include <linux/backlight.h>
 
 #include "backlight_if.h"
+#include "fb_if.h"
 #include "pcib_if.h"
 
 /* -------------------------------------------------------------------------- */
@@ -2551,6 +2553,23 @@ linux_backlight_device_unregister(struct backlight_device *bd)
 	free(bd, M_DEVBUF);
 }
 
+static struct fb_info *
+lkpi_fb_helper_getinfo(device_t dev)
+{
+	struct pci_dev *pdev;
+	device_t fbd;
+
+	pdev = device_get_softc(dev);
+	if (pdev->pdrv == NULL || !pdev->pdrv->isdrm)
+		return (NULL);
+
+	fbd = device_find_child(dev, "fbd", -1);
+	if (fbd == NULL)
+		return (NULL);
+
+	return (device_get_ivars(fbd));
+}
+
 /* -------------------------------------------------------------------------- */
 /* Native bus attachment glue. */
 
@@ -2573,5 +2592,9 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(backlight_update_status,	lkpi_backlight_update_status),
 	DEVMETHOD(backlight_get_status,		lkpi_backlight_get_status),
 	DEVMETHOD(backlight_get_info,		lkpi_backlight_get_info),
+
+	/* Framebuffer service methods */
+	DEVMETHOD(fb_getinfo,			lkpi_fb_helper_getinfo),
+
 	DEVMETHOD_END
 };

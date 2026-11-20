@@ -50,7 +50,7 @@ SRCS+=	opt_acpi.h acpi_if.h linux_acpi.c
 SRCS+=	opt_apic.h
 .endif
 
-SRCS+=	opt_ddb.h
+SRCS+=	fb_if.h opt_ddb.h
 SRCS+=	${LINUXKPI_GENSRCS}
 
 CFLAGS+= ${LINUXKPI_INCLUDES}
