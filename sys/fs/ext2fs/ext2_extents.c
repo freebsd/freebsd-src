@@ -38,6 +38,7 @@
 #include <sys/conf.h>
 #include <sys/sdt.h>
 #include <sys/stat.h>
+#include <sys/proc.h>
 
 #include <fs/ext2fs/ext2_mount.h>
 #include <fs/ext2fs/fs.h>
@@ -53,6 +54,8 @@ SDT_PROVIDER_DECLARE(ext2fs);
  * arg1: Textual message
  */
 SDT_PROBE_DEFINE2(ext2fs, , trace, extents, "int", "char*");
+SDT_PROBE_DEFINE3(ext2fs, , alloc, ext4_reallocblks_realloc, "int", "int",
+    "int");
 
 static MALLOC_DEFINE(M_EXT2EXTENTS, "ext2_extents", "EXT2 extents");
 
@@ -828,6 +831,21 @@ ext4_ext_dirty(struct inode *ip, struct ext4_extent_path *path)
 		ext4_ext_fill_path_buf(path, bp);
 		ext2_extent_blk_csum_set(ip, bp->b_data);
 		error = bwrite(bp);
+		if (error) {
+			/*
+			 * bwrite() left the modified extent tree dirty in
+			 * the cache.  Discard it, so a later read sees the
+			 * on-disk tree instead of one naming blocks the
+			 * caller's rollback is about to free.
+			 */
+			bp = getblk(ip->i_devvp, fsbtodb(fs, blk),
+			    fs->e2fs_bsize, 0, 0, 0);
+			if (bp) {
+				bundirty(bp);
+				brelse(bp);
+			}
+			return (error);
+		}
 	} else {
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		error = ext2_update(ip->i_vnode, 1);
@@ -995,14 +1013,18 @@ ext4_ext_split(struct inode *ip, struct ext4_extent_path *path,
 	}
 
 	ext2_extent_blk_csum_set(ip, bp->b_data);
-	bwrite(bp);
+	error = bwrite(bp);
 	bp = NULL;
+	if (error)
+		goto cleanup;
 
 	/* Fix old leaf. */
 	if (m) {
 		path[depth].ep_header->eh_ecount =
 		    htole16(le16toh(path[depth].ep_header->eh_ecount) - m);
-		ext4_ext_dirty(ip, path + depth);
+		error = ext4_ext_dirty(ip, path + depth);
+		if (error)
+			goto cleanup;
 	}
 
 	/* Create intermediate indexes. */
@@ -1042,14 +1064,18 @@ ext4_ext_split(struct inode *ip, struct ext4_extent_path *path,
 		}
 
 		ext2_extent_blk_csum_set(ip, bp->b_data);
-		bwrite(bp);
+		error = bwrite(bp);
 		bp = NULL;
+		if (error)
+			goto cleanup;
 
 		/* Fix old index. */
 		if (m) {
 			path[i].ep_header->eh_ecount =
 			    htole16(le16toh(path[i].ep_header->eh_ecount) - m);
-			ext4_ext_dirty(ip, path + i);
+			error = ext4_ext_dirty(ip, path + i);
+			if (error)
+				goto cleanup;
 		}
 
 		i--;
@@ -1062,10 +1088,11 @@ cleanup:
 		brelse(bp);
 
 	if (error) {
+		/* Undo the metadata blocks allocated by this split. */
 		for (i = 0; i < depth; i++) {
 			if (!ablks[i])
 				continue;
-			ext4_ext_blkfree(ip, ablks[i], 1, 0);
+			ext2_rollback_unpublished(ip, ablks[i], 1);
 		}
 	}
 
@@ -1094,7 +1121,7 @@ ext4_ext_grow_indepth(struct inode *ip, struct ext4_extent_path *path,
 
 	bp = getblk(ip->i_devvp, fsbtodb(fs, newblk), fs->e2fs_bsize, 0, 0, 0);
 	if (!bp) {
-		ext4_ext_blkfree(ip, newblk, 1, 0);
+		ext2_rollback_unpublished(ip, newblk, 1);
 		return (EIO);
 	}
 
@@ -1113,7 +1140,7 @@ ext4_ext_grow_indepth(struct inode *ip, struct ext4_extent_path *path,
 	ext2_extent_blk_csum_set(ip, bp->b_data);
 	error = bwrite(bp);
 	if (error) {
-		ext4_ext_blkfree(ip, newblk, 1, 0);
+		ext2_rollback_unpublished(ip, newblk, 1);
 		goto out;
 	}
 
@@ -1128,7 +1155,7 @@ ext4_ext_grow_indepth(struct inode *ip, struct ext4_extent_path *path,
 
 	neh = ext4_ext_inode_header(ip);
 	neh->eh_depth = htole16(path->ep_depth + 1);
-	ext4_ext_dirty(ip, curpath);
+	error = ext4_ext_dirty(ip, curpath);
 out:
 	brelse(bp);
 
@@ -1195,7 +1222,7 @@ ext4_ext_correct_indexes(struct inode *ip, struct ext4_extent_path *path)
 	struct ext4_extent_header *eh;
 	struct ext4_extent *ex;
 	int32_t border;
-	int depth, k;
+	int depth, k, error;
 
 	depth = ext4_ext_inode_depth(ip);
 	eh = path[depth].ep_header;
@@ -1214,22 +1241,34 @@ ext4_ext_correct_indexes(struct inode *ip, struct ext4_extent_path *path)
 	k = depth - 1;
 	border = le32toh(path[depth].ep_ext->e_blk);
 	path[k].ep_index->ei_blk = htole32(border);
-	ext4_ext_dirty(ip, path + k);
+	error = ext4_ext_dirty(ip, path + k);
+	if (error)
+		return (error);
 	while (k--) {
 		/* Change all left-side indexes. */
 		if (path[k+1].ep_index != EXT_FIRST_INDEX(path[k+1].ep_header))
 			break;
 
 		path[k].ep_index->ei_blk = htole32(border);
-		ext4_ext_dirty(ip, path + k);
+		error = ext4_ext_dirty(ip, path + k);
+		if (error)
+			return (error);
 	}
 
 	return (0);
 }
 
+/*
+ * ext4_ext_insert_extent -- insert a new extent into the extent tree.
+ *
+ * When ctx is given it is advanced to MAPPED and PUBLISHED once the
+ * modified tree has been written; on failure it stays MAPPED, which
+ * leaves the caller's rollback allowed.  Callers without an allocation
+ * (truncate, split) pass NULL.
+ */
 static int
 ext4_ext_insert_extent(struct inode *ip, struct ext4_extent_path *path,
-    struct ext4_extent *newext)
+     struct ext4_extent *newext, struct ext2_alloc_context *ctx)
 {
 	struct ext4_extent_header * eh;
 	struct ext4_extent *ex, *nex, *nearex;
@@ -1347,7 +1386,18 @@ merge:
 	if (error)
 		goto cleanup;
 
-	ext4_ext_dirty(ip, path + depth);
+	error = ext4_ext_dirty(ip, path + depth);
+	if (error)
+		goto cleanup;
+
+	/*
+	 * ext4_ext_dirty() wrote the tree out, so the extent now names
+	 * the run on disk and the allocation is published.
+	 */
+	if (ctx) {
+		ext2_alloc_transition(ctx, EXT2_ALLOC_MAPPED);
+		ext2_alloc_transition(ctx, EXT2_ALLOC_PUBLISHED);
+	}
 
 cleanup:
 	if (npath) {
@@ -1361,29 +1411,55 @@ cleanup:
 
 static e4fs_daddr_t
 ext4_new_blocks(struct inode *ip, daddr_t lbn, e4fs_daddr_t pref,
-    struct ucred *cred, unsigned long *count, int *perror)
+    struct ucred *cred, unsigned long *count, int *perror,
+    struct ext2_alloc_context *ctx)
 {
-	struct m_ext2fs *fs;
-	e4fs_daddr_t newblk;
+	enum ext2_alloc_class alloc_class;
+	int error;
 
-	/*
-	 * We will allocate only single block for now.
-	 */
-	if (*count > 1)
+	if (ctx == NULL) {
+		*perror = EINVAL;
 		return (0);
-
-	fs = ip->i_e2fs;
-	EXT2_LOCK(ip->i_ump);
-	*perror = ext2_alloc(ip, lbn, pref, (int)fs->e2fs_bsize, cred, &newblk);
-	if (*perror)
-		return (0);
-
-	if (newblk) {
-		ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		ext2_update(ip->i_vnode, 1);
 	}
 
-	return (newblk);
+	if (*count <= 0)
+		return (0);
+
+	/*
+	 * ext2_alloc_run() returns exactly one contiguous run, so the
+	 * caller's count may come back longer than it asked for.  Never
+	 * ask for more than one extent record can express.
+	 */
+	if (*count > EXT4_MAX_LEN)
+		*count = EXT4_MAX_LEN;
+
+	EXT2_LOCK(ip->i_ump);
+	if (lbn == (daddr_t)ip->i_next_alloc_block + 1)
+		alloc_class = EXT2_ALLOC_DATA_SEQ;
+	else
+		alloc_class = EXT2_ALLOC_DATA_RAND;
+	/* Returns with EXT2_LOCK held, also on failure. */
+	error = ext2_alloc_run(ip, lbn, (uint32_t)*count, pref,
+	    alloc_class, cred, ctx);
+	if (error)
+		goto nospace;
+
+	*count = ctx->run.par_length;
+	ext2_commit_allocated_block(ip, ctx);
+	*perror = 0;
+	EXT2_UNLOCK(ip->i_ump);
+
+	/*
+	 * ext2_update() writes the inode out and may sleep, so it must
+	 * not run under EXT2_LOCK; the in-memory state it writes was
+	 * already updated above.
+	 */
+	ext2_update(ip->i_vnode, 1);
+	return (ctx->run.par_physical_start);
+nospace:
+	EXT2_UNLOCK(ip->i_ump);
+	*perror = ENOSPC;
+	return (0);
 }
 
 int
@@ -1395,10 +1471,12 @@ ext4_ext_get_blocks(struct inode *ip, e4fs_daddr_t iblk,
 	struct buf *bp = NULL;
 	struct ext4_extent_path *path;
 	struct ext4_extent newex, *ex;
+	struct ext2_alloc_context ctx;
 	e4fs_daddr_t bpref, newblk = 0;
 	unsigned long allocated = 0;
 	int error = 0, depth;
 
+	fs = ip->i_e2fs;
 	if(bpp)
 		*bpp = NULL;
 	*pallocated = 0;
@@ -1454,7 +1532,8 @@ ext4_ext_get_blocks(struct inode *ip, e4fs_daddr_t iblk,
 
 	bpref = ext4_ext_blkpref(ip, path, iblk);
 	allocated = max_blocks;
-	newblk = ext4_new_blocks(ip, iblk, bpref, cred, &allocated, &error);
+	newblk = ext4_new_blocks(ip, iblk, bpref, cred, &allocated, &error,
+	    &ctx);
 	if (!newblk)
 		goto out2;
 
@@ -1462,21 +1541,35 @@ ext4_ext_get_blocks(struct inode *ip, e4fs_daddr_t iblk,
 	newex.e_blk = htole32(iblk);
 	ext4_ext_store_pblock(&newex, newblk);
 	newex.e_len = htole16(allocated);
-	error = ext4_ext_insert_extent(ip, path, &newex);
-	if (error)
+	error = ext4_ext_insert_extent(ip, path, &newex, &ctx);
+	if (error) {
+		/*
+		 * No extent record reached the disk, so the run is
+		 * unpublished and can simply be given back.
+		 */
+#ifdef INVARIANTS
+		if (allocated == 0)
+			panic("ext4_ext_get_blocks: extent insertion failed "
+			    "with allocated == 0");
+		if (newblk == 0)
+			panic("ext4_ext_get_blocks: extent insertion failed "
+			    "with newblk == 0");
+#endif
+		ext2_rollback_allocation(&ctx);
 		goto out2;
+	}
 
 	newblk = ext4_ext_extent_pblock(&newex);
 	ext4_ext_put_in_cache(ip, iblk, allocated, newblk, EXT4_EXT_CACHE_IN);
 	*pallocated = 1;
 
 out:
+	/* The run may be longer than the caller asked for. */
 	if (allocated > max_blocks)
 		allocated = max_blocks;
 
 	if (bpp)
 	{
-		fs = ip->i_e2fs;
 		error = bread(ip->i_devvp, fsbtodb(fs, newblk),
 		    fs->e2fs_bsize, cred, &bp);
 		if (error) {
@@ -1487,6 +1580,7 @@ out:
 	}
 
 out2:
+	/* The path holds no buffer references at this point. */
 	if (path) {
 		ext4_ext_drop_refs(path);
 		free(path, M_EXT2EXTENTS);
@@ -1535,7 +1629,8 @@ ext4_ext_rm_index(struct inode *ip, struct ext4_extent_path *path)
 	    ("ext4_ext_rm_index: bad ecount"));
 	path->ep_header->eh_ecount =
 	    htole16(le16toh(path->ep_header->eh_ecount) - 1);
-	ext4_ext_dirty(ip, path);
+	if (ext4_ext_dirty(ip, path) != 0)
+		return (EIO);
 	ext4_ext_blkfree(ip, leaf, 1, 0);
 	return (0);
 }
@@ -1609,7 +1704,9 @@ ext4_ext_rm_leaf(struct inode *ip, struct ext4_extent_path *path,
 		ex->e_blk = htole32(block);
 		ex->e_len = htole16(num);
 
-		ext4_ext_dirty(ip, path + depth);
+		error = ext4_ext_dirty(ip, path + depth);
+		if (error)
+			goto out;
 
 		ex--;
 		ex_blk = htole32(ex->e_blk);
@@ -1764,12 +1861,200 @@ ext4_ext_remove_space(struct inode *ip, off_t length, int flags,
 		 */
 		 ext4_ext_header(ip)->eh_depth = 0;
 		 ext4_ext_header(ip)->eh_max = htole16(ext4_ext_space_root(ip));
-		 ext4_ext_dirty(ip, path);
+		 error = ext4_ext_dirty(ip, path);
+		 if (error)
+			 goto out;
 	}
 
+out:
 	ext4_ext_drop_refs(path);
 	free(path, M_EXT2EXTENTS);
 
 	ip->i_ext_cache.ec_type = EXT4_EXT_CACHE_NO;
 	return (error);
+}
+
+/*
+ * ext4_ext_realloc_extent — repoint one whole extent at a new physical run.
+ *
+ * Only the physical start changes.  The logical start and length stay put, so
+ * the tree keeps its shape: no leaf is split, no index is touched, and the
+ * leaf cannot move.  The caller must already have established that the extent
+ * covers exactly the logical range it means to relocate.
+ *
+ * The rewrite is the publication point, so this must be called with the
+ * allocation context in the MAPPED state.  If the tree cannot be written the
+ * in-memory copy is put back to the old run, which leaves the tree naming the
+ * blocks that are still on disk, and the caller may roll its allocation back.
+ */
+static int
+ext4_ext_realloc_extent(struct inode *ip, struct ext4_extent_path *path,
+    e4fs_daddr_t new_start)
+{
+	e4fs_daddr_t old_start;
+	int error;
+
+	old_start = ext4_ext_extent_pblock(path->ep_ext);
+	ext4_ext_store_pblock(path->ep_ext, new_start);
+	error = ext4_ext_dirty(ip, path);
+	if (error) {
+		ext4_ext_store_pblock(path->ep_ext, old_start);
+		return (error);
+	}
+
+	/* Any cached mapping still names the old run. */
+	ip->i_ext_cache.ec_type = EXT4_EXT_CACHE_NO;
+	return (0);
+}
+
+/*
+ * ext4_reallocblks — relocate an extent-mapped cluster onto one contiguous run.
+ *
+ * The buffer cache hands us a logically consecutive cluster of buffers whose
+ * physical blocks are scattered.  When those logical blocks are exactly one
+ * existing extent, the extent can be repointed at a freshly allocated
+ * contiguous run with no change to the shape of the tree.
+ *
+ * The scope is deliberately narrow.  The cluster has to match a whole extent
+ * and the replacement run has to be exactly as long; anything else is refused
+ * and the existing allocation stands.  Refusing costs locality, while
+ * attempting a split, a merge or a new leaf would mean exercising the whole
+ * insertion machinery for what is an optimisation.
+ *
+ * Ordering is what makes this safe.  The replacement run is allocated and the
+ * extent is rewritten before the old blocks are freed, so a failure anywhere
+ * up to the rewrite leaves the on-disk extent naming blocks that are still
+ * allocated.  The one asymmetric case is failing to free the old blocks after
+ * a successful rewrite: the file is correct and the space is leaked, which
+ * soft updates can reclaim later.  Freeing is therefore deliberately kept
+ * outside the allocator's rollback.
+ */
+int
+ext4_reallocblks(struct vop_reallocblks_args *ap)
+{
+	struct cluster_save *buflist;
+	struct ext2_alloc_context ctx;
+	struct ext4_extent_path *path;
+	struct ext4_extent *ex;
+	struct m_ext2fs *fs;
+	struct ext2mount *ump;
+	struct inode *ip;
+	struct vnode *vp;
+	e4fs_daddr_t old_start, old_blk, blkno;
+	e2fs_lbn_t start_lbn;
+	uint16_t depth, extent_len;
+	uint32_t i, len;
+	int error, pref;
+
+	vp = ap->a_vp;
+	ip = VTOI(vp);
+	fs = ip->i_e2fs;
+	ump = ip->i_ump;
+
+	if (ext2_doreallocblks == 0)
+		return (ENOSPC);
+
+	/* This path only makes sense for an extent-mapped inode. */
+	if ((ip->i_flag & IN_E4EXTENTS) == 0)
+		return (ENOSPC);
+
+	buflist = ap->a_buflist;
+	len = buflist->bs_nchildren;
+	if (len == 0 || len > EXT4_MAX_LEN)
+		return (ENOSPC);
+	start_lbn = buflist->bs_children[0]->b_lblkno;
+	for (i = 1; i < len; i++)
+		if (buflist->bs_children[i]->b_lblkno != start_lbn + i)
+			return (ENOSPC);
+	/*
+	 * Locate the extent.  It must begin at the cluster and be exactly as
+	 * long as the cluster, otherwise relocating it would mean splitting
+	 * or trimming the tree.  An e_len above EXT4_MAX_LEN marks an
+	 * uninitialised extent, which has no physical mapping to move yet.
+	 */
+	path = NULL;
+	if (ext4_ext_find_extent(ip, start_lbn, &path) != 0)
+		return (ENOSPC);
+	ex = path[depth = ext4_ext_inode_depth(ip)].ep_ext;
+	if (ex == NULL)
+		goto refuse;
+	extent_len = le16toh(ex->e_len);
+	if (extent_len == 0 || extent_len > EXT4_MAX_LEN)
+		goto refuse;
+	if (le32toh(ex->e_blk) != start_lbn || extent_len != len)
+		goto refuse;
+	old_start = ext4_ext_extent_pblock(ex);
+	/*
+	 * The cluster must be sitting on the blocks the extent names.  We are
+	 * about to free them, so anything still referring to them has to be
+	 * accounted for; the buffers are the only such referrer, and they are
+	 * about to be redirected.
+	 */
+	for (i = 0; i < len; i++)
+		if (buflist->bs_children[i]->b_blkno !=
+		    fsbtodb(fs, old_start + (e4fs_daddr_t)i * fs->e2fs_fpb))
+			goto refuse;
+	pref = ext4_ext_blkpref(ip, path, start_lbn);
+
+	/*
+	 * Ask for exactly the blocks the extent covers.  DATA_RAND keeps the
+	 * sequential preallocation target out of it, since overshooting the
+	 * extent would leave a run that cannot be used.
+	 */
+	EXT2_LOCK(ump);
+	error = ext2_alloc_run(ip, start_lbn, len, pref,
+	    EXT2_ALLOC_DATA_RAND, curthread->td_ucred, &ctx);
+	if (error) {
+		EXT2_UNLOCK(ump);
+		goto refuse;
+	}
+	EXT2_UNLOCK(ump);
+
+	/*
+	 * Deliberately no ext2_commit_allocated_block() here.  That helper
+	 * charges the new run to i_blocks, and ext2_blkfree() does not credit
+	 * anything back, so committing would inflate i_blocks by the length of
+	 * the run for good.  A relocation leaves the number of blocks charged
+	 * to the inode unchanged, which is also why ext2_reallocblks() does
+	 * not commit either.
+	 */
+	if (ctx.run.par_length != len) {
+		ext2_rollback_allocation(&ctx);
+		goto refuse;
+	}
+
+	/* The extent names the new run in memory. */
+	ext2_alloc_transition(&ctx, EXT2_ALLOC_MAPPED);
+	error = ext4_ext_realloc_extent(ip, path,
+	    ctx.run.par_physical_start);
+	if (error) {
+		ext2_rollback_allocation(&ctx);
+		goto refuse;
+	}
+	/* The new run is reachable from the on-disk inode. */
+	ext2_alloc_transition(&ctx, EXT2_ALLOC_PUBLISHED);
+
+	SDT_PROBE3(ext2fs, , alloc, ext4_reallocblks_realloc,
+	    ip->i_number, start_lbn, old_start);
+
+	/*
+	 * Nothing refers to the old blocks now, so release them and point the
+	 * cluster at the run the extent names.  The two are interleaved so a
+	 * buffer is never left referring to a block that has been freed.
+	 */
+	for (i = 0, old_blk = old_start, blkno = ctx.run.par_physical_start;
+	    i < len; i++, old_blk += fs->e2fs_fpb, blkno += fs->e2fs_fpb) {
+		ext2_blkfree(ip, old_blk, fs->e2fs_bsize);
+		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
+	}
+
+	ext4_ext_drop_refs(path);
+	free(path, M_EXT2EXTENTS);
+	return (0);
+refuse:
+	if (path != NULL) {
+		ext4_ext_drop_refs(path);
+		free(path, M_EXT2EXTENTS);
+	}
+	return (ENOSPC);
 }
