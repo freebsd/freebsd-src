@@ -998,28 +998,40 @@ ipsec_process_done(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	 * doing further processing.
 	 */
 	if (++idx < sp->tcount) {
+		/*
+		 * The request consumes a reference to the SP.  Keep ours and
+		 * the SA: when none of the remaining requests has an SA and
+		 * none requires one, the request returns EJUSTRETURN and
+		 * leaves the packet to be sent here, with the transforms
+		 * applied so far.
+		 */
 		switch (saidx->dst.sa.sa_family) {
 #ifdef INET
 		case AF_INET:
-			key_freesav(&sav);
+			key_addref(sp);
 			IPSECSTAT_INC(ips_out_bundlesa);
-			return (ipsec4_perform_request(NULL, m, ip, sp, NULL,
-			    idx, 0));
-			/* NOTREACHED */
+			error = ipsec4_perform_request(NULL, m, ip, sp, NULL,
+			    idx, 0);
+			break;
 #endif
 #ifdef INET6
 		case AF_INET6:
-			key_freesav(&sav);
+			key_addref(sp);
 			IPSEC6STAT_INC(ips_out_bundlesa);
-			return (ipsec6_perform_request(NULL, m, sp, NULL,
-			    idx, 0));
-			/* NOTREACHED */
+			error = ipsec6_perform_request(NULL, m, sp, NULL,
+			    idx, 0);
+			break;
 #endif /* INET6 */
 		default:
 			DPRINTF(("%s: unknown protocol family %u\n", __func__,
 			    saidx->dst.sa.sa_family));
 			error = EPFNOSUPPORT;
 			goto bad;
+		}
+		if (error != EJUSTRETURN) {
+			key_freesav(&sav);
+			key_freesp(&sp);
+			return (error);
 		}
 	}
 #ifdef INET6
