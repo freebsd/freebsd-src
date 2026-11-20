@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2016 Andriy Gapon <avg@FreeBSD.org>
  * All rights reserved.
+ * Copyright (c) 2026 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Klara, Inc. under sponsorship
+ * from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,14 +28,15 @@
  */
 
 #include <sys/types.h>
+#include <err.h>
 #include <errno.h>
-#include <limits.h>
 #include <inttypes.h>
+#include <kenv.h>
+#include <limits.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
-#include <kenv.h>
 #include <unistd.h>
 
 #include <libzfsbootenv.h>
@@ -175,6 +180,18 @@ delete_pair(const char *name, const char *nvlist, const char *key)
 	return (rv);
 }
 
+static void
+usage(void)
+{
+	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	    "usage: zfsbootcfg [-z pool] [options]",
+	    "       zfsbootcfg [-z pool] [-n name] -k key [-t type] -v value "
+	    "[-p]",
+	    "       zfsbootcfg [-z pool] [-n name] -d key [-p]",
+	    "       zfsbootcfg [-z pool] [-n name] -p");
+	exit(1);
+}
+
 /*
  * Usage: zfsbootcfg [-z pool] [-d key] [-k key -t type -v value] [-p]
  *	zfsbootcfg [-z pool] -n nvlist [-d key] [-k key -t type -v value] [-p]
@@ -220,6 +237,8 @@ main(int argc, char * const *argv)
 		case 'z':
 			name = optarg;
 			break;
+		default:
+			usage();
 		}
 	}
 
@@ -229,16 +248,17 @@ main(int argc, char * const *argv)
 	if (argc == 1)
 		value = argv[0];
 
-	if (argc > 1) {
-		fprintf(stderr, "usage: zfsbootcfg <boot.config(5) options>\n");
-		return (1);
-	}
+	if (argc > 1)
+		usage();
+
+	/* Setting a key needs something to set it to. */
+	if (key != NULL && !delete && value == NULL)
+		usage();
 
 	if (name == NULL) {
 		rv = kenv(KENV_GET, "vfs.root.mountfrom", buf, sizeof(buf));
 		if (rv <= 0) {
-			perror("can't get vfs.root.mountfrom");
-			return (1);
+			err(1, "can't get vfs.root.mountfrom");
 		}
 
 		if (strncmp(buf, "zfs:", 4) == 0) {
@@ -247,8 +267,7 @@ main(int argc, char * const *argv)
 				*name = '\0';
 			name = buf + 4;
 		} else {
-			perror("not a zfs root");
-			return (1);
+			err(1, "not a zfs root");
 		}
 	}
 
@@ -267,7 +286,7 @@ main(int argc, char * const *argv)
 		if (rv == 0)
 			printf("zfs bootenv is successfully written\n");
 		else
-			printf("error: %d\n", rv);
+			warnx("error: %d\n", rv);
 	} else if (!print) {
 		char *ptr;
 
@@ -281,5 +300,5 @@ main(int argc, char * const *argv)
 		rv = lzbe_bootenv_print(name, nvlist, stdout);
 	}
 
-	return (rv);
+	exit(rv != 0);
 }
