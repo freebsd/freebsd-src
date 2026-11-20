@@ -113,9 +113,13 @@ linux_ifnet_vnet_init(void *arg __unused)
 		linux_ifnet_arrival(NULL, ifp);
 	NET_EPOCH_EXIT(et);
 }
-VNET_SYSINIT(linux_ifnet_vnet_init, SI_SUB_INIT_IF, SI_ORDER_ANY,
+VNET_SYSINIT(linux_ifnet_vnet_init, SI_SUB_INIT_IF, SI_ORDER_FIRST,
     linux_ifnet_vnet_init, NULL);
 
+/*
+ * Runs at SI_ORDER_FIRST, after the cloners that destroy their interfaces
+ * at SI_SUB_INIT_IF: linux_ifnet_departure() needs the allocator until then.
+ */
 static void
 linux_ifnet_vnet_uninit(void *arg __unused)
 {
@@ -129,7 +133,7 @@ linux_ifnet_vnet_uninit(void *arg __unused)
 	clear_unrhdr(V_linux_eth_unr);
 	delete_unrhdr(V_linux_eth_unr);
 }
-VNET_SYSUNINIT(linux_ifnet_vnet_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
+VNET_SYSUNINIT(linux_ifnet_vnet_uninit, SI_SUB_INIT_IF, SI_ORDER_FIRST,
     linux_ifnet_vnet_uninit, NULL);
 
 /*
