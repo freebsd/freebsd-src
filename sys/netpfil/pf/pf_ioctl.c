@@ -3213,6 +3213,8 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 #undef ERROUT
 #undef ERROUT_UNLOCKED
 errout:
+	pf_free_rule(rule);
+	rule = NULL;
 	PF_RULES_WUNLOCK();
 	PF_CONFIG_UNLOCK();
 errout_unlocked:
