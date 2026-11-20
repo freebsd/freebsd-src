@@ -1142,7 +1142,7 @@ Assuming that the
 sources are located in the
 .Pa /home/user/src
 directory, the used kernel config is named
-.Vd MY_KERNEL
+.Va MY_KERNEL
 and that the module sources are in
 .Pa my-module
 directory, the following sequence of the commands would populate
@@ -1150,7 +1150,7 @@ directory, the following sequence of the commands would populate
 directory with the
 .Pa opt_*.h
 headers and then build the module compatible with
-.Vd MY_KERNEL .
+.Va MY_KERNEL .
 .Bd -literal -offset -indent
 config -d /home/user/my-kernel-builddir -s /home/user/src/sys/amd64/conf MY-KERNEL
 cd my-module
