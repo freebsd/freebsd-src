@@ -110,104 +110,57 @@ sort_weightened_nhops(struct weightened_nhop *wn, int num_nhops)
 }
 
 /*
- * In order to determine the minimum weight difference in the array
- * of weights, create a sorted array of weights, using spare "storage"
- * field in the `struct weightened_nhop`.
- * Assume weights to be (mostly) the same and use insertion sort to
- * make it sorted.
- */
-static void
-sort_weightened_nhops_weights(struct weightened_nhop *wn, int num_items)
-{
-	wn[0].storage = wn[0].weight;
-	for (int i = 1, j = 0; i < num_items; i++) {
-		uint32_t weight = wn[i].weight; // read from 'weight' as it's not reordered
-		/* Move all weights > weight 1 position right */
-		for (j = i - 1; j >= 0 && wn[j].storage > weight; j--)
-			wn[j + 1].storage = wn[j].storage;
-		wn[j + 1].storage = weight;
-	}
-}
-
-/*
- * Calculate minimum number of slots required to fit the existing
- * set of weights in the common use case where weights are "easily"
- * comparable.
- * Assumes @wn is sorted by weight ascending and each weight is > 0.
- * Returns number of slots or 0 if precise calculation failed.
- * Only calculate for nexthops with specified metric and ignore the rest.
- *
- * Some examples:
- * note: (i, X) pair means (nhop=i, weight=X):
- * (1, 1) (2, 2) -> 3 slots [1, 2, 2]
- * (1, 100), (2, 200) -> 3 slots [1, 2, 2]
- * (1, 100), (2, 200), (3, 400) -> 7 slots [1, 2, 2, 3, 3, 3]
+ * Returns the greatest common divisor of @a and @b.
+ * The divisor of zero and x is x.
  */
 static uint32_t
-calc_min_mpath_slots_fast(struct weightened_nhop *wn, size_t num_items,
-    uint32_t metric, uint64_t *ptotal)
+calc_gcd(uint32_t a, uint32_t b)
 {
-	uint32_t i, x, last, xmin = 0;
-	uint64_t total = 0;
+	uint32_t r;
 
-	// Get sorted array of weights in .storage field
-	sort_weightened_nhops_weights(wn, num_items);
-
-	/* start with lowest metric */
-	for (x = 0; x < num_items; x++) {
-		if (nhop_get_metric(wn[x].nh) == metric) {
-			xmin = wn[x].storage;
-			break;
-		}
-	}
-	last = 0;
-	for (i = x; i < num_items; i++) {
-		if (nhop_get_metric(wn[i].nh) != metric)
-			continue;
-
-		total += wn[i].storage;
-		if ((wn[i].storage != last) &&
-		    ((wn[i].storage - last < xmin) || xmin == 0)) {
-			xmin = wn[i].storage - last;
-		}
-		last = wn[i].storage;
-	}
-	*ptotal = total;
-	/* xmin is the minimum unit of desired capacity */
-	if (xmin == 0 || (total % xmin) != 0)
-		return (0);
-	for (i = 0; i < num_items; i++) {
-		if ((wn[i].weight % xmin) != 0)
-			return (0);
+	while (b != 0) {
+		r = a % b;
+		a = b;
+		b = r;
 	}
 
-	return ((uint32_t)(total / xmin));
+	return (a);
 }
 
 /*
  * Calculate minimum number of slots required to fit the existing
  * set of weights while maintaining weight coefficients
- * after filtering by metric.
+ * after filtering by metric: the sum of the weights divided by
+ * their greatest common divisor.
  *
- * Assume @wn is sorted by weight ascending and each weight is > 0.
+ * Only calculate for nexthops with specified metric and ignore the rest.
+ * Returns number of slots, at most RIB_MAX_MPATH_WIDTH, or 0 if all
+ * weights are zero.
  *
- * Tries to find simple precise solution first and falls back to
- *  RIB_MAX_MPATH_WIDTH in case of any failure.
+ * Some examples:
+ * note: (i, X) pair means (nhop=i, weight=X):
+ * (1, 1) (2, 2) -> 3 slots [1, 2, 2]
+ * (1, 100), (2, 200) -> 3 slots [1, 2, 2]
+ * (1, 100), (2, 200), (3, 400) -> 7 slots [1, 2, 2, 3, 3, 3, 3]
  */
 static uint32_t
-calc_min_mpath_slots(struct weightened_nhop *wn, size_t num_items,
+calc_min_mpath_slots(const struct weightened_nhop *wn, size_t num_items,
     uint32_t metric)
 {
-	uint32_t v;
-	uint64_t total;
+	uint64_t total = 0;
+	uint32_t unit = 0;
 
-	v = calc_min_mpath_slots_fast(wn, num_items, metric, &total);
+	for (size_t i = 0; i < num_items; i++) {
+		if (nhop_get_metric(wn[i].nh) != metric)
+			continue;
+
+		total += wn[i].weight;
+		unit = calc_gcd(unit, wn[i].weight);
+	}
 	if (total == 0)
 		return (0);
-	if ((v == 0) || (v > RIB_MAX_MPATH_WIDTH))
-		v = RIB_MAX_MPATH_WIDTH;
 
-	return (v);
+	return (MIN(total / unit, RIB_MAX_MPATH_WIDTH));
 }
 
 /*
@@ -549,6 +502,9 @@ nhgrp_alloc(uint32_t fibnum, int family, struct weightened_nhop *wn, int num_nho
 
 		if (nhop_get_metric(wn[i].nh) < min_metric)
 			min_metric = nhop_get_metric(wn[i].nh);
+
+		/* Groups are compared as bytes, do not leave this to the caller */
+		wn[i].storage = 0;
 	}
 
 	if ((nhg_priv = alloc_nhgrp(wn, num_nhops, min_metric)) == NULL) {
