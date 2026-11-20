@@ -4262,7 +4262,6 @@ DIOCGETETHRULES_error:
 	}
 
 	case DIOCGETETHRULE: {
-		struct epoch_tracker	 et;
 		struct pfioc_nv		*nv = (struct pfioc_nv *)addr;
 		nvlist_t		*nvl = NULL;
 		void			*nvlpacked = NULL;
@@ -4325,15 +4324,12 @@ DIOCGETETHRULES_error:
 			PF_RULES_RUNLOCK();
 			ERROUT(ENOENT);
 		}
-		/* Make sure rule can't go away. */
-		NET_EPOCH_ENTER(et);
-		PF_RULES_RUNLOCK();
 		nvl = pf_keth_rule_to_nveth_rule(rule);
 		if (pf_keth_anchor_nvcopyout(rs, rule, nvl)) {
-			NET_EPOCH_EXIT(et);
+			PF_RULES_RUNLOCK();
 			ERROUT(EBUSY);
 		}
-		NET_EPOCH_EXIT(et);
+		PF_RULES_RUNLOCK();
 		if (nvl == NULL)
 			ERROUT(ENOMEM);
 
