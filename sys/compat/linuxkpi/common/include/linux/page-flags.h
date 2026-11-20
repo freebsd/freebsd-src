@@ -38,4 +38,12 @@
 	      const struct page *: (const struct folio *)(p), \
 	      struct page *: (struct folio *)(p)))
 
+static inline struct page *
+folio_page(struct folio *folio, int n)
+{
+	KASSERT(n == 0, ("%s: n = %d but only n = 0 supported\n", __func__, n));
+
+	return (&folio->page);
+}
+
 #endif	/* _LINUXKPI_LINUX_PAGEFLAGS_H_ */

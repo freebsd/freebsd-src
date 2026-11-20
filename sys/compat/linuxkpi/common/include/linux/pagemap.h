@@ -35,11 +35,35 @@
 
 struct folio_batch;
 
+static inline struct page *
+folio_file_page(struct folio *folio, pgoff_t index)
+{
+	return (folio_page(folio, index & (folio_nr_pages(folio) - 1)));
+}
+
 #define	invalidate_mapping_pages(...) \
   linux_invalidate_mapping_pages(__VA_ARGS__)
 
 unsigned long linux_invalidate_mapping_pages(vm_object_t obj, pgoff_t start,
     pgoff_t end);
+
+/* Shmem page allocation may sleep and ignores the other flags. */
+static inline gfp_t
+mapping_gfp_mask(vm_object_t mapping)
+{
+	return (GFP_KERNEL);
+}
+
+static inline gfp_t
+mapping_gfp_constraint(vm_object_t mapping, gfp_t gfp_mask)
+{
+	return (mapping_gfp_mask(mapping) & gfp_mask);
+}
+
+static inline void
+mapping_set_unevictable(vm_object_t mapping)
+{
+}
 
 static inline void
 mapping_clear_unevictable(vm_object_t mapping)
