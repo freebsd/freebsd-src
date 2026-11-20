@@ -931,11 +931,12 @@ update_rtm_from_info(struct rt_addrinfo *info, struct rt_msghdr **prtm,
 {
 	struct rt_msghdr *rtm, *orig_rtm = NULL;
 	struct walkarg w;
-	int len;
+	int error, len;
 
 	rtm = *prtm;
 	/* Check if we need to realloc storage */
-	rtsock_msg_buffer(rtm->rtm_type, info, NULL, &len);
+	error = rtsock_msg_buffer(rtm->rtm_type, info, NULL, &len);
+	KASSERT(error == 0, ("%s: error %d getting buffer size", __func__, error));
 	if (len > alloc_len) {
 		struct rt_msghdr *tmp_rtm;
 
@@ -957,7 +958,12 @@ update_rtm_from_info(struct rt_addrinfo *info, struct rt_msghdr **prtm,
 		.w_tmem = (caddr_t)rtm,
 		.w_tmemsize = alloc_len,
 	};
-	rtsock_msg_buffer(rtm->rtm_type, info, &w, &len);
+	error = rtsock_msg_buffer(rtm->rtm_type, info, &w, &len);
+	if (error != 0) {
+		if (orig_rtm != NULL)
+			free(rtm, M_TEMP);
+		return (error);
+	}
 	rtm->rtm_addrs = info->rti_addrs;
 
 	if (orig_rtm != NULL)
