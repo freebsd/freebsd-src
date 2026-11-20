@@ -3014,6 +3014,9 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 #define	ERROUT(x)		ERROUT_FUNCTION(errout, x)
 #define	ERROUT_UNLOCKED(x)	ERROUT_FUNCTION(errout_unlocked, x)
 
+	if (anchor == NULL || anchor_call == NULL)
+		ERROUT_UNLOCKED(EINVAL);
+
 	if ((rule->return_icmp >> 8) > ICMP_MAXTYPE)
 		ERROUT_UNLOCKED(EINVAL);
 
