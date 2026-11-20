@@ -404,9 +404,9 @@ dev/ice/ice_fwlog.c				optional ice pci \
 dev/ice/ice_rdma.c				optional ice pci \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
 dev/ice/irdma_if.m				optional ice pci \
-	compile-with "${NORMAL_M} -I$S/dev/ice"
+	dependency "$S/tools/makeobjops.awk" compile-with "${NORMAL_M} -I$S/dev/ice"
 dev/ice/irdma_di_if.m				optional ice pci \
-	compile-with "${NORMAL_M} -I$S/dev/ice"
+	dependency "$S/tools/makeobjops.awk" compile-with "${NORMAL_M} -I$S/dev/ice"
 dev/ice/ice_ddp_common.c			optional ice pci \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
 dev/ice/ice_iov.c	optional	ice pci pci_iov \

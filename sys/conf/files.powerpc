@@ -171,9 +171,9 @@ dev/ice/ice_fwlog.c		optional	ice pci powerpc64 | ice pci powerpc64le \
 dev/ice/ice_rdma.c		optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
 dev/ice/irdma_if.m		optional	ice pci powerpc64 | ice pci powerpc64le \
-	compile-with "${NORMAL_M} -I$S/dev/ice"
+	dependency "$S/tools/makeobjops.awk" compile-with "${NORMAL_M} -I$S/dev/ice"
 dev/ice/irdma_di_if.m		optional	ice pci powerpc64 | ice pci powerpc64le \
-	compile-with "${NORMAL_M} -I$S/dev/ice"
+	dependency "$S/tools/makeobjops.awk" compile-with "${NORMAL_M} -I$S/dev/ice"
 dev/ice/ice_ddp_common.c	optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
 ice_ddp.c			optional	ice_ddp powerpc64 | ice pci powerpc64le \
