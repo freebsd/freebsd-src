@@ -178,7 +178,7 @@ tacplus_getpwnam_r(const char *name, struct passwd *pwd, char *buffer,
 		if (strcasecmp(key, "uid") == 0) {
 			num = strtoimax(value, &end, 10);
 			if (end == value || *end != '\0' ||
-			    num < 0 || num > (intmax_t)UID_MAX) {
+			    num < 0 || num >= (intmax_t)UID_MAX) {
 				errno = EINVAL;
 				free(av);
 				return (NS_RETURN);
@@ -187,7 +187,7 @@ tacplus_getpwnam_r(const char *name, struct passwd *pwd, char *buffer,
 		} else if (strcasecmp(key, "gid") == 0) {
 			num = strtoimax(value, &end, 10);
 			if (end == value || *end != '\0' ||
-			    num < 0 || num > (intmax_t)GID_MAX) {
+			    num < 0 || num >= (intmax_t)GID_MAX) {
 				errno = EINVAL;
 				free(av);
 				return (NS_RETURN);

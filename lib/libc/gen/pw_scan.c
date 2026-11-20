@@ -113,9 +113,9 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 	}
 	errno = 0;
 	temp = strtoul(p, &ep, 10);
-	if ((temp == ULONG_MAX && errno == ERANGE) || temp > UID_MAX) {
+	if ((temp == ULONG_MAX && errno == ERANGE) || temp >= UID_MAX) {
 		if (flags & _PWSCAN_WARN)
-			warnx("%s > max uid value (%u)", p, UID_MAX);
+			warnx("%s > max uid value (%u)", p, UID_MAX - 1);
 		return (0);
 	}
 	id = temp;
@@ -148,9 +148,9 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 	}
 	errno = 0;
 	temp = strtoul(p, &ep, 10);
-	if ((temp == ULONG_MAX && errno == ERANGE) || temp > GID_MAX) {
+	if ((temp == ULONG_MAX && errno == ERANGE) || temp >= GID_MAX) {
 		if (flags & _PWSCAN_WARN)
-			warnx("%s > max gid value (%u)", p, GID_MAX);
+			warnx("%s > max gid value (%u)", p, GID_MAX - 1);
 		return (0);
 	}
 	id = temp;

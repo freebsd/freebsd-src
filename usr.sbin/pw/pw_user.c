@@ -1065,7 +1065,7 @@ group_from_name_or_id(char *name)
 	uintmax_t id;
 
 	if ((grp = GETGRNAM(name)) == NULL) {
-		id = strtounum(name, 0, GID_MAX, &errstr);
+		id = strtounum(name, 0, GID_MAX - 1, &errstr);
 		if (errstr)
 			errx(EX_NOUSER, "group `%s' does not exist", name);
 		grp = GETGRGID(id);
