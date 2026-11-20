@@ -409,6 +409,7 @@ Specifies the path used to search for the init binary.
 More than one binary can be listed in the string,
 candidate file names are split by the \[lq]:\[rq] separator.
 Each name is opened in sequence until a valid executable is found.
+.El
 .Sh RECOVERING
 If the
 .Pa /sbin/init
@@ -444,7 +445,6 @@ The session should be exited using
 or exec-ing fixed
 .Nm ,
 since a normal exit will cause a kernel panic.
-.El
 .Sh FILES
 .Bl -tag -width /var/log/init.log -compact
 .It Pa /dev/console
