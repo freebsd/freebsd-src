@@ -64,7 +64,7 @@ _EOF_
 		sed -nE ${excl:+-e "/${excl}/d"} \
 		    -e "/^#[[:space:]]*define[[:space:]]+${grep}/p" \
 		    "${include_dir}/${file}" | \
-		sed -Ee 's/.*define[[:space:]]+([^[:space:]]+)\>.*/TABLE_ENTRY(\1)/'
+		sed -Ee 's/.*define[[:space:]]+([_[:alpha:]][_[:alnum:]]*).*/TABLE_ENTRY(\1)/'
 	fi
 cat <<_EOF_
 TABLE_END
@@ -95,7 +95,7 @@ _EOF_
 		awk '/^(typedef[[:space:]]*)?enum([[:space:]].*)?\{/,
                      /^\}([[:space:]].*)?;/' |
 		# pick out the constants we want
-		sed -Ene 's/^[[:space:]]*('"${grep}"')\>.*/TABLE_ENTRY(\1)/p'
+		sed -Ene 's/^[[:space:]]*('"${grep}"')([^_[:alnum:]].*|$)/TABLE_ENTRY(\1)/p'
 	fi
 cat <<_EOF_
 TABLE_END
