@@ -30,11 +30,25 @@ settimezone_body()
 
 sethostname_body()
 {
+	# add dummies to ensure that sethostname only removes hostname=
+	cat >etc/rc.conf <<EOF
+dummy_one=value_one
+hostname=to.be.removed
+dummy_two=value_two
+EOF
 	atf_check -e ignore /usr/libexec/flua $(atf_get_srcdir)/sethostname.lua
 	if [ ! -f etc/rc.conf.d/hostname ]; then
 		atf_fail "hostname not written"
 	fi
 	atf_check -o inline:"hostname='myhostname'\n" cat etc/rc.conf.d/hostname
+	if [ ! -f etc/rc.conf ]; then
+		atf_fail "etc/rc.conf is gone"
+	fi
+	cat >expected <<EOF
+dummy_one=value_one
+dummy_two=value_two
+EOF
+	atf_check -o file:expected cat etc/rc.conf
 }
 
 addsshkey_body()
