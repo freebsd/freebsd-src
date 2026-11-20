@@ -117,7 +117,6 @@ struct ufsmount {
 	struct	trimlist_hashhead *um_trimhash;	/* (i) trimlist hash table */
 	u_long	um_trimlisthashsize;		/* (i) trim hash table size-1 */
 						/* (c) - below function ptrs */
-	struct	task um_devvp_fsync_task;
 	int	(*um_balloc)(struct vnode *, off_t, int, struct ucred *,
 		    int, struct buf **);
 	int	(*um_blkatoff)(struct vnode *, off_t, char **, struct buf **);

@@ -863,6 +863,7 @@ mountmsdosfs(struct vnode *odevvp, struct mount *mp)
 error_exit:
 	if (bp != NULL)
 		brelse(bp);
+	taskqueue_drain(taskqueue_thread, &mp->mnt_bdflush_task);
 	if (cp != NULL)
 		g_vfs_close_unlocked(cp);
 	if (pmp != NULL) {
@@ -953,6 +954,7 @@ msdosfs_unmount(struct mount *mp, int mntflags)
 	if (susp)
 		vfs_write_resume(mp, VR_START_WRITE);
 
+	taskqueue_drain(taskqueue_thread, &mp->mnt_bdflush_task);
 	vn_lock(pmp->pm_devvp, LK_EXCLUSIVE | LK_RETRY);
 	g_topology_lock();
 	g_vfs_close(pmp->pm_cp);

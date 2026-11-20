@@ -123,11 +123,6 @@ ffs_sync_snap(struct mount *mp, int waitfor)
 {
 }
 
-void
-ffs_devvp_bdflush_fsync(void *arg, int pending)
-{
-}
-
 #else
 FEATURE(ffs_snapshot, "FFS snapshot support");
 
@@ -2201,25 +2196,10 @@ ffs_bp_snapblk(struct vnode *devvp, struct buf *bp)
 }
 
 void
-ffs_devvp_bdflush_fsync(void *arg, int pending)
-{
-	struct ufsmount *ump;
-	struct vnode *devvp;
-
-	ump = arg;
-	devvp = ump->um_devvp;
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
-	(void)VOP_FSYNC(devvp, MNT_NOWAIT, curthread);
-	VOP_UNLOCK(devvp);
-	altbufferflushes++;
-}
-
-void
 ffs_bdflush(struct bufobj *bo, struct buf *bp)
 {
 	struct vnode *devvp;
 	struct buf *nbp;
-	struct ufsmount *ump;
 	int bp_bdskip;
 
 	if (bo->bo_dirty.bv_cnt <= dirtybufthresh)
@@ -2234,8 +2214,8 @@ ffs_bdflush(struct bufobj *bo, struct buf *bp)
 		bdwriteskip++;
 	VI_UNLOCK(devvp);
 	if (bo->bo_dirty.bv_cnt > dirtybufthresh + 10 && !bp_bdskip) {
-		ump = VFSTOUFS((struct mount *)devvp->v_data);
-		taskqueue_enqueue(taskqueue_thread, &ump->um_devvp_fsync_task);
+		mntfs_fsync_delayed(devvp);
+		altbufferflushes++;
 	} else {
 		BO_LOCK(bo);
 		/*

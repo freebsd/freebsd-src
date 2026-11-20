@@ -2410,7 +2410,7 @@ bufbdflush(struct bufobj *bo, struct buf *bp)
 
 	bd = &bdomain[bo->bo_domain];
 	if (bo->bo_dirty.bv_cnt > bd->bd_dirtybufthresh + 10) {
-		(void) VOP_FSYNC(bp->b_vp, MNT_NOWAIT, curthread);
+		mntfs_fsync_delayed(bp->b_vp);
 		altbufferflushes++;
 	} else if (bo->bo_dirty.bv_cnt > bd->bd_dirtybufthresh) {
 		BO_LOCK(bo);

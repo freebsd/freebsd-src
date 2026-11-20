@@ -43,10 +43,12 @@
 #include <sys/tslog.h>
 #include <sys/_mutex.h>
 #include <sys/_sx.h>
+#include <sys/_task.h>
 #elif defined(_WANT_MOUNT)
 #include <sys/_lock.h>
 #include <sys/_lockmgr.h>
 #include <sys/_mutex.h>
+#include <sys/_task.h>
 #endif
 
 /*
@@ -281,6 +283,7 @@ struct mount {
 						   taskqueue */
 	unsigned int	mnt_unmount_retries;	/* (d) # of failed deferred
 						   unmount attempts */
+	struct task	mnt_bdflush_task;
 };
 #endif	/* _WANT_MOUNT || _KERNEL */
 
@@ -1109,6 +1112,8 @@ extern	struct sx vfsconf_sx;
 #define	vfsconf_sunlock()	sx_sunlock(&vfsconf_sx)
 struct vnode *mntfs_allocvp(struct mount *, struct vnode *);
 void   mntfs_freevp(struct vnode *);
+void   mntfs_fsync_delayed(struct vnode *);
+void   mntfs_fsync_task(void *, int);
 
 /*
  * Declarations for these vfs default operations are located in

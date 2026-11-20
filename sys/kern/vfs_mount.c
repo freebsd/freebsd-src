@@ -715,6 +715,7 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp, const char *fspath,
 	TAILQ_INIT(&mp->mnt_notify);
 	mp->mnt_taskqueue_flags = 0;
 	mp->mnt_unmount_retries = 0;
+	TASK_INIT(&mp->mnt_bdflush_task, 0, mntfs_fsync_task, NULL);
 	return (mp);
 }
 
