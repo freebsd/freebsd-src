@@ -2744,12 +2744,35 @@ again:
 		ETHER_BPF_MTAP(ifp, m0);
 	}
 
-	if (enq > 0 && vtnet_txq_notify(txq) != 0) {
-		if (tries++ < VTNET_NOTIFY_RETRIES)
-			goto again;
+	if (enq > 0) {
+		if (vtnet_txq_notify(txq) != 0) {
+			if (tries++ < VTNET_NOTIFY_RETRIES)
+				goto again;
 
-		txq->vtntx_stats.vtxs_rescheduled++;
-		taskqueue_enqueue(txq->vtntx_tq, &txq->vtntx_intrtask);
+			txq->vtntx_stats.vtxs_rescheduled++;
+			taskqueue_enqueue(txq->vtntx_tq, &txq->vtntx_intrtask);
+		}
+	} else if (!if_sendq_empty(ifp)) {
+		if (vtnet_txq_eof(txq) != 0) {
+			if (tries++ < VTNET_NOTIFY_RETRIES)
+				goto again;
+		}
+		if (virtqueue_empty(vq)) {
+			if (tries++ < VTNET_NOTIFY_RETRIES)
+				goto again;
+			txq->vtntx_stats.vtxs_rescheduled++;
+			taskqueue_enqueue(txq->vtntx_tq, &txq->vtntx_intrtask);
+		} else {
+			if (txq->vtntx_watchdog == 0)
+				txq->vtntx_watchdog = VTNET_TX_TIMEOUT;
+			if (virtqueue_enable_intr(vq) != 0) {
+				if (tries++ < VTNET_NOTIFY_RETRIES)
+					goto again;
+				virtqueue_disable_intr(vq);
+				txq->vtntx_stats.vtxs_rescheduled++;
+				taskqueue_enqueue(txq->vtntx_tq, &txq->vtntx_intrtask);
+			}
+		}
 	}
 }
 
@@ -2823,12 +2846,35 @@ again:
 		ETHER_BPF_MTAP(ifp, m);
 	}
 
-	if (enq > 0 && vtnet_txq_notify(txq) != 0) {
-		if (tries++ < VTNET_NOTIFY_RETRIES)
-			goto again;
+	if (enq > 0) {
+		if (vtnet_txq_notify(txq) != 0) {
+			if (tries++ < VTNET_NOTIFY_RETRIES)
+				goto again;
 
-		txq->vtntx_stats.vtxs_rescheduled++;
-		taskqueue_enqueue(txq->vtntx_tq, &txq->vtntx_intrtask);
+			txq->vtntx_stats.vtxs_rescheduled++;
+			taskqueue_enqueue(txq->vtntx_tq, &txq->vtntx_intrtask);
+		}
+	} else if (!drbr_empty(ifp, br)) {
+		if (vtnet_txq_eof(txq) != 0) {
+			if (tries++ < VTNET_NOTIFY_RETRIES)
+				goto again;
+		}
+		if (virtqueue_empty(vq)) {
+			if (tries++ < VTNET_NOTIFY_RETRIES)
+				goto again;
+			txq->vtntx_stats.vtxs_rescheduled++;
+			taskqueue_enqueue(txq->vtntx_tq, &txq->vtntx_intrtask);
+		} else {
+			if (txq->vtntx_watchdog == 0)
+				txq->vtntx_watchdog = VTNET_TX_TIMEOUT;
+			if (virtqueue_enable_intr(vq) != 0) {
+				if (tries++ < VTNET_NOTIFY_RETRIES)
+					goto again;
+				virtqueue_disable_intr(vq);
+				txq->vtntx_stats.vtxs_rescheduled++;
+				taskqueue_enqueue(txq->vtntx_tq, &txq->vtntx_intrtask);
+			}
+		}
 	}
 
 	return (0);
