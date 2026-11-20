@@ -18,6 +18,8 @@ SRCS.crc32+=	crc32_sse42.c
 SRCS.crc32+=	crc32c_armv8.S
 .endif
 
+ATF_TESTS_C+=	sign_extend_bitfields
+
 WARNS?=	3
 
 .include <bsd.test.mk>

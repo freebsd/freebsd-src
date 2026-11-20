@@ -38,6 +38,22 @@
 #endif
 #include <sys/kassert.h>
 
+/*
+ * LIBKERN_TESTING is defined in tests for specific functions.  Since some
+ * functions declared here conflict with standard library ones (pulled, e.g., by
+ * <atf-c.h>), we just skip them (in fact, all untested functions).
+ *
+ * To add tests for such a function, one could namespace it here when
+ * LIBKERN_TESTING is defined, e.g.:
+ *
+ * #ifdef LIBKERN_TESTING
+ * #define memset libkern_memset
+ * #endif
+ *
+ * and then have the test source file include the implementation's source file.
+ */
+#ifndef LIBKERN_TESTING
+
 /* BCD conversions. */
 extern u_char const	bcd2bin_data[];
 extern u_char const	bin2bcd_data[];
@@ -290,6 +306,8 @@ rindex(const char *p, int ch)
 	return (strrchr(p, ch));
 }
 
+#endif /* !LIBKERN_TESTING */
+
 /*
  * Returns a sign extension of 'val' from its 'sign_idx_bit'.
  *
@@ -359,6 +377,8 @@ extract_signed_bitfield_32(uint32_t bitmap, int lsb, int width)
 	return (sign_extend_32(bitmap >> lsb, width - 1));
 }
 
+#ifndef LIBKERN_TESTING
+
 /* fnmatch() return values. */
 #define	FNM_NOMATCH	1	/* Match failed. */
 
@@ -376,5 +396,7 @@ extract_signed_bitfield_32(uint32_t bitmap, int lsb, int width)
 #else
 #define __ssp_real(fun)		fun
 #endif
+
+#endif /* !LIBKERN_TESTING */
 
 #endif /* !_SYS_LIBKERN_H_ */
