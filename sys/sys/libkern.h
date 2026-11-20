@@ -38,11 +38,6 @@
 #endif
 #include <sys/kassert.h>
 
-#ifndef	LIBKERN_INLINE
-#define	LIBKERN_INLINE  static __inline
-#define	LIBKERN_BODY
-#endif
-
 /* BCD conversions. */
 extern u_char const	bcd2bin_data[];
 extern u_char const	bin2bcd_data[];
