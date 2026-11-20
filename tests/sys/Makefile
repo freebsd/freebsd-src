@@ -20,6 +20,7 @@ TESTS_SUBDIRS+=		fs
 TESTS_SUBDIRS+=		geom
 TESTS_SUBDIRS+=		kern
 TESTS_SUBDIRS+=		kqueue
+TESTS_SUBDIRS+=		libkern
 TESTS_SUBDIRS+=		mac
 TESTS_SUBDIRS+=		mqueue
 TESTS_SUBDIRS+=		net
