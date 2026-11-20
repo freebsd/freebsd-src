@@ -219,9 +219,9 @@ OBJS_DEPEND_GUESS+=	offset.inc assym.inc vnode_if.h ${BEFORE_DEPEND:M*.h} \
 .for mfile in ${MFILES}
 # XXX the low quality .m.o rules gnerated by config are normally used
 # instead of the .m.c rules here.
-${mfile:T:S/.m$/.c/}: ${mfile}
+${mfile:T:S/.m$/.c/}: ${mfile} $S/tools/makeobjops.awk
 	${AWK} -f $S/tools/makeobjops.awk ${mfile} -c
-${mfile:T:S/.m$/.h/}: ${mfile}
+${mfile:T:S/.m$/.h/}: ${mfile} $S/tools/makeobjops.awk
 	${AWK} -f $S/tools/makeobjops.awk ${mfile} -h
 .endfor
 
