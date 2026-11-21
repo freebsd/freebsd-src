@@ -868,6 +868,7 @@ dwmmc_setup_bus(struct dwmmc_softc *sc, int freq)
 				device_printf(sc->dev, "Failed update clk\n");
 				return (1);
 			}
+			DELAY(10);
 		} while (READ4(sc, SDMMC_CMD) & SDMMC_CMD_START);
 
 		return (0);
@@ -888,6 +889,7 @@ dwmmc_setup_bus(struct dwmmc_softc *sc, int freq)
 			device_printf(sc->dev, "Failed to update clk\n");
 			return (1);
 		}
+		DELAY(10);
 	} while (READ4(sc, SDMMC_CMD) & SDMMC_CMD_START);
 
 	WRITE4(sc, SDMMC_CLKENA, (SDMMC_CLKENA_CCLK_EN | SDMMC_CLKENA_LP));
@@ -900,6 +902,7 @@ dwmmc_setup_bus(struct dwmmc_softc *sc, int freq)
 			device_printf(sc->dev, "Failed to enable clk\n");
 			return (1);
 		}
+		DELAY(10);
 	} while (READ4(sc, SDMMC_CMD) & SDMMC_CMD_START);
 
 	return (0);
