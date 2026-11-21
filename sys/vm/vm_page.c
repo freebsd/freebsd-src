@@ -4379,6 +4379,22 @@ vm_page_unwire_managed(vm_page_t m, uint8_t nqueue, bool noreuse)
 }
 
 /*
+ * Release one wiring of an unmanaged page.  Return true if that was the
+ * last reference to the page and the page was freed.
+ */
+bool
+vm_page_unwire_unmanaged(vm_page_t m)
+{
+	MPASS((m->oflags & VPO_UNMANAGED) != 0);
+
+	if (vm_page_unwire_noq(m) && m->ref_count == 0) {
+		vm_page_free(m);
+		return (true);
+	}
+	return (false);
+}
+
+/*
  * Release one wiring of the specified page, potentially allowing it to be
  * paged out.
  *
@@ -4394,8 +4410,7 @@ vm_page_unwire(vm_page_t m, uint8_t nqueue)
             ("%s: invalid queue %u request for page %p", __func__, nqueue, m));
 
 	if ((m->oflags & VPO_UNMANAGED) != 0) {
-		if (vm_page_unwire_noq(m) && m->ref_count == 0)
-			vm_page_free(m);
+		vm_page_unwire_unmanaged(m);
 	} else {
 		vm_page_unwire_managed(m, nqueue, false);
 	}

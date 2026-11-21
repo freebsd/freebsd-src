@@ -663,6 +663,7 @@ void vm_page_unhold_pages(vm_page_t *ma, int count);
 void vm_page_unswappable(vm_page_t m);
 void vm_page_unwire(vm_page_t m, uint8_t queue);
 bool vm_page_unwire_noq(vm_page_t m);
+bool vm_page_unwire_unmanaged(vm_page_t m);
 void vm_page_updatefake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_wire(vm_page_t);
 bool vm_page_wire_mapped(vm_page_t m);
