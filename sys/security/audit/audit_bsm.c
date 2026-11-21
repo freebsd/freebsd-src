@@ -829,7 +829,6 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_CHALTROOT:
 	case AUE_CHDIR:
 	case AUE_CHROOT:
-	case AUE_FCHALTROOT:
 	case AUE_FSTATAT:
 	case AUE_FUTIMESAT:
 	case AUE_GETATTRLIST:
@@ -1045,6 +1044,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	/*
 	 * XXXRW: Some of these need to handle non-vnode cases as well.
 	 */
+	case AUE_FCHALTROOT:
 	case AUE_FCHDIR:
 	case AUE_FPATHCONF:
 	case AUE_FSTAT:
