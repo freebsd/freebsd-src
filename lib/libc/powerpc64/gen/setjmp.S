@@ -50,7 +50,47 @@
  *     |    ...     |
  */
 
-ENTRY(setjmp)
+/*
+ * v20-v31 are non-volatile too, but not every CPU has them, so an ifunc
+ * picks this entry when they're there. stvx needs 16-byte alignment, which
+ * jmp_buf doesn't have, so the save area is rounded up and its offset is
+ * left for longjmp.
+ */
+ENTRY(__setjmp_altivec)
+	addi	%r5,%r3,40 + 42*8 + 15
+	clrrdi	%r5,%r5,4
+	subf	%r0,%r3,%r5
+	std	%r0,40 + 41*8(%r3)
+	stvx	%v20,0,%r5
+	addi	%r5,%r5,16
+	stvx	%v21,0,%r5
+	addi	%r5,%r5,16
+	stvx	%v22,0,%r5
+	addi	%r5,%r5,16
+	stvx	%v23,0,%r5
+	addi	%r5,%r5,16
+	stvx	%v24,0,%r5
+	addi	%r5,%r5,16
+	stvx	%v25,0,%r5
+	addi	%r5,%r5,16
+	stvx	%v26,0,%r5
+	addi	%r5,%r5,16
+	stvx	%v27,0,%r5
+	addi	%r5,%r5,16
+	stvx	%v28,0,%r5
+	addi	%r5,%r5,16
+	stvx	%v29,0,%r5
+	addi	%r5,%r5,16
+	stvx	%v30,0,%r5
+	addi	%r5,%r5,16
+	stvx	%v31,0,%r5
+	b	.Lsave
+END(__setjmp_altivec)
+
+ENTRY(__setjmp)
+	li	%r0,0			/* no v20-v31 */
+	std	%r0,40 + 41*8(%r3)
+.Lsave:
 	mr	%r6,%r3
 	li	%r3,1			/* SIG_BLOCK, but doesn't matter */
 					/*            since set == NULL  */
@@ -106,11 +146,9 @@ ENTRY(setjmp)
 	std	%r30,40 + 21*8(%r6)
 	std	%r31,40 + 22*8(%r6)
 
-	/* XXX Altivec regs */
-
 	li	%r3,0			/* return (0) */
 	blr
-END(setjmp)
+END(__setjmp)
 
 	WEAK_REFERENCE(__longjmp, longjmp)
 ENTRY(__longjmp)
@@ -154,6 +192,51 @@ ENTRY(__longjmp)
 	ld	%r29,40 + 20*8(%r3)
 	ld	%r30,40 + 21*8(%r3)
 	ld	%r31,40 + 22*8(%r3)
+	ld	%r5,40 + 41*8(%r3)	/* offset of v20-v31, 0 if not saved */
+	cmpdi	%r5,0
+	beq	3f
+	add	%r5,%r5,%r3
+	andi.	%r0,%r5,15
+	beq	2f
+	/*
+	 * The buffer was copied and v20-v31 aren't aligned any more, so
+	 * load them through the red zone.
+	 */
+	addi	%r6,%r1,-192
+	addi	%r5,%r5,-8
+	addi	%r7,%r6,-8
+	li	%r0,24
+	mtctr	%r0
+1:
+	ldu	%r0,8(%r5)
+	stdu	%r0,8(%r7)
+	bdnz	1b
+	mr	%r5,%r6
+2:
+	lvx	%v20,0,%r5
+	addi	%r5,%r5,16
+	lvx	%v21,0,%r5
+	addi	%r5,%r5,16
+	lvx	%v22,0,%r5
+	addi	%r5,%r5,16
+	lvx	%v23,0,%r5
+	addi	%r5,%r5,16
+	lvx	%v24,0,%r5
+	addi	%r5,%r5,16
+	lvx	%v25,0,%r5
+	addi	%r5,%r5,16
+	lvx	%v26,0,%r5
+	addi	%r5,%r5,16
+	lvx	%v27,0,%r5
+	addi	%r5,%r5,16
+	lvx	%v28,0,%r5
+	addi	%r5,%r5,16
+	lvx	%v29,0,%r5
+	addi	%r5,%r5,16
+	lvx	%v30,0,%r5
+	addi	%r5,%r5,16
+	lvx	%v31,0,%r5
+3:
 	mr	%r6,%r4			/* save val param */
 	mtlr	%r11			/* r11 -> link reg */
 	mtcr	%r12			/* r12 -> condition reg */

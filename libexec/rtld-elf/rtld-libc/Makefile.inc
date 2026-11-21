@@ -75,6 +75,11 @@ _libc_other_objects+=syncicache abs
 .elif ${LIBC_ARCH} == "powerpc64"
 # ppc64 needs __syncicache for reloc.c
 _libc_other_objects+=syncicache
+# libc picks sigsetjmp with an ifunc, so build one that checks for Altivec
+# itself
+_libc_other_objects:=${_libc_other_objects:Nsigsetjmp}
+.PATH: ${LIBC_SRCTOP}/powerpc64/gen
+SRCS+=	sigsetjmp.S
 .endif
 
 # Extract all the .o files from libc_nossp_pic.a and libsys_pic.a. This
