@@ -1,6 +1,6 @@
 if [ ! "$_STRINGS_SUBR" ]; then _STRINGS_SUBR=1
 #
-# Copyright (c) 2006-2016 Devin Teske
+# Copyright (c) 2006-2026 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 ############################################################ GLOBALS
 
 #
-# A Literal newline (for use with f_replace_all(), or IFS, or whatever)
+# A Literal newline (for use with f_replaceall(), or IFS, or whatever)
 #
 NL="
 " # END-QUOTE
