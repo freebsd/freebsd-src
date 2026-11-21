@@ -37,7 +37,9 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
 #include <sys/smp.h>
@@ -100,6 +102,7 @@ struct plic_softc {
 	struct plic_irqsrc	isrcs[PLIC_MAX_IRQS];
 	struct plic_context	contexts[MAXCPU];
 	int			ndev;
+	struct mtx		bind_mtx;	/* binding vs. completion */
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -307,6 +310,7 @@ plic_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	sc->dev = dev;
+	mtx_init(&sc->bind_mtx, "plic bind", NULL, MTX_SPIN);
 
 	node = ofw_bus_get_node(dev);
 	if ((OF_getencprop(node, "riscv,ndev", &sc->ndev,
@@ -444,6 +448,21 @@ plic_attach(device_t dev)
 	    plic_intr, NULL, sc, &sc->ih));
 }
 
+/* The CPU the source is enabled for, -1 if none. */
+static int
+plic_enabled_cpu(struct plic_softc *sc, u_int irq)
+{
+	u_int cpu;
+
+	CPU_FOREACH(cpu) {
+		if ((RD4(sc, PLIC_ENABLE(sc, irq, cpu)) &
+		    (1 << (irq % 32))) != 0)
+			return (cpu);
+	}
+
+	return (-1);
+}
+
 static void
 plic_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
@@ -456,15 +475,29 @@ plic_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct plic_softc *sc;
 	struct plic_irqsrc *src;
-	uint32_t cpu;
+	int cpu;
 
 	sc = device_get_softc(dev);
 	src = (struct plic_irqsrc *)isrc;
 
-	cpu = CPU_FFS(&isrc->isrc_cpu) - 1;
+	/*
+	 * The PLIC ignores a completion written to a context the source
+	 * is not enabled for, which would leave the source dead, so it
+	 * must go to the CPU the source is bound to right now.  Hold off
+	 * plic_bind_intr() while picking it.  intr_irq_shuffle() clears
+	 * isrc_cpu before it calls plic_bind_intr(): in that window the
+	 * source is still enabled on its old CPU only, look that up.
+	 */
+	mtx_lock_spin(&sc->bind_mtx);
+	if (CPU_EMPTY(&isrc->isrc_cpu))
+		cpu = plic_enabled_cpu(sc, src->irq);
+	else
+		cpu = CPU_FFS(&isrc->isrc_cpu) - 1;
 
 	/* Complete the interrupt. */
-	WR4(sc, PLIC_CLAIM(sc, cpu), src->irq);
+	if (cpu != -1)
+		WR4(sc, PLIC_CLAIM(sc, cpu), src->irq);
+	mtx_unlock_spin(&sc->bind_mtx);
 	plic_enable_intr(dev, isrc);
 }
 
@@ -489,6 +522,7 @@ plic_bind_intr(device_t dev, struct intr_irqsrc *isrc)
 	sc = device_get_softc(dev);
 	src = (struct plic_irqsrc *)isrc;
 
+	mtx_lock_spin(&sc->bind_mtx);
 	/* Disable the interrupt source on all CPUs. */
 	CPU_FOREACH(cpu) {
 		reg = RD4(sc, PLIC_ENABLE(sc, src->irq, cpu));
@@ -511,6 +545,7 @@ plic_bind_intr(device_t dev, struct intr_irqsrc *isrc)
 	reg = RD4(sc, PLIC_ENABLE(sc, src->irq, cpu));
 	reg |= (1 << (src->irq % 32));
 	WR4(sc, PLIC_ENABLE(sc, src->irq, cpu), reg);
+	mtx_unlock_spin(&sc->bind_mtx);
 
 	return (0);
 }
