@@ -1308,7 +1308,7 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 		}
 	}
 
-	if (pktlen < hdrlen + vlen) {
+	if (pktlen < hdrlen) {
 		WPRINTF("packet too small for writable header");
 		goto done;
 	}
