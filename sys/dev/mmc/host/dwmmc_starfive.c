@@ -37,20 +37,39 @@ static struct ofw_compat_data compat_data[] = {
 	{NULL,			0}
 };
 
+/*
+ * Below this rate the CIU clock is left alone and CLKDIV alone brings the
+ * card clock down.  Reprogramming the CIU for card identification is not
+ * needed, and a clock update right after it was seen to fail ("Failed to
+ * update clk").
+ */
+#define	DWMMC_STARFIVE_MIN_CIU	25000000
+
 static int dwmmc_starfive_update_ios(struct dwmmc_softc *sc,
     struct mmc_ios *ios)
 {
+	uint64_t freq;
 	int err;
 
-	if (ios->clock != 0 && ios->clock != sc->bus_hz) {
+	if (ios->clock == 0)
+		return (0);
+
+	/*
+	 * The CIU clock is a divider of axi_cfg0 and cannot go down to the
+	 * 400 kHz identification clock, yet clk_set_freq() does not fail.
+	 * Use the rate the clock really runs at as bus_hz, so that
+	 * dwmmc_setup_bus() makes up the difference with CLKDIV.  Claiming
+	 * bus_hz == ios->clock left CLKDIV at 0: card identification ran
+	 * at tens of MHz, which eMMC devices do not answer.
+	 */
+	err = 0;
+	if (ios->clock >= DWMMC_STARFIVE_MIN_CIU)
 		err = clk_set_freq(sc->ciu, ios->clock, CLK_SET_ROUND_DOWN);
-		if (err != 0) {
-			printf("%s, Failed to set freq for ciu clock\n",
-			    __func__);
-			return (err);
-		}
-		sc->bus_hz = ios->clock;
-	}
+	if (err != 0 && bootverbose)
+		device_printf(sc->dev, "ciu clock cannot do %u Hz, "
+		    "dividing in the controller\n", ios->clock);
+	if (clk_get_freq(sc->ciu, &freq) == 0)
+		sc->bus_hz = freq;
 
 	return (0);
 }

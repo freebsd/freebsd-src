@@ -876,7 +876,7 @@ dwmmc_setup_bus(struct dwmmc_softc *sc, int freq)
 	WRITE4(sc, SDMMC_CLKENA, 0);
 	WRITE4(sc, SDMMC_CLKSRC, 0);
 
-	div = (sc->bus_hz != freq) ? DIV_ROUND_UP(sc->bus_hz, 2 * freq) : 0;
+	div = (sc->bus_hz > freq) ? DIV_ROUND_UP(sc->bus_hz, 2 * freq) : 0;
 
 	WRITE4(sc, SDMMC_CLKDIV, div);
 	WRITE4(sc, SDMMC_CMD, (SDMMC_CMD_WAIT_PRVDATA |
