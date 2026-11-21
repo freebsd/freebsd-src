@@ -390,6 +390,7 @@ dwmmc_intr(void *arg)
 	struct mmc_command *cmd;
 	struct dwmmc_softc *sc;
 	uint32_t reg;
+	int i;
 
 	sc = arg;
 
@@ -428,6 +429,16 @@ dwmmc_intr(void *arg)
 			dprintf("cmd err 0x%08x cmd 0x%08x\n",
 				reg, cmd->opcode);
 			cmd->error = MMC_ERR_TIMEOUT;
+			/*
+			 * After a response error the command FSM still runs
+			 * out its NCC wait (8 card clocks, ~20 us at 400 kHz).
+			 * A command issued before it is idle again gets lost:
+			 * on the JH7110 the CMD7 that follows the failing CMD2
+			 * of card discovery reliably timed out.
+			 */
+			for (i = 0; i < 1000 && (READ4(sc, SDMMC_STATUS) &
+			    SDMMC_STATUS_CMD_FSM_MASK) != 0; i++)
+				DELAY(1);
 			/* The command is over, don't wait for CMD_DONE. */
 			sc->cmd_done = 1;
 		}

@@ -94,6 +94,7 @@
 #define	 SDMMC_STATUS_DATA_BUSY	(1 << 9) /* card_data[0] */
 #define	 SDMMC_STATUS_FIFO_FULL	(1 << 3) /* FIFO full */
 #define	 SDMMC_STATUS_FIFO_EMPTY (1 << 2) /* FIFO empty */
+#define	 SDMMC_STATUS_CMD_FSM_MASK (0xf << 4) /* Command FSM state */
 #define	SDMMC_FIFOTH		0x4C	/* FIFO Threshold Watermark Register */
 #define	 SDMMC_FIFOTH_MSIZE_S	28	/* Burst size of multiple transaction */
 #define	 SDMMC_FIFOTH_RXWMARK_S	16	/* FIFO threshold watermark level */
