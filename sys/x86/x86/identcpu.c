@@ -1422,7 +1422,7 @@ identify_hypervisor_cpuid_base(void)
 	 * a specific hypervisor, return the first information about the
 	 * hypervisor that we found, as others may be able to use.
 	 */
-	for (leaf = 0x40000000; leaf < 0x40010000; leaf += 0x100) {
+	for (leaf = CPUID_HV_BASE; leaf < CPUID_HV_BASE + 0x10000; leaf += 0x100) {
 		do_cpuid(leaf, regs);
 
 		/*
@@ -1452,7 +1452,7 @@ identify_hypervisor_cpuid_base(void)
 			 * specific hypervisor, record the base, high value,
 			 * and vendor identifier.
 			 */
-			if (vm_guest != prev_vm_guest || leaf == 0x40000000) {
+			if (vm_guest != prev_vm_guest || leaf == CPUID_HV_BASE) {
 				hv_base = leaf;
 				hv_high = regs[0];
 				((u_int *)&hv_vendor)[0] = regs[1];

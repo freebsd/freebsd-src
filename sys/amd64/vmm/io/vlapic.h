@@ -29,6 +29,13 @@
 #ifndef _VLAPIC_H_
 #define	_VLAPIC_H_
 
+/*
+ * APIC timer frequency:
+ * - arbitrary but chosen to be in the ballpark of contemporary hardware.
+ * - power-of-two to avoid loss of precision when converted to a bintime.
+ */
+#define	VLAPIC_BUS_FREQ		(128 * 1024 * 1024)
+
 struct vm;
 struct vm_snapshot_meta;
 enum x2apic_state;
