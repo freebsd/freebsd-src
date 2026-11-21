@@ -858,11 +858,11 @@ interpret:
 	}
 
 	/*
-	 * For security and other reasons, the file descriptor table cannot be
-	 * shared after an exec.
+	 * For security and other reasons, the file descriptor table
+	 * cannot be shared after an exec.  pwd should not be shared
+	 * either, this was handled earlier in exec_new_vmspace().
 	 */
 	fdunshare(td);
-	pdunshare(td);
 	/* close files on exec */
 	fdcloseexec(td);
 
@@ -1264,6 +1264,13 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 
 	imgp->vmspace_destroyed = true;
 	imgp->sysent = sv;
+
+	/*
+	 * Prevent an rforked process, possibly sharing pwd with
+	 * us, from being affected by altroot.  Exec is already past
+	 * the point of no return.
+	 */
+	pdunshare(td);
 
 	/*
 	 * Drop altroot if setuid.  It is done so late to avoid
