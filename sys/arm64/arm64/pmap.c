@@ -5532,15 +5532,18 @@ static int
 pmap_enter_largepage(pmap_t pmap, vm_offset_t va, pt_entry_t pte, int flags,
     int psind)
 {
-	pd_entry_t *l0p, *l1p, *l2p, *l3p, newpte, origpte, *tl3p;
+	pd_entry_t *l0p, *l1p, *l2p, *l3p, newpte, origpte, *ptep;
 	vm_page_t mp;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	PMAP_ASSERT_STAGE1(pmap);
 	KASSERT(psind > 0 && psind < MAXPAGESIZES,
 	    ("psind %d unexpected", psind));
 	KASSERT((PTE_TO_PHYS(pte) & (pagesizes[psind] - 1)) == 0,
 	    ("unaligned phys address %#lx pte %#lx psind %d",
 	    PTE_TO_PHYS(pte), pte, psind));
+	KASSERT((va & (pagesizes[psind] - 1)) == 0,
+	    ("unaligned va %#lx psind %d", va, psind));
 
 restart:
 	newpte = pte;
@@ -5579,7 +5582,7 @@ restart:
 		    (origpte & ATTR_DESCR_VALID) == 0,
 		    ("va %#lx changing 1G phys page l1 %#lx newpte %#lx",
 		    va, origpte, newpte));
-		pmap_store(l1p, newpte);
+		ptep = l1p;
 	} else if (psind == 2) {
 		KASSERT(pagesizes[psind] == L2_SIZE,
 		    ("pagesizes[%d] != L2_SIZE", psind));
@@ -5610,7 +5613,7 @@ restart:
 		    PTE_TO_PHYS(origpte) == PTE_TO_PHYS(newpte)),
 		    ("va %#lx changing 2M phys page l2 %#lx newpte %#lx",
 		    va, origpte, newpte));
-		pmap_store(l2p, newpte);
+		ptep = l2p;
 	} else /* (psind == 1) */ {
 		KASSERT(pagesizes[psind] == L3C_SIZE,
 		    ("pagesizes[%d] != L3C_SIZE", psind));
@@ -5628,21 +5631,38 @@ restart:
 			mp->ref_count += L3C_ENTRIES - 1;
 			l3p = VM_PAGE_TO_DMAP(mp);
 			l3p = &l3p[pmap_l3_index(va)];
+			origpte = pmap_load(l3p);
 		} else {
 			l3p = pmap_l2_to_l3(l2p, va);
-			if ((pmap_load(l3p) & ATTR_DESCR_VALID) == 0) {
+			origpte = pmap_load(l3p);
+			if ((origpte & ATTR_DESCR_VALID) == 0) {
 				mp = PTE_TO_VM_PAGE(pmap_load(l2p));
 				mp->ref_count += L3C_ENTRIES;
 			}
 		}
-		for (tl3p = l3p; tl3p < &l3p[L3C_ENTRIES]; tl3p++) {
-			origpte = pmap_load(tl3p);
+		ptep = l3p;
+	}
+
+	/*
+	 * Conditionally sync the icache.  See pmap_enter() for details.  Large
+	 * pages are unmanaged, so PGA_ICACHE_SYNCED is never set on them.
+	 */
+	if ((newpte & ATTR_S1_UXN) == 0 &&
+	    ((origpte & ATTR_DESCR_VALID) == 0 ||
+	    (origpte & ATTR_S1_UXN) != 0) &&
+	    (newpte & ATTR_S1_IDX_MASK) == ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK))
+		cpu_icache_sync_range(PHYS_TO_DMAP(PTE_TO_PHYS(newpte)),
+		    pagesizes[psind]);
+
+	if (psind == 1) {
+		for (l3p = ptep; l3p < &ptep[L3C_ENTRIES]; l3p++) {
+			origpte = pmap_load(l3p);
 			KASSERT((origpte & ATTR_DESCR_VALID) == 0 ||
 			    ((origpte & ATTR_CONTIGUOUS) != 0 &&
 			    PTE_TO_PHYS(origpte) == PTE_TO_PHYS(newpte)),
 			    ("va %#lx changing 64K phys page l3 %#lx newpte %#lx",
 			    va, origpte, newpte));
-			pmap_store(tl3p, newpte);
+			pmap_store(l3p, newpte);
 			newpte += L3_SIZE;
 		}
 		/*
@@ -5650,7 +5670,8 @@ restart:
 		 * detect wiring-only changes.
 		 */
 		newpte -= L3_SIZE;
-	}
+	} else
+		pmap_store(ptep, newpte);
 
 	/*
 	 * A page fault does not automatically invalidate the TLB entry for a
