@@ -102,7 +102,7 @@ static device_method_t qman_portal_methods[] = {
 };
 
 DEFINE_CLASS_0(qman_portal, qman_portal_driver, qman_portal_methods,
-    sizeof(struct qman_softc));
+    sizeof(struct qman_portal_softc));
 EARLY_DRIVER_MODULE(qman_portal, simplebus, qman_portal_driver, 0, 0,
     BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
 
