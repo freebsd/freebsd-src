@@ -5095,10 +5095,10 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
 		}
 	}
 	PWDDESC_XUNLOCK(pdp);
-	if (error != 0)
-		goto fail;
 	if (pwd != NULL)
 		pwd_drop(pwd);
+	if (error != 0)
+		goto fail;
 	FILEDESC_SLOCK(fdp);
 	if (refcount_load(&fdp->fd_refcnt) == 0)
 		goto skip;
