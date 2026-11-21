@@ -37,6 +37,7 @@
 .Nm
 .Op Fl Cdfnpvy
 .Op Fl B | F
+.Op Fl b Ar block
 .Op Fl T Ar fstype : Ns Ar fsoptions
 .Op Fl t Ar fstype
 .Op Fl c Ar fstab
@@ -123,6 +124,10 @@ to fail with a message that the partition has an unknown file system type.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl b Ar block 
+Use the block number 
+.Ar block
+as the super block for the file system.
 .It Fl C
 Check if the
 .Dq clean

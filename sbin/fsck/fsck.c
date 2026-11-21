@@ -98,7 +98,7 @@ main(int argc, char *argv[])
 	struct fstab *fs;
 	int i, rval = 0;
 	const char *vfstype = NULL;
-	char globopt[3];
+	char globopt[3], bopt[80];
 	const char *etc_fstab;
 
 	globopt[0] = '-';
@@ -108,7 +108,7 @@ main(int argc, char *argv[])
 	TAILQ_INIT(&opthead);
 
 	etc_fstab = NULL;
-	while ((i = getopt(argc, argv, "BCdvpfFnyl:t:T:c:")) != -1)
+	while ((i = getopt(argc, argv, "BCdvpfFnyl:t:T:c:b:")) != -1)
 		switch (i) {
 		case 'B':
 			if (flags & CHECK_BACKGRD)
@@ -167,6 +167,11 @@ main(int argc, char *argv[])
 
 		case 'c':
 			etc_fstab = optarg;
+			break;
+
+		case 'b':
+			snprintf(bopt, sizeof(bopt), "-b=%s", optarg);
+			catopt(&options, bopt);
 			break;
 
 		case '?':
