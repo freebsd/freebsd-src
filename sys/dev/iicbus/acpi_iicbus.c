@@ -670,8 +670,11 @@ acpi_iicbus_child_deleted(device_t bus, device_t child)
 {
 	struct acpi_iicbus_ivars *devi = device_get_ivars(child);
 
+	if (devi == NULL)
+		return;
 	if (acpi_get_device(devi->handle) == child)
 		AcpiDetachData(devi->handle, acpi_fake_objhandler);
+	iicbus_child_deleted(bus, child);
 }
 
 static int

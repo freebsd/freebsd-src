@@ -248,7 +248,7 @@ iicbus_add_child(device_t dev, u_int order, const char *name, int unit)
 	    dev, order, name, unit, sizeof(struct iicbus_ivar)));
 }
 
-static void
+void
 iicbus_child_deleted(device_t dev, device_t child)
 {
 	struct iicbus_ivar *devi;

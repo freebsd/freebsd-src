@@ -89,6 +89,7 @@ device_t iicbus_add_child_common(device_t dev, u_int order, const char *name,
     int unit, size_t ivars_size);
 int iicbus_detach(device_t dev);
 void iicbus_probe_nomatch(device_t bus, device_t child);
+void iicbus_child_deleted(device_t dev, device_t child);
 int iicbus_read_ivar(device_t bus, device_t child, int which,
     uintptr_t *result);
 int iicbus_write_ivar(device_t bus, device_t child, int which,
