@@ -129,7 +129,6 @@ boot_howto_to_env(int howto)
 int
 boot_parse_arg(const char *v)
 {
-	char *n;
 	int howto;
 
 #if 0
@@ -174,14 +173,20 @@ static int howto_masks[] = {
 		}
 	} else {
 		char buf[128];
-		char *vv = buf;
+		const char *val;
 
-		strlcpy(buf, v, sizeof(buf));
-		n = strsep(&vv, "=");
-		if (vv == NULL)
-			SETENV(n, "1");
-		else
-			SETENV(n, vv);
+		/*
+		 * Copy only the name.  Values such as the UEFI device path
+		 * in uefi_rootdev can be longer than buf.
+		 */
+		val = strchr(v, '=');
+		if (val == NULL) {
+			SETENV(v, "1");
+		} else {
+			strlcpy(buf, v, MIN(sizeof(buf),
+			    (size_t)(val - v + 1)));
+			SETENV(buf, val + 1);
+		}
 	}
 #endif
 	return (howto);
