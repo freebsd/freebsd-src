@@ -515,6 +515,14 @@ vtnet_attach(device_t dev)
 	mtx_init(&sc->vtnet_hdr_mtx, device_get_nameunit(dev),
 	    "VirtIO Net header lock", MTX_DEF);
 
+	/*
+	 * The 2-byte alignment lets this tag bounce, so its first
+	 * bus_dmamap_create() would set up a bounce zone.  Control commands
+	 * create their maps with the core lock held, and setting up a zone
+	 * allocates with M_WAITOK, takes the sysctl lock and may start the
+	 * busdma thread.  BUS_DMA_ALLOCNOW does that here, where sleeping is
+	 * allowed.
+	 */
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(dev),		/* parent */
 	    sizeof(uint16_t),			/* alignment */
@@ -525,7 +533,7 @@ vtnet_attach(device_t dev)
 	    PAGE_SIZE,				/* max request size */
 	    1,					/* max # segments */
 	    PAGE_SIZE,				/* maxsegsize */
-	    BUS_DMA_COHERENT,			/* flags */
+	    BUS_DMA_COHERENT | BUS_DMA_ALLOCNOW,	/* flags */
 	    busdma_lock_mutex,			/* lockfunc */
 	    &sc->vtnet_hdr_mtx,			/* lockarg */
 	    &sc->vtnet_hdr_dmat);
