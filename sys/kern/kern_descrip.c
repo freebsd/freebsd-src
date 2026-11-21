@@ -5024,24 +5024,13 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
 	struct export_fd_buf *efbuf;
 	struct vnode *cttyvp, *textvp, *tracevp;
 	struct pwd *pwd;
+	struct session *sess;
 	int error, i;
 	cap_rights_t rights;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	_PHOLD(p);
 
-	/* ktrace vnode */
-	tracevp = ktr_get_tracevp(p, true);
-	/* text vnode */
-	textvp = p->p_textvp;
-	if (textvp != NULL)
-		vrefact(textvp);
-	/* Controlling tty. */
-	cttyvp = NULL;
-	if (p->p_pgrp != NULL && p->p_pgrp->pg_session != NULL) {
-		cttyvp = p->p_pgrp->pg_session->s_ttyvp;
-		if (cttyvp != NULL)
-			vrefact(cttyvp);
-	}
 	fdp = fdhold(p);
 	pdp = pdhold(p);
 	PROC_UNLOCK(p);
@@ -5054,15 +5043,39 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
 	efbuf->flags = flags;
 
 	error = 0;
-	if (tracevp != NULL)
+	PROC_LOCK(p);
+	tracevp = ktr_get_tracevp(p, true);
+	if (tracevp != NULL) {
+		PROC_UNLOCK(p);
 		error = export_vnode_to_sb(tracevp, KF_FD_TYPE_TRACE,
 		    FREAD | FWRITE, efbuf);
-	if (error == 0 && textvp != NULL)
+		PROC_LOCK(p);
+	}
+	if (error == 0 && (textvp = p->p_textvp) != NULL) {
+		vrefact(textvp);
+		PROC_UNLOCK(p);
 		error = export_vnode_to_sb(textvp, KF_FD_TYPE_TEXT, FREAD,
 		    efbuf);
-	if (error == 0 && cttyvp != NULL)
+		PROC_LOCK(p);
+	}
+	while (error == 0) {
+		if (p->p_pgrp == NULL || (sess = p->p_session) == NULL)
+			break;
+		SESS_LOCK(sess);
+		if ((cttyvp = sess->s_ttyvp) == NULL) {
+			SESS_UNLOCK(sess);
+			break;
+		}
+		vrefact(cttyvp);
+		SESS_UNLOCK(sess);
+		PROC_UNLOCK(p);
 		error = export_vnode_to_sb(cttyvp, KF_FD_TYPE_CTTY,
 		    FREAD | FWRITE, efbuf);
+		PROC_LOCK(p);
+		break;
+	}
+	_PRELE(p);
+	PROC_UNLOCK(p);
 	if (error != 0 || pdp == NULL || fdp == NULL)
 		goto fail;
 	efbuf->fdp = fdp;
