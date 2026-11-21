@@ -4996,8 +4996,10 @@ export_vnode_to_sb(struct vnode *vp, int fd, int fflags,
 {
 	int error;
 
-	if (efbuf->remainder == 0)
+	if (efbuf->remainder == 0) {
+		vrele(vp);
 		return (ENOMEM);
+	}
 	if (efbuf->pdp != NULL)
 		PWDDESC_XUNLOCK(efbuf->pdp);
 	export_vnode_to_kinfo(vp, fd, fflags, &efbuf->kif, efbuf->flags);
