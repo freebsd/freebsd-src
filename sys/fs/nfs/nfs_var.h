@@ -367,6 +367,10 @@ void nfsv4_freeslot(struct nfsclsession *, int, bool);
 struct ucred *nfsrv_getgrpscred(struct ucred *);
 struct nfsdevice *nfsv4_findmirror(struct nfsmount *);
 void nfsm_set(struct nfsrv_descript *, u_int);
+void nfs_enable_extpg_cache(void);
+struct mbuf *nfs_alloc_extpg(int, int);
+bool nfs_alloc_extpg_page(struct mbuf *, int);
+void nfs_free_extpg_page(struct mbuf *, int);
 struct mbuf *nfsm_add_ext_pgs(struct mbuf *, int, int *);
 int nfsrpc_destroysession(struct nfsmount *, struct nfsclsession *,
     struct ucred *, NFSPROC_T *);

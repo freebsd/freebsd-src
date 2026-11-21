@@ -1284,7 +1284,6 @@ struct mbuf *
 nfsrv_adj(struct mbuf *mp, int len, int nul)
 {
 	struct mbuf *m, *m2;
-	vm_page_t pg;
 	int i, lastlen, pgno, plen, tlen, trim;
 	uint16_t off;
 	char *cp;
@@ -1334,9 +1333,7 @@ nfsrv_adj(struct mbuf *mp, int len, int nul)
 				KASSERT(pgno > 0,
 				    ("nfsrv_adj: freeing page 0"));
 				/* Free page. */
-				pg = PHYS_TO_VM_PAGE(m->m_epg_pa[pgno]);
-				vm_page_unwire_noq(pg);
-				vm_page_free(pg);
+				nfs_free_extpg_page(m, pgno);
 				trim -= plen;
 				m->m_epg_npgs--;
 				pgno--;

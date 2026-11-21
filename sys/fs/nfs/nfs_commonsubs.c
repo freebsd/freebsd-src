@@ -5557,18 +5557,15 @@ struct mbuf *
 nfsm_add_ext_pgs(struct mbuf *m, int maxextsiz, int *bextpg)
 {
 	struct mbuf *mp;
-	vm_page_t pg;
 
 	if ((m->m_epg_npgs + 1) * PAGE_SIZE > maxextsiz) {
 		mp = mb_alloc_ext_plus_pages(PAGE_SIZE, M_WAITOK);
 		*bextpg = 0;
 		m->m_next = mp;
 	} else {
-		pg = vm_page_alloc_noobj(VM_ALLOC_WAITOK | VM_ALLOC_NODUMP |
-		    VM_ALLOC_WIRED);
-		m->m_epg_pa[m->m_epg_npgs] = VM_PAGE_TO_PHYS(pg);
 		*bextpg = m->m_epg_npgs;
-		m->m_epg_npgs++;
+		if (!nfs_alloc_extpg_page(m, M_WAITOK))
+			panic("nfsm_add_ext_pgs: page allocation failed");
 		m->m_epg_last_len = 0;
 		mp = m;
 	}

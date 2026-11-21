@@ -54,6 +54,9 @@
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
+static uma_zone_t nfs_extpg_zone;
+static u_int nfs_extpg_enabled;
+
 extern int nfscl_ticks;
 extern void (*nfsd_call_recall)(struct vnode *, int, struct ucred *,
     struct thread *);
@@ -918,6 +921,139 @@ VNET_SYSUNINIT(nfs_cleanup, SI_SUB_VNET_DONE, SI_ORDER_FIRST,
 
 extern int (*nfsd_call_nfscommon)(struct thread *, struct nfssvc_args *);
 
+static int
+nfs_extpg_import(void *arg __unused, void **store, int count, int domain,
+    int how)
+{
+	vm_page_t pg;
+	int i, req;
+
+	req = VM_ALLOC_WIRED | VM_ALLOC_NODUMP |
+	    ((how & M_WAITOK) != 0 ? VM_ALLOC_WAITOK : VM_ALLOC_NOWAIT);
+	for (i = 0; i < count; i++) {
+		if (domain == UMA_ANYDOMAIN)
+			pg = vm_page_alloc_noobj(req);
+		else
+			pg = vm_page_alloc_noobj_domain(domain, req);
+		if (pg == NULL)
+			break;
+		store[i] = pg;
+		req &= ~VM_ALLOC_WAITOK;
+	}
+	return (i);
+}
+
+static void
+nfs_extpg_release(void *arg __unused, void **store, int count)
+{
+	vm_page_t pg;
+	int i;
+
+	for (i = 0; i < count; i++) {
+		pg = store[i];
+		vm_page_unwire_noq(pg);
+		vm_page_free(pg);
+	}
+}
+
+static void
+nfs_free_extpg_cached(struct mbuf *m)
+{
+	int i;
+
+	M_ASSERTEXTPG(m);
+	for (i = 0; i < m->m_epg_npgs; i++)
+		uma_zfree(nfs_extpg_zone,
+		    PHYS_TO_VM_PAGE(m->m_epg_pa[i]));
+}
+
+bool
+nfs_alloc_extpg_page(struct mbuf *m, int how)
+{
+	vm_page_t pg;
+	vm_paddr_t pa;
+
+	M_ASSERTEXTPG(m);
+	KASSERT((m->m_ext.ext_flags & EXT_FLAG_EMBREF) != 0 &&
+	    m_extrefcnt(m) == 1, ("shared NFS external pages"));
+	KASSERT(m->m_epg_npgs < MBUF_PEXT_MAX_PGS,
+	    ("NFS external page array full"));
+	if (m->m_ext.ext_free == nfs_free_extpg_cached) {
+		pg = uma_zalloc(nfs_extpg_zone, how & ~M_ZERO);
+		if (pg == NULL)
+			return (false);
+		if ((how & M_ZERO) != 0)
+			pmap_zero_page(pg);
+		pa = VM_PAGE_TO_PHYS(pg);
+	} else {
+		KASSERT(m->m_ext.ext_free == mb_free_mext_pgs,
+		    ("unexpected NFS external page owner"));
+		pg = vm_page_alloc_noobj(VM_ALLOC_NODUMP | VM_ALLOC_WIRED |
+		    ((how & M_WAITOK) != 0 ? VM_ALLOC_WAITOK :
+		    VM_ALLOC_NOWAIT));
+		if (pg == NULL)
+			return (false);
+		pa = VM_PAGE_TO_PHYS(pg);
+	}
+	m->m_epg_pa[m->m_epg_npgs++] = pa;
+	return (true);
+}
+
+void
+nfs_free_extpg_page(struct mbuf *m, int index)
+{
+	vm_page_t pg;
+
+	M_ASSERTEXTPG(m);
+	KASSERT((m->m_ext.ext_flags & EXT_FLAG_EMBREF) != 0 &&
+	    m_extrefcnt(m) == 1, ("shared NFS external pages"));
+	KASSERT(index >= 0 && index < m->m_epg_npgs,
+	    ("NFS external page index out of range"));
+	if (m->m_ext.ext_free == nfs_free_extpg_cached) {
+		uma_zfree(nfs_extpg_zone,
+		    PHYS_TO_VM_PAGE(m->m_epg_pa[index]));
+	} else {
+		KASSERT(m->m_ext.ext_free == mb_free_mext_pgs,
+		    ("unexpected NFS external page owner"));
+		pg = PHYS_TO_VM_PAGE(m->m_epg_pa[index]);
+		vm_page_unwire_noq(pg);
+		vm_page_free(pg);
+	}
+}
+
+void
+nfs_enable_extpg_cache(void)
+{
+
+	/* Enabling the pool also prevents nfscommon unload. */
+	atomic_store_rel_int(&nfs_extpg_enabled, 1);
+}
+
+struct mbuf *
+nfs_alloc_extpg(int len, int how)
+{
+	struct mbuf *m;
+	int i, npgs;
+
+	if (atomic_load_acq_int(&nfs_extpg_enabled) == 0 ||
+	    nfs_extpg_zone == NULL)
+		return (mb_alloc_ext_plus_pages(len, how));
+	npgs = howmany(len, PAGE_SIZE);
+	KASSERT(npgs > 0 && npgs <= MBUF_PEXT_MAX_PGS,
+	    ("invalid NFS external page count %d", npgs));
+	m = mb_alloc_ext_pgs(how, nfs_free_extpg_cached, 0);
+	if (m == NULL)
+		return (NULL);
+	m->m_epg_flags |= EPG_FLAG_ANON;
+	for (i = 0; i < npgs; i++) {
+		if (!nfs_alloc_extpg_page(m, how)) {
+			m_free(m);
+			return (NULL);
+		}
+	}
+	return (m);
+}
+
 /*
  * Called once to initialize data structures...
  */
@@ -931,6 +1067,10 @@ nfscommon_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD:
 		if (loaded)
 			goto out;
+		nfs_extpg_zone = uma_zcache_create("nfs reply pages", PAGE_SIZE,
+		    NULL, NULL, NULL, NULL, nfs_extpg_import,
+		    nfs_extpg_release, NULL, 0);
+		uma_zone_set_maxcache(nfs_extpg_zone, 16384);
 		newnfs_portinit();
 		mtx_init(&nfs_nameid_mutex, "nfs_nameid_mutex", NULL, MTX_DEF);
 		mtx_init(&nfs_sockl_mutex, "nfs_sockl_mutex", NULL, MTX_DEF);
@@ -944,13 +1084,18 @@ nfscommon_modevent(module_t mod, int type, void *data)
 		break;
 
 	case MOD_UNLOAD:
-		if (newnfs_numnfsd != 0 ||
+		if (atomic_load_acq_int(&nfs_extpg_enabled) != 0 ||
+		    newnfs_numnfsd != 0 ||
 		    VNET(nfsrv_nfsuserd) != NOTRUNNING ||
 		    nfs_numnfscbd != 0) {
 			error = EBUSY;
 			break;
 		}
 
+		if (nfs_extpg_zone != NULL) {
+			uma_zdestroy(nfs_extpg_zone);
+			nfs_extpg_zone = NULL;
+		}
 		nfsd_call_nfscommon = NULL;
 		/* and get rid of the mutexes */
 		mtx_destroy(&nfs_nameid_mutex);

@@ -186,6 +186,9 @@ int nfs_pnfsio(task_fn_t *, void *);
 
 SYSCTL_NODE(_vfs, OID_AUTO, nfsd, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "NFS server");
+static bool nfsrv_extpg_cache = true;
+SYSCTL_BOOL(_vfs_nfsd, OID_AUTO, extpg_cache, CTLFLAG_RWTUN,
+    &nfsrv_extpg_cache, true, "Cache NFS reply pages");
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, mirrormnt, CTLFLAG_RW,
     &nfsrv_enable_crossmntpt, 0, "Enable nfsd to cross mount points");
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, commit_blks, CTLFLAG_RW, &nfs_commit_blks,
@@ -1100,7 +1103,10 @@ nfsrv_createiovec_extpgs(int len, int maxextsiz, struct mbuf **mpp,
 	i = 0;
 	while (left > 0) {
 		siz = min(left, maxextsiz);
-		m = mb_alloc_ext_plus_pages(siz, M_WAITOK);
+		if (nfsrv_extpg_cache)
+			m = nfs_alloc_extpg(siz, M_WAITOK);
+		else
+			m = mb_alloc_ext_plus_pages(siz, M_WAITOK);
 		left -= siz;
 		i += m->m_epg_npgs;
 		if (m3 != NULL)
@@ -8477,7 +8483,6 @@ void
 nfsm_trimtrailing(struct nfsrv_descript *nd, struct mbuf *mb, char *bpos,
     int bextpg, int bextpgsiz)
 {
-	vm_page_t pg;
 	int fullpgsiz, i;
 
 	if (mb->m_next != NULL) {
@@ -8492,11 +8497,8 @@ nfsm_trimtrailing(struct nfsrv_descript *nd, struct mbuf *mb, char *bpos,
 		    ("nfsm_trimtrailing: bextpgsiz bad!"));
 
 		/* First, get rid of any pages after this position. */
-		for (i = mb->m_epg_npgs - 1; i > bextpg; i--) {
-			pg = PHYS_TO_VM_PAGE(mb->m_epg_pa[i]);
-			vm_page_unwire_noq(pg);
-			vm_page_free(pg);
-		}
+		for (i = mb->m_epg_npgs - 1; i > bextpg; i--)
+			nfs_free_extpg_page(mb, i);
 		mb->m_epg_npgs = bextpg + 1;
 		if (bextpg == 0)
 			fullpgsiz = PAGE_SIZE - mb->m_epg_1st_off;
@@ -8701,6 +8703,7 @@ nfsd_modevent(module_t mod, int type, void *data)
 		vn_deleg_ops.vndeleg_disable = nfsd_disabledelegation;
 #endif
 		nfsd_call_nfsd = nfssvc_nfsd;
+		nfs_enable_extpg_cache();
 		loaded = 1;
 		break;
 
