@@ -73,6 +73,7 @@ struct acpi_iicbus_softc {
 struct acpi_iicbus_ivars {
 	struct iicbus_ivar	super_ivar;
 	ACPI_HANDLE		handle;
+	struct acpi_device	ad;	/* _DSD cache */
 };
 
 static int install_space_handler = 1;
@@ -674,7 +675,26 @@ acpi_iicbus_child_deleted(device_t bus, device_t child)
 		return;
 	if (acpi_get_device(devi->handle) == child)
 		AcpiDetachData(devi->handle, acpi_fake_objhandler);
+	if (devi->ad.dsd.Pointer != NULL)
+		AcpiOsFree(devi->ad.dsd.Pointer);
 	iicbus_child_deleted(bus, child);
+}
+
+static ssize_t
+acpi_iicbus_get_property(device_t bus, device_t child, const char *propname,
+    void *propvalue, size_t size, device_property_type_t type)
+{
+	struct acpi_iicbus_ivars *devi;
+
+	/* Deeper devices do not carry our ivars. */
+	if (device_get_parent(child) != bus)
+		return (-1);
+	devi = device_get_ivars(child);
+	if (devi->handle == NULL)
+		return (-1);
+	devi->ad.ad_handle = devi->handle;
+	return (acpi_ad_get_property(&devi->ad, propname, propvalue, size,
+	    type));
 }
 
 static int
@@ -768,6 +788,7 @@ static device_method_t acpi_iicbus_methods[] = {
 	DEVMETHOD(bus_child_location,	acpi_iicbus_child_location),
 	DEVMETHOD(bus_child_pnpinfo,	acpi_iicbus_child_pnpinfo),
 	DEVMETHOD(bus_get_device_path,	acpi_get_acpi_device_path),
+	DEVMETHOD(bus_get_property,	acpi_iicbus_get_property),
 
 	DEVMETHOD_END,
 };

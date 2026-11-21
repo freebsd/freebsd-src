@@ -508,6 +508,9 @@ acpi_d_state_to_str(int state)
 char		*acpi_name(ACPI_HANDLE handle);
 int		acpi_avoid(ACPI_HANDLE handle);
 int		acpi_disabled(char *subsys);
+ssize_t		acpi_ad_get_property(struct acpi_device *ad,
+		    const char *propname, void *propvalue, size_t size,
+		    device_property_type_t type);
 int		acpi_get_acpi_device_path(device_t bus, device_t child,
 		    const char *locator, struct sbuf *sb);
 int		acpi_machdep_init(device_t dev);

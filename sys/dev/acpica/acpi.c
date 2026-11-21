@@ -168,6 +168,8 @@ static int	acpi_isa_get_compatid(device_t dev, uint32_t *cids, int count);
 static ACPI_STATUS acpi_device_scan_cb(ACPI_HANDLE h, UINT32 level,
 		    void *context, void **retval);
 static ACPI_STATUS acpi_find_dsd(struct acpi_device *ad);
+static ACPI_STATUS acpi_ad_get_prop(struct acpi_device *ad,
+		    const char *propname, const ACPI_OBJECT **value);
 static void	acpi_platform_osc(device_t dev);
 static void	acpi_probe_children(device_t bus);
 static void	acpi_probe_order(ACPI_HANDLE handle, int *order);
@@ -2000,12 +2002,16 @@ static ACPI_STATUS
 acpi_device_get_prop(device_t bus, device_t dev, const char *propname,
     const ACPI_OBJECT **value)
 {
+	return (acpi_ad_get_prop(device_get_ivars(dev), propname, value));
+}
+
+static ACPI_STATUS
+acpi_ad_get_prop(struct acpi_device *ad, const char *propname,
+    const ACPI_OBJECT **value)
+{
 	const ACPI_OBJECT *pkg, *name, *val;
-	struct acpi_device *ad;
 	ACPI_STATUS status;
 	int i;
-
-	ad = device_get_ivars(dev);
 
 	if (ad == NULL || propname == NULL)
 		return (AE_BAD_PARAMETER);
@@ -2103,10 +2109,22 @@ static ssize_t
 acpi_bus_get_prop(device_t bus, device_t child, const char *propname,
     void *propvalue, size_t size, device_property_type_t type)
 {
+	return (acpi_ad_get_property(device_get_ivars(child), propname,
+	    propvalue, size, type));
+}
+
+/*
+ * Return a _DSD property of the device described by ad, for buses whose
+ * children are ACPI devices but whose ivars are not a struct acpi_device.
+ */
+ssize_t
+acpi_ad_get_property(struct acpi_device *ad, const char *propname,
+    void *propvalue, size_t size, device_property_type_t type)
+{
 	ACPI_STATUS status;
 	const ACPI_OBJECT *obj;
 
-	status = acpi_device_get_prop(bus, child, propname, &obj);
+	status = acpi_ad_get_prop(ad, propname, &obj);
 	if (ACPI_FAILURE(status))
 		return (-1);
 
