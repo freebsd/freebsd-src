@@ -106,6 +106,14 @@ static const struct ig4_hw ig4iic_hw[] = {
 		.txfifo_depth = 32,
 		.rxfifo_depth = 32,
 	},
+	[IG4_AMD] = {
+		.ic_clock_rate = 150,
+		.sda_fall_time = 280,
+		.scl_fall_time = 240,
+		.sda_hold_time = 60,
+		.txfifo_depth = 32,
+		.rxfifo_depth = 32,
+	},
 	[IG4_SKYLAKE] = {
 		.ic_clock_rate = 120,
 		.sda_hold_time = 230,
@@ -849,7 +857,8 @@ ig4iic_get_config(ig4iic_softc_t *sc)
 		sc->cfg.bus_speed = IG4_CTL_SPEED_FAST;
 
 	/* REG_COMP_PARAM1 is not documented in latest Intel specs */
-	if (sc->version == IG4_HASWELL || sc->version == IG4_ATOM) {
+	if (sc->version == IG4_HASWELL || sc->version == IG4_ATOM ||
+	    sc->version == IG4_AMD) {
 		v = reg_read(sc, IG4_REG_COMP_PARAM1);
 		if (IG4_PARAM1_TXFIFO_DEPTH(v) != 0)
 			sc->cfg.txfifo_depth = IG4_PARAM1_TXFIFO_DEPTH(v);
@@ -995,7 +1004,8 @@ ig4iic_set_config(ig4iic_softc_t *sc, bool reset, bool force_restore)
 		v = reg_read(sc, IG4_REG_IDLE_LTR_VALUE);
 	}
 
-	if (sc->version == IG4_HASWELL || sc->version == IG4_ATOM) {
+	if (sc->version == IG4_HASWELL || sc->version == IG4_ATOM ||
+	    sc->version == IG4_AMD) {
 		v = reg_read(sc, IG4_REG_COMP_VER);
 		if (v < IG4_COMP_MIN_VER)
 			return(ENXIO);

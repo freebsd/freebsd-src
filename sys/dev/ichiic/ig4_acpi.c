@@ -99,6 +99,8 @@ ig4iic_acpi_attach(device_t dev)
 	    strcmp(str, "INT3432") == 0 || strcmp(str, "INT3433") == 0) {
 		/* Lynx Point-LP / Wildcat Point-LP LPSS in ACPI mode. */
 		sc->version = IG4_HASWELL;
+	} else if (strcmp(str, "AMDI0010") == 0) {
+		sc->version = IG4_AMD;
 	} else {
 		/* All the other HIDs matched are Atom SOCs. */
 		sc->version = IG4_ATOM;
