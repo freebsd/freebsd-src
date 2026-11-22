@@ -233,9 +233,17 @@ again:
 				mtx_lock(&dev_pager_mtx);
 			} else {
 				mtx_lock(&dev_pager_mtx);
-				object->flags |= OBJ_COLORED;
+				VM_OBJECT_WLOCK(object);
+				vm_object_set_flag(object, OBJ_COLORED);
 				object->pg_color = color;
+				/*
+				 * Setting devp.handle marks the object as
+				 * constructed. The below unlock also ensures
+				 * that the earlier store to devp.ops is
+				 * visible.
+				 */
 				object->un_pager.devp.handle = handle;
+				VM_OBJECT_WUNLOCK(object);
 				wakeup(&object->un_pager.devp.handle);
 			}
 		}
@@ -268,7 +276,10 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 void
 cdev_pager_get_path(vm_object_t object, char *path, size_t sz)
 {
-	if (object->un_pager.devp.ops->cdev_pg_path != NULL)
+	VM_OBJECT_ASSERT_LOCKED(object);
+
+	if (object->un_pager.devp.handle != NULL &&
+	    object->un_pager.devp.ops->cdev_pg_path != NULL)
 		object->un_pager.devp.ops->cdev_pg_path(
 		    object->un_pager.devp.handle, path, sz);
 }

@@ -330,7 +330,7 @@ vm_object_reserv(vm_object_t object)
 	return (false);
 }
 
-void vm_object_clear_flag(vm_object_t object, u_short bits);
+void vm_object_clear_flag(vm_object_t object, u_int bits);
 void vm_object_pip_add(vm_object_t object, short i);
 void vm_object_pip_wakeup(vm_object_t object);
 void vm_object_pip_wakeupn(vm_object_t object, short i);
@@ -355,7 +355,7 @@ extern int umtx_shm_vnobj_persistent;
 
 vm_object_t vm_object_allocate (objtype_t, vm_pindex_t);
 vm_object_t vm_object_allocate_anon(vm_pindex_t, vm_object_t, struct ucred *);
-vm_object_t vm_object_allocate_dyn(objtype_t, vm_pindex_t, u_short);
+vm_object_t vm_object_allocate_dyn(objtype_t, vm_pindex_t, u_int);
 boolean_t vm_object_coalesce(vm_object_t, vm_ooffset_t, vm_size_t, vm_size_t,
    int);
 void vm_object_collapse (vm_object_t);

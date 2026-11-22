@@ -2051,7 +2051,8 @@ full_rescan:
 	bp = uma_zalloc(swrbuf_zone, M_WAITOK);
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_FOREACH(object, &vm_object_list, object_list) {
-		if ((object->flags & OBJ_SWAP) == 0)
+		if ((atomic_load_int(&object->flags) & (OBJ_DEAD | OBJ_SWAP)) !=
+		    OBJ_SWAP)
 			continue;
 		mtx_unlock(&vm_object_list_mtx);
 		/* Depends on type-stability. */
@@ -2059,22 +2060,13 @@ full_rescan:
 
 		/*
 		 * Dead objects are eventually terminated on their own.
+		 *
+		 * Synchronize with _vm_object_allocate().
 		 */
-		if ((object->flags & OBJ_DEAD) != 0)
-			goto next_obj;
+		if ((atomic_load_acq_int(&object->flags) &
+		    (OBJ_DEAD | OBJ_SWAP)) == OBJ_SWAP)
+			swap_pager_swapoff_object(sp, object, &bp);
 
-		/*
-		 * Sync with fences placed after pctrie
-		 * initialization.  We must not access pctrie below
-		 * unless we checked that our object is swap and not
-		 * dead.
-		 */
-		atomic_thread_fence_acq();
-		if ((object->flags & OBJ_SWAP) == 0)
-			goto next_obj;
-
-		swap_pager_swapoff_object(sp, object, &bp);
-next_obj:
 		VM_OBJECT_WUNLOCK(object);
 		mtx_lock(&vm_object_list_mtx);
 	}

@@ -293,6 +293,7 @@ retry:
 			VM_OBJECT_WLOCK(object);
 			KASSERT(object->ref_count == 1,
 			    ("leaked ref %p %d", object, object->ref_count));
+			vm_object_set_flag(object, OBJ_DEAD);
 			object->type = OBJT_DEAD;
 			refcount_init(&object->ref_count, 0);
 			VM_OBJECT_WUNLOCK(object);

@@ -2261,7 +2261,7 @@ shm_get_path(struct vm_object *obj, char *path, size_t sz)
 	shmfd = NULL;
 	sx_slock(&shm_dict_lock);
 	VM_OBJECT_RLOCK(obj);
-	if ((obj->flags & OBJ_POSIXSHM) == 0) {
+	if ((obj->flags & (OBJ_DEAD | OBJ_POSIXSHM)) != OBJ_POSIXSHM) {
 		error = EINVAL;
 	} else {
 		if (obj->type == shmfd_pager_type)

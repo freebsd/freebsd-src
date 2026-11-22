@@ -176,6 +176,8 @@ vm_object_zdtor(void *mem, int size, void *arg)
 	vm_object_t object;
 
 	object = (vm_object_t)mem;
+	KASSERT((object->flags & OBJ_DEAD) != 0,
+	    ("object %p not dead yet", object));
 	KASSERT(object->ref_count == 0,
 	    ("object %p ref_count = %d", object, object->ref_count));
 	KASSERT(vm_radix_is_empty(&object->rtree),
@@ -227,24 +229,14 @@ vm_object_zinit(void *mem, int size, int flags)
 }
 
 static void
-_vm_object_allocate(objtype_t type, vm_pindex_t size, u_short flags,
+_vm_object_allocate(objtype_t type, vm_pindex_t size, u_int flags,
     vm_object_t object, void *handle)
 {
 	LIST_INIT(&object->shadow_head);
 
-	object->type = type;
-	object->flags = flags;
-	if ((flags & OBJ_SWAP) != 0) {
+	memset(&object->un_pager, 0, sizeof(object->un_pager));
+	if ((flags & OBJ_SWAP) != 0)
 		pctrie_init(&object->un_pager.swp.swp_blks);
-		object->un_pager.swp.writemappings = 0;
-	}
-
-	/*
-	 * Ensure that swap_pager_swapoff() iteration over object_list
-	 * sees up to date type and pctrie head if it observed
-	 * non-dead object.
-	 */
-	atomic_thread_fence_rel();
 
 	object->pg_color = 0;
 	object->size = size;
@@ -261,6 +253,14 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, u_short flags,
 	LIST_INIT(&object->rvq);
 #endif
 	umtx_shm_object_init(object);
+
+	/*
+	 * Clear OBJ_DEAD only after other initialization is done,
+	 * to synchronize with global object list traversal, e.g., in
+	 * swap_pager_swapoff() or vm_object_list_handler().
+	 */
+	object->type = type;
+	atomic_store_rel_int(&object->flags, flags);
 }
 
 /*
@@ -304,7 +304,7 @@ vm_object_init(void)
 }
 
 void
-vm_object_clear_flag(vm_object_t object, u_short bits)
+vm_object_clear_flag(vm_object_t object, u_int bits)
 {
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
@@ -399,7 +399,7 @@ vm_object_t
 vm_object_allocate(objtype_t type, vm_pindex_t size)
 {
 	vm_object_t object;
-	u_short flags;
+	u_int flags;
 
 	switch (type) {
 	case OBJT_DEAD:
@@ -431,7 +431,7 @@ vm_object_allocate(objtype_t type, vm_pindex_t size)
 }
 
 vm_object_t
-vm_object_allocate_dyn(objtype_t dyntype, vm_pindex_t size, u_short flags)
+vm_object_allocate_dyn(objtype_t dyntype, vm_pindex_t size, u_int flags)
 {
 	vm_object_t object;
 
@@ -2523,6 +2523,7 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 	vm_object_t obj;
 	vm_page_t m;
 	u_long sp;
+	u_int flags;
 	int count, error;
 	key_t key;
 	unsigned short seq;
@@ -2556,12 +2557,14 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 	 */
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_FOREACH(obj, &vm_object_list, object_list) {
-		if (obj->type == OBJT_DEAD ||
+		if (obj->type == OBJT_DEAD || (obj->flags & OBJ_DEAD) != 0 ||
 		    (swap_only && (obj->flags & (OBJ_ANON | OBJ_SWAP)) == 0))
 			continue;
 		VM_OBJECT_RLOCK(obj);
-		if (obj->type == OBJT_DEAD ||
-		    (swap_only && (obj->flags & (OBJ_ANON | OBJ_SWAP)) == 0)) {
+		/* Synchronize with _vm_object_allocate(). */
+		flags = atomic_load_acq_int(&obj->flags);
+		if (obj->type == OBJT_DEAD || (flags & OBJ_DEAD) != 0 ||
+		    (swap_only && (flags & (OBJ_ANON | OBJ_SWAP)) == 0)) {
 			VM_OBJECT_RUNLOCK(obj);
 			continue;
 		}
@@ -2604,7 +2607,7 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 		    NULL);
 		if (vp != NULL) {
 			vref(vp);
-		} else if ((obj->flags & OBJ_ANON) != 0) {
+		} else if ((flags & OBJ_ANON) != 0) {
 			MPASS(kvo->kvo_type == KVME_TYPE_SWAP);
 			kvo->kvo_me = (uintptr_t)obj;
 			/* tmpfs objs are reported as vnodes */
@@ -2617,13 +2620,18 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 			    sizeof(kvo->kvo_path));
 		}
 		VM_OBJECT_RUNLOCK(obj);
-		if ((obj->flags & OBJ_SYSVSHM) != 0) {
+
+		/*
+		 * Note, it is safe to invoke shmobjinfo() and shm_get_path()
+		 * concurrent with teardown of the object.
+		 */
+		if ((flags & OBJ_SYSVSHM) != 0) {
 			kvo->kvo_flags |= KVMO_FLAG_SYSVSHM;
 			shmobjinfo(obj, &key, &seq);
 			kvo->kvo_vn_fileid = key;
 			kvo->kvo_vn_fsid_freebsd11 = seq;
 		}
-		if ((obj->flags & OBJ_POSIXSHM) != 0) {
+		if ((flags & OBJ_POSIXSHM) != 0) {
 			kvo->kvo_flags |= KVMO_FLAG_POSIXSHM;
 			shm_get_path(obj, kvo->kvo_path,
 			    sizeof(kvo->kvo_path));

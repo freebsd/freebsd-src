@@ -658,17 +658,25 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, __enum_uint8(vtype) 
 		atomic_thread_fence_rel();
 		break;
 
-	case VREG:
-		nnode->tn_reg.tn_aobj =
-		    vm_pager_allocate(tmpfs_pager_type, NULL, 0,
+	case VREG: {
+		vm_object_t object;
+
+		object = vm_pager_allocate(tmpfs_pager_type, NULL, 0,
 		    VM_PROT_DEFAULT, 0,
 		    NULL /* XXXKIB - tmpfs needs swap reservation */);
-		nnode->tn_reg.tn_aobj->un_pager.swp.swp_priv = nnode;
-		vm_object_set_flag(nnode->tn_reg.tn_aobj, OBJ_TMPFS);
+		/*
+		 * Walkers of vm_object_list may use swp_priv once OBJ_TMPFS is
+		 * set, so set both with the object locked.
+		 */
+		VM_OBJECT_WLOCK(object);
+		object->un_pager.swp.swp_priv = nnode;
+		vm_object_set_flag(object, OBJ_TMPFS);
+		VM_OBJECT_WUNLOCK(object);
+		nnode->tn_reg.tn_aobj = object;
 		nnode->tn_reg.tn_tmp = tmp;
 		nnode->tn_reg.tn_pages = 0;
 		break;
-
+	}
 	default:
 		panic("tmpfs_alloc_node: type %p %d", nnode,
 		    (int)nnode->tn_type);
