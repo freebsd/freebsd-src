@@ -198,6 +198,9 @@ ATF_TC_BODY(fnmatch_characterclass, tc)
 	ATF_CHECK(fnmatch("[[:punct:]]", ".", 0) == 0);
 	ATF_CHECK(fnmatch("[[:xdigit:]]", "f", 0) == 0);
 
+	/* A range following a character class in the same bracket. */
+	ATF_CHECK(fnmatch("[[:alpha:]0-9]", "5", 0) == 0);
+
 	/*
 	 * POSIX.1, section 9.3.5. states that '[:' and ':]'
 	 * should be interpreted as character classes symbol only
