@@ -61,7 +61,6 @@
 
 #include <machine/bus.h>
 
-#include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
 #include <fs/pseudofs/pseudofs.h>
