@@ -4446,6 +4446,15 @@ pwd_altroot(struct thread *td, struct vnode *altroot_vp)
 	return (0);
 }
 
+void
+pwd_altroot_clear(struct thread *td)
+{
+	int error __diagused;
+
+	error = pwd_altroot(td, NULL);
+	KASSERT(error == 0, ("%s: pwd_altroot failed: %d", __func__, error));
+}
+
 /*
  * jail_attach(2) changes both root and working directories.
  */

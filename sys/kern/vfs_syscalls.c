@@ -5435,7 +5435,8 @@ disable_altdir(struct thread *td)
 	if (error != 0)
 		return (error);
 #endif
-	return (pwd_altroot(td, NULL));
+	pwd_altroot_clear(td);
+	return (0);
 }
 
 static int

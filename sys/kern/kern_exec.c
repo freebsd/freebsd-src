@@ -1277,7 +1277,7 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 	if (imgp->credential_setid &&
 	    (p->p_flag2 & P2_NO_NEW_PRIVS) == 0 &&
 	    (sv->sv_flags & SV_ABI_MASK) == SV_ABI_FREEBSD)
-		pwd_altroot(td, NULL);
+		pwd_altroot_clear(td);
 
 	if (p->p_sysent->sv_onexec_old != NULL)
 		p->p_sysent->sv_onexec_old(td);
