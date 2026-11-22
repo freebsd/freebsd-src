@@ -4134,6 +4134,42 @@ extern struct mtx ffclock_mtx;
 extern struct ffclock_estimate ffclock_estimate;
 extern int8_t ffclock_updated;
 
+static void
+ffclock_estimate_from_32(struct ffclock_estimate *dst,
+    const struct ffclock_estimate32 *src)
+{
+	memset(dst, 0, sizeof(*dst));
+	CP(src->update_time, dst->update_time, sec);
+	memcpy(&dst->update_time.frac, &src->update_time.frac,
+	    sizeof(uint64_t));
+	FU64_CP(*src, *dst, update_ffcount);
+	FU64_CP(*src, *dst, leapsec_next);
+	FU64_CP(*src, *dst, period);
+	CP(*src, *dst, errb_abs);
+	CP(*src, *dst, errb_rate);
+	CP(*src, *dst, status);
+	CP(*src, *dst, leapsec_total);
+	CP(*src, *dst, leapsec);
+}
+
+static void
+ffclock_estimate_to_32(struct ffclock_estimate32 *dst,
+    const struct ffclock_estimate *src)
+{
+	memset(dst, 0, sizeof(*dst));
+	CP(src->update_time, dst->update_time, sec);
+	memcpy(&dst->update_time.frac, &src->update_time.frac,
+	    sizeof(uint64_t));
+	FU64_CP(*src, *dst, update_ffcount);
+	FU64_CP(*src, *dst, leapsec_next);
+	FU64_CP(*src, *dst, period);
+	CP(*src, *dst, errb_abs);
+	CP(*src, *dst, errb_rate);
+	CP(*src, *dst, status);
+	CP(*src, *dst, leapsec_total);
+	CP(*src, *dst, leapsec);
+}
+
 int
 freebsd32_ffclock_setestimate(struct thread *td,
     struct freebsd32_ffclock_setestimate_args *uap)
@@ -4150,16 +4186,7 @@ freebsd32_ffclock_setestimate(struct thread *td,
 	    sizeof(struct ffclock_estimate32))) != 0)
 		return (error);
 
-	CP(cest.update_time, cest32.update_time, sec);
-	memcpy(&cest.update_time.frac, &cest32.update_time.frac, sizeof(uint64_t));
-	FU64_CP(cest, cest32, update_ffcount);
-	FU64_CP(cest, cest32, leapsec_next);
-	FU64_CP(cest, cest32, period);
-	CP(cest, cest32, errb_abs);
-	CP(cest, cest32, errb_rate);
-	CP(cest, cest32, status);
-	CP(cest, cest32, leapsec_total);
-	CP(cest, cest32, leapsec);
+	ffclock_estimate_from_32(&cest, &cest32);
 
 	mtx_lock(&ffclock_mtx);
 	memcpy(&ffclock_estimate, &cest, sizeof(struct ffclock_estimate));
@@ -4180,16 +4207,7 @@ freebsd32_ffclock_getestimate(struct thread *td,
 	memcpy(&cest, &ffclock_estimate, sizeof(struct ffclock_estimate));
 	mtx_unlock(&ffclock_mtx);
 
-	CP(cest32.update_time, cest.update_time, sec);
-	memcpy(&cest32.update_time.frac, &cest.update_time.frac, sizeof(uint64_t));
-	FU64_CP(cest32, cest, update_ffcount);
-	FU64_CP(cest32, cest, leapsec_next);
-	FU64_CP(cest32, cest, period);
-	CP(cest32, cest, errb_abs);
-	CP(cest32, cest, errb_rate);
-	CP(cest32, cest, status);
-	CP(cest32, cest, leapsec_total);
-	CP(cest32, cest, leapsec);
+	ffclock_estimate_to_32(&cest32, &cest);
 
 	error = copyout(&cest32, uap->cest, sizeof(struct ffclock_estimate32));
 	return (error);
