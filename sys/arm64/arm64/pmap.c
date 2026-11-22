@@ -5895,7 +5895,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	lock = NULL;
 	PMAP_LOCK(pmap);
-	if ((flags & PMAP_ENTER_LARGEPAGE) != 0) {
+	if (__predict_false((flags & PMAP_ENTER_LARGEPAGE) != 0)) {
 		KASSERT((m->oflags & VPO_UNMANAGED) != 0,
 		    ("managed largepage va %#lx flags %#x", va, flags));
 		if (psind == 3) {
