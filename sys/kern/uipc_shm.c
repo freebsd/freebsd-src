@@ -1549,6 +1549,8 @@ kern_shm_rename(struct thread *td, const char *path_from_p,
 	 */
 	error = shm_remove(path_to, fnv_to, td->td_ucred);
 	if (error != 0 && error != ENOENT) {
+		if ((flags & SHM_RENAME_EXCHANGE) != 0 && fd_to != NULL)
+			shm_drop(fd_to);
 		shm_insert(path_from, fnv_from, fd_from);
 		shm_drop(fd_from);
 		/* Don't free path_from now, since the hash references it */
