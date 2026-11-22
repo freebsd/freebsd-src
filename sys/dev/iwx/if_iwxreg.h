@@ -7890,15 +7890,12 @@ iwx_rx_packet_len(const struct iwx_rx_packet *pkt)
 	return le32toh(pkt->len_n_flags) & IWX_FH_RSCSR_FRAME_SIZE_MSK;
 }
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused-function"
-static uint32_t
+static inline uint32_t
 iwx_rx_packet_payload_len(const struct iwx_rx_packet *pkt)
 {
 
 	return iwx_rx_packet_len(pkt) - sizeof(pkt->hdr);
 }
-#pragma clang diagnostic pop
 
 #define IWX_MIN_DBM	-100
 #define IWX_MAX_DBM	-33	/* realistic guess */
