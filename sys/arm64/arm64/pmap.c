@@ -5566,11 +5566,9 @@ restart:
 				goto restart;
 			}
 			l1p = pmap_l0_to_l1(l0p, va);
-			KASSERT(l1p != NULL, ("va %#lx lost l1 entry", va));
 			origpte = pmap_load(l1p);
 		} else {
 			l1p = pmap_l0_to_l1(l0p, va);
-			KASSERT(l1p != NULL, ("va %#lx lost l1 entry", va));
 			origpte = pmap_load(l1p);
 			if ((origpte & ATTR_DESCR_VALID) == 0) {
 				mp = PTE_TO_VM_PAGE(pmap_load(l0p));

@@ -7036,7 +7036,6 @@ restart:
 			MPASS(origpte == 0);
 		} else {
 			pdpe = pmap_pml4e_to_pdpe(pml4e, va);
-			KASSERT(pdpe != NULL, ("va %#lx lost pdpe", va));
 			origpte = *pdpe;
 			if ((origpte & PG_V) == 0) {
 				mp = PHYS_TO_VM_PAGE(*pml4e & PG_FRAME);
