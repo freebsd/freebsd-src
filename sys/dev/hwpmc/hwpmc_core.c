@@ -32,6 +32,7 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/pcpu.h>
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
 #include <sys/smp.h>
@@ -103,6 +104,9 @@ static int core_iap_wroffset;
 
 static u_int pmc_alloc_refs;
 static bool pmc_tsx_force_abort_set;
+
+/* Stray-NMI credits, as in hwpmc_amd.c. */
+DPCPU_DEFINE_STATIC(uint32_t, core_nmi_counter);
 
 static int
 core_pcpu_noop(struct pmc_mdep *md, int cpu)
@@ -1142,6 +1146,18 @@ core2_intr(struct trapframe *tf)
 
 		/* Reload sampling count. */
 		wrmsr(core_iap_wroffset + IAP_PMC0 + n, v);
+	}
+
+	/*
+	 * A PMI raised while this handler runs can latch a second NMI
+	 * whose status bits were already acked here.  Claim one empty
+	 * NMI per serviced PMI so it does not hit machdep.panic_on_nmi.
+	 */
+	if (found_interrupt) {
+		DPCPU_SET(core_nmi_counter, 1);
+	} else if (DPCPU_GET(core_nmi_counter) != 0) {
+		DPCPU_SET(core_nmi_counter, 0);
+		found_interrupt = 1;
 	}
 
 	if (found_interrupt)
