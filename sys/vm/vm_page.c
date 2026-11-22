@@ -4385,13 +4385,29 @@ vm_page_unwire_managed(vm_page_t m, uint8_t nqueue, bool noreuse)
 bool
 vm_page_unwire_unmanaged(vm_page_t m)
 {
+	u_int old;
+
 	MPASS((m->oflags & VPO_UNMANAGED) != 0);
 
-	if (vm_page_unwire_noq(m) && m->ref_count == 0) {
-		vm_page_free(m);
-		return (true);
-	}
-	return (false);
+	/*
+	 * Decide from the value returned by our own decrement.  If the page
+	 * belongs to an object, the object may drop its VPRC_OBJREF
+	 * reference concurrently, see vm_object_terminate_single_page(),
+	 * and a later load of ref_count could make both threads free the
+	 * page.
+	 */
+	old = vm_page_drop(m, 1);
+	KASSERT(VPRC_WIRE_COUNT(old) != 0,
+	    ("%s: counter underflow for page %p", __func__, m));
+	KASSERT((m->flags & PG_FICTITIOUS) == 0 || VPRC_WIRE_COUNT(old) > 1,
+	    ("%s: missing ref on fictitious page %p", __func__, m));
+	if (VPRC_WIRE_COUNT(old) > 1)
+		return (false);
+	vm_wire_sub(1);
+	if (old != 1)
+		return (false);
+	vm_page_free(m);
+	return (true);
 }
 
 /*
