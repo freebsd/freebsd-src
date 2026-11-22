@@ -324,8 +324,8 @@ treat_like_collating_symbol:
 						    sclen == (size_t)-2) {
 							sc = (unsigned char)*string;
 							sclen = 1;
-							memset(&strmbs, 0,
-							    sizeof(strmbs));
+							memset(strmbs, 0,
+							    sizeof(*strmbs));
 						}
 						if (sc != *wp++) {
 							memcpy(strmbs, &save,
