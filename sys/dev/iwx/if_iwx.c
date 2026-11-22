@@ -576,6 +576,7 @@ static int	iwx_intr(void *);
 #endif
 static void	iwx_intr_msix(void *);
 static int	iwx_preinit(struct iwx_softc *);
+static void	iwx_update_promisc(struct ieee80211com *);
 static void	iwx_attach_hook(void *);
 static const struct iwx_device_cfg *iwx_find_device_cfg(struct iwx_softc *);
 static int	iwx_probe(device_t);
@@ -10115,6 +10116,11 @@ iwx_preinit(struct iwx_softc *sc)
 }
 
 static void
+iwx_update_promisc(struct ieee80211com *ic)
+{
+}
+
+static void
 iwx_attach_hook(void *self)
 {
 	struct iwx_softc *sc = (void *)self;
@@ -10137,6 +10143,7 @@ iwx_attach_hook(void *self)
 	ic->ic_node_alloc = iwx_node_alloc;
 	ic->ic_scan_start = iwx_scan_start;
 	ic->ic_scan_end = iwx_scan_end;
+	ic->ic_update_promisc = iwx_update_promisc;
 	ic->ic_update_mcast = iwx_update_mcast;
 	ic->ic_getradiocaps = iwx_init_channel_map;
 
