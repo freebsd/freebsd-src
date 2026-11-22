@@ -174,6 +174,10 @@ _host_arch=powerpc
 _host_arch=amd64
 .endif
 MACHINESYSINCS+=	${SRCTOP}/sys/${_host_arch}/include/elf.h
+.if ${_host_arch} == "powerpc"
+# The powerpc elf.h includes cpu_flags.h
+MACHINESYSINCS+=	${SRCTOP}/sys/powerpc/include/cpu_flags.h
+.endif
 .if ${_host_arch} == "amd64" || ${_host_arch} == "i386"
 INCSGROUPS+=	X86INCS
 X86INCSDIR=	${INCLUDEDIR}/x86
