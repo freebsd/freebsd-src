@@ -4471,6 +4471,9 @@ iwx_rx_frame(struct iwx_softc *sc, struct mbuf *m, int chanidx,
 		uint8_t mcs, rate;
 
 		tap->wr_flags = 0;
+		/* Enabled automatically in promiscuous mode. */
+		if (vap->iv_opmode == IEEE80211_M_MONITOR)
+			tap->wr_flags |= IEEE80211_RADIOTAP_F_FCS;
 		if (is_shortpre)
 			tap->wr_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
 		tap->wr_chan_freq =
@@ -4547,7 +4550,8 @@ iwx_rx_frame(struct iwx_softc *sc, struct mbuf *m, int chanidx,
 
 	IWX_UNLOCK(sc);
 	if (ni == NULL) {
-		if (ieee80211_input_mimo_all(ic, m) == -1)
+		if (ieee80211_input_mimo_all(ic, m) == -1 &&
+		    vap->iv_opmode != IEEE80211_M_MONITOR)
 			printf("%s:%d input_all returned -1\n", __func__, __LINE__);
 	} else {
 
@@ -4754,8 +4758,6 @@ iwx_rx_mpdu_mq(struct iwx_softc *sc, struct mbuf *m, void *pktdata,
 		printf("%s: ieee80211_add_rx_params failed\n", __func__);
 		return;
 	}
-
-	ieee80211_add_rx_params(m, &rxs);
 
 #if 0
 	if (iwx_rx_reorder(sc, m, chanidx, desc,
@@ -7614,7 +7616,7 @@ iwx_auth(struct ieee80211vap *vap, struct iwx_softc *sc)
 
 	if (ic->ic_opmode == IEEE80211_M_MONITOR) {
 		err = iwx_phy_ctxt_update(sc, &sc->sc_phyctxt[0],
-		    ic->ic_bsschan, 1, 1, 0, IEEE80211_HTOP0_SCO_SCN,
+		    ic->ic_curchan, 1, 1, 0, IEEE80211_HTOP0_SCO_SCN,
 		    IEEE80211_VHTOP0_CHAN_WIDTH_HT);
 		if (err)
 			return err;
@@ -8124,7 +8126,11 @@ iwx_newstate_sub(struct ieee80211vap *vap, enum ieee80211_state nstate)
 		break;
 
 	case IEEE80211_S_RUN:
-		err = iwx_run(vap, sc);
+		if (ic->ic_opmode == IEEE80211_M_MONITOR) {
+			err = iwx_auth(vap, sc);
+		} else {
+			err = iwx_run(vap, sc);
+		}
 		break;
 	default:
 		break;
