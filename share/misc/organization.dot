@@ -23,8 +23,7 @@ _admin [label="FreeBSD Infrastructure Administrators"]
 _misc [label="Miscellaneous Hats"]
 
 # Development teams go here alphabetically sorted by FreeBSD login name
-
-core [label="Core Team\ncore@FreeBSD.org\nallanjude, dch, glebius,\nhrs, lwhsu, mat,\nolivier, tcberner"]
+core [label="Core Team\ncore@FreeBSD.org\nadamw, adrian, bapt,\nglebius, hrs, imp,\njrm, kevans, olivier"]
 coresecretary [label="Core Team Secretary\ncore-secretary@FreeBSD.org\nrene"]
 doccommitters [label="Doc/www Committers\ndoc-committers@FreeBSD.org"]
 doceng [label="Documentation Engineering Team\ndoceng@FreeBSD.org\nbcr, gabor, gjb, hrs,\nblackend, ryusuke, wblock"]
