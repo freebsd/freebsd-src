@@ -2161,7 +2161,7 @@ acpi_bus_get_prop(device_t bus, device_t child, const char *propname,
 
 			h = acpi_GetReference(NULL,
 			    __DECONST(ACPI_OBJECT *, obj));
-			memcpy(propvalue, h, sizeof(ACPI_HANDLE));
+			memcpy(propvalue, &h, sizeof(ACPI_HANDLE));
 		}
 		return (sizeof(ACPI_HANDLE));
 	default:
