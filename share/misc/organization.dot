@@ -46,7 +46,7 @@ bugmeister [label="Bugmeister Team\nbugmeister@FreeBSD.org\nglebius, linimon, ps
 clusteradm [label="Cluster Administrators\nclusteradm@FreeBSD.org\nbapt, bofh, dbaio\ndhw, dvl, lwhsu\nphilip, zi"]
 dnsadm [label="DNS Administrators\ndnsadm@FreeBSD.org\nclusteradm"]
 mirroradmin [label="FTP/WWW Mirror Site Coordinators\nmirror-admin@FreeBSD.org\nclusteradm"]
-postmaster [label="Postmaster Team\npostmaster@FreeBSD.org\ndhw, krion, ler, philip, pi, rea, remko, zi"]
+postmaster [label="Postmaster Team\npostmaster@FreeBSD.org\nler, philip, pi\nrea, zi"]
 webmaster [label="Webmaster Team\nwebmaster@FreeBSD.org\ngjb, wblock, blackend,\ngabor, hrs, wosch"]
 
 # Misc hats go here alphabetically sorted
