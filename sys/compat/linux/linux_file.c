@@ -1958,13 +1958,12 @@ linux_writev(struct thread *td, struct linux_writev_args *args)
 }
 
 static int
-linux_inotify_init_flags(int l_flags)
+linux_inotify_init_flags(struct thread *td, int l_flags)
 {
 	int bsd_flags;
 
 	if ((l_flags & ~(LINUX_IN_CLOEXEC | LINUX_IN_NONBLOCK)) != 0)
-		linux_msg(NULL, "inotify_init1 unsupported flags 0x%x",
-		    l_flags);
+		linux_msg(td, "inotify_init1 unsupported flags 0x%x", l_flags);
 
 	bsd_flags = 0;
 	if ((l_flags & LINUX_IN_CLOEXEC) != 0)
@@ -1979,7 +1978,7 @@ inotify_init_common(struct thread *td, int flags)
 {
 	struct specialfd_inotify si;
 
-	si.flags = linux_inotify_init_flags(flags);
+	si.flags = linux_inotify_init_flags(td, flags);
 	return (kern_specialfd(td, SPECIALFD_INOTIFY, &si));
 }
 
@@ -2055,7 +2054,7 @@ linux_inotify_add_watch(struct thread *td,
     struct linux_inotify_add_watch_args *args)
 {
 	if ((args->mask & ~(LINUX_IN_ALL_EVENTS | LINUX_IN_ALL_FLAGS)) != 0) {
-		linux_msg(NULL, "inotify_add_watch unsupported flags 0x%x",
+		linux_msg(td, "inotify_add_watch unsupported flags 0x%x",
 		    args->mask);
 		return (EINVAL);
 	}
