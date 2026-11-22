@@ -893,7 +893,7 @@ struct rmslock_pcpu {
 	int readers;
 };
 
-_Static_assert(sizeof(struct rmslock_pcpu) == 8, "bad size");
+_Static_assert(sizeof(struct rmslock_pcpu) == 8, "allocations are backed by pcpu_zone_8");
 
 /*
  * Internal routines
@@ -1211,6 +1211,7 @@ rms_wlock(struct rmslock *rms)
 	MPASS(atomic_load_ptr(&rms->owner) != curthread);
 
 	mtx_lock(&rms->mtx);
+	MPASS(rms->writers >= 0);
 	rms->writers++;
 	if (rms->writers > 1) {
 		msleep(&rms->owner, &rms->mtx, PRI_MAX_KERN,
@@ -1219,21 +1220,19 @@ rms_wlock(struct rmslock *rms)
 		KASSERT(rms->owner == RMS_TRANSIENT,
 		    ("%s: unexpected owner value %p\n", __func__,
 		    rms->owner));
-		goto out_grab;
+	} else {
+		KASSERT(rms->owner == RMS_NOOWNER,
+		    ("%s: unexpected owner value %p\n", __func__, rms->owner));
+
+		rms_block_readers(rms);
+		rms_assert_no_pcpu_readers(rms);
+
+		if (rms->readers > 0) {
+			msleep(&rms->writers, &rms->mtx, PRI_MAX_KERN,
+			    mtx_name(&rms->mtx), 0);
+		}
 	}
 
-	KASSERT(rms->owner == RMS_NOOWNER,
-	    ("%s: unexpected owner value %p\n", __func__, rms->owner));
-
-	rms_block_readers(rms);
-	rms_assert_no_pcpu_readers(rms);
-
-	if (rms->readers > 0) {
-		msleep(&rms->writers, &rms->mtx, PRI_MAX_KERN,
-		    mtx_name(&rms->mtx), 0);
-	}
-
-out_grab:
 	rms->owner = curthread;
 	rms_assert_no_pcpu_readers(rms);
 	mtx_unlock(&rms->mtx);
