@@ -63,7 +63,8 @@ static struct dmar_unit *dmar_ir_find(device_t src, uint16_t *rid,
     int *is_dmar);
 static void dmar_ir_program_irte(struct dmar_unit *unit, u_int idx,
     uint64_t low, uint16_t rid);
-static int dmar_ir_free_irte(struct dmar_unit *unit, u_int cookie);
+static int dmar_ir_free_irte(struct dmar_unit *unit, u_int cookie,
+    u_int count);
 
 int
 dmar_alloc_msi_intr(device_t src, u_int *cookies, u_int count)
@@ -140,14 +141,14 @@ dmar_map_msi_intr(device_t src, u_int cpu, u_int vector, u_int cookie,
 }
 
 int
-dmar_unmap_msi_intr(device_t src, u_int cookie)
+dmar_unmap_msi_intr(device_t src, u_int cookie, u_int count)
 {
 	struct dmar_unit *unit;
 
 	if (cookie == -1)
 		return (0);
 	unit = dmar_ir_find(src, NULL, NULL);
-	return (dmar_ir_free_irte(unit, cookie));
+	return (dmar_ir_free_irte(unit, cookie, count));
 }
 
 int
@@ -226,7 +227,7 @@ dmar_unmap_ioapic_intr(u_int ioapic_id, u_int *cookie)
 	unit = dmar_find_ioapic(ioapic_id, NULL);
 	KASSERT(unit != NULL && unit->ir_enabled,
 	    ("unmap: cookie %d unit %p", idx, unit));
-	return (dmar_ir_free_irte(unit, idx));
+	return (dmar_ir_free_irte(unit, idx, 1));
 }
 
 static struct dmar_unit *
@@ -302,21 +303,23 @@ dmar_ir_program_irte(struct dmar_unit *unit, u_int idx, uint64_t low,
 }
 
 static int
-dmar_ir_free_irte(struct dmar_unit *unit, u_int cookie)
+dmar_ir_free_irte(struct dmar_unit *unit, u_int cookie, u_int count)
 {
 	dmar_irte_t *irte;
 
 	KASSERT(unit != NULL && unit->ir_enabled,
 	    ("unmap: cookie %d unit %p", cookie, unit));
-	KASSERT(cookie < unit->irte_cnt,
-	    ("bad cookie %u %u", cookie, unit->irte_cnt));
-	irte = &(unit->irt[cookie]);
-	dmar_pte_clear(&irte->irte1);
-	dmar_pte_clear(&irte->irte2);
+	KASSERT(cookie < unit->irte_cnt && count <= unit->irte_cnt - cookie,
+	    ("bad cookie %u count %u %u", cookie, count, unit->irte_cnt));
+	for (u_int i = 0; i < count; i++) {
+		irte = &(unit->irt[cookie + i]);
+		dmar_pte_clear(&irte->irte1);
+		dmar_pte_clear(&irte->irte2);
+	}
 	DMAR_LOCK(unit);
-	dmar_qi_invalidate_iec(unit, cookie, 1);
+	dmar_qi_invalidate_iec(unit, cookie, count);
 	DMAR_UNLOCK(unit);
-	vmem_free(unit->irtids, cookie, 1);
+	vmem_free(unit->irtids, cookie, count);
 	return (0);
 }
 

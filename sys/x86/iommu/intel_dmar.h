@@ -258,7 +258,7 @@ void dmar_fini_irt(struct dmar_unit *unit);
 int dmar_alloc_msi_intr(device_t src, u_int *cookies, u_int count);
 int dmar_map_msi_intr(device_t src, u_int cpu, u_int vector, u_int cookie,
     uint64_t *addr, uint32_t *data);
-int dmar_unmap_msi_intr(device_t src, u_int cookie);
+int dmar_unmap_msi_intr(device_t src, u_int cookie, u_int count);
 int dmar_map_ioapic_intr(u_int ioapic_id, u_int cpu, u_int vector, bool edge,
     bool activehi, int irq, u_int *cookie, uint32_t *hi, uint32_t *lo);
 int dmar_unmap_ioapic_intr(u_int ioapic_id, u_int *cookie);

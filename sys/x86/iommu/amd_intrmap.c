@@ -192,14 +192,15 @@ amdiommu_map_msi_intr(device_t src, u_int cpu, u_int vector,
 }
 
 int
-amdiommu_unmap_msi_intr(device_t src, u_int cookie)
+amdiommu_unmap_msi_intr(device_t src, u_int cookie, u_int count)
 {
 	struct amdiommu_ctx *ctx;
 
 	if (cookie == -1)
 		return (0);
 	ctx = amdiommu_ir_find(src, NULL, NULL);
-	amdiommu_ir_free_irte(ctx, src, cookie);
+	for (u_int i = 0; i < count; i++)
+		amdiommu_ir_free_irte(ctx, src, cookie + i);
 	return (0);
 }
 

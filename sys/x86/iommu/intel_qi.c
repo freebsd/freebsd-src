@@ -252,7 +252,7 @@ dmar_qi_invalidate_iec(struct dmar_unit *unit, u_int start, u_int cnt)
 	    start + cnt <= unit->irte_cnt,
 	    ("inv iec overflow %d %d %d", unit->irte_cnt, start, cnt));
 	for (; cnt > 0; cnt -= c, start += c) {
-		l = ffs(start | cnt) - 1;
+		l = min(ffs(start | cnt) - 1, DMAR_ECAP_MHMV(unit->hw_ecap));
 		c = 1 << l;
 		dmar_qi_ensure(DMAR2IOMMU(unit), 1);
 		dmar_qi_emit(unit, DMAR_IQ_DESCR_IEC_INV |

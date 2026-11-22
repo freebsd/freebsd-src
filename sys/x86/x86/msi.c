@@ -561,16 +561,18 @@ msi_release(int *irqs, int count)
 	}
 	KASSERT(first->msi_dev != NULL, ("unowned group"));
 
+#ifdef IOMMU
+	/* The remapping entries of the group were allocated as one block. */
+	mtx_unlock(&msi_lock);
+	iommu_unmap_msi_intr(first->msi_dev, first->msi_remap_cookie, count);
+	mtx_lock(&msi_lock);
+#endif
+
 	/* Clear all the extra messages in the group. */
 	for (i = 1; i < count; i++) {
 		msi = (struct msi_intsrc *)intr_lookup_source(irqs[i]);
 		KASSERT(msi->msi_first == first, ("message not in group"));
 		KASSERT(msi->msi_dev == first->msi_dev, ("owner mismatch"));
-#ifdef IOMMU
-		mtx_unlock(&msi_lock);
-		iommu_unmap_msi_intr(first->msi_dev, msi->msi_remap_cookie);
-		mtx_lock(&msi_lock);
-#endif
 		msi->msi_first = NULL;
 		msi->msi_dev = NULL;
 		apic_free_vector(msi->msi_cpu, msi->msi_vector, msi->msi_irq);
@@ -578,11 +580,6 @@ msi_release(int *irqs, int count)
 	}
 
 	/* Clear out the first message. */
-#ifdef IOMMU
-	mtx_unlock(&msi_lock);
-	iommu_unmap_msi_intr(first->msi_dev, first->msi_remap_cookie);
-	mtx_lock(&msi_lock);
-#endif
 	first->msi_first = NULL;
 	first->msi_dev = NULL;
 	apic_free_vector(first->msi_cpu, first->msi_vector, first->msi_irq);
@@ -787,7 +784,7 @@ msix_release(int irq)
 	/* Clear out the message. */
 #ifdef IOMMU
 	mtx_unlock(&msi_lock);
-	iommu_unmap_msi_intr(msi->msi_dev, msi->msi_remap_cookie);
+	iommu_unmap_msi_intr(msi->msi_dev, msi->msi_remap_cookie, 1);
 	mtx_lock(&msi_lock);
 #endif
 	msi->msi_first = NULL;

@@ -218,7 +218,7 @@ x86_no_iommu_map_msi_intr(device_t src, u_int cpu, u_int vector,
 }
 
 static int
-x86_no_iommu_unmap_msi_intr(device_t src, u_int cookie)
+x86_no_iommu_unmap_msi_intr(device_t src, u_int cookie, u_int count)
 {
 	return (0);
 }
@@ -309,9 +309,9 @@ iommu_map_msi_intr(device_t src, u_int cpu, u_int vector, u_int cookie,
 }
 
 int
-iommu_unmap_msi_intr(device_t src, u_int cookie)
+iommu_unmap_msi_intr(device_t src, u_int cookie, u_int count)
 {
-	return (x86_iommu->unmap_msi_intr(src, cookie));
+	return (x86_iommu->unmap_msi_intr(src, cookie, count));
 }
 
 int
