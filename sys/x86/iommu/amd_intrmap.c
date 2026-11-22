@@ -75,8 +75,8 @@
 
 static struct amdiommu_ctx *amdiommu_ir_find(device_t src, uint16_t *rid,
     bool *is_iommu);
-static void amdiommu_ir_free_irte(struct amdiommu_ctx *ctx, device_t src,
-    u_int cookie);
+static void amdiommu_ir_free_irte(struct amdiommu_ctx *ctx, u_int cookie,
+    u_int count);
 
 int
 amdiommu_alloc_msi_intr(device_t src, u_int *cookies, u_int count)
@@ -93,8 +93,13 @@ amdiommu_alloc_msi_intr(device_t src, u_int *cookies, u_int count)
 		return (EOPNOTSUPP);
 	}
 
-	error = vmem_alloc(ctx->irtids, count, M_FIRSTFIT | M_NOWAIT,
-	    &vmem_res);
+	/*
+	 * The MSI data is the entry index, and a multiple-message device
+	 * ORs the message number into it: align the block on its size.
+	 */
+	KASSERT(powerof2(count), ("MSI count %u", count));
+	error = vmem_xalloc(ctx->irtids, count, count, 0, 0, VMEM_ADDR_MIN,
+	    VMEM_ADDR_MAX, M_FIRSTFIT | M_NOWAIT, &vmem_res);
 	if (error != 0) {
 		KASSERT(error != EOPNOTSUPP,
 		    ("impossible EOPNOTSUPP from vmem"));
@@ -112,12 +117,9 @@ amdiommu_map_msi_intr(device_t src, u_int cpu, u_int vector,
 {
 	struct amdiommu_ctx *ctx;
 	struct amdiommu_unit *unit;
-	device_t requester;
-	int error __diagused;
-	uint16_t rid;
 	bool is_iommu;
 
-	ctx = amdiommu_ir_find(src, &rid, &is_iommu);
+	ctx = amdiommu_ir_find(src, NULL, &is_iommu);
 	if (is_iommu) {
 		if (addr != NULL) {
 			*data = vector;
@@ -182,10 +184,8 @@ amdiommu_map_msi_intr(device_t src, u_int cpu, u_int vector,
 			*addr |= ((uint64_t)cpu & 0xffffff00) << 32;
 	}
 
-	error = iommu_get_requester(src, &requester, &rid);
-	MPASS(error == 0);
 	AMDIOMMU_LOCK(unit);
-	amdiommu_qi_invalidate_ir_locked(unit, rid);
+	amdiommu_qi_invalidate_ir_locked(unit, ctx->context.rid);
 	AMDIOMMU_UNLOCK(unit);
 
 	return (0);
@@ -199,8 +199,8 @@ amdiommu_unmap_msi_intr(device_t src, u_int cookie, u_int count)
 	if (cookie == -1)
 		return (0);
 	ctx = amdiommu_ir_find(src, NULL, NULL);
-	for (u_int i = 0; i < count; i++)
-		amdiommu_ir_free_irte(ctx, src, cookie + i);
+	amdiommu_ir_free_irte(ctx, cookie, count);
+	vmem_xfree(ctx->irtids, cookie, count);
 	return (0);
 }
 
@@ -267,41 +267,39 @@ amdiommu_ir_find(device_t src, uint16_t *ridp, bool *is_iommu)
 }
 
 static void
-amdiommu_ir_free_irte(struct amdiommu_ctx *ctx, device_t src,
-    u_int cookie)
+amdiommu_ir_free_irte(struct amdiommu_ctx *ctx, u_int cookie, u_int count)
 {
 	struct amdiommu_unit *unit;
-	device_t requester;
-	int error __diagused;
-	uint16_t rid;
 
 	MPASS(ctx != NULL);
 	unit = CTX2AMD(ctx);
 
 	KASSERT(unit->irte_enabled,
 	    ("unmap: cookie %d ctx %p unit %p", cookie, ctx, unit));
-	KASSERT(cookie < unit->irte_nentries,
-	    ("bad cookie %u %u", cookie, unit->irte_nentries));
+	KASSERT(cookie < unit->irte_nentries &&
+	    count <= unit->irte_nentries - cookie,
+	    ("bad cookie %u count %u %u", cookie, count, unit->irte_nentries));
 
-	if (unit->irte_x2apic) {
-		struct amdiommu_irte_basic_vapic_x2 *irte;
+	for (u_int i = cookie; i < cookie + count; i++) {
+		if (unit->irte_x2apic) {
+			struct amdiommu_irte_basic_vapic_x2 *irte;
 
-		irte = &ctx->irtx2[cookie];
-		irte->remapen = 0;
-		atomic_thread_fence_rel();
-		bzero(irte, sizeof(*irte));
-	} else {
-		struct amdiommu_irte_basic_novapic *irte;
+			irte = &ctx->irtx2[i];
+			irte->remapen = 0;
+			atomic_thread_fence_rel();
+			bzero(irte, sizeof(*irte));
+		} else {
+			struct amdiommu_irte_basic_novapic *irte;
 
-		irte = &ctx->irtb[cookie];
-		irte->remapen = 0;
-		atomic_thread_fence_rel();
-		bzero(irte, sizeof(*irte));
+			irte = &ctx->irtb[i];
+			irte->remapen = 0;
+			atomic_thread_fence_rel();
+			bzero(irte, sizeof(*irte));
+		}
 	}
-	error = iommu_get_requester(src, &requester, &rid);
-	MPASS(error == 0);
+	/* One invalidation covers the whole table of the device. */
 	AMDIOMMU_LOCK(unit);
-	amdiommu_qi_invalidate_ir_locked(unit, rid);
+	amdiommu_qi_invalidate_ir_locked(unit, ctx->context.rid);
 	AMDIOMMU_UNLOCK(unit);
 }
 
