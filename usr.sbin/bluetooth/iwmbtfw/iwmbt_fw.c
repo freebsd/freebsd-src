@@ -29,6 +29,7 @@
 
 #include <sys/types.h>
 #include <sys/endian.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 
 #include <assert.h>
@@ -49,7 +50,6 @@ iwmbt_fw_read(struct iwmbt_firmware *fw, const char *fwname)
 	int fd;
 	struct stat sb;
 	unsigned char *buf;
-	ssize_t r;
 
 	fd = open(fwname, O_RDONLY);
 	if (fd < 0) {
@@ -63,27 +63,9 @@ iwmbt_fw_read(struct iwmbt_firmware *fw, const char *fwname)
 		return (0);
 	}
 
-	buf = calloc(1, sb.st_size);
-	if (buf == NULL) {
-		warn("%s: calloc", __func__);
-		close(fd);
-		return (0);
-	}
-
-	/* XXX handle partial reads */
-	r = read(fd, buf, sb.st_size);
-	if (r < 0) {
-		warn("%s: read", __func__);
-		free(buf);
-		close(fd);
-		return (0);
-	}
-
-	if (r != sb.st_size) {
-		iwmbt_err("read len %d != file size %d",
-		    (int) r,
-		    (int) sb.st_size);
-		free(buf);
+	buf = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
+	if (buf == MAP_FAILED) {
+		warn("%s: mmap: %s", __func__, fwname);
 		close(fd);
 		return (0);
 	}
@@ -106,7 +88,7 @@ iwmbt_fw_free(struct iwmbt_firmware *fw)
 	if (fw->fwname)
 		free(fw->fwname);
 	if (fw->buf)
-		free(fw->buf);
+		munmap(fw->buf, fw->len);
 	memset(fw, 0, sizeof(*fw));
 }
 
