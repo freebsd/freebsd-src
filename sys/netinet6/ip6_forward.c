@@ -95,7 +95,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 {
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	struct sockaddr_in6 dst;
-	struct nhop_object *nh = NULL;
+	struct nhop_object *nh;
 	int error, type = 0, code = 0;
 	struct mbuf *mcopy = NULL;
 	struct ifnet *origifp;	/* maybe unnecessary */
@@ -103,6 +103,8 @@ ip6_forward(struct mbuf *m, int srcrt)
 	struct in6_addr odst;
 	struct m_tag *fwd_tag;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
+
+	NET_EPOCH_ASSERT();
 
 	/*
 	 * Do not forward packets to multicast destination (should be handled
@@ -186,8 +188,9 @@ ip6_forward(struct mbuf *m, int srcrt)
 	dst.sin6_addr = ip6->ip6_dst;
 	dst.sin6_scope_id = in6_get_unicast_scopeid(&ip6->ip6_dst, m->m_pkthdr.rcvif);
 again:
+	/* The network epoch keeps the nexthop valid until we return. */
 	nh = fib6_lookup(M_GETFIB(m), &dst.sin6_addr, dst.sin6_scope_id,
-	    NHR_REF, m->m_pkthdr.flowid);
+	    NHR_NONE, m->m_pkthdr.flowid);
 	if (nh == NULL) {
 		IP6STAT_INC(ip6s_noroute);
 		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_noroute);
@@ -339,8 +342,6 @@ again:
 		if (in6_localip(&ip6->ip6_dst))
 			m->m_flags |= M_FASTFWD_OURS;
 		else {
-			NH_FREE(nh);
-
 			/* Update address and scopeid. Assume scope is embedded */
 			dst.sin6_scope_id = ntohs(in6_getscope(&ip6->ip6_dst));
 			dst.sin6_addr = ip6->ip6_dst;
@@ -378,7 +379,6 @@ again:
 		m->m_flags |= M_SKIP_FIREWALL;
 		m->m_flags &= ~M_IP6_NEXTHOP;
 		m_tag_delete(m, fwd_tag);
-		NH_FREE(nh);
 		goto again;
 	}
 
@@ -440,12 +440,12 @@ pass:
 	}
 
 	if (mcopy == NULL)
-		goto out;
+		return;
 	switch (error) {
 	case 0:
 		if (type == ND_REDIRECT) {
 			icmp6_redirect_output(mcopy, nh);
-			goto out;
+			return;
 		}
 		goto freecopy;
 
@@ -467,14 +467,11 @@ pass:
 		break;
 	}
 	icmp6_error(mcopy, type, code, 0);
-	goto out;
+	return;
 
  freecopy:
 	m_freem(mcopy);
-	goto out;
+	return;
 bad:
 	m_freem(m);
-out:
-	if (nh != NULL)
-		NH_FREE(nh);
 }
