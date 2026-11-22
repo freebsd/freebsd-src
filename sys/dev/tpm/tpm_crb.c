@@ -433,6 +433,15 @@ tpmcrb_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	/* Firmware can describe a TPM that is absent, e.g. with the ME off. */
+	if (crb_sc->has_locality &&
+	    rman_get_size(sc->mem_res) >= TPM_CRB_LOCALITY_SIZE &&
+	    bus_read_4(sc->mem_res, TPM_CRB_INTF_ID) == UINT32_MAX) {
+		device_printf(dev, "No CRB interface at the ACPI address\n");
+		tpmcrb_detach(dev);
+		return (ENXIO);
+	}
+
 	if (!tpmcrb_request_locality(crb_sc, 0)) {
 		device_printf(dev, "Failed to obtain locality\n");
 		tpmcrb_detach(dev);
