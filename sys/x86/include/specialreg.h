@@ -402,6 +402,10 @@
 #define	CPUID_TYPE_INVAL	0
 #define	CPUID_TYPE_SMT		1
 #define	CPUID_TYPE_CORE		2
+#define	CPUID_TYPE_MODULE	3
+#define	CPUID_TYPE_TILE		4
+#define	CPUID_TYPE_DIE		5
+#define	CPUID_TYPE_DIEGRP	6
 
 /*
  * CPUID instruction 0xd Processor Extended State Enumeration Sub-leaf 1

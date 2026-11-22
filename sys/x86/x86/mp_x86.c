@@ -404,6 +404,8 @@ topo_probe_intel_0xb(void)
 	u_int leaf;
 	u_int p[4] = { 0 };
 	int bits;
+	int max_type;
+	int prev_type;
 	int type;
 	int i;
 
@@ -413,17 +415,27 @@ topo_probe_intel_0xb(void)
 		cpuid_count(leaf, 0, p);
 	}
 	/* Fall back to leaf 0Bh (Extended Topology Enumeration). */
-	if (p[1] == 0) {
+	if ((p[1] & 0xffff) == 0) {
 		leaf = 0x0b;
 		cpuid_count(leaf, 0, p);
 	}
 	/* Fall back to leaf 04h (Deterministic Cache Parameters). */
-	if (p[1] == 0) {
+	if ((p[1] & 0xffff) == 0) {
 		topo_probe_intel_0x4();
 		return;
 	}
 
-	/* We only support three levels for now. */
+	/*
+	 * The sub-leaves are ordered from the smallest domain to the largest,
+	 * and each reports the shift that addresses the next domain up.  The
+	 * package is not enumerated: it is the domain above the last valid
+	 * sub-leaf, so the last shift is the package's.  Leaf 1Fh may
+	 * enumerate module, tile, die and die group levels above the core
+	 * level; they are not represented in the topology, but they must not
+	 * be mistaken for the package boundary.
+	 */
+	max_type = leaf == 0x1f ? CPUID_TYPE_DIEGRP : CPUID_TYPE_CORE;
+	prev_type = CPUID_TYPE_INVAL;
 	for (i = 0; ; i++) {
 		cpuid_count(leaf, i, p);
 
@@ -433,12 +445,41 @@ topo_probe_intel_0xb(void)
 		if (type == 0)
 			break;
 
+		/*
+		 * No level type marks the package, so cross-check what is
+		 * reported instead.  A level cannot cover fewer APIC IDs than
+		 * the level below it; ignore one that claims to.
+		 */
+		if (bits < pkg_id_shift) {
+			printf("WARNING: ignoring CPUID leaf %#x sub-leaf %d: "
+			    "type %d shift %d is below shift %d\n", leaf, i,
+			    type, bits, pkg_id_shift);
+			continue;
+		}
+
+		/*
+		 * The order of the level types defined so far is fixed, but
+		 * their values are not ordered in general: leaf 1Fh may come
+		 * to report a new type, with a larger value, between two of
+		 * them.  Leaf 0Bh defines only the SMT and core levels.
+		 * Whatever its type, a level's shift still bounds the package.
+		 */
+		if (type <= max_type) {
+			if (type <= prev_type)
+				printf("WARNING: CPUID leaf %#x sub-leaf %d "
+				    "has level type %d out of order\n", leaf,
+				    i, type);
+			prev_type = type;
+		} else if (leaf == 0x0b)
+			printf("WARNING: CPUID leaf 0xb sub-leaf %d has "
+			    "reserved level type %d\n", i, type);
+
+		pkg_id_shift = bits;
 		if (type == CPUID_TYPE_SMT)
 			core_id_shift = bits;
-		else if (type == CPUID_TYPE_CORE)
-			pkg_id_shift = bits;
-		else if (bootverbose)
-			printf("Topology level type %d shift: %d\n", type, bits);
+		else if (type != CPUID_TYPE_CORE && bootverbose)
+			printf("Topology level type %d shift: %d\n", type,
+			    bits);
 	}
 
 	if (pkg_id_shift < core_id_shift) {
