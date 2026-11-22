@@ -54,10 +54,29 @@ threadfunc(void *arg)
 	pthread_t self = pthread_self();
 	char retname[32];
 
+#ifdef __FreeBSD__
+	/* Check initial name is empty on the created thread */
+	(void)strcpy(retname, "foo");
 	PTHREAD_REQUIRE(pthread_getname_np(self, retname, sizeof(retname)));
+	ATF_REQUIRE_EQ(retname[0], '\0');
+
+	/*
+	 * FreeBSD sets the name explicitly after the thread is created,
+	 * whereas NetBSD supplies the initial name through the thread
+	 * attributes.
+	 */
+	PTHREAD_REQUIRE(pthread_setname_np(self, NAME_JUST_RIGHT));
+	PTHREAD_REQUIRE(pthread_getname_np(self, retname, sizeof(retname)));
+#else
+	PTHREAD_REQUIRE(pthread_getname_np(self, retname, sizeof(retname)));
+#endif
 	ATF_REQUIRE_STREQ(retname, NAME_JUST_RIGHT);
 
+#ifdef __FreeBSD__
+	PTHREAD_REQUIRE(pthread_setname_np(self, non_const_name));
+#else
 	PTHREAD_REQUIRE(pthread_setname_np(self, non_const_name, NULL));
+#endif
 	(void) memset(non_const_name, 0, sizeof(non_const_name));
 	PTHREAD_REQUIRE(pthread_getname_np(self, retname, sizeof(retname)));
 	ATF_REQUIRE_STREQ(retname, CONST_NAME);
@@ -68,8 +87,13 @@ threadfunc(void *arg)
 ATF_TC(name);
 ATF_TC_HEAD(name, tc)
 {
+#ifdef __FreeBSD__
+	atf_tc_set_md_var(tc, "descr",
+		"Checks pthread_{get,set}name_np() API");
+#else
 	atf_tc_set_md_var(tc, "descr",
 		"Checks pthread_{,attr}_{get,set}name_np() API");
+#endif
 }
 ATF_TC_BODY(name, tc)
 {
@@ -78,12 +102,19 @@ ATF_TC_BODY(name, tc)
 	char retname[32];
 
 	PTHREAD_REQUIRE(pthread_attr_init(&attr));
+#ifdef __NetBSD__
 	PTHREAD_REQUIRE(pthread_attr_getname_np(&attr, retname,
 		sizeof(retname), NULL));
 	ATF_REQUIRE_EQ(retname[0], '\0');
+	/*
+	 * NetBSD rejects 32-character names in thread attributes.
+	 * FreeBSD's pthread_setname_np() does not impose a fixed name length
+	 * limit, so this length boundary check is specific to NetBSD.
+	 */
 	ATF_REQUIRE_EQ(pthread_attr_setname_np(&attr, NAME_TOO_LONG, NULL), EINVAL);
 	PTHREAD_REQUIRE(pthread_attr_setname_np(&attr, "%s",
 	    __UNCONST(NAME_JUST_RIGHT)));
+#endif
 
 	(void) strcpy(retname, "foo");
 	PTHREAD_REQUIRE(pthread_getname_np(self, retname, sizeof(retname)));
