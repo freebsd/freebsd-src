@@ -42,7 +42,7 @@ srccommitters [label="Src Committers\nsrc-committers@FreeBSD.org"]
 
 accounts [label="Accounts Team\naccounts@FreeBSD.org\nclusteradm"]
 backups [label="Backup Administrators\nbackups@FreeBSD.org\nclusteradm"]
-bugmeister [label="Bugmeister Team\nbugmeister@FreeBSD.org\neadler, gavin, gonzo"]
+bugmeister [label="Bugmeister Team\nbugmeister@FreeBSD.org\nglebius, linimon, pstef\nsiva, ziaee"]
 clusteradm [label="Cluster Administrators\nclusteradm@FreeBSD.org\nallanjude, brd,\ndhw, gavin,\ngjb, peter,\nsbruno, simon,\nzi"]
 dnsadm [label="DNS Administrators\ndnsadm@FreeBSD.org\nclusteradm"]
 mirroradmin [label="FTP/WWW Mirror Site Coordinators\nmirror-admin@FreeBSD.org\nclusteradm,\nkuriyama"]
