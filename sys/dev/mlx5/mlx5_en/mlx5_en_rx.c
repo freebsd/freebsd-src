@@ -323,7 +323,7 @@ mlx5e_mbuf_tstmp(struct mlx5e_priv *priv, uint64_t hw_tstmp)
 
 static inline void
 mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe, struct mlx5e_rq *rq,
-    struct mbuf *mb, struct mlx5e_rq_mbuf *mr, u32 cqe_bcnt)
+    struct mbuf *mb, struct mlx5e_rq_mbuf *mr, u32 cqe_bcnt, bool *tcp)
 {
 	if_t ifp = rq->ifp;
 	struct mlx5e_channel *c;
@@ -463,6 +463,17 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe, struct mlx5e_rq *rq,
 		break;
 	}
 
+	switch (get_cqe_l4_hdr_type(cqe)) {
+	case CQE_L4_HDR_TYPE_TCP_NO_ACK:
+	case CQE_L4_HDR_TYPE_TCP_ACK_NO_DATA:
+	case CQE_L4_HDR_TYPE_TCP_ACK_AND_DATA:
+		*tcp = true;
+		break;
+	default:
+		*tcp = false;
+		break;
+	}
+
 	mlx5e_accel_ipsec_handle_rx(ifp, mb, cqe, mr);
 }
 
@@ -544,6 +555,7 @@ mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 {
 	struct pfil_head *pfil;
 	int i, rv;
+	bool tcp;
 
 	CURVNET_SET_QUIET(if_getvnet(rq->ifp));
 	pfil = rq->channel->priv->pfil;
@@ -629,7 +641,7 @@ mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 		}
 rx_common:
 		mlx5e_build_rx_mbuf(cqe, rq, mb, &rq->mbuf[wqe_counter],
-		    byte_cnt);
+		    byte_cnt, &tcp);
 		rq->stats.bytes += byte_cnt;
 		rq->stats.packets++;
 #ifdef NUMA
@@ -637,9 +649,12 @@ rx_common:
 #endif
 
 #if !defined(HAVE_TCP_LRO_RX)
-		tcp_lro_queue_mbuf(&rq->lro, mb);
+		if (tcp)
+			tcp_lro_queue_mbuf(&rq->lro, mb);
+		else
+			if_input(rq->ifp, mb);
 #else
-		if (mb->m_pkthdr.csum_flags == 0 ||
+		if (mb->m_pkthdr.csum_flags == 0 || !tcp ||
 		    (if_getcapenable(rq->ifp) & IFCAP_LRO) == 0 ||
 		    rq->lro.lro_cnt == 0 ||
 		    tcp_lro_rx(&rq->lro, mb, 0) != 0) {
