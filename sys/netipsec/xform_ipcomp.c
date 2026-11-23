@@ -61,7 +61,6 @@
 
 #ifdef INET6
 #include <netinet/ip6.h>
-#include <netinet6/ip6_var.h>
 #include <netipsec/ipsec6.h>
 #endif
 

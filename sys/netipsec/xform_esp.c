@@ -69,7 +69,6 @@
 #include <netipsec/xform.h>
 
 #ifdef INET6
-#include <netinet6/ip6_var.h>
 #include <netipsec/ipsec6.h>
 #include <netinet6/ip6_ecn.h>
 #endif
