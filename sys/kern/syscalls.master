@@ -3341,7 +3341,7 @@
 		    _Out_ rlim_t *res
 		);
 	}
-590	AUE_NULL	STD {
+590	AUE_FCHROOT	STD {
 		int fchroot(
 		    int fd
 		);

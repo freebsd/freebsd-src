@@ -1046,6 +1046,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	 */
 	case AUE_FCHALTROOT:
 	case AUE_FCHDIR:
+	case AUE_FCHROOT:
 	case AUE_FPATHCONF:
 	case AUE_FSTAT:
 	case AUE_FSTATFS:

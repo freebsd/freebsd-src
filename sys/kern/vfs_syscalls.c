@@ -1095,6 +1095,7 @@ sys_fchroot(struct thread *td, struct fchroot_args *uap)
 	int error;
 	uint8_t fdflags;
 
+	AUDIT_ARG_FD(uap->fd);
 	error = getvnode_path(td, uap->fd, &cap_fchroot_rights, &fdflags, &fp);
 	if (error != 0)
 		return (error);
@@ -1106,6 +1107,7 @@ sys_fchroot(struct thread *td, struct fchroot_args *uap)
 	vrefact(vp);
 	fdrop(fp, td);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
+	AUDIT_ARG_VNODE1(vp);
 	error = kern_chroot(td, vp);
 	return (error);
 }
