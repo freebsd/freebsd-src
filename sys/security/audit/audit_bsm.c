@@ -1450,6 +1450,22 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		PROCESS_PID_TOKENS(2);
 		break;
 
+	case AUE_PDPTRACE:
+		if (ARG_IS_VALID(kar, ARG_CMD)) {
+			tok = au_to_arg32(1, "request", ar->ar_arg_cmd);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_FD)) {
+			tok = au_to_arg32(2, "fd", ar->ar_arg_fd);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_VALUE)) {
+			tok = au_to_arg32(5, "data", ar->ar_arg_value);
+			kau_write(rec, tok);
+		}
+		PROCESS_PID_TOKENS(2);
+		break;
+
 	case AUE_QUOTACTL:
 		if (ARG_IS_VALID(kar, ARG_CMD)) {
 			tok = au_to_arg32(2, "command", ar->ar_arg_cmd);
