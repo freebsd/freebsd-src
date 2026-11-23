@@ -134,6 +134,14 @@ SYSCTL_INT(_compat_linuxkpi, OID_AUTO, warn_dump_stack, CTLFLAG_RWTUN,
     &linuxkpi_warn_dump_stack, 0,
     "Set to enable stack traces from WARN_ON(). Clear to disable.");
 
+static int lkpi_fault_retry_timeout = 30;
+SYSCTL_INT(_compat_linuxkpi, OID_AUTO, fault_retry_timeout, CTLFLAG_RWTUN,
+    &lkpi_fault_retry_timeout, 0,
+    "Seconds a page fault retries a driver fault handler that inserts no page "
+    "before failing (0: fail at once, -1: retry forever)");
+static struct timeval lkpi_fault_lastlog;
+static int lkpi_fault_curpps;
+
 static struct timeval lkpi_net_lastlog;
 static int lkpi_net_curpps;
 static int lkpi_net_maxpps = 99;
@@ -507,7 +515,7 @@ linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
     vm_prot_t max_prot, vm_pindex_t *first, vm_pindex_t *last)
 {
 	struct vm_area_struct *vmap;
-	int err;
+	int err, start, timeout;
 
 	/* get VM area structure */
 	vmap = linux_cdev_handle_find(vm_obj->handle);
@@ -537,8 +545,26 @@ linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
 
 		err = vmap->vm_ops->fault(&vmf);
 
+		/*
+		 * If err == VM_FAULT_NOPAGE and no page was inserted, the
+		 * handler asked to be called again.  It may never insert
+		 * the page, e.g. when another mapping holds it, so bound the
+		 * retries in time, as vm_fault does for page allocation.
+		 */
+		start = ticks;
 		while (vmap->vm_pfn_count == 0 && err == VM_FAULT_NOPAGE) {
-			kern_yield(PRI_USER);
+			timeout = lkpi_fault_retry_timeout;
+			if (timeout >= 0 && (ticks - start) / hz >= timeout) {
+				if (ppsratecheck(&lkpi_fault_lastlog,
+				    &lkpi_fault_curpps, 1))
+					printf("linuxkpi: pid %d (%s): fault not "
+					    "served after %d s, failing it\n",
+					    curproc->p_pid, curproc->p_comm,
+					    timeout);
+				err = VM_FAULT_SIGSEGV;
+				break;
+			}
+			pause("lkpiflt", 1);
 			err = vmap->vm_ops->fault(&vmf);
 		}
 	}
