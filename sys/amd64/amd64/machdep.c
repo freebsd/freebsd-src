@@ -1247,6 +1247,7 @@ amd64_bsp_pcpu_init1(struct pcpu *pc)
 	PCPU_SET(gs32p, &gdt[GUGS32_SEL]);
 	PCPU_SET(ucr3_load_mask, PMAP_UCR3_NOMASK);
 	PCPU_SET(smp_tlb_gen, 1);
+	cpu_init_small_core();
 }
 
 void
@@ -1399,13 +1400,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		pmap_pcid_enabled = 0;
 	invpcid_works = (cpu_stdext_feature & CPUID_STDEXT_INVPCID) != 0;
 
-	/*
-	 * Now we can do small core initialization, after the PCID
-	 * CPU features and user knobs are evaluated.
-	 */
 	TUNABLE_INT_FETCH("vm.pmap.pcid_invlpg_workaround",
 	    &pmap_pcid_invlpg_workaround_uena);
-	cpu_init_small_core();
 
 	if ((cpu_feature2 & CPUID2_XSAVE) != 0) {
 		use_xsave = 1;
