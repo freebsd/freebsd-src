@@ -1923,6 +1923,12 @@ swap_pager_swapoff_object(struct swdevt *sp, vm_object_t object,
 	KASSERT((sp->sw_flags & SW_CLOSING) != 0,
 	    ("%s: Device not blocking further allocations", __func__));
 
+	/*
+	 * Make sure that the object doesn't get freed while paging or
+	 * allocating memory.
+	 */
+	vm_object_pip_add(object, 1);
+
 	vm_page_iter_init(&pages, object);
 	swp_pager_init_freerange(&range);
 	sb = swblk_iter_init(&blks, object, 0);
@@ -1972,7 +1978,6 @@ swap_pager_swapoff_object(struct swdevt *sp, vm_object_t object,
 			}
 
 			/* Get the page from swap, and restart the scan. */
-			vm_object_pip_add(object, 1);
 			rahead = SWAP_META_PAGES;
 			rv = swap_pager_getpages_locked(&blks, object, &m, 1,
 			    NULL, &rahead, *bp);
@@ -1981,7 +1986,6 @@ swap_pager_swapoff_object(struct swdevt *sp, vm_object_t object,
 				    __func__, rv);
 			*bp = uma_zalloc(swrbuf_zone, M_WAITOK);
 			VM_OBJECT_WLOCK(object);
-			vm_object_pip_wakeupn(object, 1);
 			KASSERT(vm_page_all_valid(m),
 			    ("%s: Page %p not all valid", __func__, m));
 			vm_page_deactivate_noreuse(m);
@@ -1991,17 +1995,11 @@ swap_pager_swapoff_object(struct swdevt *sp, vm_object_t object,
 		if (i < SWAP_META_PAGES) {
 			/*
 			 * The object lock has been released and regained.
-			 * Perhaps the object is now dead.
+			 * Perhaps the object is now dead.  If so, the
+			 * terminating thread will free its swap blocks.
 			 */
-			if ((object->flags & OBJ_DEAD) != 0) {
-				/*
-				 * Make sure that pending writes finish before
-				 * returning.
-				 */
-				vm_object_pip_wait(object, "swpoff");
-				swp_pager_meta_free_all(object);
+			if ((object->flags & OBJ_DEAD) != 0)
 				break;
-			}
 
 			/*
 			 * The swapblk could have been freed, so reset the pages
@@ -2025,6 +2023,8 @@ swap_pager_swapoff_object(struct swdevt *sp, vm_object_t object,
 		sb = swblk_iter_next(&blks);
 	}
 	swp_pager_freeswapspace(&range);
+
+	vm_object_pip_wakeupn(object, 1);
 }
 
 /*
