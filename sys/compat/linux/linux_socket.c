@@ -55,7 +55,6 @@
 #ifdef INET6
 #include <netinet/icmp6.h>
 #include <netinet/ip6.h>
-#include <netinet6/ip6_var.h>
 #endif
 
 #ifdef COMPAT_LINUX32
