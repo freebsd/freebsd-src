@@ -2539,14 +2539,14 @@ iavf_init_tx_rsqs(struct iavf_vsi *vsi)
 void
 iavf_init_tx_cidx(struct iavf_vsi *vsi)
 {
-	if_softc_ctx_t scctx = vsi->shared;
 	struct iavf_tx_queue *tx_que;
 	int i;
 
 	for (i = 0, tx_que = vsi->tx_queues; i < vsi->num_tx_queues; i++, tx_que++) {
 		struct tx_ring *txr = &tx_que->txr;
 
-		txr->tx_cidx_processed = scctx->isc_ntxd[0] - 1;
+		/* Next descriptor to complete (the head), not the last one. */
+		txr->tx_cidx_processed = 0;
 	}
 }
 
