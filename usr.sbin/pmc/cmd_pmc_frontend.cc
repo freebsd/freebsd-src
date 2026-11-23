@@ -80,15 +80,30 @@
 #include "display.hh"
 #include "view.hh"
 
+/*
+ * L1TLB page-size labels. Erratum #1347 (Zen3-B0) shifts the encoding:
+ * architectural {4K,2M,1G,rsvd} becomes {4K,16K,2M,1G}.
+ */
+static const char *
+frontend_pgsz_label(uint8_t code, bool err1347)
+{
+	static const char *arch[4] = { "4K", "2M", "1G", "rsvd" };
+	static const char *remap[4] = { "4K", "16K", "2M", "1G" };
+	return (err1347 ? remap : arch)[code & 0x3];
+}
+
 struct frontend {
 	syminfo		func;
 	int64_t		ocmiss;
+	int64_t		icmiss;
 	int64_t		l2miss;
 	int64_t		l3miss;
 	int64_t		l1tlbmiss;
 	int64_t		l2tlbmiss;
 	int64_t		latency;
 	int64_t		samples;
+	int64_t		pgsz_counts[4];   /* indexed by 2-bit code */
+	int64_t		pgsz_samples;     /* samples with valid pgsz */
 };
 
 static int sortcol = 2;
@@ -125,6 +140,8 @@ public:
 		 */
 		if (f.ctl & IBS_FETCH_CTL_OPCACHEMISS)
 			inst->second.ocmiss += 1;
+		if (f.ctl & IBS_FETCH_CTL_ICMISS)
+			inst->second.icmiss += 1;
 		if (f.ctl & IBS_FETCH_CTL_L2MISS)
 			inst->second.l2miss += 1;
 		if (f.ctl & IBS_FETCH_CTL_L3MISS)
@@ -137,6 +154,11 @@ public:
 
 		inst->second.latency += IBS_FETCH_CTL_TO_LAT(f.ctl);
 		inst->second.samples += 1;
+
+		if (f.ctl & IBS_FETCH_CTL_PHYSADDRVALID) {
+			inst->second.pgsz_counts[IBS_FETCH_CTL_TO_PGSZ(f.ctl)] += 1;
+			inst->second.pgsz_samples += 1;
+		}
 	}
 
 	virtual void
@@ -151,10 +173,14 @@ public:
 		t.addcolumn("Latency");
 		t.addcolumn("Samples");
 		t.addcolumn("OC Miss");
+		/* Erratum #1238: IcMiss is unreliable, omit the column. */
+		if (!ibs_errata_1238)
+			t.addcolumn("IC Miss");
 		t.addcolumn("L2 Miss");
 		t.addcolumn("L3 Miss");
 		t.addcolumn("L1 TLB Miss");
 		t.addcolumn("L2 TLB Miss");
+		t.addcolumn("Top PgSz");
 
 		for (auto &kv : samples) {
 			std::vector<field> r;
@@ -164,10 +190,24 @@ public:
 			r.emplace_back(kv.second.latency);
 			r.emplace_back(kv.second.samples);
 			r.emplace_back(kv.second.ocmiss, kv.second.samples, true);
+			if (!ibs_errata_1238)
+				r.emplace_back(kv.second.icmiss,
+				    kv.second.samples, true);
 			r.emplace_back(kv.second.l2miss, kv.second.samples, true);
 			r.emplace_back(kv.second.l3miss, kv.second.samples, true);
 			r.emplace_back(kv.second.l1tlbmiss, kv.second.samples, true);
 			r.emplace_back(kv.second.l2tlbmiss, kv.second.samples, true);
+			{
+				int top = 0;
+				for (int i = 1; i < 4; i++)
+					if (kv.second.pgsz_counts[i] >
+					    kv.second.pgsz_counts[top])
+						top = i;
+				const char *lbl = kv.second.pgsz_samples ?
+				    frontend_pgsz_label(top, ibs_errata_1347) :
+				    "-";
+				r.emplace_back(std::string(lbl));
+			}
 
 			t.addrow(r);
 		}
