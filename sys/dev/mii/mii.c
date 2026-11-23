@@ -613,7 +613,7 @@ mii_pollstat(struct mii_data *mii)
 		 */
 		if (IFM_INST(ife->ifm_media) != child->mii_inst)
 			continue;
-		PHY_STATUS(child);
+		(void)PHY_SERVICE(child, mii, MII_POLLSTAT);
 	}
 }
 
