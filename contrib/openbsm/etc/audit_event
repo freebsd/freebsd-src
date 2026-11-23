@@ -614,6 +614,8 @@
 43264:AUE_REALPATHAT:realpathat(2):fa
 43265:AUE_CLOSERANGE:close_range(2):cl
 43273:AUE_PDRFORK:pdrfork(2):pc
+43274:AUE_PDOPENPID:pdopenpid(2):pc
+43275:AUE_PDPTRACE:pdptrace(2):pc
 #
 # Solaris userspace events.
 #
