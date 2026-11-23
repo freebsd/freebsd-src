@@ -3115,12 +3115,12 @@ sysctl_kern_proc_umask(SYSCTL_HANDLER_ARGS)
 		goto out;
 	}
 
-	error = pget(pid, PGET_WANTREAD, &p);
+	error = pget(pid, PGET_CANDEBUG | PGET_NOTWEXIT, &p);
 	if (error != 0)
 		return (error);
 
 	cmask = p->p_pd->pd_cmask;
-	PRELE(p);
+	PROC_UNLOCK(p);
 out:
 	error = SYSCTL_OUT(req, &cmask, sizeof(cmask));
 	return (error);
