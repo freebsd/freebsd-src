@@ -5428,9 +5428,18 @@ key_updateaddresses(struct socket *so, struct mbuf *m,
 	/* Clone SA's content into newsav */
 	SAV_INITREF(newsav);
 	bcopy(sav, newsav, offsetof(struct secasvar, chain));
+	/*
+	 * The copy still points at the old SA's NAT-T config and offload
+	 * interface name.  Those stay with the old SA, and key_cleansav()
+	 * frees them with its last reference.  Clear them before anything
+	 * can fail, so that the error path frees only what belongs to
+	 * newsav.
+	 */
+	newsav->natt = NULL;
 #ifdef IPSEC_OFFLOAD
 	CK_LIST_INIT(&newsav->accel_ifps);
 	newsav->accel_forget_tq = 0;
+	newsav->accel_ifname = NULL;
 	newsav->accel_lft_sw = uma_zalloc_pcpu(ipsec_key_lft_zone,
 	    M_NOWAIT | M_ZERO);
 	if (newsav->accel_lft_sw == NULL) {
@@ -5446,20 +5455,15 @@ key_updateaddresses(struct socket *so, struct mbuf *m,
 			error = ENOBUFS;
 			goto fail;
 		}
-		strncpy(__DECONST(char *, sav->accel_ifname),
-		    newsav->accel_ifname,
+		strncpy(__DECONST(char *, newsav->accel_ifname),
+		    sav->accel_ifname,
 		    sizeof(xof.sadb_x_if_hw_offl_if));
 	}
 #endif
 
-	/*
-	 * We create new NAT-T config if it is needed.
-	 * Old NAT-T config will be freed by key_cleansav() when
-	 * last reference to SA will be released.
-	 */
-	newsav->natt = NULL;
 	newsav->sah = sah;
 	newsav->state = SADB_SASTATE_MATURE;
+	/* Create a new NAT-T config if one is needed. */
 	error = key_setnatt(newsav, mhp);
 	if (error != 0)
 		goto fail;
