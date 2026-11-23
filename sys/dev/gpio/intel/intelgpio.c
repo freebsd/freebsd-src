@@ -347,7 +347,6 @@ int
 intelgpio_attach(device_t dev, const struct intelgpio_platform *plat)
 {
 	struct intelgpio_softc *sc;
-	bool have_res;
 	int i;
 
 	sc = device_get_softc(dev);
@@ -358,9 +357,13 @@ intelgpio_attach(device_t dev, const struct intelgpio_platform *plat)
 	    ("too many communities: %d > %d", plat->ncommunities,
 		INTELGPIO_MAX_COMMUNITIES));
 
+	if (plat->ncommunities <= 0) {
+		device_printf(dev, "no communities configured\n");
+		return (ENXIO);
+	}
+
 	INTELGPIO_LOCK_INIT(sc);
 
-	have_res = false;
 	for (i = 0; i < plat->ncommunities; i++) {
 		sc->sc_mem_res[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 		    &i, RF_ACTIVE);
@@ -369,17 +372,11 @@ intelgpio_attach(device_t dev, const struct intelgpio_platform *plat)
 			    "failed to allocate memory resource "
 			    "for community %d\n",
 			    i);
-			continue;
+			intelgpio_detach(dev);
+			return (ENXIO);
 		}
 		sc->sc_padbar[i] = bus_read_4(sc->sc_mem_res[i],
 		    INTELGPIO_PADBAR_REG);
-		have_res = true;
-	}
-
-	if (!have_res) {
-		device_printf(dev, "no memory resources found\n");
-		INTELGPIO_LOCK_DESTROY(sc);
-		return (ENXIO);
 	}
 
 	sc->sc_busdev = gpiobus_add_bus(dev);
