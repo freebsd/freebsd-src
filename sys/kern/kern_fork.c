@@ -414,14 +414,15 @@ fork_norfproc(struct thread *td, int flags)
 	 */
 	if ((flags & RFCFDG) != 0) {
 		struct filedesc *fdtmp;
-		struct pwddesc *pdtmp;
+		struct pwddesc *new_pdp, *old_pdp;
 
-		pdtmp = pdinit(td->td_proc->p_pd, false);
+		old_pdp = p1->p_pd;
+		new_pdp = pdinit(old_pdp, false);
+		pdswap(p1, new_pdp, old_pdp);
+
 		fdtmp = fdinit();
-		pdescfree(td);
 		fdescfree(td);
 		p1->p_fd = fdtmp;
-		p1->p_pd = pdtmp;
 	}
 
 	/*

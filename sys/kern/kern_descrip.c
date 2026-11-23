@@ -2603,17 +2603,18 @@ pdswap(struct proc *p, struct pwddesc *new_pdp, struct pwddesc *old_pdp)
 void
 pdunshare(struct thread *td)
 {
-	struct pwddesc *pdp;
+	struct pwddesc *old_pdp, *new_pdp;
 	struct proc *p;
 
 	p = td->td_proc;
+	old_pdp = p->p_pd;
+
 	/* Not shared. */
-	if (refcount_load(&p->p_pd->pd_sharecount) == 1)
+	if (refcount_load(&old_pdp->pd_sharecount) == 1)
 		return;
 
-	pdp = pdcopy(p->p_pd);
-	pdescfree(td);
-	p->p_pd = pdp;
+	new_pdp = pdcopy(old_pdp);
+	pdswap(p, new_pdp, old_pdp);
 }
 
 /*
@@ -2902,14 +2903,10 @@ pdescfree(struct thread *td)
 	MPASS(pdp != NULL);
 
 	/*
-	 * Check pdhold for an explanation.
+	 * Check pdhold() for an explanation.
 	 */
 	atomic_store_ptr(&p->p_pd, NULL);
-	atomic_thread_fence_seq_cst();
-	PROC_WAIT_UNLOCKED(p);
-
-	(void)refcount_release(&pdp->pd_sharecount);
-	pddrop(pdp);
+	pdescfree_tail(p, pdp);
 }
 
 /*
