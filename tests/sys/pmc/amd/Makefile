@@ -1,5 +1,6 @@
 TESTSDIR=	${TESTSBASE}/sys/pmc/amd
 
+ATF_TESTS_C+=	ibs_core_test
 ATF_TESTS_C+=	pmc_ibs_fetch_op_test
 ATF_TESTS_C+=	pmc_ibs_test
 ATF_TESTS_C+=	pmc_rowalloc_test
@@ -14,6 +15,7 @@ ATF_TESTS_SH+=	pmc_frontend_test
 ATF_TESTS_SH+=	pmcstat_ibs_test
 
 # These need the counters of cpu0 to themselves.
+TEST_METADATA.ibs_core_test+=		is_exclusive="true"
 TEST_METADATA.pmc_ibs_fetch_op_test+=	is_exclusive="true"
 TEST_METADATA.pmc_ibs_test+=		is_exclusive="true"
 TEST_METADATA.pmc_rowalloc_test+=	is_exclusive="true"

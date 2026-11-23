@@ -948,7 +948,7 @@ amd_intr(struct trapframe *tf)
 	pmc_value_t v;
 	uint64_t config, evsel, perfctr;
 	uint32_t active = 0, count = 0;
-	int i, error, retval, cpu;
+	int i, error, ibs, retval, cpu;
 
 	cpu = curcpu;
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -960,9 +960,13 @@ amd_intr(struct trapframe *tf)
 
 	pac = amd_pcpu[cpu];
 
-	retval = pmc_ibs_intr(tf);
-	if (retval)
-		goto done;
+	/*
+	 * IBS and the core counters share the NMI, and one NMI can stand for
+	 * both.  Service the core counters even when IBS claims the NMI: an
+	 * overflow that is not serviced is never reloaded, and its counter
+	 * stops sampling.
+	 */
+	ibs = pmc_ibs_intr(tf);
 
 	/*
 	 * look for all PMCs that have interrupted:
@@ -1037,14 +1041,16 @@ amd_intr(struct trapframe *tf)
 	 */
 	if (retval) {
 		DPCPU_SET(nmi_counter, min(2, active));
-	} else {
+	} else if (ibs == 0) {
+		/* An NMI claimed by IBS does not use up a core credit. */
 		if ((count = DPCPU_GET(nmi_counter))) {
 			retval = 1;
 			DPCPU_SET(nmi_counter, --count);
 		}
 	}
+	if (ibs != 0)
+		retval = 1;
 
-done:
 	if (retval)
 		counter_u64_add(pmc_stats.pm_intr_processed, 1);
 	else
@@ -1066,7 +1072,7 @@ amd_intr_v2(struct trapframe *tf)
 	pmc_value_t v;
 	uint64_t status, pending;
 	uint32_t active = 0, count = 0;
-	int i, error, retval, cpu;
+	int i, error, ibs, retval, cpu;
 
 	cpu = curcpu;
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -1077,15 +1083,8 @@ amd_intr_v2(struct trapframe *tf)
 	retval = 0;
 	pac = amd_pcpu[cpu];
 
-	retval = pmc_ibs_intr(tf);
-	if (retval)
-		goto done;
-
-	amd_v2_freeze_core(cpu);
-
-	/* Read the overflow bitmap once. */
-	status = rdmsr(AMD_PMC_GLOBAL_STATUS);
-	status &= amd_global_cntr_mask;
+	/* Service the core counters even when IBS claims the NMI. */
+	ibs = pmc_ibs_intr(tf);
 
 	/*
 	 * Count all active sampling PMCs, not just the ones that
@@ -1097,6 +1096,18 @@ amd_intr_v2(struct trapframe *tf)
 		if (pm != NULL && PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 			active++;
 	}
+
+	/* An IBS NMI with no core counter sampling has nothing more to do. */
+	if (ibs != 0 && active == 0) {
+		retval = 1;
+		goto done;
+	}
+
+	amd_v2_freeze_core(cpu);
+
+	/* Read the overflow bitmap once. */
+	status = rdmsr(AMD_PMC_GLOBAL_STATUS);
+	status &= amd_global_cntr_mask;
 
 	/* ffsll() returns a 1-based bit index, or 0 when no bits are set. */
 	pending = status;
@@ -1140,12 +1151,15 @@ amd_intr_v2(struct trapframe *tf)
 	 */
 	if (retval) {
 		DPCPU_SET(nmi_counter, min(2, active));
-	} else {
+	} else if (ibs == 0) {
+		/* An NMI claimed by IBS does not use up a core credit. */
 		if ((count = DPCPU_GET(nmi_counter))) {
 			retval = 1;
 			DPCPU_SET(nmi_counter, --count);
 		}
 	}
+	if (ibs != 0)
+		retval = 1;
 
 done:
 	if (retval)
