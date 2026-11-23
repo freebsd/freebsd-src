@@ -17,7 +17,7 @@ nul_node_free(void *node __unused)
 }
 
 void
-tdestroy(void *rootp, void (*node_free)(void *))
+tdestroy(posix_tnode *rootp, void (*node_free)(void *))
 {
 	posix_tnode *back, *curr, **front;
 
