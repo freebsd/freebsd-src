@@ -148,16 +148,14 @@ static uint16_t evdev_at_set1_scancodes[] = {
 	/* 0x60 - 0x7f */
 	NONE,		NONE,		NONE,		NONE,
 	NONE,		NONE,		NONE,		NONE,
-	/* 0x68: HP programmable key */
-	KEY_PROG1,	NONE,		NONE,		NONE,
+	NONE,		NONE,		NONE,		NONE,
 	NONE,		NONE,		NONE,		NONE,
 	KEY_KATAKANAHIRAGANA,	KEY_HANJA,	KEY_HANGEUL,	KEY_RO,
 	NONE,		NONE,	KEY_ZENKAKUHANKAKU,	KEY_HIRAGANA,
 	KEY_KATAKANA,	KEY_HENKAN,	NONE,		KEY_MUHENKAN,
 	NONE,		KEY_YEN,	KEY_KPCOMMA,	NONE,
 	/* 0x00 - 0x1f. 0xE0 prefixed */
-	/* 0xE0 0x01: HP mic mute (Fn+Esc on other HP models) */
-	NONE,		KEY_MICMUTE,	NONE,		NONE,
+	NONE,		NONE,		NONE,		NONE,
 	NONE,		NONE,		NONE,		NONE,
 	NONE,		NONE,		NONE,		NONE,
 	NONE,		NONE,		NONE,		NONE,
@@ -223,6 +221,57 @@ static uint16_t evdev_nfinger_codes[] = {
 	BTN_TOOL_QUADTAP,
 	BTN_TOOL_QUINTTAP,
 };
+
+/*
+ * Vendor keys whose scan code means another key, or a key without a
+ * release code, on other machines (systemd hwdb 60-keyboard.hwdb):
+ * mapped only when SMBIOS names the machine.  The index is that of
+ * evdev_at_set1_scancodes[], 0x80 + code for 0xE0-prefixed codes.
+ */
+static const struct evdev_at_quirk {
+	const char	*maker;		/* prefix of smbios.system.maker */
+	const char	*product;	/* substring of smbios.system.product */
+	uint8_t		index;
+	uint16_t	keycode;
+} evdev_at_quirks[] = {
+	/* hwdb: HP EliteBook, Elite Dragonfly, ProBook, ZBook block */
+	{ "HP",		"ZBook",		0x81,	KEY_MICMUTE },
+	{ "HP",		"EliteBook",		0x81,	KEY_MICMUTE },
+	{ "HP",		"ProBook",		0x81,	KEY_MICMUTE },
+	{ "HP",		"Elite Dragonfly",	0x81,	KEY_MICMUTE },
+	{ "HP",		"EliteBoard",		0x81,	KEY_MICMUTE },
+	{ "Hewlett-Packard", "ZBook",		0x81,	KEY_MICMUTE },
+	{ "Hewlett-Packard", "EliteBook",	0x81,	KEY_MICMUTE },
+	{ "Hewlett-Packard", "ProBook",		0x81,	KEY_MICMUTE },
+	/* hwdb "HP Elite Dragonfly G2" block */
+	{ "HP",		"Elite Dragonfly G2",	0x68,	KEY_PROG1 },
+	/* Not in hwdb: measured on a ZBook Ultra G1a */
+	{ "HP",		"ZBook Ultra G1a",	0x68,	KEY_PROG1 },
+};
+/* Any uint8_t index is in the table. */
+CTASSERT(nitems(evdev_at_set1_scancodes) > UINT8_MAX);
+
+static void
+evdev_at_quirks_init(void *arg __unused)
+{
+	char maker[64], product[128];
+	const struct evdev_at_quirk *q;
+
+	if (getenv_string("smbios.system.maker", maker, sizeof(maker)) == 0 ||
+	    getenv_string("smbios.system.product", product,
+	    sizeof(product)) == 0)
+		return;
+	for (q = evdev_at_quirks; q < evdev_at_quirks + nitems(evdev_at_quirks);
+	    q++) {
+		/* A quirk only fills a code the generic table leaves out. */
+		if (evdev_at_set1_scancodes[q->index] == NONE &&
+		    strncmp(maker, q->maker, strlen(q->maker)) == 0 &&
+		    strstr(product, q->product) != NULL)
+			evdev_at_set1_scancodes[q->index] = q->keycode;
+	}
+}
+SYSINIT(evdev_at_quirks, SI_SUB_TUNABLES, SI_ORDER_ANY, evdev_at_quirks_init,
+    NULL);
 
 uint16_t
 evdev_hid2key(int scancode)
