@@ -1,3 +1,4 @@
+/append_only_ops
 /badsend
 /btree_test
 /chg_usr_exec
@@ -19,6 +20,7 @@
 /get_diff
 /getfsuuid
 /getversion
+/ioctl_unterminated
 /largest_file
 /libzfs_input_check
 /libzfs_mnttab_cache_check

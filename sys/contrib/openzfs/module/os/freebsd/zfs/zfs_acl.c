@@ -2396,14 +2396,14 @@ zfs_zaccess(znode_t *zp, int mode, int flags, boolean_t skipaclchk, cred_t *cr)
 	if ((error = zfs_zaccess_common(check_zp, mode, &working_mode,
 	    &check_privs, skipaclchk, cr)) == 0) {
 		if (is_attr)
-			VN_RELE(ZTOV(xzp));
+			vrele(ZTOV(xzp));
 		return (secpolicy_vnode_access2(cr, ZTOV(zp), owner,
 		    needed_bits, needed_bits));
 	}
 
 	if (error && !check_privs) {
 		if (is_attr)
-			VN_RELE(ZTOV(xzp));
+			vrele(ZTOV(xzp));
 		return (error);
 	}
 
@@ -2466,7 +2466,7 @@ zfs_zaccess(znode_t *zp, int mode, int flags, boolean_t skipaclchk, cred_t *cr)
 
 
 	if (is_attr)
-		VN_RELE(ZTOV(xzp));
+		vrele(ZTOV(xzp));
 
 	return (error);
 }
@@ -2568,7 +2568,12 @@ zfs_zaccess_delete(znode_t *dzp, znode_t *zp, cred_t *cr)
 	 * to determine what was found.
 	 */
 
-	if (zp->z_pflags & (ZFS_IMMUTABLE | ZFS_NOUNLINK))
+	/*
+	 * An append-only file may not be removed or renamed, and neither
+	 * may any entry of an append-only directory.
+	 */
+	if ((zp->z_pflags & (ZFS_IMMUTABLE | ZFS_NOUNLINK | ZFS_APPENDONLY)) ||
+	    (dzp->z_pflags & ZFS_APPENDONLY))
 		return (SET_ERROR(EPERM));
 
 	/*

@@ -155,9 +155,13 @@ tests = ['tst.destroy_fs', 'tst.destroy_snap',
     'tst.rollback_one', 'tst.set_props', 'tst.snapshot_destroy', 'tst.snapshot_neg',
     'tst.snapshot_recursive', 'tst.snapshot_rename', 'tst.snapshot_simple',
     'tst.bookmark.create', 'tst.bookmark.copy', 'tst.clone',
-    'tst.readonly_pool', 'tst.terminate_by_signal'
+    'tst.clone_neg', 'tst.readonly_pool', 'tst.terminate_by_signal'
     ]
 tags = ['functional', 'channel_program', 'synctask_core']
+
+[tests/functional/chattr]
+tests = ['chattr_003_neg', 'chattr_004_neg']
+tags = ['functional', 'chattr']
 
 [tests/functional/checksum]
 tests = ['run_edonr_test', 'run_sha2_test', 'run_skein_test', 'run_blake3_test',
@@ -532,6 +536,7 @@ tests = ['zpool_import_001_pos', 'zpool_import_002_pos',
     'import_rewind_config_changed',
     'import_rewind_device_replaced',
     'import_rewind_dryrun_no_writes',
+    'import_rewind_zil_claim',
     'import_rewind_metadata_damaged', 'import_stale_top_label',
     'zpool_import_status', 'zpool_import_parallel_pos',
     'zpool_import_parallel_neg', 'zpool_import_parallel_admin']
@@ -759,8 +764,8 @@ tests = ['dedup_bclone', 'dedup_bclone_pruned', 'dedup_fdt_create',
     'dedup_legacy_fdt_upgrade', 'dedup_legacy_fdt_mixed',
     'dedup_legacy_repair', 'dedup_quota',
     'dedup_log_zdb_leak',
-    'dedup_prune', 'dedup_prune_leak', 'dedup_prune_percentage',
-    'dedup_prune_scrub',
+    'dedup_override_copies', 'dedup_prune', 'dedup_prune_leak',
+    'dedup_prune_percentage', 'dedup_prune_scrub',
     'dedup_zap_shrink']
 pre =
 post =
@@ -1060,13 +1065,17 @@ tests = ['recv_dedup', 'recv_dedup_encrypted_zvol',
     'rsend_021_pos', 'rsend_022_pos', 'rsend_024_pos', 'rsend_025_pos',
     'rsend_026_neg', 'rsend_027_pos', 'rsend_028_neg', 'rsend_029_neg',
     'rsend_030_pos', 'rsend_031_pos', 'rsend-exclude_001_pos',
-    'rsend-exclude_002_pos', 'recv_validate_001_neg', 'send-c_verify_ratio',
+    'rsend-exclude_002_pos', 'recv_validate_001_neg',
+    'recv_embedded_blksz_neg', 'recv_embedded_compress_neg',
+    'recv_embedded_uncompressed_neg',
+    'send-c_verify_ratio',
     'send-c_verify_contents', 'send-c_props', 'send-c_incremental',
     'send-c_volume',
     'send-c_lz4_disabled', 'send-c_recv_lz4_disabled',
     'send-c_mixed_compression', 'send-c_stream_size_estimate',
     'send-c_embedded_blocks', 'send-c_resume', 'send-cpL_varied_recsize',
     'send-c_recv_dedup', 'send-c_compressed_arc_disabled', 'send-L_toggle',
+    'send-L_toggle_resume',
     'send_encrypted_incremental',
     'send_encrypted_freeobjects', 'send_encrypted_hierarchy',
     'send_encrypted_holds',
@@ -1074,9 +1083,10 @@ tests = ['recv_dedup', 'recv_dedup_encrypted_zvol',
     'send_freeobjects', 'send_realloc_files', 'send_realloc_encrypted_files',
     'send_realloc_dnode_nblkptr', 'send_realloc_dnode_interior',
     'send_realloc_dnode_mixed',
-    'send_realloc_dnode_resume',
+    'send_realloc_dnode_resume', 'send_resume_split_large_block',
     'send_spill_block', 'send_split_large_block', 'send_holds',
-    'send_embedded_large_block', 'send_embedded_spill_block',
+    'send_embedded_large_block', 'send_embedded_large_block_incremental',
+    'send_embedded_spill_block',
     'send_hole_birth', 'send_mixed_raw',
     'send-wR_encrypted_zvol',
     'send_partial_dataset', 'send_invalid',
@@ -1084,7 +1094,7 @@ tests = ['recv_dedup', 'recv_dedup_encrypted_zvol',
     'send_large_blocks_reverse',
     'send_large_microzap_incremental', 'send_large_microzap_transitive',
     'send_doall', 'send_raw_spill_block', 'send_raw_ashift',
-    'send_raw_large_blocks', 'send_leak_keymaps']
+    'send_raw_large_blocks', 'send_raw_inherited_key', 'send_leak_keymaps']
 tags = ['functional', 'rsend']
 
 [tests/functional/scrub_mirror]
@@ -1274,7 +1284,8 @@ tests = ['zvol_swap_001_pos', 'zvol_swap_002_pos', 'zvol_swap_004_pos']
 tags = ['functional', 'zvol', 'zvol_swap']
 
 [tests/functional/libzfs]
-tests = ['many_fds', 'libzfs_input', 'libzfs_mnttab_cache']
+tests = ['many_fds', 'libzfs_input', 'libzfs_mnttab_cache',
+    'libzfs_unterminated_strings']
 tags = ['functional', 'libzfs']
 
 [tests/functional/log_spacemap]

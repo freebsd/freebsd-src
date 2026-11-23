@@ -1534,7 +1534,7 @@ zio_claim(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 	 */
 	ASSERT3U(BP_GET_LOGICAL_BIRTH(&spa->spa_uberblock.ub_rootbp), <,
 	    spa_min_claim_txg(spa));
-	ASSERT(txg == spa_min_claim_txg(spa) || txg == 0);
+	ASSERT(txg == spa_first_txg(spa) || txg == 0 || !spa_writeable(spa));
 	ASSERT(!BP_GET_DEDUP(bp) || !spa_writeable(spa));	/* zdb(8) */
 
 	zio = zio_create(pio, spa, txg, bp, NULL, BP_GET_PSIZE(bp),
@@ -4519,6 +4519,24 @@ piggyback:
 		need_dvas -= parent_dvas;
 	}
 
+	/*
+	 * An override BP skipped the compress and encrypt stages, so we only
+	 * have the logical data, not what the BP describes.  We can't write
+	 * more copies from that, so restart as a regular dedup write, which
+	 * compresses the data again.  dbuf_write_override_done() frees the
+	 * override block.
+	 */
+	if (zio->io_bp_override) {
+		if (dde_io != NULL)
+			mutex_exit(&dde_io->dde_io_lock);
+		ddt_exit(ddt);
+		zio->io_bp_override = NULL;
+		*bp = zio->io_bp_orig;
+		zio->io_pipeline = zio->io_orig_pipeline;
+		zio->io_stage = ZIO_STAGE_OPEN;
+		return (zio);
+	}
+
 	if (is_ganged) {
 		if (dde_io != NULL)
 			mutex_exit(&dde_io->dde_io_lock);
@@ -6000,7 +6018,8 @@ zio_dva_throttle_done(zio_t *zio)
 	ASSERT3U(zio->io_child_type, ==, ZIO_CHILD_VDEV);
 	ASSERT(vd != NULL);
 	ASSERT3P(vd, ==, vd->vdev_top);
-	ASSERT(zio_injection_enabled || !(zio->io_flags & ZIO_FLAG_IO_RETRY));
+	ASSERT((zio->io_flags & ZIO_FLAG_IO_INJECTED) ||
+	    !(zio->io_flags & ZIO_FLAG_IO_RETRY));
 	ASSERT(!(zio->io_flags & ZIO_FLAG_IO_REPAIR));
 	ASSERT(zio->io_flags & ZIO_FLAG_ALLOC_THROTTLED);
 

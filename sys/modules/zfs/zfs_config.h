@@ -718,6 +718,15 @@
 /* Define to 1 if you have the 'udev_device_get_is_initialized' function. */
 /* #undef HAVE_UDEV_DEVICE_GET_IS_INITIALIZED */
 
+/* Define to 1 if you have the 'udev_queue_get_udev_is_active' function. */
+/* #undef HAVE_UDEV_QUEUE_GET_UDEV_IS_ACTIVE */
+
+/* Define to 1 if you have the 'udev_queue_new' function. */
+/* #undef HAVE_UDEV_QUEUE_NEW */
+
+/* Define to 1 if you have the 'udev_queue_unref' function. */
+/* #undef HAVE_UDEV_QUEUE_UNREF */
+
 /* kernel has __kernel_fpu_* functions */
 /* #undef HAVE_UNDERSCORE_KERNEL_FPU */
 
@@ -857,7 +866,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.4.99-1603-FreeBSD.g013c77e66"
+#define ZFS_META_ALIAS "zfs-2.4.99-1674-FreeBSD.ga1daebfec"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -887,7 +896,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "1603-FreeBSD.g013c77e66"
+#define ZFS_META_RELEASE "1674-FreeBSD.ga1daebfec"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.4.99"

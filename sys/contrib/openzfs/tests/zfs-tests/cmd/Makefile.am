@@ -2,7 +2,8 @@
 scripts_zfs_tests_bindir = $(datadir)/$(PACKAGE)/zfs-tests/bin
 
 
-scripts_zfs_tests_bin_PROGRAMS  = %D%/chg_usr_exec
+scripts_zfs_tests_bin_PROGRAMS  = %D%/append_only_ops
+scripts_zfs_tests_bin_PROGRAMS += %D%/chg_usr_exec
 scripts_zfs_tests_bin_PROGRAMS += %D%/clonefile
 scripts_zfs_tests_bin_PROGRAMS += %D%/clone_mmap_cached
 scripts_zfs_tests_bin_PROGRAMS += %D%/clone_mmap_write
@@ -60,6 +61,11 @@ scripts_zfs_tests_bin_PROGRAMS += %D%/file_append %D%/file_check %D%/file_trunc 
 %C%_randfree_file_SOURCES = %D%/file/randfree_file.c
 %C%_randwritecomp_SOURCES = %D%/file/randwritecomp.c
 
+
+scripts_zfs_tests_bin_PROGRAMS += %D%/ioctl_unterminated
+%C%_ioctl_unterminated_LDADD = \
+	libzfs_core.la \
+	libnvpair.la
 
 scripts_zfs_tests_bin_PROGRAMS += %D%/libzfs_input_check
 %C%_libzfs_input_check_LDADD = \

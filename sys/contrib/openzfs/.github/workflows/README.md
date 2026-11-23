@@ -76,10 +76,13 @@ PRs can reuse QEMU results from their source fork without a repository
 allowlist or additional configuration.
 
 For each requested OS, `test-config` looks for a successful job in the
-push runs for the exact PR head SHA (the latest ten, newest first). A run
-must be no more than seven days old, and only jobs in completed runs are
-reused. Build, test and summary steps must all have
-completed successfully on `ubuntu-24.04`.
+push runs that tested the same tree as the PR head, newest first: the
+latest ten runs of the exact PR head SHA, and the runs of other commits
+with that tree among the latest hundred push runs. A commit that differs
+only in its message or history, such as one amended to add a sign-off,
+reuses the results of the commit it replaces. A run must be no more than
+seven days old. Build, test and summary steps must all have completed
+successfully on `ubuntu-24.04`.
 Push runs use full tests, so they also cover PRs requesting quick tests.
 `ZTS_OS_OVERRIDE` in a fork can reduce the available OS results; missing
 OS jobs still run in the base repository. Dispatch and PR runs are not
@@ -87,14 +90,29 @@ reused because they can select different inputs or test suites.
 
 Reused matrix jobs report success with a link to the original job and
 logs. The cleanup summary links to these results; their artifacts remain
-in the fork. Failed jobs, unavailable API responses and incomplete runs
-fall back to normal testing. The newest finished result for each job
+in the fork. Failed or unfinished jobs and unavailable API responses fall
+back to normal testing. The newest finished result for each job
 decides it, using each job's latest attempt, so an older success cannot
 replace a newer failure. Jobs that were cancelled, skipped or are still
 running have no result, so pushing an already tested commit to a PR branch
 (which starts another push run for it) or cancelling a run does not hide
-an older successful job of the same commit. The other reused workflows
+an older successful job of the same tree. The other reused workflows
 below search the same way.
+
+When a PR is pushed, its fork usually starts a push run of the same
+commit at the same time. If that run, or another push run of the same
+tree, has QEMU jobs without a result yet, `test-config` waits for them,
+checking every ten minutes, then reuses those that succeeded and runs the
+others in the base repository as usual. Only the Setup job waits, so
+the wait holds one runner rather than one per OS. It lasts at most
+`REUSE_WAIT_MINUTES` minutes, a repository variable (default 240, at most
+300, 0 disables waiting): QEMU jobs take two to four hours. Jobs that
+have not started after 30 minutes, for example because the fork has no
+runner free, are not waited for. Successful jobs of a run still in
+progress are reused, as their result is final. Any API error ends the
+search without reuse, as does running short of API requests (fewer than
+200 left). The other workflows below run in a single job, which would
+hold a runner as long by waiting as by testing, so they do not wait.
 
 Fork results are reused only on the first workflow attempt. Requested
 reruns execute the selected jobs in the base repository, including
@@ -108,7 +126,7 @@ reuse. Comparing CI files is deferred to a later change.
 ### Reusing fork zloop results
 
 The `zloop` job uses the same helper, `reuse-ci.py zloop`, to find a
-successful push job for the exact PR head SHA. Push and PR jobs use
+successful push job for the PR head tree. Push and PR jobs use
 the same build configuration (debug, ASAN and UBSAN) and test command.
 Dependency installation, autogen, configure, make, install and tests
 must all have succeeded on `ubuntu-24.04`. The same run age and source
@@ -122,7 +140,7 @@ zloop jobs do not upload artifacts, so reuse needs no artifact transfer.
 
 `unit-tests`, `zfs-arm` and `checkstyle` also use `reuse-ci.py`, passing
 their workflow name. The helper specifies each workflow's file, runner,
-job name and required successful steps. All use the same SHA, run age,
+job name and required successful steps. All use the same tree, run age,
 source repository and first-attempt checks as QEMU and zloop.
 
 Unit tests require the complete userspace build and test sequence on
@@ -138,7 +156,7 @@ Auto-selected:
 
 - Linux: almalinux 8/9/10, centos-stream 9/10, debian 11/12/13,
   fedora 43/44, ubuntu 22/24/26
-- FreeBSD: 14.4-RELEASE, 14.5-STABLE, 15.1-RELEASE, 15.2-PRERELEASE, 16.0-CURRENT
+- FreeBSD: 14.4-RELEASE, 14.5-STABLE, 15.1-RELEASE, 15.2-STABLE, 16.0-CURRENT
 
 Available via `specific_os` or `ZTS_OS_OVERRIDE`:
 

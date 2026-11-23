@@ -128,6 +128,7 @@ nobase_dist_datadir_zfs_tests_tests_DATA += \
 	functional/channel_program/synctask_core/tst.bookmark.copy.zcp \
 	functional/channel_program/synctask_core/tst.bookmark.create.zcp \
 	functional/channel_program/synctask_core/tst.clone.zcp \
+	functional/channel_program/synctask_core/tst.clone_neg.zcp \
 	functional/channel_program/synctask_core/tst.get_index_props.out \
 	functional/channel_program/synctask_core/tst.get_index_props.zcp \
 	functional/channel_program/synctask_core/tst.get_number_props.out \
@@ -149,6 +150,7 @@ nobase_dist_datadir_zfs_tests_tests_DATA += \
 	functional/crypto/aes_gcm_test.json \
 	functional/crypto/aes_gcm_test.txt \
 	functional/cli_root/cli_common.kshlib \
+	functional/cli_root/zfs_change-key/blockfiles/key_mismatch.dat.bz2 \
 	functional/cli_root/zfs_copies/zfs_copies.cfg \
 	functional/cli_root/zfs_copies/zfs_copies.kshlib \
 	functional/cli_root/zfs_create/properties.kshlib \
@@ -380,6 +382,14 @@ nobase_dist_datadir_zfs_tests_tests_DATA += \
 	functional/rsend/dedup_encrypted_zvol.bz2 \
 	functional/rsend/dedup_encrypted_zvol.zsend.bz2 \
 	functional/rsend/dedup.zsend.bz2 \
+	functional/rsend/embedded-blksz-mismatch.zsend.bz2 \
+	functional/rsend/embedded-compress-empty.zsend.bz2 \
+	functional/rsend/embedded-compress-inherit.zsend.bz2 \
+	functional/rsend/embedded-compress-off.zsend.bz2 \
+	functional/rsend/embedded-compress-on.zsend.bz2 \
+	functional/rsend/embedded-uncompressed-112-len4096.zsend.bz2 \
+	functional/rsend/embedded-uncompressed-112.zsend.bz2 \
+	functional/rsend/embedded-uncompressed-64.zsend.bz2 \
 	functional/rsend/embspill.dat.bz2 \
 	functional/rsend/fs.tar.gz \
 	functional/rsend/rsend.cfg \
@@ -552,6 +562,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/block_cloning/block_cloning_copyfilerange_fallback_same_txg.ksh \
 	functional/block_cloning/block_cloning_copyfilerange.ksh \
 	functional/block_cloning/block_cloning_copyfilerange_partial.ksh \
+	functional/block_cloning/block_cloning_copyfilerange_appendonly.ksh \
 	functional/block_cloning/block_cloning_copyfilerange_clone.ksh \
 	functional/block_cloning/block_cloning_copyfilerange_clone_partial.ksh \
 	functional/block_cloning/block_cloning_disabled_copyfilerange.ksh \
@@ -638,6 +649,8 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/casenorm/setup.ksh \
 	functional/chattr/chattr_001_pos.ksh \
 	functional/chattr/chattr_002_neg.ksh \
+	functional/chattr/chattr_003_neg.ksh \
+	functional/chattr/chattr_004_neg.ksh \
 	functional/chattr/cleanup.ksh \
 	functional/chattr/setup.ksh \
 	functional/channel_program/lua_core/cleanup.ksh \
@@ -669,6 +682,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/channel_program/synctask_core/tst.bookmark.copy.ksh \
 	functional/channel_program/synctask_core/tst.bookmark.create.ksh \
 	functional/channel_program/synctask_core/tst.clone.ksh \
+	functional/channel_program/synctask_core/tst.clone_neg.ksh \
 	functional/channel_program/synctask_core/tst.destroy_fs.ksh \
 	functional/channel_program/synctask_core/tst.destroy_bookmark.ksh \
 	functional/channel_program/synctask_core/tst.destroy_snap.ksh \
@@ -1295,6 +1309,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/cli_root/zpool_import/import_rewind_config_changed.ksh \
 	functional/cli_root/zpool_import/import_rewind_device_replaced.ksh \
 	functional/cli_root/zpool_import/import_rewind_dryrun_no_writes.ksh \
+	functional/cli_root/zpool_import/import_rewind_zil_claim.ksh \
 	functional/cli_root/zpool_import/import_rewind_metadata_damaged.ksh \
 	functional/cli_root/zpool_import/import_stale_top_label.ksh \
 	functional/cli_root/zpool_import/setup.ksh \
@@ -1654,6 +1669,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/dedup/dedup_legacy_fdt_upgrade.ksh \
 	functional/dedup/dedup_legacy_fdt_mixed.ksh \
 	functional/dedup/dedup_log_zdb_leak.ksh \
+	functional/dedup/dedup_override_copies.ksh \
 	functional/dedup/dedup_prune.ksh \
 	functional/dedup/dedup_prune_leak.ksh \
 	functional/dedup/dedup_prune_percentage.ksh \
@@ -1792,6 +1808,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/fault/scrub_after_resilver.ksh \
 	functional/fault/suspend_on_probe_errors.ksh \
 	functional/fault/suspend_resume_single.ksh \
+	functional/fault/suspend_txg_sync_idle.ksh \
 	functional/fault/suspend_zil_keep_first.ksh \
 	functional/fault/suspend_draid_fgroups.ksh \
 	functional/fault/setup.ksh \
@@ -1886,6 +1903,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/libzfs/cleanup.ksh \
 	functional/libzfs/libzfs_input.ksh \
 	functional/libzfs/libzfs_mnttab_cache.ksh \
+	functional/libzfs/libzfs_unterminated_strings.ksh \
 	functional/libzfs/setup.ksh \
 	functional/limits/cleanup.ksh \
 	functional/limits/filesystem_count.ksh \
@@ -2035,6 +2053,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/procfs/procfs_list_concurrent_readers.ksh \
 	functional/procfs/procfs_list_stale_read.ksh \
 	functional/procfs/setup.ksh \
+	functional/procfs/taskq_summary_race.ksh \
 	functional/projectquota/cleanup.ksh \
 	functional/projectquota/projectid_001_pos.ksh \
 	functional/projectquota/projectid_002_pos.ksh \
@@ -2306,8 +2325,12 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/rsend/send-c_verify_ratio.ksh \
 	functional/rsend/send-c_volume.ksh \
 	functional/rsend/send-cpL_varied_recsize.ksh \
+	functional/rsend/recv_embedded_blksz_neg.ksh \
+	functional/rsend/recv_embedded_compress_neg.ksh \
+	functional/rsend/recv_embedded_uncompressed_neg.ksh \
 	functional/rsend/send_doall.ksh \
 	functional/rsend/send_embedded_large_block.ksh \
+	functional/rsend/send_embedded_large_block_incremental.ksh \
 	functional/rsend/send_embedded_spill_block.ksh \
 	functional/rsend/send_encrypted_incremental.ksh \
 	functional/rsend/send_encrypted_files.ksh \
@@ -2327,9 +2350,11 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/rsend/send_large_microzap_transitive.ksh \
 	functional/rsend/send_leak_keymaps.ksh \
 	functional/rsend/send-L_toggle.ksh \
+	functional/rsend/send-L_toggle_resume.ksh \
 	functional/rsend/send_mixed_raw.ksh \
 	functional/rsend/send_partial_dataset.ksh \
 	functional/rsend/send_raw_ashift.ksh \
+	functional/rsend/send_raw_inherited_key.ksh \
 	functional/rsend/send_raw_spill_block.ksh \
 	functional/rsend/send_raw_large_blocks.ksh \
 	functional/rsend/send_realloc_dnode_interior.ksh \
@@ -2339,6 +2364,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/rsend/send_realloc_dnode_size.ksh \
 	functional/rsend/send_realloc_encrypted_files.ksh \
 	functional/rsend/send_realloc_files.ksh \
+	functional/rsend/send_resume_split_large_block.ksh \
 	functional/rsend/send_spill_block.ksh \
 	functional/rsend/send_split_large_block.ksh \
 	functional/rsend/send-wR_encrypted_zvol.ksh \
