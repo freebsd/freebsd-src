@@ -616,6 +616,8 @@
 43273:AUE_PDRFORK:pdrfork(2):pc
 43274:AUE_PDOPENPID:pdopenpid(2):pc
 43275:AUE_PDPTRACE:pdptrace(2):pc
+43276:AUE_CHALTROOT:chaltroot(2):pc
+43277:AUE_FCHALTROOT:fchaltroot(2):pc
 #
 # Solaris userspace events.
 #
