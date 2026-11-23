@@ -1174,13 +1174,16 @@ static int
 ntsync_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	struct ntsync_priv *priv;
+	int error;
 
 	priv = malloc(sizeof(*priv), M_NTSYNC, M_WAITOK);
 	priv->closed = false;
 	priv->objs_cnt = 0;
 	mtx_init(&priv->lock, "ntsync", "ntsync", MTX_DEF | MTX_NEW);
-	devfs_set_cdevpriv(priv, ntsync_priv_dtr);
-	return (0);
+	error = devfs_set_cdevpriv(priv, ntsync_priv_dtr);
+	if (error != 0)
+		ntsync_free_priv(priv);
+	return (error);
 }
 
 static int
