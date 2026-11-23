@@ -3364,7 +3364,7 @@ int	freebsd14_setgroups(struct thread *, struct freebsd14_setgroups_args *);
 #define	SYS_AUE_timerfd_settime	AUE_TIMERFD
 #define	SYS_AUE_kcmp	AUE_NULL
 #define	SYS_AUE_getrlimitusage	AUE_NULL
-#define	SYS_AUE_fchroot	AUE_NULL
+#define	SYS_AUE_fchroot	AUE_FCHROOT
 #define	SYS_AUE_setcred	AUE_SETCRED
 #define	SYS_AUE_exterrctl	AUE_NULL
 #define	SYS_AUE_inotify_add_watch_at	AUE_INOTIFY
