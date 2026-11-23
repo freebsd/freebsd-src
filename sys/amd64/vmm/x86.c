@@ -38,10 +38,12 @@
 #include <machine/specialreg.h>
 #include <machine/vmm.h>
 #include <x86/bhyve.h>
+#include <x86/vmware.h>
 
 #include <dev/vmm/vmm_ktr.h>
 #include <dev/vmm/vmm_vm.h>
 
+#include "vlapic.h"
 #include "vmm_host.h"
 #include "vmm_util.h"
 #include "x86.h"
@@ -50,8 +52,7 @@ SYSCTL_DECL(_hw_vmm);
 static SYSCTL_NODE(_hw_vmm, OID_AUTO, topology, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     NULL);
 
-#define CPUID_VM_SIGNATURE	0x40000000
-#define	CPUID_VM_HIGH		CPUID_BHYVE_FEATURES
+#define	CPUID_HV_HIGH		VMW_CPUID_FREQUENCY
 
 static const char bhyve_id[12] = "bhyve bhyve ";
 
@@ -103,12 +104,14 @@ x86_emulate_cpuid(struct vcpu *vcpu, uint64_t *rax, uint64_t *rbx,
 	if (cpu_exthigh != 0 && func >= 0x80000000) {
 		if (func > cpu_exthigh)
 			func = cpu_exthigh;
-	} else if (func >= CPUID_VM_SIGNATURE) {
-		if (func > CPUID_VM_HIGH)
-			func = CPUID_VM_HIGH;
+	} else if (func >= CPUID_HV_BASE) {
+		if (func > CPUID_HV_HIGH)
+			func = CPUID_HV_HIGH;
 	} else if (func > cpu_high) {
 		func = cpu_high;
 	}
+
+	bzero(regs, sizeof regs);
 
 	/*
 	 * In general the approach used for CPU topology is to
@@ -626,11 +629,18 @@ x86_emulate_cpuid(struct vcpu *vcpu, uint64_t *rax, uint64_t *rbx,
 			regs[3] = 0;
 			break;
 
-		case CPUID_VM_SIGNATURE:
-			regs[0] = CPUID_VM_HIGH;
+		case CPUID_HV_BASE:
+			regs[0] = CPUID_HV_HIGH;
 			bcopy(bhyve_id, &regs[1], 4);
 			bcopy(bhyve_id + 4, &regs[2], 4);
 			bcopy(bhyve_id + 8, &regs[3], 4);
+			break;
+
+		case VMW_CPUID_FREQUENCY:
+			regs[0] = tsc_freq / 1000; /* kHz */
+			regs[1] = VLAPIC_BUS_FREQ / 1000; /* kHz */
+			regs[2] = 0;
+			regs[3] = 0;
 			break;
 
 		case CPUID_BHYVE_FEATURES:
@@ -642,6 +652,10 @@ x86_emulate_cpuid(struct vcpu *vcpu, uint64_t *rax, uint64_t *rbx,
 
 		default:
 default_leaf:
+			/* Don't pass through a VM leaf to host. */
+			if (func >= CPUID_HV_BASE && func <= CPUID_HV_HIGH)
+				break;
+
 			/*
 			 * The leaf value has already been clamped so
 			 * simply pass this through, keeping count of

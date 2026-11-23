@@ -159,6 +159,8 @@
 #define	XFEATURE_MPX					\
     (XFEATURE_ENABLED_BNDREGS | XFEATURE_ENABLED_BNDCSR)
 
+#define	CPUID_HV_BASE	0x40000000
+
 /*
  * CPUID instruction features register
  */
