@@ -1375,7 +1375,7 @@ dev/clk/clkdev_if.m		optional clk
 dev/clk/clknode_if.m		optional clk
 dev/clk/clk_bus.c		optional clk fdt
 dev/clk/clk_div.c		optional clk
-dev/clk/clk_fixed.c		optional clk
+dev/clk/clk_fixed.c		optional clk fdt
 dev/clk/clk_gate.c		optional clk
 dev/clk/clk_link.c		optional clk
 dev/clk/clk_mux.c		optional clk

@@ -22,12 +22,9 @@
 
 #include <dev/gpio/gpiobusvar.h>
 
-#ifdef FDT
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/regulator/regulator.h>
-#endif
 
 #include <dev/clk/clk_fixed.h>
 
@@ -46,13 +43,27 @@ static int clknode_fixed_set_freq(struct clknode *clk, uint64_t fin,
 static int clknode_fixed_set_gate(struct clknode *clk, bool enable);
 static int clknode_fixed_get_gate(struct clknode *clk, bool *enable);
 
+
+struct clk_fixed_softc {
+	device_t		dev;
+	phandle_t 		node;
+	struct clkdom		*clkdom;
+	bool			attach_done;
+
+	bool			have_gpio;
+	bool			gpio_done;
+	struct gpiobus_pin	*gpio_pin;
+
+	bool			have_reg;
+	bool			reg_done;
+	regulator_t		reg_vdd;
+};
+
 struct clknode_fixed_sc {
 	int			fixed_flags;
 	uint64_t		freq;
 	uint32_t		mult;
 	uint32_t		div;
-	struct gpiobus_pin	*gpio_pin;
-	bool			have_gpio;
 };
 
 static clknode_method_t clknode_fixed_methods[] = {
@@ -116,20 +127,40 @@ clknode_fixed_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 static int
 clknode_fixed_set_gate(struct clknode *clk, bool enable)
 {
-	struct clknode_fixed_sc *sc;
+	struct clk_fixed_softc *sc_dev;
 	device_t dev;
 	int rv;
 
-	sc = clknode_get_softc(clk);
 	dev = clknode_get_device(clk);
+	sc_dev = device_get_softc(dev);
 
-	if (!sc->have_gpio)
-		return (0);
-
-	rv = GPIO_PIN_SET(sc->gpio_pin->dev, sc->gpio_pin->pin, enable ? 1: 0);
-	if (rv != 0) {
-		device_printf(dev, "Cannot set GPIO pin: %d\n", rv);
-		return (rv);
+	if (!sc_dev->have_gpio && !sc_dev->have_reg) {
+		return (enable ? 0 : ENXIO);
+	}
+	if (sc_dev->have_gpio) {
+		if (!sc_dev->gpio_done) {
+			panic("%s: attempt to use not yet resolved GPIO",
+			    __func__);
+		}
+		rv = gpio_pin_set_active(sc_dev->gpio_pin, enable);
+		if (rv != 0) {
+			device_printf(dev, "Cannot set GPIO pin: %d\n", rv);
+			return (rv);
+		}
+	}
+	if (sc_dev->have_reg) {
+		if (!sc_dev->reg_done) {
+			panic("%s: attempt to use not yet resolved regulator",
+			    __func__);
+		}
+		if (enable)
+			rv = regulator_enable(sc_dev->reg_vdd);
+		else
+			rv = regulator_disable(sc_dev->reg_vdd);
+		if (rv != 0) {
+			device_printf(dev, "Cannot enable regulator: %d\n", rv);
+			return (rv);
+		}
 	}
 	return(0);
 }
@@ -137,25 +168,41 @@ clknode_fixed_set_gate(struct clknode *clk, bool enable)
 static int
 clknode_fixed_get_gate(struct clknode *clk, bool *enabled)
 {
-	struct clknode_fixed_sc *sc;
+	struct clk_fixed_softc *sc_dev;
 	device_t dev;
-	uint32_t val;
+	uint32_t status;
 	int rv;
 
-	sc = clknode_get_softc(clk);
 	dev = clknode_get_device(clk);
+	sc_dev = device_get_softc(dev);
 
-	if (!sc->have_gpio) {
-		*enabled = true;
-		return (0);
+	*enabled = true;
+	if (sc_dev->have_gpio) {
+		if (!sc_dev->gpio_done) {
+			panic("%s: attempt to use not yet resolved GPIO",
+			    __func__);
+		}
+		rv = gpio_pin_is_active(sc_dev->gpio_pin, enabled);
+		if (rv != 0) {
+			device_printf(dev, "Cannot get GPIO pin: %d\n", rv);
+			return (rv);
+		}
 	}
 
-	rv = GPIO_PIN_GET(sc->gpio_pin->dev, sc->gpio_pin->pin, &val);
-	if (rv != 0) {
-		device_printf(dev, "Cannot get GPIO pin: %d\n", rv);
-		return (rv);
+	if (sc_dev->have_reg) {
+		if (!sc_dev->reg_done) {
+			panic("%s: attempt to use not yet resolved regulator",
+			    __func__);
+		}
+		rv = regulator_status(sc_dev->reg_vdd, &status);
+		if (rv != 0) {
+			device_printf(dev, "Cannot get regulator: %d\n", rv);
+			return (rv);
+		}
+		if ((status & REGULATOR_STATUS_ENABLED) == 0)
+			*enabled = false;
 	}
-	*enabled = val != 0;
+
 	return(0);
 }
 
@@ -174,14 +221,10 @@ clknode_fixed_register(struct clkdom *clkdom, struct clk_fixed_def *clkdef)
 	sc->freq = clkdef->freq;
 	sc->mult = clkdef->mult;
 	sc->div = clkdef->div;
-	sc->gpio_pin = clkdef->gpio_pin;
-	sc->have_gpio = clkdef->have_gpio;
 
 	clknode_register(clkdom, clk);
 	return (0);
 }
-
-#ifdef FDT
 
 static struct ofw_compat_data compat_data[] = {
 	{"fixed-clock",		CLK_TYPE_FIXED},
@@ -190,126 +233,75 @@ static struct ofw_compat_data compat_data[] = {
 	{NULL,		 	0},
 };
 
-struct clk_fixed_softc {
-	device_t		dev;
-	phandle_t 		node;
-	struct clkdom		*clkdom;
-	bool			attach_done;
-
-	struct clk_fixed_def	def;
-
-	bool			have_clk;
-	bool			clk_done;
-
-	bool			have_gpio;
-	bool			gpio_done;
-
-	bool			have_reg;
-	bool			reg_done;
-	regulator_t		reg_vdd;
-};
-
-
 static int
-clk_fixed_init_fixed(struct clk_fixed_softc *sc)
+clk_fixed_init_fixed(struct clk_fixed_softc *sc,
+    struct clk_fixed_def *def)
 {
-	uint32_t freq, flags;
+	uint32_t freq;
 	int rv;
 
-	sc->def.clkdef.id = 1;
+	def->clkdef.id = 1;
 	rv = OF_getencprop(sc->node, "clock-frequency", &freq,  sizeof(freq));
 	if (rv <= 0) {
 		device_printf(sc->dev, "Cannot get output frequency: %d\n", rv);
 		return (ENXIO);
 	}
-	sc->def.freq = freq;
-
-	if (!sc->have_gpio)
-		return (0);
-
-	rv = GPIO_PIN_GETFLAGS(sc->def.gpio_pin->dev, sc->def.gpio_pin->pin,
-	     &flags);
-	if (rv != 0) {
-		device_printf(sc->dev, "Cannot get GPIO flags: %d\n", rv);
-		return (ENXIO);
-	}
-	if ((flags & GPIO_PIN_OUTPUT) == 0) {
-		flags |= GPIO_PIN_OUTPUT;
-		flags &= ~GPIO_PIN_INPUT;
-		rv = GPIO_PIN_SETFLAGS(sc->def.gpio_pin->dev,
-		    sc->def.gpio_pin->pin,  GPIO_PIN_OUTPUT);
-		if (rv != 0) {
-			device_printf(sc->dev, "Cannot set GPIO flags: %d\n",
-			    rv);
-			return (ENXIO);
-		}
-	}
+	def->freq = freq;
 
 	return (0);
 }
 
 
 static int
-clk_fixed_init_fixed_factor(struct clk_fixed_softc *sc)
-{
-	int rv;
-
-	sc->have_clk = true;
-	sc->def.clkdef.id = 1;
-	sc->def.clkdef.parent_cnt = 1;
-
-	rv = OF_getencprop(sc->node, "clock-mult", &sc->def.mult,
-	    sizeof(sc->def.mult));
-	if (rv <= 0)
-		return (ENXIO);
-	rv = OF_getencprop(sc->node, "clock-div", &sc->def.div,
-	    sizeof(sc->def.div));
-	if (rv <= 0)
-		return (ENXIO);
-
-	return (0);
-}
-
-static int
-clk_fixed_get_clk(struct clk_fixed_softc *sc)
+clk_fixed_init_fixed_factor(struct clk_fixed_softc *sc,
+    struct clk_fixed_def *def)
 {
 	int rv;
 	clk_t parent;
 
-	if (sc->clk_done)
-		return (CLK_FIXED_OK);
+	def->clkdef.id = 1;
+	def->clkdef.parent_cnt = 1;
 
+	rv = OF_getencprop(sc->node, "clock-mult", &def->mult,
+	    sizeof(def->mult));
+	if (rv <= 0) {
+		device_printf(sc->dev,
+		    "Cannot get 'clock-mult' property: %d\n", rv);
+		return (ENXIO);
+	}
+	rv = OF_getencprop(sc->node, "clock-div", &def->div,
+	    sizeof(def->div));
+	if (rv <= 0) {
+		device_printf(sc->dev,
+		    "Cannot get 'clock-div' property: %d\n", rv);
+		return (ENXIO);
+	}
 	/* Get name of parent clock */
 	rv = clk_get_by_ofw_index(sc->dev, 0, 0, &parent);
-	if (rv == ENODEV) {
-		/* clk is not yet available */
-		return (CLK_FIXED_NEW_PASS);
-	}
-
 	if (rv != 0) {
-		/* No property exist */
-		device_printf(sc->dev, "Cannot get parent clock: %d\n", rv);
-		panic("no clock"); /* XXX or return (CLK_FIXED_FAIL);  */
+		device_printf(sc->dev,
+		    "Cannot get parent clock: %d\n", rv);
+		return (ENXIO);
 	}
-
-	sc->def.clkdef.parent_names = malloc(sizeof(char *), M_OFWPROP,
-	     M_WAITOK);
-	sc->def.clkdef.parent_names[0] = clk_get_name(parent);
+	def->clkdef.parent_names = malloc(sizeof(char *), M_OFWPROP, M_WAITOK);
+	def->clkdef.parent_names[0] = clk_get_name(parent);
+	def->clkdef.parent_cnt = 1;
 	clk_release(parent);
-	sc->clk_done = true;
-	return (CLK_FIXED_OK);
+	return (0);
 }
+
 
 static int
 clk_fixed_get_gpio(struct clk_fixed_softc * sc)
 {
+	uint32_t flags;
 	int rv;
 
 	if (sc->gpio_done)
 		return (CLK_FIXED_OK);
 
 	rv = gpio_pin_get_by_ofw_property(sc->dev, sc->node, "enable-gpios",
-	    &sc->def.gpio_pin);
+	    &sc->gpio_pin);
 	if (rv == ENOENT) {
 		/* No property exist */
 		sc->gpio_done = true;
@@ -327,6 +319,26 @@ clk_fixed_get_gpio(struct clk_fixed_softc * sc)
 		sc->gpio_done = true;
 		return (CLK_FIXED_FAIL);
 	}
+
+	/* Configure GPIO pin to output */
+	rv = GPIO_PIN_GETFLAGS(sc->gpio_pin->dev, sc->gpio_pin->pin,
+	     &flags);
+	if (rv != 0) {
+		device_printf(sc->dev, "Cannot get GPIO flags: %d\n", rv);
+		return (CLK_FIXED_FAIL);
+	}
+	if ((flags & GPIO_PIN_OUTPUT) == 0) {
+		flags |= GPIO_PIN_OUTPUT;
+		flags &= ~GPIO_PIN_INPUT;
+		rv = GPIO_PIN_SETFLAGS(sc->gpio_pin->dev, sc->gpio_pin->pin,
+		    GPIO_PIN_OUTPUT);
+		if (rv != 0) {
+			device_printf(sc->dev, "Cannot set GPIO flags: %d\n",
+			    rv);
+			return (CLK_FIXED_FAIL);
+		}
+	}
+
 	sc->have_gpio = true;
 	sc->gpio_done = true;
 
@@ -366,6 +378,7 @@ clk_fixed_get_regulator(struct clk_fixed_softc * sc)
 		sc->reg_done = true;
 		return (CLK_FIXED_FAIL);
 	}
+
 	sc->have_reg = true;
 	sc->reg_done = true;
 
@@ -415,16 +428,13 @@ clk_fixed_new_pass(device_t dev)
 
 	/* Try to get and configure GPIO. */
 	rv = 0;
-	if (sc->have_clk && !sc->clk_done)
-		rv = clk_fixed_get_clk(sc);
-	if (rv == CLK_FIXED_FAIL)
-		goto fail;
 
 	if (sc->have_gpio && !sc->gpio_done)
 		rv = clk_fixed_get_gpio(sc);
 	if (rv == CLK_FIXED_FAIL)
 		goto fail;
 
+	/* Try to get  regulator. */
 	if (sc->have_reg && !sc->reg_done)
 		rv = clk_fixed_get_regulator(sc);
 	if (rv == CLK_FIXED_FAIL)
@@ -436,24 +446,6 @@ clk_fixed_new_pass(device_t dev)
 		return;
 	}
 
-	sc->clkdom = clkdom_create(dev);
-	KASSERT(sc->clkdom != NULL, ("Clock domain is NULL"));
-
-	rv = clknode_fixed_register(sc->clkdom, &sc->def);
-	if (rv != 0) {
-		device_printf(sc->dev, "Cannot register fixed clock.\n");
-		goto fail;
-	}
-
-	rv = clkdom_finit(sc->clkdom);
-	if (rv != 0) {
-		device_printf(sc->dev, "Clk domain finit fails.\n");
-		goto fail;
-	}
-
-	if (bootverbose)
-		clkdom_dump(sc->clkdom);
-
 fail:
 	sc->attach_done = true;
 	return;
@@ -464,18 +456,19 @@ clk_fixed_attach(device_t dev)
 {
 	struct clk_fixed_softc *sc;
 	intptr_t clk_type;
+	struct clk_fixed_def def;
 	int rv;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->node  = ofw_bus_get_node(dev);
-
+	memset(&def, 0, sizeof(def));
 	clk_type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 
 	if (clk_type == CLK_TYPE_FIXED || clk_type == CLK_TYPE_GATED_FIXED)
-		rv = clk_fixed_init_fixed(sc);
+		rv = clk_fixed_init_fixed(sc, &def);
 	else if (clk_type == CLK_TYPE_FIXED_FACTOR)
-		rv = clk_fixed_init_fixed_factor(sc);
+		rv = clk_fixed_init_fixed_factor(sc, &def);
 	else
 		rv = ENXIO;
 	if (rv != 0) {
@@ -483,30 +476,27 @@ clk_fixed_attach(device_t dev)
 		goto fail;
 	}
 
-	rv = clk_parse_ofw_clk_name(dev, sc->node, &sc->def.clkdef.name);
+	rv = clk_parse_ofw_clk_name(dev, sc->node, &def.clkdef.name);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot parse clock name.\n");
 		goto fail;
 	}
-
 	if (clk_type == CLK_TYPE_GATED_FIXED) {
 		/* Try to get and configure GPIO. */
 		rv = clk_fixed_get_gpio(sc);
 		if (rv == CLK_FIXED_FAIL)
 			goto fail;
 
-		/* Try to get and configure GPIO. */
+		/* Try to get and configure regulator. */
 		rv = clk_fixed_get_regulator(sc);
 		if (rv == CLK_FIXED_FAIL)
 			goto fail;
-
-		if (!sc->gpio_done || !sc->reg_done)
-			return (0);
 	}
+
 	sc->clkdom = clkdom_create(dev);
 	KASSERT(sc->clkdom != NULL, ("Clock domain is NULL"));
 
-	rv = clknode_fixed_register(sc->clkdom, &sc->def);
+	rv = clknode_fixed_register(sc->clkdom, &def);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot register fixed clock.\n");
 		rv = ENXIO;
@@ -522,12 +512,14 @@ clk_fixed_attach(device_t dev)
 
 	if (bootverbose)
 		clkdom_dump(sc->clkdom);
-	sc->attach_done = true;
+
+	if ((sc->have_gpio == sc->gpio_done) && (sc->have_reg == sc->reg_done))
+		sc->attach_done = true;
 	return (0);
 
 fail:
-	OF_prop_free(__DECONST(char *, sc->def.clkdef.name));
-	OF_prop_free(sc->def.clkdef.parent_names);
+	OF_prop_free(__DECONST(char *, def.clkdef.name));
+	OF_prop_free(def.clkdef.parent_names);
 	return (rv);
 }
 
@@ -547,5 +539,3 @@ DEFINE_CLASS_0(clk_fixed, clk_fixed_driver, clk_fixed_methods,
 EARLY_DRIVER_MODULE(clk_fixed, simplebus, clk_fixed_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(clk_fixed, 1);
-
-#endif
