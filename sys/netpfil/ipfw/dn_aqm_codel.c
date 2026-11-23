@@ -57,7 +57,6 @@
 #include <netinet/ip_dummynet.h>
 #include <netinet/if_ether.h> /* various ether_* routines */
 #include <netinet/ip6.h>       /* for ip6_input, ip6_output prototypes */
-#include <netinet6/ip6_var.h>
 #include <netpfil/ipfw/dn_heap.h>
 
 #ifdef NEW_AQM
