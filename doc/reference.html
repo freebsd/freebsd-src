@@ -53,7 +53,7 @@
   <body>
     <div>
       <h1>
-        The Expat XML Parser <small>Release 2.10.0</small>
+        The Expat XML Parser <small>Release 2.11.0</small>
       </h1>
     </div>
 
@@ -147,11 +147,23 @@
                 </li>
 
                 <li>
+                  <a href="#XML_Parse64">XML_Parse64</a>
+                </li>
+
+                <li>
                   <a href="#XML_ParseBuffer">XML_ParseBuffer</a>
                 </li>
 
                 <li>
+                  <a href="#XML_ParseBuffer">XML_ParseBuffer64</a>
+                </li>
+
+                <li>
                   <a href="#XML_GetBuffer">XML_GetBuffer</a>
+                </li>
+
+                <li>
+                  <a href="#XML_GetBuffer">XML_GetBuffer64</a>
                 </li>
 
                 <li>
@@ -1769,6 +1781,35 @@ enum XML_Status {
         </p>
       </div>
 
+      <h4 id="XML_Parse64">
+        XML_Parse64
+      </h4>
+
+      <pre class="fcndec">
+/* Added in Expat 2.11.0. */
+enum XML_Status XMLCALL
+XML_Parse64(XML_Parser p,
+          const char *s,
+          size_t len,
+          XML_Bool isFinal);
+</pre>
+      <div class="fcndef">
+        <p>
+          This is the <code>size_t</code> version of function <a href=
+          "#XML_Parse"><code>XML_Parse</code></a>. The only two minor differences are:
+        </p>
+
+        <ul>
+          <li>parameter <code>len</code> is of type <code>size_t</code> rather than
+          <code>int</code>, and
+          </li>
+
+          <li>parameter <code>isFinal</code> is of type <code>XML_Bool</code> rather than
+          <code>int</code>.
+          </li>
+        </ul>
+      </div>
+
       <h4 id="XML_ParseBuffer">
         XML_ParseBuffer
       </h4>
@@ -1801,6 +1842,35 @@ XML_ParseBuffer(XML_Parser p,
         <p>
           Negative values for <code>len</code> are rejected since Expat 2.6.3.
         </p>
+      </div>
+
+      <h4 id="XML_ParseBuffer64">
+        XML_ParseBuffer64
+      </h4>
+
+      <pre class="fcndec">
+/* Added in Expat 2.11.0. */
+enum XML_Status XMLCALL
+XML_ParseBuffer64(XML_Parser p,
+                  size_t len,
+                  XML_Bool isFinal);
+</pre>
+      <div class="fcndef">
+        <p>
+          This is the <code>size_t</code> version of function <a href=
+          "#XML_ParseBuffer"><code>XML_ParseBuffer</code></a>. The only two minor
+          differences are:
+        </p>
+
+        <ul>
+          <li>parameter <code>len</code> is of type <code>size_t</code> rather than
+          <code>int</code>, and
+          </li>
+
+          <li>parameter <code>isFinal</code> is of type <code>XML_Bool</code> rather than
+          <code>int</code>.
+          </li>
+        </ul>
       </div>
 
       <h4 id="XML_GetBuffer">
@@ -1841,6 +1911,23 @@ for (;;) {
     break;
 }
 </pre>
+      </div>
+
+      <h4 id="XML_GetBuffer64">
+        XML_GetBuffer64
+      </h4>
+
+      <pre class="fcndec">
+/* Added in Expat 2.11.0. */
+void * XMLCALL
+XML_GetBuffer64(XML_Parser p,
+                size_t len);
+</pre>
+      <div class="fcndef">
+        This is the <code>size_t</code> version of function <a href=
+        "#XML_GetBuffer"><code>XML_GetBuffer</code></a>. The only difference is that
+        parameter <code>len</code> is of type <code>size_t</code> rather than
+        <code>int</code>.
       </div>
 
       <h4 id="XML_StopParser">

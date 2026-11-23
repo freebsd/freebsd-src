@@ -174,8 +174,8 @@ START_TEST(test_scan_entity_text) {
                           "<doc/>";
   XML_Parser parser = XML_ParserCreate(NULL);
   assert_true(parser != NULL);
-  assert_true(_XML_Parse_SINGLE_BYTES(parser, doc, (int)strlen(doc),
-                                      /*isFinal=*/XML_TRUE)
+  assert_true(XML_Parse_SINGLE_BYTES(parser, doc, (int)strlen(doc),
+                                     /*isFinal=*/XML_TRUE)
               == XML_STATUS_OK);
 
   assert_entity_expanded_size_equals(parser, "", 0);

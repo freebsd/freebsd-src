@@ -10,7 +10,7 @@
    Copyright (c) 2003      Greg Stein <gstein@users.sourceforge.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
    Copyright (c) 2005-2012 Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2023 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017-2022 Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2017      Joe Orton <jorton@redhat.com>
    Copyright (c) 2017      José Gutiérrez de la Concha <jose@zeroc.com>
@@ -81,12 +81,12 @@ START_TEST(test_return_ns_triplet) {
   g_triplet_start_flag = XML_FALSE;
   g_triplet_end_flag = XML_FALSE;
   init_dummy_handlers();
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_FALSE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_FALSE)
       == XML_STATUS_ERROR)
     xml_failure(g_parser);
   /* Check that unsetting "return triplets" fails while still parsing */
   XML_SetReturnNSTriplet(g_parser, XML_FALSE);
-  if (_XML_Parse_SINGLE_BYTES(g_parser, epilog, (int)strlen(epilog), XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, epilog, (int)strlen(epilog), XML_TRUE)
       == XML_STATUS_ERROR)
     xml_failure(g_parser);
   if (! g_triplet_start_flag)
@@ -127,7 +127,7 @@ run_ns_tagname_overwrite_test(const char *text, const XML_Char *result) {
   XML_SetUserData(g_parser, &storage);
   XML_SetElementHandler(g_parser, overwrite_start_checker,
                         overwrite_end_checker);
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
       == XML_STATUS_ERROR)
     xml_failure(g_parser);
   CharData_CheckXMLChars(&storage, result);
@@ -182,7 +182,7 @@ START_TEST(test_start_ns_clears_start_element) {
   XML_SetStartNamespaceDeclHandler(g_parser, start_ns_clearing_start_element);
   XML_SetEndNamespaceDeclHandler(g_parser, dummy_end_namespace_decl_handler);
   XML_UseParserAsHandlerArg(g_parser);
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
       == XML_STATUS_ERROR)
     xml_failure(g_parser);
 }
@@ -203,7 +203,7 @@ START_TEST(test_default_ns_from_ext_subset_and_ext_ge) {
   /* We actually need to set this handler to tickle this bug. */
   XML_SetStartElementHandler(g_parser, dummy_start_element);
   XML_SetUserData(g_parser, NULL);
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
       == XML_STATUS_ERROR)
     xml_failure(g_parser);
 }
@@ -260,7 +260,7 @@ START_TEST(test_ns_prefix_with_empty_uri_4) {
   XML_SetReturnNSTriplet(g_parser, XML_TRUE);
   XML_SetUserData(g_parser, (void *)elemstr);
   XML_SetEndElementHandler(g_parser, triplet_end_checker);
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
       == XML_STATUS_ERROR)
     xml_failure(g_parser);
 }
@@ -275,7 +275,7 @@ START_TEST(test_ns_unbound_prefix) {
                      "]>\n"
                      "<prefix:doc/>";
 
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
       != XML_STATUS_ERROR)
     fail("Unbound prefix incorrectly passed");
   if (XML_GetErrorCode(g_parser) != XML_ERROR_UNBOUND_PREFIX)
@@ -291,7 +291,7 @@ START_TEST(test_ns_default_with_empty_uri) {
   XML_SetStartNamespaceDeclHandler(g_parser,
                                    dummy_start_namespace_decl_handler);
   XML_SetEndNamespaceDeclHandler(g_parser, dummy_end_namespace_decl_handler);
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
       == XML_STATUS_ERROR)
     xml_failure(g_parser);
 }
@@ -326,7 +326,7 @@ START_TEST(test_ns_duplicate_hashes) {
    */
   const char *text = "<doc xmlns:a='http://example.org/a'\n"
                      "     a:a='v' a:i='w' />";
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
       == XML_STATUS_ERROR)
     xml_failure(g_parser);
 }
@@ -363,7 +363,7 @@ START_TEST(test_ns_long_element) {
   XML_SetReturnNSTriplet(g_parser, XML_TRUE);
   XML_SetUserData(g_parser, (void *)elemstr);
   XML_SetElementHandler(g_parser, triplet_start_checker, triplet_end_checker);
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
       == XML_STATUS_ERROR)
     xml_failure(g_parser);
 }
@@ -375,7 +375,7 @@ START_TEST(test_ns_mixed_prefix_atts) {
                      " xmlns:bar='http://example.org/'>"
                      "</e>";
 
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
       == XML_STATUS_ERROR)
     xml_failure(g_parser);
 }
@@ -390,7 +390,7 @@ START_TEST(test_ns_extend_uri_buffer) {
                      " <foo:thisisalongenoughnametotriggerallocationaction"
                      "   foo:a='12' />"
                      "</foo:e>";
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
       == XML_STATUS_ERROR)
     xml_failure(g_parser);
 }
@@ -407,7 +407,7 @@ START_TEST(test_ns_reserved_attributes) {
   expect_failure(text1, XML_ERROR_RESERVED_PREFIX_XMLNS,
                  "xmlns not rejected as an attribute");
   XML_ParserReset(g_parser, NULL);
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text2, (int)strlen(text2), XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text2, (int)strlen(text2), XML_TRUE)
       == XML_STATUS_ERROR)
     xml_failure(g_parser);
 }
@@ -513,10 +513,10 @@ START_TEST(test_ns_extremely_long_prefix) {
         "='foo'\n>"
         "</doc>";
 
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text1, (int)strlen(text1), XML_FALSE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text1, (int)strlen(text1), XML_FALSE)
       == XML_STATUS_ERROR)
     xml_failure(g_parser);
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text2, (int)strlen(text2), XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text2, (int)strlen(text2), XML_TRUE)
       == XML_STATUS_ERROR)
     xml_failure(g_parser);
 }
@@ -536,7 +536,7 @@ END_TEST
 START_TEST(test_ns_double_colon) {
   const char *text = "<foo:e xmlns:foo='http://example.org/' foo:a:b='bar' />";
   const enum XML_Status status
-      = _XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE);
+      = XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE);
 #ifdef XML_NS
   if ((status == XML_STATUS_OK)
       || (XML_GetErrorCode(g_parser) != XML_ERROR_INVALID_TOKEN)) {
@@ -555,7 +555,7 @@ END_TEST
 START_TEST(test_ns_double_colon_element) {
   const char *text = "<foo:bar:e xmlns:foo='http://example.org/' />";
   const enum XML_Status status
-      = _XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE);
+      = XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE);
 #ifdef XML_NS
   if ((status == XML_STATUS_OK)
       || (XML_GetErrorCode(g_parser) != XML_ERROR_INVALID_TOKEN)) {
@@ -602,7 +602,7 @@ START_TEST(test_ns_utf16_leafname) {
   CharData_Init(&storage);
   XML_SetStartElementHandler(g_parser, accumulate_attribute);
   XML_SetUserData(g_parser, &storage);
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)sizeof(text) - 1, XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text, (int)sizeof(text) - 1, XML_TRUE)
       == XML_STATUS_ERROR)
     xml_failure(g_parser);
   CharData_CheckXMLChars(&storage, expected);
@@ -625,7 +625,7 @@ START_TEST(test_ns_utf16_element_leafname) {
   CharData_Init(&storage);
   XML_SetStartElementHandler(g_parser, start_element_event_handler);
   XML_SetUserData(g_parser, &storage);
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)sizeof(text) - 1, XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text, (int)sizeof(text) - 1, XML_TRUE)
       == XML_STATUS_ERROR)
     xml_failure(g_parser);
   CharData_CheckXMLChars(&storage, expected);
@@ -656,7 +656,7 @@ START_TEST(test_ns_utf16_doctype) {
   XML_SetUserData(g_parser, &storage);
   XML_SetStartElementHandler(g_parser, start_element_event_handler);
   XML_SetUnknownEncodingHandler(g_parser, MiscEncodingHandler, NULL);
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)sizeof(text) - 1, XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text, (int)sizeof(text) - 1, XML_TRUE)
       == XML_STATUS_ERROR)
     xml_failure(g_parser);
   CharData_CheckXMLChars(&storage, expected);
@@ -699,8 +699,8 @@ START_TEST(test_ns_separator_in_uri) {
     set_subtest("%s", cases[i].doc);
     XML_Parser parser = XML_ParserCreateNS(NULL, cases[i].namesep);
     XML_SetElementHandler(parser, dummy_start_element, dummy_end_element);
-    if (_XML_Parse_SINGLE_BYTES(parser, cases[i].doc, (int)strlen(cases[i].doc),
-                                /*isFinal*/ XML_TRUE)
+    if (XML_Parse_SINGLE_BYTES(parser, cases[i].doc, (int)strlen(cases[i].doc),
+                               /*isFinal*/ XML_TRUE)
         != cases[i].expectedStatus) {
       failCount++;
     }

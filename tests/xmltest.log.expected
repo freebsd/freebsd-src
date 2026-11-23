@@ -6,5 +6,5 @@ Expected not well-formed: sun/not-wf/uri01.xml
 Expected not well-formed: oasis/p06fail1.xml
 Expected not well-formed: oasis/p08fail1.xml
 Expected not well-formed: oasis/p08fail2.xml
-Passed: 1801
+Passed: 1493
 Failed: 8

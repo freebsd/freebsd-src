@@ -563,7 +563,7 @@ START_TEST(test_props_setter_error_parser_started) {
   XML_ParsingStatus parsingStatus;
   XML_GetParsingStatus(parser, &parsingStatus);
   assert_true(parsingStatus.parsing == XML_INITIALIZED); // Self-test
-  assert_true(_XML_Parse_SINGLE_BYTES(parser, "", 0, /*isFInal=*/XML_FALSE)
+  assert_true(XML_Parse_SINGLE_BYTES(parser, "", 0, /*isFInal=*/XML_FALSE)
               == XML_STATUS_OK);
   XML_GetParsingStatus(parser, &parsingStatus);
   assert_true(parsingStatus.parsing == XML_PARSING);

@@ -7,7 +7,7 @@
                                  |_| XML parser
 
    Copyright (c) 1997-2000 Thai Open Source Software Center Ltd
-   Copyright (c) 2016-2021 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017      Rhodri James <rhodri@wildebeest.org.uk>
    Licensed under the MIT license:
 
@@ -43,7 +43,6 @@
 #  define _PREPEND_BIG_L(x) L##x
 #  define T(x) _PREPEND_BIG_L(x)
 #  define ftprintf fwprintf
-#  define tfopen _wfopen
 #  define fputts fputws
 #  define puttc putwc
 #  define tcscmp wcscmp
@@ -54,6 +53,7 @@
 #  define tcslen wcslen
 #  define tperror _wperror
 #  define topen _wopen
+#  define tfdopen _wfdopen
 #  define tmain wmain
 #  define tremove _wremove
 #  define tchar wchar_t
@@ -62,7 +62,6 @@
 #else /* not XML_UNICODE */
 #  define T(x) x
 #  define ftprintf fprintf
-#  define tfopen fopen
 #  define fputts fputs
 #  define puttc putc
 #  define tcscmp strcmp
@@ -73,9 +72,23 @@
 #  define tcslen strlen
 #  define tperror perror
 #  define topen open
+#  define tfdopen fdopen
 #  define tmain main
 #  define tremove remove
 #  define tchar char
 #  define tcstof strtof
 #  define tcstoull strtoull
 #endif /* not XML_UNICODE */
+
+// This is the T(..) version of `EXPAT_FMT_SIZE_T` from `internal.h`
+#if defined(_WIN32)                                                            \
+    && (! defined(__USE_MINGW_ANSI_STDIO)                                      \
+        || (1 - __USE_MINGW_ANSI_STDIO - 1 == 0))
+#  if defined(_WIN64) // Note: modifiers "td" and "zu" do not work for MinGW
+#    define T_EXPAT_FMT_SIZE_T(midpart) T("%") midpart T("I64u")
+#  else
+#    define T_EXPAT_FMT_SIZE_T(midpart) T("%") midpart T("u")
+#  endif
+#else
+#  define T_EXPAT_FMT_SIZE_T(midpart) T("%") midpart T("zu")
+#endif

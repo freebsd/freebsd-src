@@ -9,7 +9,7 @@
    Copyright (c) 1997-2000 Thai Open Source Software Center Ltd
    Copyright (c) 2000      Clark Cooper <coopercc@users.sourceforge.net>
    Copyright (c) 2002      Fred L. Drake, Jr. <fdrake@users.sourceforge.net>
-   Copyright (c) 2016-2017 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2022      Martin Ettl <ettl.martin78@googlemail.com>
    Licensed under the MIT license:
 
@@ -49,6 +49,7 @@
 #  define _UNICODE
 #endif /* XML_UNICODE */
 #include <windows.h>
+#include <stdint.h> // for SIZE_MAX
 #include <stdio.h>
 #include <tchar.h>
 #include "filemap.h"
@@ -77,9 +78,9 @@ filemap(const TCHAR *name,
     CloseHandle(f);
     return 0;
   }
-  if (sizeHi || (size > XML_MAX_CHUNK_LEN)) {
+  if (sizeHi || (size > SIZE_MAX)) {
     CloseHandle(f);
-    return 2; /* Cannot be passed to XML_Parse in one go */
+    return 2; /* Cannot be passed to XML_Parse64 in one go */
   }
   /* CreateFileMapping barfs on zero length files */
   if (size == 0) {
