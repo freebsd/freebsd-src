@@ -313,14 +313,17 @@ static void
 ntsync_close_obj(struct ntsync_obj *obj, struct thread *td)
 {
 	struct ntsync_priv *priv;
+	bool do_free;
 
 	priv = obj->owner;
 	NTSYNC_PRIV_LOCK(priv);
 	MPASS(priv->objs_cnt > 0);
 	MPASS(TAILQ_EMPTY(&obj->waiters));
 	priv->objs_cnt--;
+	do_free = priv->closed && priv->objs_cnt == 0;
 	NTSYNC_PRIV_UNLOCK(priv);
-	ntsync_free_priv(priv);
+	if (do_free)
+		ntsync_free_priv(priv);
 }
 
 static bool
@@ -1141,21 +1144,30 @@ ntsync_create_event(struct ntsync_event_args *args, struct ntsync_priv *priv,
 static void
 ntsync_free_priv(struct ntsync_priv *priv)
 {
-	bool do_free;
-
-	NTSYNC_PRIV_LOCK(priv);
-	do_free = priv->closed && priv->objs_cnt == 0;
-	NTSYNC_PRIV_UNLOCK(priv);
-	if (do_free) {
-		mtx_destroy(&priv->lock);
-		free(priv, M_NTSYNC);
-	}
+	mtx_destroy(&priv->lock);
+	free(priv, M_NTSYNC);
 }
 
+/*
+ * Called once for each open of the device, when the file is closed
+ * or the device is destroyed.  Objects created through the file keep
+ * the priv alive.  The free is decided in the same critical section
+ * that updates closed or objs_cnt, so exactly one thread does it.
+ */
 static void
 ntsync_priv_dtr(void *data)
 {
-	ntsync_free_priv(data);
+	struct ntsync_priv *priv;
+	bool do_free;
+
+	priv = data;
+	NTSYNC_PRIV_LOCK(priv);
+	MPASS(!priv->closed);
+	priv->closed = true;
+	do_free = priv->objs_cnt == 0;
+	NTSYNC_PRIV_UNLOCK(priv);
+	if (do_free)
+		ntsync_free_priv(priv);
 }
 
 static int
@@ -1168,24 +1180,6 @@ ntsync_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	priv->objs_cnt = 0;
 	mtx_init(&priv->lock, "ntsync", "ntsync", MTX_DEF | MTX_NEW);
 	devfs_set_cdevpriv(priv, ntsync_priv_dtr);
-	return (0);
-}
-
-static int
-ntsync_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
-{
-	struct ntsync_priv *priv;
-	void *a;
-	int error;
-
-	error = devfs_get_cdevpriv(&a);
-	if (error == 0) {
-		priv = a;
-		NTSYNC_PRIV_LOCK(priv);
-		priv->closed = true;
-		NTSYNC_PRIV_UNLOCK(priv);
-	}
-	devfs_clear_cdevpriv();
 	return (0);
 }
 
@@ -1384,7 +1378,6 @@ struct cdevsw ntsync_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	0,
 	.d_open =	ntsync_open,
-	.d_close =	ntsync_close,
 	.d_ioctl =	ntsync_ioctl,
 	.d_name =	"ntsync",
 };
