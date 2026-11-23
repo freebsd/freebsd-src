@@ -330,9 +330,19 @@ alloc_table_vidx(struct ip_fw_chain *ch, struct table_config *tc,
 
 	IPFW_UH_WLOCK_ASSERT(ch);
 
-	if ((error = ipfw_objhash_alloc_idx(vi, &vidx)) != 0 &&
-	    (error = resize_shared_value_storage(ch)) != 0)
-		return (error);
+	error = ipfw_objhash_alloc_idx(vi, &vidx);
+	if (error != 0) {
+		/*
+		 * Shared value storage is full. Grow it and retry
+		 * index allocation. Note that resize replaces
+		 * ch->valuestate pointer, so callers should re-fetch
+		 * value pointers after this call.
+		 */
+		if ((error = resize_shared_value_storage(ch)) != 0)
+			return (error);
+		if ((error = ipfw_objhash_alloc_idx(vi, &vidx)) != 0)
+			return (error);
+	}
 
 	vlimit = tc->ta->vlimit;
 	if (vlimit != 0 && vidx >= vlimit && !(flags & IPFW_CTF_ATOMIC)) {
@@ -498,6 +508,14 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct table_config *tc,
 
 		if ((error = alloc_table_vidx(ch, tc, vi, &vidx, flags)) != 0)
 			return (error);
+
+		/*
+		 * Shared value storage might have been resized inside
+		 * alloc_table_vidx(), refetch pointers to point to
+		 * the actual data.
+		 */
+		if (pval != (struct table_value *)ch->valuestate)
+			get_value_ptrs(ch, tc, &pval, &vi);
 
 		/* Finally, we have allocated valid index, let's add entry */
 		ptei->value = vidx;
