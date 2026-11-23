@@ -412,7 +412,7 @@ snmp_pdu_auth_access(struct snmp_pdu *pdu, int32_t *ip)
 		break;
 
 	default:
-		abort();
+		return (SNMP_CODE_FAILED);
 	}
 
 	SLIST_FOREACH(vuser, &vacm_userlist, vvu)

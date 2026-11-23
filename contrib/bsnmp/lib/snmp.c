@@ -449,10 +449,6 @@ snmp_pdu_decode(struct asn_buf *b, struct snmp_pdu *pdu, int32_t *ip)
 		snmp_pdu_free(pdu);
 		break;
 
-	  case SNMP_CODE_BADENC:
-		if (pdu->version == SNMP_Verr)
-			return (SNMP_CODE_BADVERS);
-
 	  default:
 		break;
 	}
@@ -497,7 +493,7 @@ snmp_pdu_decode_header(struct asn_buf *b, struct snmp_pdu *pdu)
 	else {
 		pdu->version = SNMP_Verr;
 		snmp_error("unsupported SNMP version");
-		return (SNMP_CODE_BADENC);
+		return (SNMP_CODE_BADVERS);
 	}
 
 	if (pdu->version == SNMP_V3) {
