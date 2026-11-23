@@ -354,15 +354,16 @@ amdgpio_pin_toggle(device_t dev, uint32_t pin)
 	return (0);
 }
 
+static char *amdgpio_hids[] = { "AMD0030", "AMDI0030", NULL };
+
 static int
 amdgpio_probe(device_t dev)
 {
-	static char *gpio_ids[] = { "AMD0030", "AMDI0030", NULL };
 	int rv;
 
 	if (acpi_disabled("gpio"))
 		return (ENXIO);
-	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, gpio_ids, NULL);
+	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, amdgpio_hids, NULL);
 	if (rv <= 0)
 		device_set_desc(dev, "AMD GPIO Controller");
 
@@ -613,4 +614,5 @@ static driver_t amdgpio_driver = {
 DRIVER_MODULE(amdgpio, acpi, amdgpio_driver, 0, 0);
 MODULE_DEPEND(amdgpio, acpi, 1, 1, 1);
 MODULE_DEPEND(amdgpio, gpiobus, 1, 1, 1);
+ACPI_PNP_INFO(amdgpio_hids);
 MODULE_VERSION(amdgpio, 1);
