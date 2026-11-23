@@ -61,15 +61,15 @@ all: patch
 
 	@echo "==> Syncing manpages (section 1)"
 	@rsync -a --delete \
-	    --exclude 'Makefile*' --exclude '*.1' \
-	    ${LCRYPTO_DOC}/man/ \
-	    ${SRCTOP}/secure/lib/libcrypto/man
-
-	@echo "==> Syncing manpages (sections {3,5,7})"
-	@rsync -a --delete \
 	    --exclude 'Makefile*' --exclude '*.[357]' \
 	    ${LCRYPTO_DOC}/man/man1/ \
 	    ${SRCTOP}/secure/usr.bin/openssl/man
+
+	@echo "==> Syncing manpages (sections {3,5,7})"
+	@rsync -a --delete \
+	    --exclude 'Makefile*' --exclude '*.1' \
+	    ${LCRYPTO_DOC}/man/ \
+	    ${SRCTOP}/secure/lib/libcrypto/man
 
 
 # This doesn't use standard patching since the generated files can vary
