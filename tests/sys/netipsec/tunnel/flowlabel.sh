@@ -34,9 +34,7 @@ fl_setkey()
 
 # fl_run COUNT TARGET...: ping each target from hostA while capturing COUNT
 # packets that match fl_filter on ipsecA's public interface, by default ESP
-# or AH in both directions.  A test that expects no replies sets
-# fl_ping_status=ignore.
-fl_ping_status=exit:0
+# or AH in both directions.
 fl_filter="ip6 and (esp or ah)"
 fl_run()
 {
@@ -57,7 +55,7 @@ fl_run()
 		i=$((i + 1))
 	done
 	for target in "$@"; do
-		atf_check -s ${fl_ping_status} -o ignore \
+		atf_check -s exit:0 -o ignore \
 		    jexec hostA ping -c 5 -i 0.2 ${target}
 	done
 	timeout 5 sh -c "while kill -0 ${tdpid} 2>/dev/null; do sleep 0.2; done"
@@ -202,14 +200,17 @@ sa_flowid_off_cleanup()
 # mode "any").  The outer header must carry the label of the AH SA on every
 # packet, not that of the tunnel SA which built it.  AH leaves the ESP
 # header readable, so the capture shows which tunnel SA each packet took.
-# Only the outbound packets carry AH, so only they are captured: when this
-# was written, ipsec6_common_input_cb() handed the ESP header beneath a
-# transport mode AH to the raw IPv6 input, so ipsecB did not decapsulate
-# the packets and did not reply.
+# Only the outbound packets carry AH, so only they are captured.  The
+# replies show that ipsecB removed both headers of the bundle.
 fl_bundle()
 {
 	ahmode=${1:+-m $1}
 	fl_lab 4
+	# A second address on hostB, reached by the second policy.
+	atf_check -s exit:0 jexec hostB \
+	    ifconfig ${epair_LAN_B}a alias 203.0.113.129/32
+	atf_check -s exit:0 -o ignore jexec ipsecB \
+	    route add 203.0.113.129/32 203.0.113.1
 	(
 		printf "flush;\nspdflush;\n"
 		printf "spdadd 192.0.2.0/24 203.0.113.0/25 any -P out ipsec esp/tunnel/${GW_A}-${GW_B}/unique:1 ah/transport//require;\n"
@@ -231,7 +232,6 @@ fl_bundle()
 		printf "add ${GW_B} ${GW_A} esp 0x1003 -m tunnel -E aes-gcm-16 \"${KEY}\";\n"
 	) > ${TMPDIR}/ipsec.ipsecB.conf
 	atf_check -s exit:0 -o ignore jexec ipsecB setkey -f ${TMPDIR}/ipsec.ipsecB.conf
-	fl_ping_status=ignore
 	fl_filter="ip6 and ah"
 	fl_run 10 203.0.113.1 203.0.113.129
 	fl_check 0x1002 828ed

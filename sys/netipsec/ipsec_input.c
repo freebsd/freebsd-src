@@ -787,11 +787,22 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 			error = EINVAL;
 			goto bad;
 		}
+		/*
+		 * AH, ESP and IPComp are not in ip6_protox[]; as in
+		 * ip6_input(), a further IPsec header of a bundle has to be
+		 * handed back to IPsec here.
+		 */
+		if (nxt == IPPROTO_AH || nxt == IPPROTO_ESP ||
+		    nxt == IPPROTO_IPCOMP) {
+			error = ipsec_common_input(m, skip,
+			    ip6_get_prevhdr(m, skip), AF_INET6, nxt);
+			break;
+		}
 		nxt = ip6_protox[nxt](&m, &skip, nxt);
 	}
 	NET_EPOCH_EXIT(et);
 	key_freesav(&sav);
-	return (0);
+	return (error);
 bad:
 	NET_EPOCH_EXIT(et);
 	ipsec_sahtree_runlock(sahtree_tracker);
