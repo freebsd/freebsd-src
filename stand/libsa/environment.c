@@ -229,16 +229,15 @@ is_restricted_var(const char *name)
 	 * We impose restrictions if input is not verified/trusted
 	 * allowing for exceptions.
 	 * These entries should probably include the '='
+	 * except if they need to be checked for boot_setenv()
 	 */
 	const char *allowed[] = {
-		"boot_function=",
-		"boot_phase=",
-		"boot_recover_cli=",
-		"boot_recover_volume=",
-		"boot_safe=",
-		"boot_set=",
-		"boot_single=",
-		"boot_verbose=",
+		"boot_multicons",
+		"boot_mutemsgs",
+		"boot_safe",
+		"boot_serial",
+		"boot_single",
+		"boot_verbose",
 #ifdef ENV_IS_RESTRICTED_ALLOWED_LIST
 		ENV_IS_RESTRICTED_ALLOWED_LIST,
 #endif
