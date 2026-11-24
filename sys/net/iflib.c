@@ -7382,7 +7382,8 @@ msi:
 		device_printf(dev, "Using an MSI interrupt\n");
 		scctx->isc_intr = IFLIB_INTR_MSI;
 	} else {
-		scctx->isc_vectors = 1;
+		vectors = 1;
+		scctx->isc_vectors = vectors;
 		device_printf(dev, "Using a Legacy interrupt\n");
 		scctx->isc_intr = IFLIB_INTR_LEGACY;
 	}
