@@ -4335,6 +4335,13 @@ DIOCGETETHRULES_error:
 			PF_RULES_RUNLOCK();
 			ERROUT(EBUSY);
 		}
+		if (clear) {
+			counter_u64_zero(rule->evaluations);
+			for (int i = 0; i < 2; i++) {
+				counter_u64_zero(rule->packets[i]);
+				counter_u64_zero(rule->bytes[i]);
+			}
+		}
 		PF_RULES_RUNLOCK();
 		if (nvl == NULL)
 			ERROUT(ENOMEM);
@@ -4349,13 +4356,6 @@ DIOCGETETHRULES_error:
 			ERROUT(ENOSPC);
 
 		error = copyout(nvlpacked, nv->data, nv->len);
-		if (error == 0 && clear) {
-			counter_u64_zero(rule->evaluations);
-			for (int i = 0; i < 2; i++) {
-				counter_u64_zero(rule->packets[i]);
-				counter_u64_zero(rule->bytes[i]);
-			}
-		}
 
 #undef ERROUT
 DIOCGETETHRULE_error:
