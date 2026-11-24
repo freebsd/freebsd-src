@@ -226,7 +226,7 @@ tmp461_write_1(device_t dev, uint8_t reg, uint8_t data)
 static int
 tmp461_read_temperature(device_t dev, int32_t *temperature, bool remote_measure)
 {
-	uint8_t data, offset, reg;
+	uint8_t data, config_reg, reg;
 	struct tmp461_softc *sc;
 	int error;
 
@@ -238,7 +238,7 @@ tmp461_read_temperature(device_t dev, int32_t *temperature, bool remote_measure)
 	if (error != 0)
 		goto fail;
 
-	/* trigger sample*/
+	/* trigger sample */
 	error = tmp461_write_1(dev, TMP461_ONESHOT_REG, 0xFF);
 	if (error != 0)
 		goto fail;
@@ -247,27 +247,29 @@ tmp461_read_temperature(device_t dev, int32_t *temperature, bool remote_measure)
 	DELAY(TMP461_SENSOR_MAX_CONV_TIME/(1UL<<data));
 
 	/* read config register offset */
-	error = tmp461_read_1(dev, TMP461_CONFIG_REG_R, &data);
+	error = tmp461_read_1(dev, TMP461_CONFIG_REG_R, &config_reg);
 	if (error != 0)
 		goto fail;
-
-	offset = (data & TMP461_CONFIG_REG_TEMP_RANGE_BIT ?
-	    TMP461_EXTENDED_TEMP_MODIFIER : 0);
 
 	reg = remote_measure ?
 	    TMP461_GLOBAL_TEMP_REG_MSB : TMP461_LOCAL_TEMP_REG_MSB;
 
-	/* read temeperature value*/
+	/* read temperature value */
 	error = tmp461_read_1(dev, reg, &data);
 	if (error != 0)
 		goto fail;
 
-	data -= offset;
 	/*
-	 * Sign extension has to happen at the end, as left shift of negative
-	 * signed integer has undefined behavior.
+	 * Left shift has to happen first.  Indeed, at this point, 'data' is
+	 * a non-negative integer fitting in an 'int' and whose shifted value
+	 * also fits.  By contrast, the subsequent operations can result in
+	 * a negative integer, and left shifting such an integer is undefined
+	 * behavior.
 	 */
-	*temperature = sign_extend_32(data << 4, 11);
+	*temperature = data << 4;
+	*temperature = (config_reg & TMP461_CONFIG_REG_TEMP_RANGE_BIT) != 0 ?
+	    *temperature - (TMP461_EXTENDED_TEMP_MODIFIER << 4) :
+	    sign_extend_32(*temperature, 11);
 
 	if (remote_measure) {
 		if (sc->conf & TMP461_REMOTE_TEMP_DOUBLE_REG) {
