@@ -190,12 +190,12 @@ ext2_run_desired_length(struct inode *ip, uint32_t logical_length,
 	fs = ip->i_e2fs;
 
 	/* Hard caps: free blocks, cluster summaries, group size, sysctl. */
-	maxlen = (uint32_t)fs->e2fs_fbcount;
-	if (fs->e2fs_contigsumsize > 0 && (uint32_t)fs->e2fs_contigsumsize < maxlen)
+	maxlen = fs->e2fs_fbcount;
+	if (fs->e2fs_contigsumsize > 0 && (uint64_t)fs->e2fs_contigsumsize < maxlen)
 		maxlen = fs->e2fs_contigsumsize;
-	if ((uint32_t)fs->e2fs_bpg < maxlen)
+	if ((uint64_t)fs->e2fs_bpg < maxlen)
 		maxlen = fs->e2fs_bpg;
-	if ((uint32_t)ext2_alloc_max_run < maxlen)
+	if ((uint64_t)ext2_alloc_max_run < maxlen)
 		maxlen = ext2_alloc_max_run;
 	if (maxlen < logical_length)
 		return (0);
@@ -1617,7 +1617,7 @@ ext2_clusteralloc(struct inode *ip, int cg, daddr_t bpref, int len)
 		fs->e2fs_maxcluster[cg] = i;
 		goto fail;
 	}
-	mtx_assert(EXT2_MTX(ump), MA_NOTOWNED);
+	mtx_assert(EXT2_MTX(ump), MA_OWNED);
 	EXT2_UNLOCK(ump);
 
 	/* Search the bitmap to find a big enough cluster like in FFS. */
@@ -1656,6 +1656,19 @@ ext2_clusteralloc(struct inode *ip, int cg, daddr_t bpref, int len)
 		panic("ext2_clusteralloc: allocated out of group");
 
 	EXT2_LOCK(ump);
+	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM) ||
+	    EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM)) {
+		error = ext2_gd_b_bitmap_csum_verify(fs, cg, bp);
+		if (error) {
+			EXT2_UNLOCK(ump);
+			goto fail_lock;
+		}
+	}
+	error = ext2_b_bitmap_validate(fs, bp, cg);
+	if (error) {
+		EXT2_UNLOCK(ump);
+		goto fail_lock;
+	}
 	for (i = 0; i < len; i += fs->e2fs_fpb) {
 		setbit(bbp, bno + i);
 		ext2_clusteracct(fs, bbp, cg, bno + i, -1);
@@ -1666,6 +1679,8 @@ ext2_clusteralloc(struct inode *ip, int cg, daddr_t bpref, int len)
 	fs->e2fs_fmod = 1;
 	EXT2_UNLOCK(ump);
 
+	ext2_gd_b_bitmap_csum_set(fs, cg, bp);
+	ext2_b_bitmap_validate(fs, bp, cg);
 	bdwrite(bp);
 	return (cg * fs->e2fs_bpg + le32toh(fs->e2fs->e2fs_first_dblock)
 	    + bno);

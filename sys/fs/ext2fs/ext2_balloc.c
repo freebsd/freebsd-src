@@ -215,6 +215,7 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 		 * Write synchronously so that indirect blocks
 		 * never point at garbage.
 		 */
+		bp->b_flags |= B_INVALONERR;
 		if ((error = bwrite(bp)) != 0) {
 			/* bwrite() released bp; pref is still unreferenced. */
 			ext2_rollback_unpublished(ip, pref, 1);
@@ -264,6 +265,7 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 		 * Write synchronously so that indirect blocks
 		 * never point at garbage.
 		 */
+		nbp->b_flags |= B_INVALONERR;
 		if ((error = bwrite(nbp)) != 0) {
 			/* bwrite() released nbp; pref is still unreferenced. */
 			ext2_rollback_unpublished(ip, pref, 1);
@@ -278,6 +280,7 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 		 * at the top of the next iteration.
 		 */
 		if (flags & IO_SYNC) {
+			bp->b_flags |= B_INVALONERR;
 			if ((error = bwrite(bp)) != 0) {
 				/*
 				 * The child indirect block is on disk but
@@ -340,6 +343,7 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 		 * delayed write.
 		 */
 		if (flags & IO_SYNC) {
+			bp->b_flags |= B_INVALONERR;
 			if ((error = bwrite(bp)) != 0) {
 				/*
 				 * The parent indirect block did not reach
