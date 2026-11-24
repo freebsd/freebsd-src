@@ -5474,7 +5474,7 @@ nfsv4_freeslot(struct nfsclsession *sep, int slot, bool resetseq)
 	mtx_lock(&sep->nfsess_mtx);
 	if (resetseq)
 		sep->nfsess_slotseq[slot]--;
-	else if (slot > sep->nfsess_foreslots)
+	else if (slot >= sep->nfsess_foreslots)
 		sep->nfsess_slotseq[slot] = 0;
 	if ((bitval & sep->nfsess_slots) == 0)
 		printf("freeing free slot!!\n");

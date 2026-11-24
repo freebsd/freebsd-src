@@ -1573,7 +1573,7 @@ nfs_resetslots(struct nfsclsession *sep)
 	uint64_t bitval;
 
 	mtx_assert(&sep->nfsess_mtx, MA_OWNED);
-	bitval = (1 << sep->nfsess_foreslots);
+	bitval = (0x1ULL << sep->nfsess_foreslots);
 	for (i = sep->nfsess_foreslots; i < NFSV4_SLOTS; i++) {
 		if ((sep->nfsess_slots & bitval) == 0 &&
 		    (sep->nfsess_badslots & bitval) == 0)
