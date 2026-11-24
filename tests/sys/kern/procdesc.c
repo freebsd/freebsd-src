@@ -32,7 +32,9 @@
 #include <sys/resource.h>
 #include <sys/user.h>
 #include <sys/proc.h>
+#include <sys/procctl.h>
 #include <sys/procdesc.h>
+#include <sys/ptrace.h>
 #include <sys/sysctl.h>
 #include <sys/wait.h>
 #include <machine/atomic.h>
@@ -778,6 +780,177 @@ ATF_TC_BODY(pddupfd_basic, tc)
 	ATF_REQUIRE(close(fd) == 0);
 }
 
+/*
+ * The following tests close the last descriptor of a PD_NOWAITPID child
+ * whose parent is also its reaper.  Since nobody else can collect the
+ * child after that, the reaper must be able to do it with waitpid(2).
+ */
+
+/*
+ * Untraced child: the close kills the child, and the reaper collects it.
+ */
+ATF_TC_WITHOUT_HEAD(reaper_child_close);
+ATF_TC_BODY(reaper_child_close, tc)
+{
+	pid_t child;
+	int fd, pip[2], status;
+	char c;
+
+	ATF_REQUIRE_MSG(procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, NULL) == 0,
+	    "PROC_REAP_ACQUIRE: %s", strerror(errno));
+	ATF_REQUIRE_EQ(pipe(pip), 0);
+
+	child = pdfork(&fd, PD_NOWAITPID);
+	ATF_REQUIRE_MSG(child >= 0, "pdfork: %s", strerror(errno));
+	if (child == 0) {
+		/* Let the parent's close be the last one. */
+		close(fd);
+		close(pip[0]);
+		c = 0;
+		(void)write(pip[1], &c, 1);
+		for (;;)
+			pause();
+		_exit(0);
+	}
+	ATF_REQUIRE(close(pip[1]) == 0);
+	ATF_REQUIRE_EQ(read(pip[0], &c, 1), 1);
+
+	ATF_REQUIRE(close(fd) == 0);
+
+	ATF_REQUIRE_EQ_MSG(child, waitpid(child, &status, WEXITED),
+	    "waitpid: %s", strerror(errno));
+	ATF_REQUIRE(WIFSIGNALED(status));
+	ATF_REQUIRE_EQ(WTERMSIG(status), SIGKILL);
+}
+
+/*
+ * In a child created by pdfork(2): drop the inherited descriptor, so
+ * that the parent's close is the last one, become traced, signal the
+ * tracer through readyfd, and stop.  The signal is needed because a
+ * PD_NOWAITPID child is invisible to waitpid(2) until it is traced.
+ */
+static void
+traceme_and_stop(int fd, int readyfd)
+{
+	char c = 0;
+
+	close(fd);
+	if (ptrace(PT_TRACE_ME, 0, NULL, 0) != 0)
+		_exit(1);
+	if (write(readyfd, &c, 1) != 1)
+		_exit(2);
+	close(readyfd);
+	raise(SIGSTOP);
+	for (;;)
+		pause();
+	_exit(0);
+}
+
+/*
+ * Child traced by its reaper: the reaper closes the descriptor, detaches,
+ * kills the child and collects it.
+ */
+ATF_TC_WITHOUT_HEAD(reaper_child_close_traced);
+ATF_TC_BODY(reaper_child_close_traced, tc)
+{
+	pid_t child;
+	int fd, pip[2], status;
+	char c;
+
+	ATF_REQUIRE_MSG(procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, NULL) == 0,
+	    "PROC_REAP_ACQUIRE: %s", strerror(errno));
+	ATF_REQUIRE_EQ(pipe(pip), 0);
+
+	/* PD_DAEMON keeps the child alive over the close. */
+	child = pdfork(&fd, PD_DAEMON | PD_NOWAITPID);
+	ATF_REQUIRE_MSG(child >= 0, "pdfork: %s", strerror(errno));
+	if (child == 0) {
+		close(pip[0]);
+		traceme_and_stop(fd, pip[1]);
+	}
+	ATF_REQUIRE(close(pip[1]) == 0);
+
+	/* Do not wait for the traced stop before the child is traced. */
+	ATF_REQUIRE_EQ(read(pip[0], &c, 1), 1);
+
+	ATF_REQUIRE_EQ(child, waitpid(child, &status, 0));
+	ATF_REQUIRE(WIFSTOPPED(status));
+
+	ATF_REQUIRE(close(fd) == 0);
+	ATF_REQUIRE_MSG(ptrace(PT_DETACH, child, (caddr_t)1, 0) == 0,
+	    "PT_DETACH: %s", strerror(errno));
+
+	ATF_REQUIRE(kill(child, SIGKILL) == 0);
+	ATF_REQUIRE_EQ_MSG(child, waitpid(child, &status, WEXITED),
+	    "waitpid: %s", strerror(errno));
+	ATF_REQUIRE(WIFSIGNALED(status));
+	ATF_REQUIRE_EQ(WTERMSIG(status), SIGKILL);
+}
+
+/*
+ * Child traced by its reaper, which exits after closing the descriptor:
+ * the child goes to the next reaper up, which must be able to collect it.
+ */
+ATF_TC_WITHOUT_HEAD(reaper_child_close_traced_exit);
+ATF_TC_BODY(reaper_child_close_traced_exit, tc)
+{
+	pid_t child, helper;
+	int fd, pip[2], rdy[2], status;
+	char c;
+
+	/* Inherit the helper's children when it exits. */
+	ATF_REQUIRE_MSG(procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, NULL) == 0,
+	    "PROC_REAP_ACQUIRE: %s", strerror(errno));
+	ATF_REQUIRE_EQ(pipe(pip), 0);
+
+	helper = fork();
+	ATF_REQUIRE_MSG(helper >= 0, "fork: %s", strerror(errno));
+	if (helper == 0) {
+		close(pip[0]);
+		if (procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, NULL) != 0)
+			_exit(1);
+		if (pipe(rdy) != 0)
+			_exit(6);
+		child = pdfork(&fd, PD_DAEMON | PD_NOWAITPID);
+		if (child < 0)
+			_exit(2);
+		if (child == 0) {
+			close(rdy[0]);
+			traceme_and_stop(fd, rdy[1]);
+		}
+		close(rdy[1]);
+
+		/* Do not wait for the traced stop before the child is traced. */
+		if (read(rdy[0], &c, 1) != 1)
+			_exit(7);
+		if (waitpid(child, &status, 0) != child || !WIFSTOPPED(status))
+			_exit(3);
+		if (close(fd) != 0)
+			_exit(4);
+		if (write(pip[1], &child, sizeof(child)) != sizeof(child))
+			_exit(5);
+		/* Exit while still tracing the child. */
+		_exit(0);
+	}
+	ATF_REQUIRE(close(pip[1]) == 0);
+
+	ATF_REQUIRE_EQ(helper, waitpid(helper, &status, WEXITED));
+	ATF_REQUIRE_MSG(WIFEXITED(status) && WEXITSTATUS(status) == 0,
+	    "helper failed, status %#x", status);
+	ATF_REQUIRE_EQ(read(pip[0], &child, sizeof(child)),
+	    (ssize_t)sizeof(child));
+
+	/*
+	 * The debugger's exit killed the child, unless
+	 * kern.kill_on_debugger_exit is turned off.
+	 */
+	(void)kill(child, SIGKILL);
+	ATF_REQUIRE_EQ_MSG(child, waitpid(child, &status, WEXITED),
+	    "waitpid: %s", strerror(errno));
+	ATF_REQUIRE(WIFSIGNALED(status));
+	ATF_REQUIRE_EQ(WTERMSIG(status), SIGKILL);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, pid_recycle);
@@ -801,6 +974,10 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, pdopenpid_no_wakeup);
 
 	ATF_TP_ADD_TC(tp, pddupfd_basic);
+
+	ATF_TP_ADD_TC(tp, reaper_child_close);
+	ATF_TP_ADD_TC(tp, reaper_child_close_traced);
+	ATF_TP_ADD_TC(tp, reaper_child_close_traced_exit);
 
 	return (atf_no_error());
 }
