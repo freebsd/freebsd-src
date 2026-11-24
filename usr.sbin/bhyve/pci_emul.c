@@ -1527,7 +1527,7 @@ init_bootorder(void)
 
 	fp = open_memstream(&bootorder, &bootorder_len);
 	TAILQ_FOREACH(device, &boot_devices, boot_device_chain) {
-		fprintf(fp, "/pci@i0cf8/pci@%d,%d\n",
+		fprintf(fp, "/pci@i0cf8/pci@%x,%x\n",
 		    device->pdi->pi_slot, device->pdi->pi_func);
 	}
 	fclose(fp);
