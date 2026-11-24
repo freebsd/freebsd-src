@@ -149,18 +149,26 @@ static struct inpcb	*in_pcblookup_wild_locked(struct inpcbinfo *pcbinfo,
 static int
 sysctl_net_ipport_check(SYSCTL_HANDLER_ARGS)
 {
+	u_int *var, port;
 	int error;
 
-	error = sysctl_handle_int(oidp, arg1, arg2, req);
-	if (error == 0) {
-		RANGECHK(V_ipport_lowfirstauto, 1, IPPORT_RESERVED - 1);
-		RANGECHK(V_ipport_lowlastauto, 1, IPPORT_RESERVED - 1);
-		RANGECHK(V_ipport_firstauto, IPPORT_RESERVED, IPPORT_MAX);
-		RANGECHK(V_ipport_lastauto, IPPORT_RESERVED, IPPORT_MAX);
-		RANGECHK(V_ipport_hifirstauto, IPPORT_RESERVED, IPPORT_MAX);
-		RANGECHK(V_ipport_hilastauto, IPPORT_RESERVED, IPPORT_MAX);
+	var = arg1;
+	port = *var;
+	error = sysctl_handle_int(oidp, &port, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (var == &V_ipport_lowfirstauto || var == &V_ipport_lowlastauto) {
+		RANGECHK(port, 1, IPPORT_RESERVED - 1);
+	} else {
+		RANGECHK(port, IPPORT_RESERVED, IPPORT_MAX);
 	}
-	return (error);
+	if ((var == &V_ipport_firstauto && port > V_ipport_lastauto) ||
+	    (var == &V_ipport_lastauto && port < V_ipport_firstauto) ||
+	    (var == &V_ipport_hifirstauto && port > V_ipport_hilastauto) ||
+	    (var == &V_ipport_hilastauto && port < V_ipport_hifirstauto))
+		return (EINVAL);
+	*var = port;
+	return (0);
 }
 
 #undef RANGECHK
