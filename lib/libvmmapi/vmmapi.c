@@ -498,12 +498,39 @@ vm_setup_memory_domains(struct vmctx *ctx, enum vm_mmap_style vms,
 	char *baseaddr, *ptr;
 	int error, i, segid;
 	vm_paddr_t gpa;
+	bool exists;
 
 	/* Sanity checks. */
 	assert(vms == VM_MMAP_ALL);
 	if (doms == NULL || ndoms <= 0 || ndoms > VM_MAXMEMDOM) {
 		errno = EINVAL;
 		return (-1);
+	}
+
+	/*
+	 * Check if the memory segments already exist.
+	 * If 'ndoms' is greater than one, refuse to proceed if a
+	 * memseg already exists. If only one domain was requested, use
+	 * the existing segment to preserve the behaviour of the previous
+	 * implementation. This has to be done before the address space
+	 * reservation below is sized.
+	 *
+	 * Splitting existing memory segments is tedious and
+	 * error-prone, which is why we don't support NUMA
+	 * domains for bhyveload(8)-loaded VMs.
+	 */
+	exists = false;
+	for (i = 0; i < ndoms; i++) {
+		error = vm_get_memseg(ctx, VM_SYSMEM + i, &len, memseg.name,
+		    sizeof(memseg.name));
+		if (error == 0 && len != 0) {
+			if (ndoms != 1) {
+				errno = EEXIST;
+				return (-1);
+			}
+			doms[0].size = len;
+			exists = true;
+		}
 	}
 
 	/* Calculate total memory size. */
@@ -534,26 +561,7 @@ vm_setup_memory_domains(struct vmctx *ctx, enum vm_mmap_style vms,
 		segid = VM_SYSMEM + i;
 		dom = &doms[i];
 
-		/*
-		 * Check if the memory segment already exists.
-		 * If 'ndoms' is greater than one, refuse to proceed if the
-		 * memseg already exists. If only one domain was requested, use
-		 * the existing segment to preserve the behaviour of the previous
-		 * implementation.
-		 *
-		 * Splitting existing memory segments is tedious and
-		 * error-prone, which is why we don't support NUMA
-		 * domains for bhyveload(8)-loaded VMs.
-		 */
-		error = vm_get_memseg(ctx, segid, &len, memseg.name,
-		    sizeof(memseg.name));
-		if (error == 0 && len != 0) {
-			if (ndoms != 1) {
-				errno = EEXIST;
-				return (-1);
-			} else
-				doms[0].size = len;
-		} else {
+		if (!exists) {
 			error = vm_alloc_memseg(ctx, segid, dom->size, NULL,
 			    dom->ds_policy, dom->ds_mask, dom->ds_size);
 			if (error)
