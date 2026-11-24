@@ -1250,7 +1250,7 @@ dovend_rfc1048(struct bootp *bp, struct host *hp, int32 bootsize)
 		{
 			byte *p, *ep;
 			byte tag, len;
-			short msgsz = 0;
+			u_short msgsz = 0;
 
 			p = vp + 4;
 			ep = p + BP_VEND_LEN - 4;
@@ -1288,6 +1288,10 @@ dovend_rfc1048(struct bootp *bp, struct host *hp, int32 bootsize)
 	if (pktlen < sizeof(*bp)) {
 		report(LOG_ERR, "invalid response length=%d", pktlen);
 		pktlen = sizeof(*bp);
+	}
+	if (pktlen > MAX_MSG_SIZE) {
+		report(LOG_ERR, "response length=%d exceeds buffer", pktlen);
+		pktlen = MAX_MSG_SIZE;
 	}
 	bytesleft = ((byte*)bp + pktlen) - vp;
 	if (pktlen > sizeof(*bp)) {
