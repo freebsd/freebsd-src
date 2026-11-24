@@ -468,11 +468,23 @@ procdesc_close(struct file *fp, struct thread *td)
 				 * finally, terminate with prejudice.
 				 */
 				p->p_sigparent = SIGCHLD;
-				if ((p->p_flag & P_TRACED) == 0) {
-					proc_reparent(p, p->p_reaper, true);
-				} else {
+				if ((p->p_flag & P_TRACED) != 0) {
+					/* Make the reaper the real parent. */
 					proc_clear_orphan(p);
 					p->p_oppid = p->p_reaper->p_pid;
+				}
+				if (p->p_pptr == p->p_reaper) {
+					/*
+					 * The reaper is already the parent, and
+					 * maybe the tracer.  Nothing needs
+					 * relinking, and proc_reparent() would
+					 * not re-enable waitpid(2), so grant
+					 * the reference.
+					 */
+					p->p_zombieref |= PZOMBIEREF_PARENT;
+				} else if ((p->p_flag & P_TRACED) == 0) {
+					proc_reparent(p, p->p_reaper, true);
+				} else {
 					proc_add_orphan(p, p->p_reaper);
 				}
 			}
