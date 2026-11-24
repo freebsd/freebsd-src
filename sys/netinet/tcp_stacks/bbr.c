@@ -7681,7 +7681,6 @@ bbr_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	bbr = (struct tcp_bbr *)tp->t_fb_ptr;
 	lost = bbr->r_ctl.rc_lost;
 	nsegs = max(1, m->m_pkthdr.lro_nsegs);
-	tcp_adapt_iss_check(tp);
 	if (!V_tcp_insecure_ack) {
 		tcp_seq seq_min;
 		bool ghost_ack_check;
@@ -7801,6 +7800,7 @@ bbr_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		bbr_collapse_rtt(tp, bbr, TCP_REXMTVAL(tp));
 	}
 	tp->snd_una = th->th_ack;
+	tcp_adapt_iss_check(tp);
 	bbr_ack_received(tp, bbr, th, acked, sack_changed, prev_acked, __LINE__, (bbr->r_ctl.rc_lost - lost));
 	if (IN_RECOVERY(tp->t_flags)) {
 		if (SEQ_LT(th->th_ack, tp->snd_recover) &&
@@ -8658,6 +8658,7 @@ bbr_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (SEQ_GT(th->th_ack, tp->snd_una))
 		bbr_collapse_rtt(tp, bbr, TCP_REXMTVAL(tp));
 	tp->snd_una = th->th_ack;
+	tcp_adapt_iss_check(tp);
 	if (tp->snd_wnd < ctf_outstanding(tp))
 		/* The peer collapsed its window on us */
 		bbr_collapsed_window(bbr);

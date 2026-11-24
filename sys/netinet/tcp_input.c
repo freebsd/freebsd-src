@@ -1853,6 +1853,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 				cc_ack_received(tp, th, nsegs, CC_ACK);
 
 				tp->snd_una = th->th_ack;
+				tcp_adapt_iss_check(tp);
 				/*
 				 * Pull snd_wl2 up to prevent seq wrap relative
 				 * to th_ack.
@@ -2424,7 +2425,6 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 	/*
 	 * Ack processing.
 	 */
-	tcp_adapt_iss_check(tp);
 	if (!V_tcp_insecure_ack) {
 		tcp_seq seq_min;
 		bool ghost_ack_check;
@@ -3021,6 +3021,7 @@ process_ACK:
 		    SEQ_LEQ(th->th_ack, tp->snd_recover))
 			tp->snd_recover = th->th_ack - 1;
 		tp->snd_una = th->th_ack;
+		tcp_adapt_iss_check(tp);
 		if (IN_RECOVERY(tp->t_flags) &&
 		    SEQ_GEQ(th->th_ack, tp->snd_recover)) {
 			cc_post_recovery(tp, th);

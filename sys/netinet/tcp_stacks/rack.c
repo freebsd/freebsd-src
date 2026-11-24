@@ -11701,7 +11701,6 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	rack = (struct tcp_rack *)tp->t_fb_ptr;
-	tcp_adapt_iss_check(tp);
 	if (!V_tcp_insecure_ack) {
 		tcp_seq seq_min;
 		bool ghost_ack_check;
@@ -11919,6 +11918,7 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		ourfinisacked = 1;
 	}
 	tp->snd_una = th->th_ack;
+	tcp_adapt_iss_check(tp);
 	/* wakeups? */
 	if (acked_amount && sbavail(&so->so_snd))
 		rack_adjust_sendmap_head(rack, &so->so_snd);
@@ -12678,6 +12678,7 @@ rack_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		SOCK_SENDBUF_LOCK(so);
 		mfree = sbcut_locked(&so->so_snd, acked);
 		tp->snd_una = th->th_ack;
+		tcp_adapt_iss_check(tp);
 		/* Note we want to hold the sb lock through the sendmap adjust */
 		rack_adjust_sendmap_head(rack, &so->so_snd);
 		/* Wake up the socket if we have room to write more */
@@ -15963,6 +15964,7 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 			 * should be).
 			 */
 			tp->snd_una = high_seq;
+			tcp_adapt_iss_check(tp);
 		}
 		/* Did we make a RTO error? */
 		if ((tp->t_flags & TF_PREVVALID) &&
@@ -15997,6 +15999,7 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 			SOCK_SENDBUF_LOCK(so);
 			mfree = sbcut_locked(&so->so_snd, acked_amount);
 			tp->snd_una = high_seq;
+			tcp_adapt_iss_check(tp);
 			/* Note we want to hold the sb lock through the sendmap adjust */
 			rack_adjust_sendmap_head(rack, &so->so_snd);
 			/* Wake up the socket if we have room to write more */
