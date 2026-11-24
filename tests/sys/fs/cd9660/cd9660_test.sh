@@ -23,6 +23,7 @@ atf_test_case cd9660_rrip_pr296853 cleanup
 
 cd9660_rrip_pr296853_head() {
 	atf_set "descr" "Regression test for PR 296853"
+	atf_set "require.kmods" "cd9660"
 	atf_set "require.progs" "makefs mdconfig mount umount"
 	atf_set "require.user" "root"
 }
