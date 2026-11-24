@@ -153,6 +153,14 @@ init_ipc_thread(struct vmctx *ctx, const char *bhyve_run_dir)
 		goto fail;
 	}
 
+	if (setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE, &(int){1},
+	    sizeof(int)) == -1) {
+		err = -1;
+		EPRINTLN("Failed to disable SIGPIPE for IPC connection: %s",
+		    strerror(errno));
+		goto fail;
+	}
+
 	addr.sun_family = AF_UNIX;
 
 	ret = snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/%s",
@@ -175,7 +183,7 @@ init_ipc_thread(struct vmctx *ctx, const char *bhyve_run_dir)
 
 	if (listen(socket_fd, 10) < 0) {
 		EPRINTLN("ipc socket listen: %s\n", strerror(errno));
-		err = errno;
+		err = -1;
 		goto fail;
 	}
 
@@ -190,10 +198,10 @@ init_ipc_thread(struct vmctx *ctx, const char *bhyve_run_dir)
 	thr_ctx.vmctx = ctx;
 	thr_ctx.sockfd = socket_fd;
 
-	err = pthread_create(&ipc_pthread, NULL, ipc_thread,
-		&thr_ctx);
-	if (err != 0)
+	if (pthread_create(&ipc_pthread, NULL, ipc_thread, &thr_ctx) != 0) {
+		err = -1;
 		goto fail;
+	}
 
 	return (0);
 fail:
