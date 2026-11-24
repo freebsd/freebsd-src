@@ -742,9 +742,6 @@ acpi_attach(device_t dev)
 			      "acpi");
     sc->acpi_dev_t->si_drv1 = sc;
 
-    if ((error = acpi_machdep_init(dev)))
-	goto out;
-
     /*
      * Setup our sysctl tree.
      *
@@ -812,6 +809,11 @@ acpi_attach(device_t dev)
 	&acpi_override_isa_irq_polarity, 0,
 	"Force active-hi polarity for edge-triggered ISA IRQs");
 #endif
+
+    if ((error = acpi_machdep_init(dev))) {
+	sysctl_ctx_free(&sc->acpi_sysctl_ctx);
+	goto out;
+    }
 
     /* Register ACPI again to pass the correct argument of pm_func. */
     power_pm_register(POWER_PM_TYPE_ACPI, acpi_pm_func, sc,
