@@ -20,6 +20,7 @@
    Copyright (c) 2021      Donghee Na <donghee.na@python.org>
    Copyright (c) 2023-2024 Sony Corporation / Snild Dolkow <snild@sony.com>
    Copyright (c) 2026      Matthew Fernandez <matthew.fernandez@gmail.com>
+   Copyright (c) 2026      Basheer Al-Jarrah <basheermazari4@gmail.com>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -57,6 +58,7 @@
 #include "internal.h"
 #include "chardata.h"
 #include "minicheck.h"
+#include "memcheck.h"
 #include "common.h"
 #include "handlers.h"
 
@@ -147,7 +149,7 @@ XML_Bool g_resumable = XML_FALSE;
 /* Used to control abort checks in some tests */
 XML_Bool g_abortable = XML_FALSE;
 
-/* Used to control _XML_Parse_SINGLE_BYTES() chunk size */
+/* Used to control XML_Parse_SINGLE_BYTES() chunk size */
 int g_chunkSize = 1;
 
 /* Common test functions */
@@ -197,11 +199,10 @@ _xml_failure(XML_Parser parser, const char *file, int line) {
 }
 
 enum XML_Status
-_XML_Parse_SINGLE_BYTES(XML_Parser parser, const char *s, int len,
-                        int isFinal) {
+XML_Parse_SINGLE_BYTES(XML_Parser parser, const char *s, int len, int isFinal) {
   // This ensures that tests have to run pathological parse cases
   // (e.g. when `s` is NULL) against plain XML_Parse rather than
-  // chunking _XML_Parse_SINGLE_BYTES.
+  // chunking XML_Parse_SINGLE_BYTES.
   assert((parser != NULL) && (s != NULL) && (len >= 0));
   const int chunksize = g_chunkSize;
   if (chunksize > 0) {
@@ -210,7 +211,7 @@ _XML_Parse_SINGLE_BYTES(XML_Parser parser, const char *s, int len,
       enum XML_Status res = XML_Parse(parser, s, chunksize, XML_FALSE);
       if (res != XML_STATUS_OK) {
         if ((res == XML_STATUS_SUSPENDED) && (len > chunksize)) {
-          fail("Use of function _XML_Parse_SINGLE_BYTES with a chunk size "
+          fail("Use of function XML_Parse_SINGLE_BYTES with a chunk size "
                "greater than 0 (from g_chunkSize) does not work well with "
                "suspension. Please consider use of plain XML_Parse at this "
                "place in your test, instead.");
@@ -223,10 +224,90 @@ _XML_Parse_SINGLE_BYTES(XML_Parser parser, const char *s, int len,
   return XML_Parse(parser, s, len, isFinal);
 }
 
+enum XML_Status
+XML_Parse64_SINGLE_BYTES(XML_Parser parser, const char *s, size_t len,
+                         XML_Bool isFinal) {
+  // This ensures that tests have to run pathological parse cases
+  // (e.g. when `s` is NULL) against plain XML_Parse rather than
+  // chunking XML_Parse_SINGLE_BYTES.
+  assert((parser != NULL) && (s != NULL));
+  const size_t chunksize = g_chunkSize;
+  if (chunksize > 0) {
+    // parse in chunks of `chunksize` bytes as long as not exhausting
+    for (; len > chunksize; len -= chunksize, s += chunksize) {
+      enum XML_Status res = XML_Parse64(parser, s, chunksize, XML_FALSE);
+      if (res != XML_STATUS_OK) {
+        if ((res == XML_STATUS_SUSPENDED) && (len > chunksize)) {
+          fail("Use of function XML_Parse_SINGLE_BYTES with a chunk size "
+               "greater than 0 (from g_chunkSize) does not work well with "
+               "suspension. Please consider use of plain XML_Parse at this "
+               "place in your test, instead.");
+        }
+        return res;
+      }
+    }
+  }
+  // parse the final chunk, the size of which will be <= chunksize
+  return XML_Parse64(parser, s, len, isFinal);
+}
+
+enum XML_Status XMLCALL
+XML_ParseBuffer_SINGLE_BYTES(XML_Parser parser, int len, int isFinal) {
+  // This ensures that tests have to run pathological parse cases
+  // (e.g. when `s` is NULL) against plain XML_Parse rather than
+  // chunking XML_Parse_SINGLE_BYTES.
+  assert((parser != NULL) && (len >= 0));
+  const int chunksize = g_chunkSize;
+  if (chunksize > 0) {
+    // parse in chunks of `chunksize` bytes as long as not exhausting
+    for (; len > chunksize; len -= chunksize) {
+      enum XML_Status res = XML_ParseBuffer(parser, chunksize, XML_FALSE);
+      if (res != XML_STATUS_OK) {
+        if ((res == XML_STATUS_SUSPENDED) && (len > chunksize)) {
+          fail("Use of function XML_Parse_SINGLE_BYTES with a chunk size "
+               "greater than 0 (from g_chunkSize) does not work well with "
+               "suspension. Please consider use of plain XML_Parse at this "
+               "place in your test, instead.");
+        }
+        return res;
+      }
+    }
+  }
+  // parse the final chunk, the size of which will be <= chunksize
+  return XML_ParseBuffer(parser, len, isFinal);
+}
+
+enum XML_Status XMLCALL
+XML_ParseBuffer64_SINGLE_BYTES(XML_Parser parser, size_t len,
+                               XML_Bool isFinal) {
+  // This ensures that tests have to run pathological parse cases
+  // (e.g. when `s` is NULL) against plain XML_Parse rather than
+  // chunking XML_Parse_SINGLE_BYTES.
+  assert(parser != NULL);
+  const size_t chunksize = g_chunkSize;
+  if (chunksize > 0) {
+    // parse in chunks of `chunksize` bytes as long as not exhausting
+    for (; len > chunksize; len -= chunksize) {
+      enum XML_Status res = XML_ParseBuffer64(parser, chunksize, XML_FALSE);
+      if (res != XML_STATUS_OK) {
+        if ((res == XML_STATUS_SUSPENDED) && (len > chunksize)) {
+          fail("Use of function XML_Parse_SINGLE_BYTES with a chunk size "
+               "greater than 0 (from g_chunkSize) does not work well with "
+               "suspension. Please consider use of plain XML_Parse at this "
+               "place in your test, instead.");
+        }
+        return res;
+      }
+    }
+  }
+  // parse the final chunk, the size of which will be <= chunksize
+  return XML_ParseBuffer64(parser, len, isFinal);
+}
+
 void
 _expect_failure(const char *text, enum XML_Error errorCode,
                 const char *errorMessage, const char *file, int lineno) {
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
       == XML_STATUS_OK)
     /* Hackish use of _fail() macro, but lets us report
        the right filename and line number. */
@@ -243,7 +324,7 @@ _run_character_check(const char *text, const XML_Char *expected,
   CharData_Init(&storage);
   XML_SetUserData(g_parser, &storage);
   XML_SetCharacterDataHandler(g_parser, accumulate_characters);
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
       == XML_STATUS_ERROR)
     _xml_failure(g_parser, file, line);
   CharData_CheckXMLChars(&storage, expected);
@@ -257,7 +338,7 @@ _run_attribute_check(const char *text, const XML_Char *expected,
   CharData_Init(&storage);
   XML_SetUserData(g_parser, &storage);
   XML_SetStartElementHandler(g_parser, accumulate_attribute);
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
       == XML_STATUS_ERROR)
     _xml_failure(g_parser, file, line);
   CharData_CheckXMLChars(&storage, expected);
@@ -272,7 +353,7 @@ _run_ext_character_check(const char *text, ExtTest *test_data,
   test_data->storage = storage;
   XML_SetUserData(g_parser, test_data);
   XML_SetCharacterDataHandler(g_parser, ext_accumulate_characters);
-  if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
+  if (XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
       == XML_STATUS_ERROR)
     _xml_failure(g_parser, file, line);
   CharData_CheckXMLChars(storage, expected);
@@ -295,7 +376,7 @@ duff_allocator(size_t size) {
     return NULL;
   if (g_allocation_count != ALLOC_ALWAYS_SUCCEED)
     g_allocation_count--;
-  return malloc(size);
+  return tracking_malloc(size);
 }
 
 /* Crocked reallocator for allocation failure tests */
@@ -305,7 +386,7 @@ duff_reallocator(void *ptr, size_t size) {
     return NULL;
   if (g_reallocation_count != REALLOC_ALWAYS_SUCCEED)
     g_reallocation_count--;
-  return realloc(ptr, size);
+  return tracking_realloc(ptr, size);
 }
 
 // Portable remake of strnlen(3) for C99

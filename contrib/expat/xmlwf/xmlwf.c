@@ -23,6 +23,7 @@
    Copyright (c) 2026      Matthew Fernandez <matthew.fernandez@gmail.com>
    Copyright (c) 2026      Nick Begg <nick@stunttruck.net>
    Copyright (c) 2026      Kartik Kenchi <netliomax25@gmail.com>
+   Copyright (c) 2026      Huang Wenbin <huangwenbin@kylinos.cn>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -49,7 +50,16 @@
 
 #include "expat_config.h"
 
+#if ! defined(_POSIX_C_SOURCE) || (_POSIX_C_SOURCE < 200809L)
+#  define _POSIX_C_SOURCE 200809L // for O_NOFOLLOW
+#endif
+
+#if defined(__APPLE__) && ! defined(_DARWIN_C_SOURCE)
+#  define _DARWIN_C_SOURCE 1 // for O_NOFOLLOW
+#endif
+
 #include <assert.h>
+#include <fcntl.h>    // for O_WRONLY and friends
 #include <inttypes.h> // for PRIu64
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,6 +67,10 @@
 #include <string.h>
 #include <math.h> /* for isnan */
 #include <errno.h>
+
+#if ! defined(WIN32)
+#  include <unistd.h> // for close
+#endif
 
 #include "expat.h"
 #include "codepage.h"
@@ -75,6 +89,16 @@
 
 #include "../lib/xcs.h"
 
+#if defined(_WIN32) && ! defined(O_NOFOLLOW)
+#  define O_NOFOLLOW 0
+#endif
+
+#if defined(_WIN32)
+#  define O_BINARY _O_BINARY
+#else
+#  define O_BINARY 0
+#endif
+
 enum ExitCode {
   XMLWF_EXIT_SUCCESS = 0,
   XMLWF_EXIT_INTERNAL_ERROR = 1,
@@ -92,6 +116,7 @@ typedef struct NotationList {
 } NotationList;
 
 typedef struct xmlwfUserData {
+  int fd;
   FILE *fp;
   NotationList *notationListHead;
   const XML_Char *currentDoctypeName;
@@ -100,6 +125,23 @@ typedef struct xmlwfUserData {
 /* This ensures proper sorting. */
 
 #define NSSEP T('\001')
+
+// Strict non-negative number conversion
+static unsigned long long
+strict_tcstoull(const XML_Char *s, bool *outSuccess) {
+  assert(s != NULL);
+  assert(outSuccess != NULL);
+
+  errno = 0;
+  XML_Char *end = NULL;
+  const unsigned long long result = tcstoull(s, &end, 10);
+
+  *outSuccess = (errno == 0 && end != NULL && end[0] == T('\0') && end > s
+                 && ((T('1') <= s[0] && s[0] <= T('9'))
+                     || (s[0] == T('0') && s[1] == T('\0'))));
+
+  return result;
+}
 
 static void XMLCALL
 characterData(void *userData, const XML_Char *s, int len) {
@@ -134,6 +176,17 @@ characterData(void *userData, const XML_Char *s, int len) {
       break;
     }
   }
+}
+
+static void XMLCALL
+characterData64(void *userData, const XML_Char *s, size_t len) {
+  while (len > INT_MAX) {
+    characterData(userData, s, INT_MAX);
+    s += INT_MAX;
+    len -= INT_MAX;
+  }
+  assert(len <= INT_MAX);
+  characterData(userData, s, (int)len);
 }
 
 static void
@@ -194,7 +247,7 @@ attcmp(const void *att1, const void *att2) {
 
 static void XMLCALL
 startElement(void *userData, const XML_Char *name, const XML_Char **atts) {
-  int nAtts;
+  size_t nAtts;
   const XML_Char **p;
   FILE *fp = ((XmlwfUserData *)userData)->fp;
   puttc(T('<'), fp);
@@ -203,7 +256,7 @@ startElement(void *userData, const XML_Char *name, const XML_Char **atts) {
   p = atts;
   while (*p)
     ++p;
-  nAtts = (int)((p - atts) >> 1);
+  nAtts = ((p - atts) >> 1);
   if (nAtts > 1)
     qsort(atts, nAtts, sizeof(XML_Char *) * 2, attcmp);
   while (*atts) {
@@ -237,8 +290,8 @@ nsattcmp(const void *p1, const void *p2) {
 
 static void XMLCALL
 startElementNS(void *userData, const XML_Char *name, const XML_Char **atts) {
-  int nAtts;
-  int nsi;
+  size_t nAtts;
+  size_t nsi;
   const XML_Char **p;
   FILE *fp = ((XmlwfUserData *)userData)->fp;
   const XML_Char *sep;
@@ -259,7 +312,7 @@ startElementNS(void *userData, const XML_Char *name, const XML_Char **atts) {
   p = atts;
   while (*p)
     ++p;
-  nAtts = (int)((p - atts) >> 1);
+  nAtts = ((p - atts) >> 1);
   if (nAtts > 1)
     qsort(atts, nAtts, sizeof(XML_Char *) * 2, nsattcmp);
   while (*atts) {
@@ -267,13 +320,13 @@ startElementNS(void *userData, const XML_Char *name, const XML_Char **atts) {
     sep = tcsrchr(name, NSSEP);
     puttc(T(' '), fp);
     if (sep) {
-      ftprintf(fp, T("n%d:"), nsi);
+      ftprintf(fp, T("n") T_EXPAT_FMT_SIZE_T(T("")) T(":"), nsi);
       fputts(sep + 1, fp);
     } else
       fputts(name, fp);
     attributeValue(fp, *atts);
     if (sep) {
-      ftprintf(fp, T(" xmlns:n%d"), nsi++);
+      ftprintf(fp, T(" xmlns:n") T_EXPAT_FMT_SIZE_T(T("")), nsi++);
       attributeValue(fp, name);
     }
     atts++;
@@ -567,7 +620,7 @@ metaLocation(XML_Parser parser) {
   FILE *fp = ((XmlwfUserData *)XML_GetUserData(parser))->fp;
   if (uri) {
     fputts(T(" uri=\""), fp);
-    characterData(XML_GetUserData(parser), uri, (int)tcslen(uri));
+    characterData64(XML_GetUserData(parser), uri, tcslen(uri));
     puttc(T('"'), fp);
   }
   ftprintf(fp,
@@ -603,16 +656,16 @@ metaStartElement(void *userData, const XML_Char *name, const XML_Char **atts) {
     idAttPtr = atts + idAttIndex;
 
   fputts(T("<starttag name=\""), fp);
-  characterData(data, name, (int)tcslen(name));
+  characterData64(data, name, tcslen(name));
   puttc(T('"'), fp);
   metaLocation(parser);
   if (*atts) {
     fputts(T(">\n"), fp);
     do {
       fputts(T("<attribute name=\""), fp);
-      characterData(data, atts[0], (int)tcslen(atts[0]));
+      characterData64(data, atts[0], tcslen(atts[0]));
       fputts(T("\" value=\""), fp);
-      characterData(data, atts[1], (int)tcslen(atts[1]));
+      characterData64(data, atts[1], tcslen(atts[1]));
       if (atts >= specifiedAttsEnd)
         fputts(T("\" defaulted=\"yes\"/>\n"), fp);
       else if (atts == idAttPtr)
@@ -631,7 +684,7 @@ metaEndElement(void *userData, const XML_Char *name) {
   XmlwfUserData *data = XML_GetUserData(parser);
   FILE *fp = data->fp;
   fputts(T("<endtag name=\""), fp);
-  characterData(data, name, (int)tcslen(name));
+  characterData64(data, name, tcslen(name));
   puttc(T('"'), fp);
   metaLocation(parser);
   fputts(T("/>\n"), fp);
@@ -644,7 +697,7 @@ metaProcessingInstruction(void *userData, const XML_Char *target,
   XmlwfUserData *usrData = XML_GetUserData(parser);
   FILE *fp = usrData->fp;
   ftprintf(fp, T("<pi target=\"%s\" data=\""), target);
-  characterData(usrData, data, (int)tcslen(data));
+  characterData64(usrData, data, tcslen(data));
   puttc(T('"'), fp);
   metaLocation(parser);
   fputts(T("/>\n"), fp);
@@ -656,7 +709,7 @@ metaComment(void *userData, const XML_Char *data) {
   XmlwfUserData *usrData = XML_GetUserData(parser);
   FILE *fp = usrData->fp;
   fputts(T("<comment data=\""), fp);
-  characterData(usrData, data, (int)tcslen(data));
+  characterData64(usrData, data, tcslen(data));
   puttc(T('"'), fp);
   metaLocation(parser);
   fputts(T("/>\n"), fp);
@@ -732,7 +785,7 @@ metaNotationDecl(void *userData, const XML_Char *notationName,
     ftprintf(fp, T(" public=\"%s\""), publicId);
   if (systemId) {
     fputts(T(" system=\""), fp);
-    characterData(data, systemId, (int)tcslen(systemId));
+    characterData64(data, systemId, tcslen(systemId));
     puttc(T('"'), fp);
   }
   metaLocation(parser);
@@ -761,7 +814,7 @@ metaEntityDecl(void *userData, const XML_Char *entityName, int is_param,
     if (publicId)
       ftprintf(fp, T(" public=\"%s\""), publicId);
     fputts(T(" system=\""), fp);
-    characterData(data, systemId, (int)tcslen(systemId));
+    characterData64(data, systemId, tcslen(systemId));
     puttc(T('"'), fp);
     ftprintf(fp, T(" notation=\"%s\""), notationName);
     metaLocation(parser);
@@ -771,7 +824,7 @@ metaEntityDecl(void *userData, const XML_Char *entityName, int is_param,
     if (publicId)
       ftprintf(fp, T(" public=\"%s\""), publicId);
     fputts(T(" system=\""), fp);
-    characterData(data, systemId, (int)tcslen(systemId));
+    characterData64(data, systemId, tcslen(systemId));
     puttc(T('"'), fp);
     metaLocation(parser);
     fputts(T("/>\n"), fp);
@@ -789,7 +842,7 @@ metaStartNamespaceDecl(void *userData, const XML_Char *prefix,
     ftprintf(fp, T(" prefix=\"%s\""), prefix);
   if (uri) {
     fputts(T(" ns=\""), fp);
-    characterData(data, uri, (int)tcslen(uri));
+    characterData64(data, uri, tcslen(uri));
     fputts(T("\"/>\n"), fp);
   } else
     fputts(T("/>\n"), fp);
@@ -830,7 +883,9 @@ unknownEncoding(void *userData, const XML_Char *name, XML_Encoding *info) {
     if (! s)
       return 0;
     cp *= 10;
-    cp += (int)(s - digits);
+    const size_t digit = s - digits;
+    assert(digit < 10);
+    cp += (int)digit;
     if (cp >= 0x10000)
       return 0;
   }
@@ -1005,7 +1060,7 @@ tmain(int argc, XML_Char **argv) {
   enum XML_ParamEntityParsing paramEntityParsing
       = XML_PARAM_ENTITY_PARSING_NEVER;
   int useStdin = 0;
-  XmlwfUserData userData = {NULL, NULL, NULL};
+  XmlwfUserData userData = {-1, NULL, NULL, NULL};
 
 #ifdef _MSC_VER
   _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
@@ -1088,17 +1143,15 @@ tmain(int argc, XML_Char **argv) {
       const XML_Char *valueText = NULL;
       XMLWF_SHIFT_ARG_INTO(valueText, argc, argv, i, j);
 
-      errno = 0;
-      XML_Char *afterValueText = (XML_Char *)valueText;
-      const long long read_size_bytes_candidate
-          = tcstoull(valueText, &afterValueText, 10);
-      if ((errno != 0) || (afterValueText[0] != T('\0'))
-          || (read_size_bytes_candidate < 1)
-          || (read_size_bytes_candidate > (INT_MAX / 2 + 1))) {
+      bool success = false;
+      const unsigned long long read_size_bytes_candidate
+          = strict_tcstoull(valueText, &success);
+      if (! success || read_size_bytes_candidate == 0
+          || read_size_bytes_candidate > INT_MAX) {
         // This prevents tperror(..) from reporting misleading "[..]: Success"
         errno = ERANGE;
         tperror(T("invalid buffer size") T(
-            " (needs an integer from 1 to INT_MAX/2+1 i.e. 1,073,741,824 on most platforms)"));
+            " (needs an integer from 1 to INT_MAX i.e. 2,147,483,647 (2^31-1) on most platforms)"));
         exit(XMLWF_EXIT_USAGE_ERROR);
       }
       g_read_size_bytes = (int)read_size_bytes_candidate;
@@ -1135,10 +1188,9 @@ tmain(int argc, XML_Char **argv) {
       const XML_Char *valueText = NULL;
       XMLWF_SHIFT_ARG_INTO(valueText, argc, argv, i, j);
 
-      errno = 0;
-      XML_Char *afterValueText = (XML_Char *)valueText;
-      attackThresholdBytes = tcstoull(valueText, &afterValueText, 10);
-      if ((errno != 0) || (afterValueText[0] != T('\0'))) {
+      bool success = false;
+      attackThresholdBytes = strict_tcstoull(valueText, &success);
+      if (! success) {
         // This prevents tperror(..) from reporting misleading "[..]: Success"
         errno = ERANGE;
         tperror(T("invalid ignore threshold")
@@ -1272,8 +1324,21 @@ tmain(int argc, XML_Char **argv) {
       tcscpy(outName, outputDir);
       tcscat(outName, delim);
       tcscat(outName, file);
-      userData.fp = tfopen(outName, T("wb"));
-      if (! userData.fp) {
+
+      errno = 0;
+      userData.fd = topen(
+          outName, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW | O_BINARY, 0600);
+      const int openCallErrno = errno;
+      userData.fp = (userData.fd == -1) ? NULL : tfdopen(userData.fd, T("wb"));
+      const int fdopenCallErrno = errno;
+
+      if (userData.fd == -1 || userData.fp == NULL) {
+        if (userData.fd == -1) {
+          errno = openCallErrno;
+        } else {
+          close(userData.fd);
+          errno = fdopenCallErrno;
+        }
         tperror(outName);
         exitCode = XMLWF_EXIT_OUTPUT_ERROR;
         free(outName);

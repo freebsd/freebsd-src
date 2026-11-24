@@ -52,6 +52,7 @@ runtests_SOURCES = \
     handlers.c \
     hash_tests.c \
     entities_tests.c \
+    fifth_edition_tests.c \
     memcheck.c \
     minicheck.c \
     misc_tests.c \
@@ -60,6 +61,7 @@ runtests_SOURCES = \
     props_tests.c \
     runtests.c \
     structdata.c \
+    utfx.c \
     xcs_tests.c
 
 runtests_LDADD = ../lib/libtestpat.la @LIBM@
@@ -76,6 +78,7 @@ EXTRA_DIST = \
     handlers.h \
     hash_tests.h \
     entities_tests.h \
+    fifth_edition_tests.h \
     memcheck.h \
     minicheck.h \
     misc_tests.h \
@@ -85,6 +88,7 @@ EXTRA_DIST = \
     README.md \
     structdata.h \
     udiffer.py \
+    utfx.h \
     xcs_tests.h \
     xmltest.log.expected \
     xmltest.sh

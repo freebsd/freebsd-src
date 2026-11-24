@@ -85,7 +85,7 @@
 #  endif
 #endif
 
-int g_read_size_bytes = 1024 * 8;
+int g_read_size_bytes = 1024 * 32; // i.e. the default buffer size
 
 typedef struct {
   XML_Parser parser;
@@ -107,13 +107,14 @@ reportError(XML_Parser parser, const XML_Char *filename) {
              (unsigned int)code);
 }
 
-/* This implementation will give problems on files larger than INT_MAX. */
 static void
 processFile(const void *data, size_t size, const XML_Char *filename,
             void *args) {
-  XML_Parser parser = ((PROCESS_ARGS *)args)->parser;
-  int *retPtr = ((PROCESS_ARGS *)args)->retPtr;
-  if (XML_Parse(parser, (const char *)data, (int)size, 1) == XML_STATUS_ERROR) {
+  PROCESS_ARGS *const processArgs = args;
+  XML_Parser parser = processArgs->parser;
+  int *const retPtr = processArgs->retPtr;
+  if (XML_Parse64(parser, (const char *)data, size, XML_TRUE)
+      == XML_STATUS_ERROR) {
     reportError(parser, filename);
     *retPtr = 0;
   } else
@@ -178,7 +179,7 @@ externalEntityRefFilemap(XML_Parser parser, const XML_Char *context,
   int result;
   XML_Char *s;
   const XML_Char *filename;
-  XML_Parser entParser = XML_ExternalEntityParserCreate(parser, context, 0);
+  XML_Parser entParser = XML_ExternalEntityParserCreate(parser, context, NULL);
   int filemapRes;
   PROCESS_ARGS args;
   UNUSED_P(publicId);
@@ -233,7 +234,8 @@ processStream(const XML_Char *filename, XML_Parser parser) {
         close(fd);
       return 0;
     }
-    if (XML_ParseBuffer(parser, (int)nread, nread == 0) == XML_STATUS_ERROR) {
+    if (XML_ParseBuffer64(parser, nread, (nread == 0) ? XML_TRUE : XML_FALSE)
+        == XML_STATUS_ERROR) {
       reportError(parser, filename != NULL ? filename : T("STDIN"));
       if (filename != NULL)
         close(fd);

@@ -90,8 +90,19 @@ extern void _xml_failure(XML_Parser parser, const char *file, int line);
 
 #define xml_failure(parser) _xml_failure((parser), __FILE__, __LINE__)
 
-extern enum XML_Status _XML_Parse_SINGLE_BYTES(XML_Parser parser, const char *s,
-                                               int len, int isFinal);
+extern enum XML_Status XML_Parse_SINGLE_BYTES(XML_Parser parser, const char *s,
+                                              int len, int isFinal);
+
+extern enum XML_Status XML_Parse64_SINGLE_BYTES(XML_Parser parser,
+                                                const char *s, size_t len,
+                                                XML_Bool isFinal);
+
+enum XML_Status XMLCALL XML_ParseBuffer_SINGLE_BYTES(XML_Parser parser, int len,
+                                                     int isFinal);
+
+enum XML_Status XMLCALL XML_ParseBuffer64_SINGLE_BYTES(XML_Parser parser,
+                                                       size_t len,
+                                                       XML_Bool isFinal);
 
 extern void _expect_failure(const char *text, enum XML_Error errorCode,
                             const char *errorMessage, const char *file,

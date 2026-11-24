@@ -45,6 +45,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
+#include <stdint.h> // for SIZE_MAX
 #include <stdio.h>
 #include <stdlib.h> // NULL
 #include <unistd.h>
@@ -86,9 +87,9 @@ filemap(const tchar *name,
     fprintf(stderr, "%" XML_FMT_STR ": not a regular file\n", name);
     return 0;
   }
-  if (sb.st_size > XML_MAX_CHUNK_LEN) {
+  if (sb.st_size < 0 || (uint64_t)sb.st_size > SIZE_MAX) {
     close(fd);
-    return 2; /* Cannot be passed to XML_Parse in one go */
+    return 2; /* Cannot be passed to XML_Parse64 in one go */
   }
 
   nbytes = sb.st_size;

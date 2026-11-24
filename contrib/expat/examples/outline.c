@@ -48,17 +48,18 @@
 #  define XML_FMT_STR "s"
 #endif
 
+#define BUFFER_SIZE (1024 * 32)
+
 static void XMLCALL
 startElement(void *userData, const XML_Char *name, const XML_Char **atts) {
-  int i;
-  int *const depthPtr = (int *)userData;
+  size_t *const depthPtr = userData;
 
-  for (i = 0; i < *depthPtr; i++)
+  for (size_t i = 0; i < *depthPtr; i++)
     printf("  ");
 
   printf("%" XML_FMT_STR, name);
 
-  for (i = 0; atts[i]; i += 2) {
+  for (size_t i = 0; atts[i]; i += 2) {
     printf(" %" XML_FMT_STR "='%" XML_FMT_STR "'", atts[i], atts[i + 1]);
   }
 
@@ -68,7 +69,7 @@ startElement(void *userData, const XML_Char *name, const XML_Char **atts) {
 
 static void XMLCALL
 endElement(void *userData, const XML_Char *name) {
-  int *const depthPtr = (int *)userData;
+  size_t *const depthPtr = userData;
   (void)name;
 
   *depthPtr -= 1;
@@ -77,8 +78,8 @@ endElement(void *userData, const XML_Char *name) {
 int
 main(void) {
   XML_Parser parser = XML_ParserCreate(NULL);
-  int done;
-  int depth = 0;
+  XML_Bool done;
+  size_t depth = 0;
 
   if (! parser) {
     fprintf(stderr, "Couldn't allocate memory for parser\n");
@@ -89,14 +90,14 @@ main(void) {
   XML_SetElementHandler(parser, startElement, endElement);
 
   do {
-    void *const buf = XML_GetBuffer(parser, BUFSIZ);
+    void *const buf = XML_GetBuffer(parser, BUFFER_SIZE);
     if (! buf) {
       fprintf(stderr, "Couldn't allocate memory for buffer\n");
       XML_ParserFree(parser);
       return 1;
     }
 
-    const size_t len = fread(buf, 1, BUFSIZ, stdin);
+    const size_t len = fread(buf, 1, BUFFER_SIZE, stdin);
 
     if (ferror(stdin)) {
       fprintf(stderr, "Read error\n");
@@ -104,9 +105,9 @@ main(void) {
       return 1;
     }
 
-    done = feof(stdin);
+    done = feof(stdin) ? XML_TRUE : XML_FALSE;
 
-    if (XML_ParseBuffer(parser, (int)len, done) == XML_STATUS_ERROR) {
+    if (XML_ParseBuffer64(parser, len, done) == XML_STATUS_ERROR) {
       fprintf(stderr, "Parse error at line %" PRIu64 ":\n%" XML_FMT_STR "\n",
               XML_GetCurrentLineNumber64(parser),
               XML_ErrorString(XML_GetErrorCode(parser)));

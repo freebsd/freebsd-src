@@ -21,6 +21,137 @@
 //                                   Sebastian Pipping -- Berlin, 2026-09-22 //
 ///////////////////////////////////////////////////////////////////////////////
 
+Release 2.11.0 Mon November 23 2026
+        Security fixes:
+           #1492⁠  CVE-2026-124317 -- Fix overread in unknown encoding decoder
+                    It needs use of `XML_SetUnknownEncodingHandler` to be
+                    affected.
+           #1502⁠  CVE-2026-128241 -- xmlwf: Plug symlink attacks with the
+                    `-d <directory>` mode. The xmlwf CLI of libexpat was
+                    vulnerable to symlink attacks in the `-d <directory>` mode
+                    with a target directory writable by other users, e.g. /tmp.
+                    The attack allowed truncation or overwriting the symlink
+                    target file depending on the well-formedness of the XML
+                    being parsed.
+           #1519  CVE-2026-134703 -- Malformed UTF-16 content ending in
+                    isolated high surrogates could be passed to character data
+                    and default handlers depending on their location in the
+                    parsed document and could cause arbitrary damage depending
+                    on the handler code in the application using libexpat.
+                    Applications can expect text free from isolated surrogates
+                    from Expat.
+                    Similar to past CVE-2026-93990 and CVE-2022-25235.
+           #1495  Restore and document `-fno-strict-aliasing` for security
+                    with both GCC and Clang >=20.
+                    libexpat continues to be `-Wstrict-aliasing=3` clean and
+                    to reject violations via CI but there are multiple known
+                    strict aliasing violations within libexpat that despite
+                    `-Wstrict-aliasing=3` are not detected by GCC and which
+                    are hard to impossible to resolve without a mess. These and
+                    potentially other cases run the risk of miscompilation(!)
+                    with `-O2/-O3/Os` without explicit `-fno-strict-aliasing`.
+                    Hence `-fno-strict-aliasing` is brought back to both build
+                    systems and is recommended to everyone embedding libexpat
+                    in particular (but not only) to avoid surprises from
+                    potential miscompilation. If curious, for the 2016 article
+                    by John Regehr that motivated this move please see:
+                    https://blog.regehr.org/archives/1307 .
+
+        Bug fixes:
+     #1469 #1485  lib: Be robust towards handler reset
+     #1430 #1481⁠  lib: Ensure non-NULL `parser->m_eventPtr` for non-error calls
+                    to `XML_Parse` with `XML_CONTEXT_BYTES == 0`
+     #1430 #1491  lib: Advance `m_eventPtr` to `m_bufferPtr` when possible
+           #1501  lib: Ensure healthy `m_eventPtr` and `m_positionPtr` pairing
+                    after final parse
+     #1505 #1506  lib: Make `eventPtr` independent in initial error parse
+           #1507  lib: Fix three name and namestart character false positives:
+                  - U+00AA(=170) "feminine ordinal indicator"
+                  - U+00B5(=181) "micro sign"
+                  - U+00BA(=186) "masculine ordinal indicator"
+           #1517⁠  lib: Initialize `m_idAttIndex` in `parserInit`
+           #1490  xmlwf: Reject zero read buffer size
+           #1502  xmlwf: Create files with 0600 rather than 0666 mode
+     #1514 #1518  xmlwf: Reject empty, negative and whitespace-starting values
+                    for command line arguments `-b` and `-g`
+
+        New features:
+           #1476  lib: Add new `size_t`-based public parsing functions:
+                  - XML_GetBuffer64
+                  - XML_Parse64
+                  - XML_ParseBuffer64
+     #1476 #1503  lib: Allow total buffer size beyond `INT_MAX`
+           #1455  lib: Leverage initial no-buffer parse with
+                    `XML_CONTEXT_BYTES > 0` as well... which reduces the memory
+                    footprint for the first parsing call per parser instance
+           #1476  xmlwf: Raise limit for `-g <buffersize>` from `INT_MAX/2+1`
+                    to `INT_MAX`
+#171 #1507⁠ #1520  lib: Migrate from XML 1.0r4 to XML 1.0r5 name character set
+                    for UTF-8 and UTF-16 (both little- and big-endian).
+                    Every single codepoint is tested by the test suite.
+
+        Other changes:
+  #1462 #1464 ..
+  #1465 #1466 ..
+  #1475 #1479 ..
+     #1480 #1487  lib: Migrate to `size_t` internally
+           #1471  lib: Enforce that `XML_GetInputContext*` can only be called
+                    from within handlers
+     #1422 #1468⁠  lib: Drop "u" suffixes for literals used in debug level
+                    comparisons
+           #1472  lib: Extract function `internalGetBuffer64`
+           #1473  lib: Resolve redundant `else` near `parser->m_errorCode
+                    != XML_ERROR_NONE`
+           #1496  lib: A couple of `lookupWithLength` simplifications
+           #1477⁠  lib|xmlwf: Pass `NULL` instead of 0 for a pointer
+           #1497  xmlwf: Migrate to `size_t` internally
+           #1489⁠  xmlwf|examples: Increase buffer size to 32 KiB
+           #1488  examples: Migrate to `size_t`
+           #1483  tests: Drop leading underscore from `_XML_Parse_SINGLE_BYTES`
+                    because it is forbidden by C99
+           #1493  tests: Check for leaks on allocation-failure code paths
+                    in the absence of LeakSanitizer
+           #1507⁠  tests: Upgrade W3C XML test suite from 2008 to 2013
+           #1521  tests: Address harmless `memset` truncation warning
+           #1504  Autotools|macOS: Sync macOS CMake templates with CMake 4.5.0
+           #1512⁠  Autotools|CMake: Integrate gennmtab.c with both build systems
+     #1470 #1494  Version info bumped from 14:1:13 (libexpat*.so.1.13.1)
+                    to 15:0:14 (libexpat*.so.1.14.0); see https://verbump.de/
+                    for what these numbers do
+
+        Infrastructure:
+           #1484  CI: Fix runner image typo "macoS-26" in `autotools-cmake.yml`
+           #1486  CI: Bump MinGW Clang from 23.1.4 to 23.1.5
+           #1511  CI: Get rid of PowerShell (in favor of Bash)
+           #1513⁠  CI: Validate downloads in Windows binaries CI
+           #1515  CI: Bump Inno Setup to 7.1.1 with Windows binaries CI
+           #1516⁠  CI: Bump Clang-based MinGW to 20261117 with Clang 23.1.6
+
+        Special thanks to:
+            Aziz Elbelaychy
+            Basheer Al-Jarrah
+            Berkay Eren Ürün
+            Cameron Sparks
+            Huang Wenbin
+            Ion Tereshenko
+            John Regehr
+            Matthew Fernandez
+            Oğuzhan Demirbaş
+            Pascal Cuoq
+            Pu Cheng
+            Ryan VanderMeulen
+            Scott Moore
+            Steven Bush
+            Tsukiko Hakura
+            Wei-Lun Li
+                 and
+            City of Munich Open Source Sabbatical
+            OSS-Fuzz / ClusterFuzz
+            Ostorlab
+            Siemens
+            TrustInSoft
+            VulnCheck
+
 Release 2.10.0 Mon November 2 2026
         Security fixes:
            #1431  CVE-2026-113351 -- Fix denial of service with use of
@@ -208,9 +339,9 @@ Release 2.8.5 Tue September 22 2026
            #1367  xmlwf: Handle errors when closing output files
 
         Other changes:
-           #1354  lib: Reject an XML declaration version other than `1.[0-9]+`
+      #967 #1354  lib: Reject an XML declaration version other than `1.[0-9]+`
                     (which is less strict than XML 1.0r4 (fourth edition)
-                    and matches XML 1.0r5 (fifth edition))
+                    pre-errata and matches XML 1.0r5 (fifth edition))
            #1362  lib: Make Clang, GCC and MSVC warn about use of function
                     XML_SetHashSalt that is deprecated since Expat 2.8.0
            #1357  lib: Drop internal macros FASTCALL, PTRCALL, PTRFASTCALL
@@ -2040,6 +2171,7 @@ Release 2.2.3 Wed August 2 2017
             Viktor Szakats
                  and
             Core Infrastructure Initiative
+            TrustInSoft
 
 Release 2.2.2 Wed July 12 2017
         Security fixes:
@@ -2205,6 +2337,7 @@ Release 2.2.1 Sat June 17 2017
             Core Infrastructure Initiative
             Mozilla Foundation (MOSS Track 3: Secure Open Source)
             Radically Open Security
+            TrustInSoft
 
 Release 2.2.0 Tue June 21 2016
         Security fixes:
@@ -2254,6 +2387,8 @@ Release 2.2.0 Tue June 21 2016
             Thomas Beutlich
             Warren Young
             Yann Droneaud
+                 and
+            TrustInSoft
 
 Release 2.1.1 Sat March 12 2016
         Security fixes:

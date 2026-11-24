@@ -9,7 +9,7 @@
    Copyright (c) 1997-2000 Thai Open Source Software Center Ltd
    Copyright (c) 2000      Clark Cooper <coopercc@users.sourceforge.net>
    Copyright (c) 2002      Fred L. Drake, Jr. <fdrake@users.sourceforge.net>
-   Copyright (c) 2016-2017 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2026 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2026      Matthew Fernandez <matthew.fernandez@gmail.com>
    Licensed under the MIT license:
 
@@ -35,17 +35,7 @@
    SPDX-License-Identifier: MIT
 */
 
-#include <limits.h> /* INT_MAX */
 #include <stddef.h>
-
-/* The following limit (for XML_Parse's int len) derives from
- * this loop in xmlparse.c:
- *
- *    do {
- *      bufferSize = (int) (2U * (unsigned) bufferSize);
- *    } while (bufferSize < neededSize && bufferSize > 0);
- */
-#define XML_MAX_CHUNK_LEN (INT_MAX / 2 + 1)
 
 #ifdef XML_UNICODE
 int filemap(const wchar_t *name,

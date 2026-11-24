@@ -260,8 +260,8 @@ START_TEST(test_accounting_precision) {
     }
 
     enum XML_Status status
-        = _XML_Parse_SINGLE_BYTES(parser, cases[u].primaryText,
-                                  (int)strlen(cases[u].primaryText), XML_TRUE);
+        = XML_Parse_SINGLE_BYTES(parser, cases[u].primaryText,
+                                 (int)strlen(cases[u].primaryText), XML_TRUE);
     if (status != XML_STATUS_OK) {
       _xml_failure(parser, __FILE__, __LINE__);
     }
@@ -461,7 +461,7 @@ START_TEST(test_amplification_isolated_external_parser) {
     assert_true(ext_parser != NULL);
 
     const enum XML_Status actualStatus
-        = _XML_Parse_SINGLE_BYTES(ext_parser, doc, docLen, XML_TRUE);
+        = XML_Parse_SINGLE_BYTES(ext_parser, doc, docLen, XML_TRUE);
 
     assert_true(actualStatus == expectedStatus);
     if (actualStatus != XML_STATUS_OK) {
@@ -490,15 +490,15 @@ START_TEST(test_amplification_reset_neutrality) {
                   parser, XML_PROP_BILLION_LAUGHS_ACTIVATION_THRESHOLD, 0)
               == XML_PROP_ERROR_NONE);
 
-  assert_true(_XML_Parse_SINGLE_BYTES(parser, doc, (int)strlen(doc),
-                                      /*isFinal=*/XML_TRUE)
+  assert_true(XML_Parse_SINGLE_BYTES(parser, doc, (int)strlen(doc),
+                                     /*isFinal=*/XML_TRUE)
               == XML_STATUS_ERROR);
   assert_true(XML_GetErrorCode(parser) == XML_ERROR_AMPLIFICATION_LIMIT_BREACH);
 
   assert_true(XML_ParserReset(parser, NULL) == XML_STATUS_OK);
 
-  assert_true(_XML_Parse_SINGLE_BYTES(parser, doc, (int)strlen(doc),
-                                      /*isFinal=*/XML_TRUE)
+  assert_true(XML_Parse_SINGLE_BYTES(parser, doc, (int)strlen(doc),
+                                     /*isFinal=*/XML_TRUE)
               == XML_STATUS_ERROR);
   assert_true(XML_GetErrorCode(parser) == XML_ERROR_AMPLIFICATION_LIMIT_BREACH);
 
