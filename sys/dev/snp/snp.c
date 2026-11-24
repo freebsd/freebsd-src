@@ -125,6 +125,7 @@ snp_dtor(void *data)
 		ss->snp_tty = NULL;
 	}
 
+	seldrain(&ss->snp_outpoll);
 	cv_destroy(&ss->snp_outwait);
 	free(ss, M_SNP);
 }
