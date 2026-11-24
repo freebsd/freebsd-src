@@ -4172,6 +4172,7 @@ vmx_vcpu_snapshot(void *vcpui, struct vm_snapshot_meta *meta)
 	struct vmx *vmx;
 	struct vmx_vcpu *vcpu;
 	struct vmxctx *vmxctx;
+	uint64_t guest_msrs[GUEST_MSR_NUM];
 	int err, run, hostcpu;
 
 	err = 0;
@@ -4241,8 +4242,13 @@ vmx_vcpu_snapshot(void *vcpui, struct vm_snapshot_meta *meta)
 	if (err != 0)
 		goto done;
 
-	SNAPSHOT_BUF_OR_LEAVE(vcpu->guest_msrs,
-	    sizeof(vcpu->guest_msrs), meta, err, done);
+	memcpy(guest_msrs, vcpu->guest_msrs, sizeof(guest_msrs));
+	SNAPSHOT_BUF_OR_LEAVE(guest_msrs, sizeof(guest_msrs), meta, err, done);
+	if (meta->op == VM_SNAPSHOT_RESTORE) {
+		err = vmx_msr_guest_restore(vcpu, guest_msrs);
+		if (err != 0)
+			goto done;
+	}
 
 	SNAPSHOT_BUF_OR_LEAVE(vcpu->pir_desc,
 	    sizeof(*vcpu->pir_desc), meta, err, done);

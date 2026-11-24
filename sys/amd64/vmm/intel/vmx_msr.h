@@ -37,6 +37,10 @@ void vmx_msr_guest_enter_tsc_aux(struct vmx *vmx, struct vmx_vcpu *vcpu);
 void vmx_msr_guest_enter(struct vmx_vcpu *vcpu);
 void vmx_msr_guest_exit(struct vmx_vcpu *vcpu);
 void vmx_msr_guest_exit_tsc_aux(struct vmx *vmx, struct vmx_vcpu *vcpu);
+#ifdef BHYVE_SNAPSHOT
+int vmx_msr_guest_restore(struct vmx_vcpu *vcpu,
+    const uint64_t msrs[static GUEST_MSR_NUM]);
+#endif
 int vmx_rdmsr(struct vmx_vcpu *vcpu, u_int num, uint64_t *val, bool *retu);
 int vmx_wrmsr(struct vmx_vcpu *vcpu, u_int num, uint64_t val, bool *retu);
 

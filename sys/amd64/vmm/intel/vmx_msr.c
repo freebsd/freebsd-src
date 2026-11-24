@@ -26,6 +26,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_bhyve_snapshot.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
@@ -397,6 +399,42 @@ vmx_msr_guest_exit_tsc_aux(struct vmx *vmx, struct vmx_vcpu *vcpu)
 		 */
 		wrmsr(MSR_TSC_AUX, host_aux);
 }
+
+#ifdef BHYVE_SNAPSHOT
+static bool
+canonical_addr(uint64_t addr)
+{
+	uint64_t mask;
+
+	/*
+	 * WRMSR checks an address against the widest linear address that the
+	 * CPU supports, whether or not 5-level paging is in use.
+	 */
+	mask = ~0UL <<
+	    ((cpu_stdext_feature2 & CPUID_STDEXT2_LA57) != 0 ? 56 : 47);
+	return ((addr & mask) == 0 || (addr & mask) == mask);
+}
+
+/*
+ * Install guest MSR values supplied by userspace.  The values are later
+ * written to the host's MSRs, so reject any for which WRMSR would raise #GP.
+ * STAR and SF_MASK accept all values.
+ */
+int
+vmx_msr_guest_restore(struct vmx_vcpu *vcpu,
+    const uint64_t msrs[static GUEST_MSR_NUM])
+{
+	if (!canonical_addr(msrs[IDX_MSR_LSTAR]) ||
+	    !canonical_addr(msrs[IDX_MSR_CSTAR]) ||
+	    !canonical_addr(msrs[IDX_MSR_KGSBASE]) ||
+	    !pat_valid(msrs[IDX_MSR_PAT]) ||
+	    (msrs[IDX_MSR_TSC_AUX] >> 32) != 0)
+		return (EINVAL);
+
+	memcpy(vcpu->guest_msrs, msrs, sizeof(vcpu->guest_msrs));
+	return (0);
+}
+#endif
 
 int
 vmx_rdmsr(struct vmx_vcpu *vcpu, u_int num, uint64_t *val, bool *retu)
