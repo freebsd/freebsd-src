@@ -176,4 +176,11 @@ void	translate_vnhook_major_minor(struct vnode *vp, struct stat *sb);
 		}						\
 	} while (0)
 
+/*
+ * Flag a code path left as a stub.  _criteria is a string literal
+ * naming what the stub still needs before it can be removed.
+ */
+#define LINUX_TODO(_criteria)						\
+	LINUX_RATELIMIT_MSG_OPT1("TODO in %s: " _criteria, __func__)
+
 #endif /* ! _LINUX_UTIL_H_ */
