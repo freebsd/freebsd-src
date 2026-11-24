@@ -1,3 +1,9 @@
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2026 Nick Price
+ */
+
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/filio.h>
