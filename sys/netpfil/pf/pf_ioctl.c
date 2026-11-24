@@ -4174,8 +4174,10 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 	CURVNET_SET(TD_TO_VNET(td));
 
 	/* Don't allow ioctl calls until we're fully initialised. */
-	if (V_pf_vnet_active == 0)
-		return (EBUSY);
+	if (V_pf_vnet_active == 0) {
+		error = EBUSY;
+		goto fail;
+	}
 
 	switch (cmd) {
 #ifdef COMPAT_FREEBSD14
