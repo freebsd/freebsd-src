@@ -3252,6 +3252,8 @@ relock:
 					mrm->r->rule_ref |= PFRULE_REFS;
 				if (s->act.rt_kif)
 					pf_kkif_mark(s->act.rt_kif);
+				if (s->orig_kif)
+					pf_kkif_mark(s->orig_kif);
 				count++;
 			}
 			PF_HASHROW_UNLOCK(ih);
