@@ -441,6 +441,25 @@ aq_isr_rx(void *arg)
 	return (FILTER_SCHEDULE_THREAD);
 }
 
+int
+aq_isr_legacy(void *arg)
+{
+	struct aq_dev	*aq_dev = arg;
+	struct aq_hw	*hw = &aq_dev->hw;
+	uint32_t	status;
+
+	status = itr_irq_statuslsw_get(hw);
+	if (status == 0)
+		return (FILTER_STRAY);
+
+	/* INTx is level-triggered: mask until iflib re-enables. */
+	itr_irq_msk_clearlsw_set(hw, status);
+	itr_irq_status_clearlsw_set(hw, status);
+	AQ_HW_FLUSH(hw);
+	counter_u64_add(aq_dev->rx_rings[0]->stats.irq, 1);
+	return (FILTER_SCHEDULE_THREAD);
+}
+
 /**************************************************************************/
 /* interrupt service routine  (Top half)                                  */
 /**************************************************************************/

@@ -485,14 +485,10 @@ aq_if_attach_post(if_ctx_t ctx)
 
 
 	switch (softc->scctx->isc_intr) {
-	case IFLIB_INTR_LEGACY:
-		rc = EOPNOTSUPP;
-		goto exit;
-	goto exit;
-		break;
 	case IFLIB_INTR_MSI:
 		rc = EOPNOTSUPP;
 		goto exit;
+	case IFLIB_INTR_LEGACY:
 	case IFLIB_INTR_MSIX:
 		break;
 	default:

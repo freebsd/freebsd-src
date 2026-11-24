@@ -871,7 +871,7 @@ aq_hw_init(struct aq_hw *hw, uint8_t *mac_addr, uint8_t adm_irq, bool msix)
 	if (msix)
 		itr_irq_mode_set(hw, 0x6); //MSIX + multi vector
 	else
-		itr_irq_mode_set(hw, 0x5); //MSI + multi vector
+		itr_irq_mode_set(hw, 0x0); //INTx, single vector
 
 	/* Route both hardware error causes (map reg 0) to the admin vector. */
 	reg_gen_irq_map_set(hw,

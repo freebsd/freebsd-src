@@ -68,7 +68,7 @@ struct if_txrx aq_txrx = {
 	.ift_rxd_pkt_get = aq_isc_rxd_pkt_get,
 	.ift_rxd_refill = aq_ring_rx_refill,
 	.ift_rxd_flush = aq_isc_rxd_flush,
-	.ift_legacy_intr = NULL
+	.ift_legacy_intr = aq_isr_legacy
 };
 
 

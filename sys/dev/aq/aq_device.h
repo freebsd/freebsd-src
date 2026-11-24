@@ -160,6 +160,7 @@ int aq_update_hw_stats(struct aq_dev *aq_dev);
 void aq_initmedia(struct aq_dev *aq_dev);
 int aq_linkstat_isr(void *arg);
 int aq_isr_rx(void *arg);
+int aq_isr_legacy(void *arg);
 void aq_mediastatus_update(struct aq_dev *aq_dev, uint32_t link_speed, const struct aq_hw_fc_info *fc_neg);
 void aq_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr);
 int aq_mediachange(struct ifnet *ifp);
