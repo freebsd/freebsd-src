@@ -801,7 +801,7 @@ in_pcb_lport_dest(struct inpcbinfo_ctx *ipictx, struct inpcb *inp,
 #endif
 
 	if (V_ipport_randomized) {
-		port = first + (arc4random() % (last - first));
+		port = first + (arc4random() % (last - first + 1));
 	} else {
 		port = atomic_fetchadd_int(lastport, 1);
 		if (__predict_false(port < first || port > last)) {
@@ -810,7 +810,7 @@ in_pcb_lport_dest(struct inpcbinfo_ctx *ipictx, struct inpcb *inp,
 		}
 	}
 
-	for (count = last - first; count > 0; count--) {
+	for (count = last - first + 1; count > 0; count--) {
 		struct inpcbinfo_ctx tmpctx = {
 			.pcbinfo = ipictx->pcbinfo
 		};
