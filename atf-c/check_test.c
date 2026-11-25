@@ -23,7 +23,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "atf-c/check.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
 #include <fcntl.h>
 #include <signal.h>
@@ -32,8 +32,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <atf-c.h>
-
+#include "atf-c.h"
+#include "atf-c/check.h"
 #include "atf-c/detail/fs.h"
 #include "atf-c/detail/map.h"
 #include "atf-c/detail/process.h"
@@ -43,12 +43,11 @@
  * Auxiliary functions.
  * --------------------------------------------------------------------- */
 
-static
-void
-do_exec(const atf_tc_t *tc, const char *helper_name, atf_check_result_t *r)
+static void
+do_exec(const atf_tc_t* tc, const char* helper_name, atf_check_result_t* r)
 {
     atf_fs_path_t process_helpers;
-    const char *argv[3];
+    const char* argv[3];
 
     get_process_helpers_path(tc, false, &process_helpers);
 
@@ -61,13 +60,12 @@ do_exec(const atf_tc_t *tc, const char *helper_name, atf_check_result_t *r)
     atf_fs_path_fini(&process_helpers);
 }
 
-static
-void
-do_exec_with_arg(const atf_tc_t *tc, const char *helper_name, const char *arg,
-                 atf_check_result_t *r)
+static void
+do_exec_with_arg(const atf_tc_t* tc, const char* helper_name, const char* arg,
+                 atf_check_result_t* r)
 {
     atf_fs_path_t process_helpers;
-    const char *argv[4];
+    const char* argv[4];
 
     get_process_helpers_path(tc, false, &process_helpers);
 
@@ -81,11 +79,10 @@ do_exec_with_arg(const atf_tc_t *tc, const char *helper_name, const char *arg,
     atf_fs_path_fini(&process_helpers);
 }
 
-static
-void
-check_line(int fd, const char *exp)
+static void
+check_line(int fd, const char* exp)
 {
-    char *line = atf_utils_readline(fd);
+    char* line = atf_utils_readline(fd);
     ATF_CHECK(line != NULL);
     ATF_CHECK_STREQ_MSG(exp, line, "read: '%s', expected: '%s'", line, exp);
     free(line);
@@ -102,7 +99,7 @@ ATF_TC_HEAD(h_build_c_o_ok, tc)
 }
 ATF_TC_BODY(h_build_c_o_ok, tc)
 {
-    FILE *sfile;
+    FILE* sfile;
     bool success;
 
     ATF_REQUIRE((sfile = fopen("test.c", "w")) != NULL);
@@ -120,7 +117,7 @@ ATF_TC_HEAD(h_build_c_o_fail, tc)
 }
 ATF_TC_BODY(h_build_c_o_fail, tc)
 {
-    FILE *sfile;
+    FILE* sfile;
     bool success;
 
     ATF_REQUIRE((sfile = fopen("test.c", "w")) != NULL);
@@ -138,7 +135,7 @@ ATF_TC_HEAD(h_build_cpp_ok, tc)
 }
 ATF_TC_BODY(h_build_cpp_ok, tc)
 {
-    FILE *sfile;
+    FILE* sfile;
     bool success;
     atf_fs_path_t test_p;
 
@@ -164,7 +161,7 @@ ATF_TC_HEAD(h_build_cpp_fail, tc)
 }
 ATF_TC_BODY(h_build_cpp_fail, tc)
 {
-    FILE *sfile;
+    FILE* sfile;
     bool success;
 
     ATF_REQUIRE((sfile = fopen("test.c", "w")) != NULL);
@@ -182,7 +179,7 @@ ATF_TC_HEAD(h_build_cxx_o_ok, tc)
 }
 ATF_TC_BODY(h_build_cxx_o_ok, tc)
 {
-    FILE *sfile;
+    FILE* sfile;
     bool success;
 
     ATF_REQUIRE((sfile = fopen("test.cpp", "w")) != NULL);
@@ -200,7 +197,7 @@ ATF_TC_HEAD(h_build_cxx_o_fail, tc)
 }
 ATF_TC_BODY(h_build_cxx_o_fail, tc)
 {
-    FILE *sfile;
+    FILE* sfile;
     bool success;
 
     ATF_REQUIRE((sfile = fopen("test.cpp", "w")) != NULL);
@@ -215,12 +212,11 @@ ATF_TC_BODY(h_build_cxx_o_fail, tc)
  * Test cases for the free functions.
  * --------------------------------------------------------------------- */
 
-static
-void
-init_and_run_h_tc(atf_tc_t *tc, const atf_tc_pack_t *tcpack,
-                  const char *outname, const char *errname)
+static void
+init_and_run_h_tc(atf_tc_t* tc, const atf_tc_pack_t* tcpack,
+                  const char* outname, const char* errname)
 {
-    const char *const config[] = { NULL };
+    const char* const config[] = { NULL };
 
     RE(atf_tc_init_pack(tc, tcpack, config));
     run_h_tc(tc, outname, errname, "result");
@@ -230,18 +226,19 @@ init_and_run_h_tc(atf_tc_t *tc, const atf_tc_pack_t *tcpack,
 ATF_TC(build_c_o);
 ATF_TC_HEAD(build_c_o, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks the atf_check_build_c_o "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks the atf_check_build_c_o "
                       "function");
 }
 ATF_TC_BODY(build_c_o, tc)
 {
     init_and_run_h_tc(&ATF_TC_NAME(h_build_c_o_ok),
-             &ATF_TC_PACK_NAME(h_build_c_o_ok), "stdout", "stderr");
+                      &ATF_TC_PACK_NAME(h_build_c_o_ok), "stdout", "stderr");
     ATF_CHECK(atf_utils_grep_file("-o test.o", "stdout"));
     ATF_CHECK(atf_utils_grep_file("-c test.c", "stdout"));
 
     init_and_run_h_tc(&ATF_TC_NAME(h_build_c_o_fail),
-             &ATF_TC_PACK_NAME(h_build_c_o_fail), "stdout", "stderr");
+                      &ATF_TC_PACK_NAME(h_build_c_o_fail), "stdout", "stderr");
     ATF_CHECK(atf_utils_grep_file("-o test.o", "stdout"));
     ATF_CHECK(atf_utils_grep_file("-c test.c", "stdout"));
     ATF_CHECK(atf_utils_grep_file("test.c", "stderr"));
@@ -251,19 +248,20 @@ ATF_TC_BODY(build_c_o, tc)
 ATF_TC(build_cpp);
 ATF_TC_HEAD(build_cpp, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks the atf_check_build_cpp "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks the atf_check_build_cpp "
                       "function");
 }
 ATF_TC_BODY(build_cpp, tc)
 {
     init_and_run_h_tc(&ATF_TC_NAME(h_build_cpp_ok),
-             &ATF_TC_PACK_NAME(h_build_cpp_ok), "stdout", "stderr");
+                      &ATF_TC_PACK_NAME(h_build_cpp_ok), "stdout", "stderr");
     ATF_CHECK(atf_utils_grep_file("-o.*test.p", "stdout"));
     ATF_CHECK(atf_utils_grep_file("test.c", "stdout"));
     ATF_CHECK(atf_utils_grep_file("foo bar", "test.p"));
 
     init_and_run_h_tc(&ATF_TC_NAME(h_build_cpp_fail),
-             &ATF_TC_PACK_NAME(h_build_cpp_fail), "stdout", "stderr");
+                      &ATF_TC_PACK_NAME(h_build_cpp_fail), "stdout", "stderr");
     ATF_CHECK(atf_utils_grep_file("-o test.p", "stdout"));
     ATF_CHECK(atf_utils_grep_file("test.c", "stdout"));
     ATF_CHECK(atf_utils_grep_file("test.c", "stderr"));
@@ -273,18 +271,20 @@ ATF_TC_BODY(build_cpp, tc)
 ATF_TC(build_cxx_o);
 ATF_TC_HEAD(build_cxx_o, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks the atf_check_build_cxx_o "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks the atf_check_build_cxx_o "
                       "function");
 }
 ATF_TC_BODY(build_cxx_o, tc)
 {
     init_and_run_h_tc(&ATF_TC_NAME(h_build_cxx_o_ok),
-             &ATF_TC_PACK_NAME(h_build_cxx_o_ok), "stdout", "stderr");
+                      &ATF_TC_PACK_NAME(h_build_cxx_o_ok), "stdout", "stderr");
     ATF_CHECK(atf_utils_grep_file("-o test.o", "stdout"));
     ATF_CHECK(atf_utils_grep_file("-c test.cpp", "stdout"));
 
     init_and_run_h_tc(&ATF_TC_NAME(h_build_cxx_o_fail),
-             &ATF_TC_PACK_NAME(h_build_cxx_o_fail), "stdout", "stderr");
+                      &ATF_TC_PACK_NAME(h_build_cxx_o_fail), "stdout",
+                      "stderr");
     ATF_CHECK(atf_utils_grep_file("-o test.o", "stdout"));
     ATF_CHECK(atf_utils_grep_file("-c test.cpp", "stdout"));
     ATF_CHECK(atf_utils_grep_file("test.cpp", "stderr"));
@@ -294,7 +294,8 @@ ATF_TC_BODY(build_cxx_o, tc)
 ATF_TC(exec_array);
 ATF_TC_HEAD(exec_array, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks that atf_check_exec_array "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks that atf_check_exec_array "
                       "works properly");
 }
 ATF_TC_BODY(exec_array, tc)
@@ -304,7 +305,7 @@ ATF_TC_BODY(exec_array, tc)
 
     get_process_helpers_path(tc, false, &process_helpers);
 
-    const char *argv[4];
+    const char* argv[4];
     argv[0] = atf_fs_path_cstring(&process_helpers);
     argv[1] = "echo";
     argv[2] = "test-message";
@@ -316,7 +317,7 @@ ATF_TC_BODY(exec_array, tc)
     ATF_CHECK(atf_check_result_exitcode(&result) == EXIT_SUCCESS);
 
     {
-        const char *path = atf_check_result_stdout(&result);
+        const char* path = atf_check_result_stdout(&result);
         int fd = open(path, O_RDONLY);
         ATF_CHECK(fd != -1);
         check_line(fd, "test-message");
@@ -330,7 +331,8 @@ ATF_TC_BODY(exec_array, tc)
 ATF_TC(exec_cleanup);
 ATF_TC_HEAD(exec_cleanup, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks that atf_check_exec_array "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks that atf_check_exec_array "
                       "properly cleans up the temporary files it creates");
 }
 ATF_TC_BODY(exec_cleanup, tc)
@@ -343,11 +345,15 @@ ATF_TC_BODY(exec_cleanup, tc)
     RE(atf_fs_path_init_fmt(&out, "%s", atf_check_result_stdout(&result)));
     RE(atf_fs_path_init_fmt(&err, "%s", atf_check_result_stderr(&result)));
 
-    RE(atf_fs_exists(&out, &exists)); ATF_CHECK(exists);
-    RE(atf_fs_exists(&err, &exists)); ATF_CHECK(exists);
+    RE(atf_fs_exists(&out, &exists));
+    ATF_CHECK(exists);
+    RE(atf_fs_exists(&err, &exists));
+    ATF_CHECK(exists);
     atf_check_result_fini(&result);
-    RE(atf_fs_exists(&out, &exists)); ATF_CHECK(!exists);
-    RE(atf_fs_exists(&err, &exists)); ATF_CHECK(!exists);
+    RE(atf_fs_exists(&out, &exists));
+    ATF_CHECK(!exists);
+    RE(atf_fs_exists(&err, &exists));
+    ATF_CHECK(!exists);
 
     atf_fs_path_fini(&err);
     atf_fs_path_fini(&out);
@@ -356,7 +362,8 @@ ATF_TC_BODY(exec_cleanup, tc)
 ATF_TC(exec_exitstatus);
 ATF_TC_HEAD(exec_exitstatus, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks that atf_check_exec_array "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks that atf_check_exec_array "
                       "properly captures the exit status of the executed "
                       "command");
 }
@@ -393,7 +400,8 @@ ATF_TC_BODY(exec_exitstatus, tc)
 ATF_TC(exec_stdout_stderr);
 ATF_TC_HEAD(exec_stdout_stderr, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks that atf_check_exec_array "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks that atf_check_exec_array "
                       "properly captures the stdout and stderr streams "
                       "of the child process");
 }
@@ -434,13 +442,13 @@ ATF_TC_BODY(exec_stdout_stderr, tc)
     ATF_CHECK(strcmp(out1, out2) != 0);
     ATF_CHECK(strcmp(err1, err2) != 0);
 
-#define CHECK_LINES(path, outname, resname) \
-    do { \
-        int fd = open(path, O_RDONLY); \
-        ATF_CHECK(fd != -1); \
+#define CHECK_LINES(path, outname, resname)                   \
+    do {                                                      \
+        int fd = open(path, O_RDONLY);                        \
+        ATF_CHECK(fd != -1);                                  \
         check_line(fd, "Line 1 to " outname " for " resname); \
         check_line(fd, "Line 2 to " outname " for " resname); \
-        close(fd); \
+        close(fd);                                            \
     } while (false)
 
     CHECK_LINES(out1, "stdout", "result1");
@@ -457,14 +465,15 @@ ATF_TC_BODY(exec_stdout_stderr, tc)
 ATF_TC(exec_umask);
 ATF_TC_HEAD(exec_umask, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks that atf_check_exec_array "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks that atf_check_exec_array "
                       "works regardless of umask");
 }
 ATF_TC_BODY(exec_umask, tc)
 {
     atf_check_result_t result;
     atf_fs_path_t process_helpers;
-    const char *argv[3];
+    const char* argv[3];
 
     get_process_helpers_path(tc, false, &process_helpers);
     argv[0] = atf_fs_path_cstring(&process_helpers);
@@ -474,18 +483,20 @@ ATF_TC_BODY(exec_umask, tc)
     umask(0222);
     RE(atf_check_exec_array(argv, &result));
 
+    atf_check_result_fini(&result);
     atf_fs_path_fini(&process_helpers);
 }
 
 ATF_TC(exec_unknown);
 ATF_TC_HEAD(exec_unknown, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks that running a non-existing "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks that running a non-existing "
                       "binary is handled correctly");
 }
 ATF_TC_BODY(exec_unknown, tc)
 {
-    const char *argv[2];
+    const char* argv[2];
     argv[0] = "/foo/bar/non-existent";
     argv[1] = NULL;
 

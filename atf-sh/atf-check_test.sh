@@ -156,6 +156,129 @@ xflag_body()
         atf_fail "Using -x does not respect all provided arguments"
 }
 
+atf_test_case vflag
+vflag_head()
+{
+    atf_set "descr" "The -v option shows both streams on successful checks"
+}
+vflag_body()
+{
+    cmd='echo output; echo error >&2'
+    expected='stdout:\noutput\n\nstderr:\nerror\n\n'
+
+    # Successful checks are silent on stderr without -v.
+    atf_check -o ignore -e empty ${Atf_Check} \
+        -o ignore -e ignore -x "${cmd}"
+
+    # With -v, both streams are shown even when their checks pass.
+    atf_check -o ignore -e inline:"${expected}" ${Atf_Check} \
+        -v -o inline:"output\n" -e inline:"error\n" -x "${cmd}"
+
+    # An expected nonzero exit status also allows verbose output.
+    atf_check -o ignore -e inline:"${expected}" ${Atf_Check} \
+        -v -s exit:7 -o inline:"output\n" -e inline:"error\n" \
+        -x "${cmd}; exit 7"
+}
+
+atf_test_case vflag_save
+vflag_save_head()
+{
+    atf_set "descr" "The -v option shows streams without changing saved output"
+}
+vflag_save_body()
+{
+    expected='stdout:\noutput\n\nstderr:\nerror\n\n'
+
+    # Both streams are shown while being saved to files.
+    atf_check -o ignore -e inline:"${expected}" ${Atf_Check} \
+        -v -o save:out -e save:err -x 'echo output; echo error >&2'
+
+    # Verbose output does not change the saved streams.
+    atf_check -o inline:"output\n" cat out
+    atf_check -o inline:"error\n" cat err
+}
+
+atf_test_case vflag_empty
+vflag_empty_head()
+{
+    atf_set "descr" "The -v option shows headers for empty streams"
+}
+vflag_empty_body()
+{
+    expected='stdout:\n\nstderr:\n\n'
+
+    # Empty streams still have headers and separators.
+    atf_check -o ignore -e inline:"${expected}" \
+        ${Atf_Check} -v true
+}
+
+atf_test_case vflag_no_newline
+vflag_no_newline_head()
+{
+    atf_set "descr" "The -v option separates streams without trailing newlines"
+}
+vflag_no_newline_body()
+{
+    expected='stdout:\noutput\nstderr:\nerror\n'
+
+    # Streams without trailing newlines remain separated.
+    atf_check -o ignore -e inline:"${expected}" \
+        ${Atf_Check} -v -o ignore -e ignore \
+        -x 'printf output; printf error >&2'
+}
+
+atf_test_case vflag_failure
+vflag_failure_head()
+{
+    atf_set "descr" "The -v option preserves failures without duplicate dumps"
+}
+vflag_failure_body()
+{
+    cmd='echo output; echo error >&2; exit 1'
+    expected='Fail: incorrect exit status: 1, expected: 0\n'
+    expected="${expected}"'stdout:\noutput\n\nstderr:\nerror\n\n'
+
+    # A status mismatch reports the failure and both streams without -v.
+    atf_check -s not-exit:0 -o ignore -e inline:"${expected}" ${Atf_Check} \
+        -o ignore -e ignore -x "${cmd}"
+
+    # With -v, the same failure is reported without duplicate stream dumps.
+    atf_check -s not-exit:0 -o ignore -e inline:"${expected}" ${Atf_Check} \
+        -v -o ignore -e ignore -x "${cmd}"
+
+    # An output mismatch still fails and includes both stream headers.
+    atf_check -s not-exit:0 -o ignore -e match:'stdout:' \
+        -e match:'stderr:' -e match:'Fail:' ${Atf_Check} \
+        -v -o empty -e ignore -x 'echo output; echo error >&2'
+}
+
+atf_test_case vflag_repeat
+vflag_repeat_head()
+{
+    atf_set "descr" "The -v option shows output from each retry"
+}
+vflag_repeat_body()
+{
+    # This script is run twice: the first time the script exits with 1
+    # and the second time the script exits with 0. This ensures that
+    # the script is run more than once when `-r` is specified.
+    cat >script.sh <<'EOF'
+echo output
+echo error >&2
+if [ ! -f retried ]; then
+    touch retried
+    exit 1
+fi
+EOF
+    expected='Fail: incorrect exit status: 1, expected: 0\n'
+    streams='stdout:\noutput\n\nstderr:\nerror\n\n'
+    expected="${expected}${streams}${streams}"
+
+    # Both attempts print their streams, and the successful retry passes.
+    atf_check -o ignore -e inline:"${expected}" \
+        ${Atf_Check} -v -r 10 -o ignore -e ignore ${Atf_Shell} script.sh
+}
+
 atf_test_case oflag_empty
 oflag_empty_head()
 {
@@ -412,6 +535,13 @@ atf_init_test_cases()
     atf_add_test_case sflag_signal
 
     atf_add_test_case xflag
+
+    atf_add_test_case vflag
+    atf_add_test_case vflag_save
+    atf_add_test_case vflag_empty
+    atf_add_test_case vflag_no_newline
+    atf_add_test_case vflag_failure
+    atf_add_test_case vflag_repeat
 
     atf_add_test_case oflag_empty
     atf_add_test_case oflag_ignore

@@ -23,25 +23,26 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "atf-c/detail/env.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
 #include <errno.h>
 #include <stdlib.h>
 
+#include "atf-c/detail/env.h"
 #include "atf-c/detail/sanity.h"
 #include "atf-c/detail/text.h"
 #include "atf-c/error.h"
 
-const char *
-atf_env_get(const char *name)
+const char*
+atf_env_get(const char* name)
 {
     const char* val = getenv(name);
     PRE(val != NULL);
     return val;
 }
 
-const char *
-atf_env_get_with_default(const char *name, const char *default_value)
+const char*
+atf_env_get_with_default(const char* name, const char* default_value)
 {
     const char* val = getenv(name);
     if (val == NULL)
@@ -51,19 +52,20 @@ atf_env_get_with_default(const char *name, const char *default_value)
 }
 
 bool
-atf_env_has(const char *name)
+atf_env_has(const char* name)
 {
     return getenv(name) != NULL;
 }
 
 atf_error_t
-atf_env_set(const char *name, const char *val)
+atf_env_set(const char* name, const char* val)
 {
     atf_error_t err;
 
     if (setenv(name, val, 1) == -1)
         err = atf_libc_error(errno,
-            "Cannot set environment variable '%s' to '%s'", name, val);
+                             "Cannot set environment variable '%s' to '%s'",
+                             name, val);
     else
         err = atf_no_error();
 
@@ -71,9 +73,8 @@ atf_env_set(const char *name, const char *val)
 }
 
 atf_error_t
-atf_env_unset(const char *name)
+atf_env_unset(const char* name)
 {
-
     unsetenv(name);
     return (atf_no_error());
 }

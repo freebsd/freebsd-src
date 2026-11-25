@@ -30,10 +30,10 @@
 #endif
 
 extern "C" {
-#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+
 #include <dirent.h>
 #include <libgen.h>
 #include <unistd.h>
@@ -70,8 +70,7 @@ static bool safe_access(const impl::path&, int, int);
 //! safely control its exit status and raise an exception in case of
 //! failure.
 //!
-static
-bool
+static bool
 safe_access(const impl::path& p, int mode, int experr)
 {
     bool ok;
@@ -118,7 +117,7 @@ impl::path::path(const path& p)
         throw_atf_error(err);
 }
 
-impl::path::path(const atf_fs_path_t *p)
+impl::path::path(const atf_fs_path_t* p)
 {
     atf_error_t err = atf_fs_path_copy(&m_path, p);
     if (atf_is_error(err))
@@ -131,43 +130,37 @@ impl::path::~path(void)
 }
 
 const char*
-impl::path::c_str(void)
-    const
+impl::path::c_str(void) const
 {
     return atf_fs_path_cstring(&m_path);
 }
 
 const atf_fs_path_t*
-impl::path::c_path(void)
-    const
+impl::path::c_path(void) const
 {
     return &m_path;
 }
 
 std::string
-impl::path::str(void)
-    const
+impl::path::str(void) const
 {
     return c_str();
 }
 
 bool
-impl::path::is_absolute(void)
-    const
+impl::path::is_absolute(void) const
 {
     return atf_fs_path_is_absolute(&m_path);
 }
 
 bool
-impl::path::is_root(void)
-    const
+impl::path::is_root(void) const
 {
     return atf_fs_path_is_root(&m_path);
 }
 
 impl::path
-impl::path::branch_path(void)
-    const
+impl::path::branch_path(void) const
 {
     atf_fs_path_t bp;
     atf_error_t err;
@@ -182,8 +175,7 @@ impl::path::branch_path(void)
 }
 
 std::string
-impl::path::leaf_name(void)
-    const
+impl::path::leaf_name(void) const
 {
     atf_dynstr_t ln;
     atf_error_t err;
@@ -198,8 +190,7 @@ impl::path::leaf_name(void)
 }
 
 impl::path
-impl::path::to_absolute(void)
-    const
+impl::path::to_absolute(void) const
 {
     atf_fs_path_t pa;
 
@@ -229,22 +220,19 @@ impl::path::operator=(const path& p)
 }
 
 bool
-impl::path::operator==(const path& p)
-    const
+impl::path::operator==(const path& p) const
 {
     return atf_equal_fs_path_fs_path(&m_path, &p.m_path);
 }
 
 bool
-impl::path::operator!=(const path& p)
-    const
+impl::path::operator!=(const path& p) const
 {
     return !atf_equal_fs_path_fs_path(&m_path, &p.m_path);
 }
 
 impl::path
-impl::path::operator/(const std::string& p)
-    const
+impl::path::operator/(const std::string& p) const
 {
     path p2 = *this;
 
@@ -256,8 +244,7 @@ impl::path::operator/(const std::string& p)
 }
 
 impl::path
-impl::path::operator/(const path& p)
-    const
+impl::path::operator/(const path& p) const
 {
     path p2 = *this;
 
@@ -270,11 +257,10 @@ impl::path::operator/(const path& p)
 }
 
 bool
-impl::path::operator<(const path& p)
-    const
+impl::path::operator<(const path& p) const
 {
-    const char *s1 = atf_fs_path_cstring(&m_path);
-    const char *s2 = atf_fs_path_cstring(&p.m_path);
+    const char* s1 = atf_fs_path_cstring(&m_path);
+    const char* s2 = atf_fs_path_cstring(&p.m_path);
     return std::strcmp(s1, s2) < 0;
 }
 
@@ -311,99 +297,85 @@ impl::file_info::~file_info(void)
 }
 
 dev_t
-impl::file_info::get_device(void)
-    const
+impl::file_info::get_device(void) const
 {
     return atf_fs_stat_get_device(&m_stat);
 }
 
 ino_t
-impl::file_info::get_inode(void)
-    const
+impl::file_info::get_inode(void) const
 {
     return atf_fs_stat_get_inode(&m_stat);
 }
 
 mode_t
-impl::file_info::get_mode(void)
-    const
+impl::file_info::get_mode(void) const
 {
     return atf_fs_stat_get_mode(&m_stat);
 }
 
 off_t
-impl::file_info::get_size(void)
-    const
+impl::file_info::get_size(void) const
 {
     return atf_fs_stat_get_size(&m_stat);
 }
 
 int
-impl::file_info::get_type(void)
-    const
+impl::file_info::get_type(void) const
 {
     return atf_fs_stat_get_type(&m_stat);
 }
 
 bool
-impl::file_info::is_owner_readable(void)
-    const
+impl::file_info::is_owner_readable(void) const
 {
     return atf_fs_stat_is_owner_readable(&m_stat);
 }
 
 bool
-impl::file_info::is_owner_writable(void)
-    const
+impl::file_info::is_owner_writable(void) const
 {
     return atf_fs_stat_is_owner_writable(&m_stat);
 }
 
 bool
-impl::file_info::is_owner_executable(void)
-    const
+impl::file_info::is_owner_executable(void) const
 {
     return atf_fs_stat_is_owner_executable(&m_stat);
 }
 
 bool
-impl::file_info::is_group_readable(void)
-    const
+impl::file_info::is_group_readable(void) const
 {
     return atf_fs_stat_is_group_readable(&m_stat);
 }
 
 bool
-impl::file_info::is_group_writable(void)
-    const
+impl::file_info::is_group_writable(void) const
 {
     return atf_fs_stat_is_group_writable(&m_stat);
 }
 
 bool
-impl::file_info::is_group_executable(void)
-    const
+impl::file_info::is_group_executable(void) const
 {
     return atf_fs_stat_is_group_executable(&m_stat);
 }
 
 bool
-impl::file_info::is_other_readable(void)
-    const
+impl::file_info::is_other_readable(void) const
 {
     return atf_fs_stat_is_other_readable(&m_stat);
 }
 
 bool
-impl::file_info::is_other_writable(void)
-    const
+impl::file_info::is_other_writable(void) const
 {
     return atf_fs_stat_is_other_writable(&m_stat);
 }
 
 bool
-impl::file_info::is_other_executable(void)
-    const
+impl::file_info::is_other_executable(void) const
 {
     return atf_fs_stat_is_other_executable(&m_stat);
 }
@@ -416,8 +388,8 @@ impl::directory::directory(const path& p)
 {
     DIR* dp = ::opendir(p.c_str());
     if (dp == NULL)
-        throw system_error(IMPL_NAME "::directory::directory(" +
-                           p.str() + ")", "opendir(3) failed", errno);
+        throw system_error(IMPL_NAME "::directory::directory(" + p.str() + ")",
+                           "opendir(3) failed", errno);
 
     struct dirent* dep;
     while ((dep = ::readdir(dp)) != NULL) {
@@ -426,15 +398,14 @@ impl::directory::directory(const path& p)
     }
 
     if (::closedir(dp) == -1)
-        throw system_error(IMPL_NAME "::directory::directory(" +
-                           p.str() + ")", "closedir(3) failed", errno);
+        throw system_error(IMPL_NAME "::directory::directory(" + p.str() + ")",
+                           "closedir(3) failed", errno);
 }
 
-std::set< std::string >
-impl::directory::names(void)
-    const
+std::set<std::string>
+impl::directory::names(void) const
 {
-    std::set< std::string > ns;
+    std::set<std::string> ns;
 
     for (const_iterator iter = begin(); iter != end(); iter++)
         ns.insert((*iter).first);
@@ -468,11 +439,11 @@ impl::have_prog_in_path(const std::string& prog)
     // there something is broken in the user's environment.
     if (!atf::env::has("PATH"))
         throw std::runtime_error("PATH not defined in the environment");
-    std::vector< std::string > dirs =
-        atf::text::split(atf::env::get("PATH"), ":");
+    std::vector<std::string> dirs = atf::text::split(atf::env::get("PATH"),
+                                                     ":");
 
     bool found = false;
-    for (std::vector< std::string >::const_iterator iter = dirs.begin();
+    for (std::vector<std::string>::const_iterator iter = dirs.begin();
          !found && iter != dirs.end(); iter++) {
         const path& dir = path(*iter);
 
@@ -495,12 +466,10 @@ impl::remove(const path& p)
 {
     if (file_info(p).get_type() == file_info::dir_type)
         throw atf::system_error(IMPL_NAME "::remove(" + p.str() + ")",
-                                "Is a directory",
-                                EPERM);
+                                "Is a directory", EPERM);
     if (::unlink(p.c_str()) == -1)
         throw atf::system_error(IMPL_NAME "::remove(" + p.str() + ")",
-                                "unlink(" + p.str() + ") failed",
-                                errno);
+                                "unlink(" + p.str() + ") failed", errno);
 }
 
 void

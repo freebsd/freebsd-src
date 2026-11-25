@@ -30,20 +30,18 @@ extern "C" {
 #include <sys/stat.h>
 }
 
-#include <fstream>
 #include <cerrno>
 #include <cstdio>
+#include <fstream>
 
-#include <atf-c++.hpp>
-
+#include "atf-c++.hpp"
 #include "atf-c++/detail/exceptions.hpp"
 
 // ------------------------------------------------------------------------
 // Auxiliary functions.
 // ------------------------------------------------------------------------
 
-static
-void
+static void
 create_files(void)
 {
     ::mkdir("files", 0755);
@@ -97,10 +95,10 @@ ATF_TEST_CASE_BODY(path_is_absolute)
 {
     using atf::fs::path;
 
-    ATF_REQUIRE( path("/").is_absolute());
-    ATF_REQUIRE( path("////").is_absolute());
-    ATF_REQUIRE( path("////a").is_absolute());
-    ATF_REQUIRE( path("//a//").is_absolute());
+    ATF_REQUIRE(path("/").is_absolute());
+    ATF_REQUIRE(path("////").is_absolute());
+    ATF_REQUIRE(path("////a").is_absolute());
+    ATF_REQUIRE(path("//a//").is_absolute());
     ATF_REQUIRE(!path("a////").is_absolute());
     ATF_REQUIRE(!path("../foo").is_absolute());
 }
@@ -114,8 +112,8 @@ ATF_TEST_CASE_BODY(path_is_root)
 {
     using atf::fs::path;
 
-    ATF_REQUIRE( path("/").is_root());
-    ATF_REQUIRE( path("////").is_root());
+    ATF_REQUIRE(path("/").is_root());
+    ATF_REQUIRE(path("////").is_root());
     ATF_REQUIRE(!path("////a").is_root());
     ATF_REQUIRE(!path("//a//").is_root());
     ATF_REQUIRE(!path("a////").is_root());
@@ -207,8 +205,8 @@ ATF_TEST_CASE_BODY(path_concat)
 ATF_TEST_CASE(path_to_absolute);
 ATF_TEST_CASE_HEAD(path_to_absolute)
 {
-    set_md_var("descr", "Tests the conversion of a relative path to an "
-               "absolute one");
+    set_md_var("descr",
+               "Tests the conversion of a relative path to an absolute one");
 }
 ATF_TEST_CASE_BODY(path_to_absolute)
 {
@@ -253,7 +251,7 @@ ATF_TEST_CASE_BODY(path_op_less)
 
     ATF_REQUIRE(!(path("aaa") < path("aaa")));
 
-    ATF_REQUIRE(  path("aab") < path("abc"));
+    ATF_REQUIRE(path("aab") < path("abc"));
     ATF_REQUIRE(!(path("abc") < path("aab")));
 }
 
@@ -264,8 +262,9 @@ ATF_TEST_CASE_BODY(path_op_less)
 ATF_TEST_CASE(directory_read);
 ATF_TEST_CASE_HEAD(directory_read)
 {
-    set_md_var("descr", "Tests the directory class creation, which reads "
-               "the contents of a directory");
+    set_md_var("descr",
+               "Tests directory class creation by reading the "
+               "contents of a directory");
 }
 ATF_TEST_CASE_BODY(directory_read)
 {
@@ -285,7 +284,8 @@ ATF_TEST_CASE_BODY(directory_read)
 ATF_TEST_CASE(directory_file_info);
 ATF_TEST_CASE_HEAD(directory_file_info)
 {
-    set_md_var("descr", "Tests that the file_info objects attached to the "
+    set_md_var("descr",
+               "Tests that the file_info objects attached to the "
                "directory are valid");
 }
 ATF_TEST_CASE_BODY(directory_file_info)
@@ -326,7 +326,7 @@ ATF_TEST_CASE_BODY(directory_names)
     create_files();
 
     directory d(path("files"));
-    std::set< std::string > ns = d.names();
+    std::set<std::string> ns = d.names();
     ATF_REQUIRE_EQ(ns.size(), 4);
     ATF_REQUIRE(ns.find(".") != ns.end());
     ATF_REQUIRE(ns.find("..") != ns.end());
@@ -366,8 +366,8 @@ ATF_TEST_CASE_BODY(file_info_stat)
 ATF_TEST_CASE(file_info_perms);
 ATF_TEST_CASE_HEAD(file_info_perms)
 {
-    set_md_var("descr", "Tests the file_info methods to get the file's "
-               "permissions");
+    set_md_var("descr",
+               "Tests the file_info methods to get the file's permissions");
 }
 ATF_TEST_CASE_BODY(file_info_perms)
 {
@@ -380,17 +380,17 @@ ATF_TEST_CASE_BODY(file_info_perms)
     os.close();
 
 #define perms(ur, uw, ux, gr, gw, gx, othr, othw, othx) \
-    { \
-        file_info fi(p); \
-        ATF_REQUIRE(fi.is_owner_readable() == ur); \
-        ATF_REQUIRE(fi.is_owner_writable() == uw); \
-        ATF_REQUIRE(fi.is_owner_executable() == ux); \
-        ATF_REQUIRE(fi.is_group_readable() == gr); \
-        ATF_REQUIRE(fi.is_group_writable() == gw); \
-        ATF_REQUIRE(fi.is_group_executable() == gx); \
-        ATF_REQUIRE(fi.is_other_readable() == othr); \
-        ATF_REQUIRE(fi.is_other_writable() == othw); \
-        ATF_REQUIRE(fi.is_other_executable() == othx); \
+    {                                                   \
+        file_info fi(p);                                \
+        ATF_REQUIRE(fi.is_owner_readable() == ur);      \
+        ATF_REQUIRE(fi.is_owner_writable() == uw);      \
+        ATF_REQUIRE(fi.is_owner_executable() == ux);    \
+        ATF_REQUIRE(fi.is_group_readable() == gr);      \
+        ATF_REQUIRE(fi.is_group_writable() == gw);      \
+        ATF_REQUIRE(fi.is_group_executable() == gx);    \
+        ATF_REQUIRE(fi.is_other_readable() == othr);    \
+        ATF_REQUIRE(fi.is_other_writable() == othw);    \
+        ATF_REQUIRE(fi.is_other_executable() == othx);  \
     }
 
     ::chmod(p.c_str(), 0000);
@@ -451,14 +451,14 @@ ATF_TEST_CASE_BODY(exists)
 
     create_files();
 
-    ATF_REQUIRE( exists(path("files")));
+    ATF_REQUIRE(exists(path("files")));
     ATF_REQUIRE(!exists(path("file")));
     ATF_REQUIRE(!exists(path("files2")));
 
-    ATF_REQUIRE( exists(path("files/.")));
-    ATF_REQUIRE( exists(path("files/..")));
-    ATF_REQUIRE( exists(path("files/dir")));
-    ATF_REQUIRE( exists(path("files/reg")));
+    ATF_REQUIRE(exists(path("files/.")));
+    ATF_REQUIRE(exists(path("files/..")));
+    ATF_REQUIRE(exists(path("files/dir")));
+    ATF_REQUIRE(exists(path("files/reg")));
     ATF_REQUIRE(!exists(path("files/foo")));
 }
 
@@ -474,16 +474,16 @@ ATF_TEST_CASE_BODY(is_executable)
 
     create_files();
 
-    ATF_REQUIRE( is_executable(path("files")));
-    ATF_REQUIRE( is_executable(path("files/.")));
-    ATF_REQUIRE( is_executable(path("files/..")));
-    ATF_REQUIRE( is_executable(path("files/dir")));
+    ATF_REQUIRE(is_executable(path("files")));
+    ATF_REQUIRE(is_executable(path("files/.")));
+    ATF_REQUIRE(is_executable(path("files/..")));
+    ATF_REQUIRE(is_executable(path("files/dir")));
 
     ATF_REQUIRE(!is_executable(path("non-existent")));
 
     ATF_REQUIRE(!is_executable(path("files/reg")));
     ATF_REQUIRE(::chmod("files/reg", 0755) != -1);
-    ATF_REQUIRE( is_executable(path("files/reg")));
+    ATF_REQUIRE(is_executable(path("files/reg")));
 }
 
 ATF_TEST_CASE(remove);
@@ -499,13 +499,13 @@ ATF_TEST_CASE_BODY(remove)
 
     create_files();
 
-    ATF_REQUIRE( exists(path("files/reg")));
+    ATF_REQUIRE(exists(path("files/reg")));
     remove(path("files/reg"));
     ATF_REQUIRE(!exists(path("files/reg")));
 
-    ATF_REQUIRE( exists(path("files/dir")));
+    ATF_REQUIRE(exists(path("files/dir")));
     ATF_REQUIRE_THROW(atf::system_error, remove(path("files/dir")));
-    ATF_REQUIRE( exists(path("files/dir")));
+    ATF_REQUIRE(exists(path("files/dir")));
 }
 
 // ------------------------------------------------------------------------

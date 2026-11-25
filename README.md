@@ -18,7 +18,7 @@ this execution engine is *not* shipped with ATF.
 
 Formal releases for source files are available for download from GitHub:
 
-* [atf 0.25](../../releases/tag/atf-0.25), released on September 2nd, 2026.
+* [atf 0.26.1](../../releases/tag/atf-0.26.1), released on November 25th, 2026.
 
 ## Installation
 

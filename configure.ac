@@ -28,7 +28,7 @@ dnl -----------------------------------------------------------------------
 dnl Initialize the GNU build system.
 dnl -----------------------------------------------------------------------
 
-AC_INIT([Automated Testing Framework], [0.26],
+AC_INIT([Automated Testing Framework], [0.26.1],
         [freebsd-testing@freebsd.org], [atf],
         [https://github.com/freebsd/atf/])
 AC_PREREQ([2.68])
@@ -61,11 +61,8 @@ AS_HELP_STRING([--enable-asan], [Turn on AddressSanitizer]),,
 if test ${enable_asan} = yes; then
     AC_MSG_NOTICE([building with AddressSanitizer (ASAN)])
     enable_developer=yes
-    CFLAGS="${CFLAGS} -fsanitize=address"
     pc_cflags="${pc_cflags} -fsanitize=address"
-    CXXFLAGS="${CXXFLAGS} -fsanitize=address"
     pc_cxxflags="${pc_cxxflags} -fsanitize=address"
-    LDFLAGS="${LDFLAGS} -fsanitize=address"
     pc_ldflags="${pc_ldflags} -fsanitize=address"
 fi
 AM_CONDITIONAL([HAVE_ASAN], [test "${enable_asan}" = yes])
@@ -77,11 +74,8 @@ AS_HELP_STRING([--enable-code-coverage], [Turn on runtime code coverage]),,
 if test ${enable_code_coverage} = yes; then
     AC_MSG_NOTICE([building with code coverage])
     enable_developer=yes
-    CFLAGS="${CFLAGS} --coverage"
     pc_cflags="${pc_cflags} --coverage"
-    CXXFLAGS="${CXXFLAGS} --coverage"
     pc_cxxflags="${pc_cxxflags} --coverage"
-    LDFLAGS="${LDFLAGS} --coverage"
     pc_ldflags="${pc_ldflags} --coverage"
 fi
 AM_CONDITIONAL([CODE_COVERAGE], [test "${enable_code_coverage}" = yes])
@@ -93,11 +87,8 @@ AS_HELP_STRING([--enable-lsan], [Turn on LeakSanitizer]),,
 if test ${enable_lsan} = yes; then
     AC_MSG_NOTICE([building with LeakSanitizer (LSAN)])
     enable_developer=yes
-    CFLAGS="${CFLAGS} -fsanitize=leak"
     pc_cflags="${pc_cflags} -fsanitize=leak"
-    CXXFLAGS="${CXXFLAGS} -fsanitize=leak"
     pc_cxxflags="${pc_cxxflags} -fsanitize=leak"
-    LDFLAGS="${LDFLAGS} -fsanitize=leak"
     pc_ldflags="${pc_ldflags} -fsanitize=leak"
 fi
 AM_CONDITIONAL([HAVE_LSAN], [test "${enable_lsan}" = yes])
@@ -109,11 +100,8 @@ AS_HELP_STRING([--enable-ubsan], [Turn on UndefinedBehaviourSanitizer]),,
 if test ${enable_ubsan} = yes; then
     AC_MSG_NOTICE([building with UndefinedBehaviourSanitizer (UBSAN)])
     enable_developer=yes
-    CFLAGS="${CFLAGS} -fsanitize=undefined"
     pc_cflags="${pc_cflags} -fsanitize=undefined"
-    CXXFLAGS="${CXXFLAGS} -fsanitize=undefined"
     pc_cxxflags="${pc_cxxflags} -fsanitize=undefined"
-    LDFLAGS="${LDFLAGS} -fsanitize=undefined"
     pc_ldflags="${pc_ldflags} -fsanitize=undefined"
 fi
 AM_CONDITIONAL([HAVE_UBSAN], [test "${enable_ubsan}" = yes])

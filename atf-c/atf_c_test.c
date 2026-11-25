@@ -23,8 +23,9 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include <atf-c.h>
+/* SPDX-License-Identifier: BSD-2-Clause */
 
+#include "atf-c.h"
 #include "atf-c/detail/test_helpers.h"
 
 /* ---------------------------------------------------------------------

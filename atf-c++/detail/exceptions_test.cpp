@@ -23,8 +23,6 @@
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "atf-c++/detail/exceptions.hpp"
-
 extern "C" {
 #include "atf-c/error.h"
 }
@@ -32,8 +30,8 @@ extern "C" {
 #include <cstdio>
 #include <new>
 
-#include <atf-c++.hpp>
-
+#include "atf-c++.hpp"
+#include "atf-c++/detail/exceptions.hpp"
 #include "atf-c++/detail/sanity.hpp"
 
 // ------------------------------------------------------------------------
@@ -47,20 +45,18 @@ struct test_error_data {
 };
 typedef struct test_error_data test_error_data_t;
 
-static
-void
-test_format(const atf_error_t err, char *buf, size_t buflen)
+static void
+test_format(const atf_error_t err, char* buf, size_t buflen)
 {
     const test_error_data_t* data;
 
     PRE(atf_error_is(err, "test"));
 
-    data = static_cast< const test_error_data_t * >(atf_error_data(err));
+    data = static_cast<const test_error_data_t*>(atf_error_data(err));
     snprintf(buf, buflen, "Message: %s", data->m_msg);
 }
 
-static
-atf_error_t
+static atf_error_t
 test_error(const char* msg)
 {
     atf_error_t err;
@@ -82,8 +78,8 @@ test_error(const char* msg)
 ATF_TEST_CASE(throw_atf_error_libc);
 ATF_TEST_CASE_HEAD(throw_atf_error_libc)
 {
-    set_md_var("descr", "Tests the throw_atf_error function when raising "
-               "a libc error");
+    set_md_var("descr",
+               "Tests the throw_atf_error function when raising a libc error");
 }
 ATF_TEST_CASE_BODY(throw_atf_error_libc)
 {
@@ -92,7 +88,7 @@ ATF_TEST_CASE_BODY(throw_atf_error_libc)
     } catch (const atf::system_error& e) {
         ATF_REQUIRE(e.code() == 1);
         ATF_REQUIRE(std::string(e.what()).find("System error 1") !=
-                  std::string::npos);
+                    std::string::npos);
     } catch (const std::exception& e) {
         ATF_FAIL(std::string("Got unexpected exception: ") + e.what());
     }
@@ -101,8 +97,9 @@ ATF_TEST_CASE_BODY(throw_atf_error_libc)
 ATF_TEST_CASE(throw_atf_error_no_memory);
 ATF_TEST_CASE_HEAD(throw_atf_error_no_memory)
 {
-    set_md_var("descr", "Tests the throw_atf_error function when raising "
-               "a no_memory error");
+    set_md_var(
+        "descr",
+        "Tests the throw_atf_error function when raising a no_memory error");
 }
 ATF_TEST_CASE_BODY(throw_atf_error_no_memory)
 {
@@ -117,8 +114,9 @@ ATF_TEST_CASE_BODY(throw_atf_error_no_memory)
 ATF_TEST_CASE(throw_atf_error_unknown);
 ATF_TEST_CASE_HEAD(throw_atf_error_unknown)
 {
-    set_md_var("descr", "Tests the throw_atf_error function when raising "
-               "an unknown error");
+    set_md_var(
+        "descr",
+        "Tests the throw_atf_error function when raising an unknown error");
 }
 ATF_TEST_CASE_BODY(throw_atf_error_unknown)
 {

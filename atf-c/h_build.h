@@ -23,10 +23,12 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
+/* SPDX-License-Identifier: BSD-2-Clause */
+
 #if defined(ATF_C_H_BUILD_H)
-#   error "Cannot include h_build.h more than once."
+#error "Cannot include h_build.h more than once."
 #else
-#   define ATF_C_H_BUILD_H
+#define ATF_C_H_BUILD_H
 #endif
 
 /* ---------------------------------------------------------------------
@@ -34,15 +36,15 @@
  * --------------------------------------------------------------------- */
 
 static struct c_o_test {
-    const char *msg;
-    const char *cc;
-    const char *cflags;
-    const char *cppflags;
-    const char *sfile;
-    const char *ofile;
+    const char* msg;
+    const char* cc;
+    const char* cflags;
+    const char* cppflags;
+    const char* sfile;
+    const char* ofile;
     bool hasoptargs;
-    const char *const optargs[16];
-    const char *const expargv[16];
+    const char* const optargs[16];
+    const char* const expargv[16];
 } c_o_tests[] = {
     {
         "No flags",
@@ -52,12 +54,8 @@ static struct c_o_test {
         "test.c",
         "test.o",
         false,
-        {
-            NULL
-        },
-        {
-            "cc", "-o", "test.o", "-c", "test.c", NULL
-        },
+        { NULL },
+        { "cc", "-o", "test.o", "-c", "test.c", NULL },
     },
 
     {
@@ -68,12 +66,8 @@ static struct c_o_test {
         "test.c",
         "test.o",
         false,
-        {
-            NULL
-        },
-        {
-            "cc", "-foo", "-o", "test.o", "-c", "test.c", NULL
-        },
+        { NULL },
+        { "cc", "-foo", "-o", "test.o", "-c", "test.c", NULL },
     },
 
     {
@@ -84,13 +78,9 @@ static struct c_o_test {
         "test.c",
         "test.o",
         false,
-        {
-            NULL
-        },
-        {
-            "cc", "-f1", "-f2", "-f3", "-f4-f5", "-o", "test.o",
-            "-c", "test.c", NULL
-        },
+        { NULL },
+        { "cc", "-f1", "-f2", "-f3", "-f4-f5", "-o", "test.o", "-c", "test.c",
+          NULL },
     },
 
     {
@@ -101,13 +91,9 @@ static struct c_o_test {
         "test.c",
         "test.o",
         false,
-        {
-            NULL
-        },
-        {
-            "cc", "-f1", "-f2", "-f3", "-f4-f5", "-o", "test.o",
-            "-c", "test.c", NULL
-        },
+        { NULL },
+        { "cc", "-f1", "-f2", "-f3", "-f4-f5", "-o", "test.o", "-c", "test.c",
+          NULL },
     },
 
     {
@@ -118,12 +104,8 @@ static struct c_o_test {
         "test.c",
         "test.o",
         false,
-        {
-            NULL
-        },
-        {
-            "cc", "-f1", "-f2", "-o", "test.o", "-c", "test.c", NULL
-        },
+        { NULL },
+        { "cc", "-f1", "-f2", "-o", "test.o", "-c", "test.c", NULL },
     },
 
     {
@@ -134,12 +116,8 @@ static struct c_o_test {
         "test.c",
         "test.o",
         true,
-        {
-            "-o1", "-o2", NULL
-        },
-        {
-            "cc", "-o1", "-o2", "-o", "test.o", "-c", "test.c", NULL
-        },
+        { "-o1", "-o2", NULL },
+        { "cc", "-o1", "-o2", "-o", "test.o", "-c", "test.c", NULL },
     },
 
     {
@@ -150,13 +128,9 @@ static struct c_o_test {
         "test.c",
         "test.o",
         true,
-        {
-            "-o1", "-o2", NULL
-        },
-        {
-            "cc", "-f1", "-f2", "-o1", "-o2", "-o", "test.o",
-            "-c", "test.c", NULL
-        },
+        { "-o1", "-o2", NULL },
+        { "cc", "-f1", "-f2", "-o1", "-o2", "-o", "test.o", "-c", "test.c",
+          NULL },
     },
 
     {
@@ -173,14 +147,14 @@ static struct c_o_test {
 };
 
 static struct cpp_test {
-    const char *msg;
-    const char *cpp;
-    const char *cppflags;
-    const char *sfile;
-    const char *ofile;
+    const char* msg;
+    const char* cpp;
+    const char* cppflags;
+    const char* sfile;
+    const char* ofile;
     bool hasoptargs;
-    const char *const optargs[16];
-    const char *const expargv[16];
+    const char* const optargs[16];
+    const char* const expargv[16];
 } cpp_tests[] = {
     {
         "No flags",
@@ -189,12 +163,8 @@ static struct cpp_test {
         "test.c",
         "test.out",
         false,
-        {
-            NULL
-        },
-        {
-            "cpp", "-o", "test.out", "test.c", NULL
-        },
+        { NULL },
+        { "cpp", "-o", "test.out", "test.c", NULL },
     },
 
     {
@@ -204,12 +174,8 @@ static struct cpp_test {
         "test.c",
         "test.out",
         false,
-        {
-            NULL
-        },
-        {
-            "cpp", "-foo", "-o", "test.out", "test.c", NULL
-        },
+        { NULL },
+        { "cpp", "-foo", "-o", "test.out", "test.c", NULL },
     },
 
     {
@@ -219,13 +185,9 @@ static struct cpp_test {
         "test.c",
         "test.out",
         false,
-        {
-            NULL
-        },
-        {
-            "cpp", "-f1", "-f2", "-f3", "-f4-f5", "-o", "test.out",
-            "test.c", NULL
-        },
+        { NULL },
+        { "cpp", "-f1", "-f2", "-f3", "-f4-f5", "-o", "test.out", "test.c",
+          NULL },
     },
 
     {
@@ -235,12 +197,8 @@ static struct cpp_test {
         "test.c",
         "test.out",
         true,
-        {
-            "-o1", "-o2", NULL
-        },
-        {
-            "cpp", "-o1", "-o2", "-o", "test.out", "test.c", NULL
-        },
+        { "-o1", "-o2", NULL },
+        { "cpp", "-o1", "-o2", "-o", "test.out", "test.c", NULL },
     },
 
     {
@@ -250,12 +208,8 @@ static struct cpp_test {
         "test.c",
         "test.out",
         true,
-        {
-            "-o1", "-o2", NULL
-        },
-        {
-            "cpp", "-f1", "-o1", "-o2", "-o", "test.out", "test.c", NULL
-        },
+        { "-o1", "-o2", NULL },
+        { "cpp", "-f1", "-o1", "-o2", "-o", "test.out", "test.c", NULL },
     },
 
     {
@@ -271,15 +225,15 @@ static struct cpp_test {
 };
 
 static struct cxx_o_test {
-    const char *msg;
-    const char *cxx;
-    const char *cxxflags;
-    const char *cppflags;
-    const char *sfile;
-    const char *ofile;
+    const char* msg;
+    const char* cxx;
+    const char* cxxflags;
+    const char* cppflags;
+    const char* sfile;
+    const char* ofile;
     bool hasoptargs;
-    const char *const optargs[16];
-    const char *const expargv[16];
+    const char* const optargs[16];
+    const char* const expargv[16];
 } cxx_o_tests[] = {
     {
         "No flags",
@@ -289,12 +243,8 @@ static struct cxx_o_test {
         "test.c",
         "test.o",
         false,
-        {
-            NULL
-        },
-        {
-            "c++", "-o", "test.o", "-c", "test.c", NULL
-        },
+        { NULL },
+        { "c++", "-o", "test.o", "-c", "test.c", NULL },
     },
 
     {
@@ -305,12 +255,8 @@ static struct cxx_o_test {
         "test.c",
         "test.o",
         false,
-        {
-            NULL
-        },
-        {
-            "c++", "-foo", "-o", "test.o", "-c", "test.c", NULL
-        },
+        { NULL },
+        { "c++", "-foo", "-o", "test.o", "-c", "test.c", NULL },
     },
 
     {
@@ -321,13 +267,9 @@ static struct cxx_o_test {
         "test.c",
         "test.o",
         false,
-        {
-            NULL
-        },
-        {
-            "c++", "-f1", "-f2", "-f3", "-f4-f5", "-o", "test.o",
-            "-c", "test.c", NULL
-        },
+        { NULL },
+        { "c++", "-f1", "-f2", "-f3", "-f4-f5", "-o", "test.o", "-c", "test.c",
+          NULL },
     },
 
     {
@@ -338,13 +280,9 @@ static struct cxx_o_test {
         "test.c",
         "test.o",
         false,
-        {
-            NULL
-        },
-        {
-            "c++", "-f1", "-f2", "-f3", "-f4-f5", "-o", "test.o",
-            "-c", "test.c", NULL
-        },
+        { NULL },
+        { "c++", "-f1", "-f2", "-f3", "-f4-f5", "-o", "test.o", "-c", "test.c",
+          NULL },
     },
 
     {
@@ -355,12 +293,8 @@ static struct cxx_o_test {
         "test.c",
         "test.o",
         false,
-        {
-            NULL
-        },
-        {
-            "c++", "-f1", "-f2", "-o", "test.o", "-c", "test.c", NULL
-        },
+        { NULL },
+        { "c++", "-f1", "-f2", "-o", "test.o", "-c", "test.c", NULL },
     },
 
     {
@@ -371,12 +305,8 @@ static struct cxx_o_test {
         "test.c",
         "test.o",
         true,
-        {
-            "-o1", "-o2", NULL
-        },
-        {
-            "c++", "-o1", "-o2", "-o", "test.o", "-c", "test.c", NULL
-        },
+        { "-o1", "-o2", NULL },
+        { "c++", "-o1", "-o2", "-o", "test.o", "-c", "test.c", NULL },
     },
 
     {
@@ -387,13 +317,9 @@ static struct cxx_o_test {
         "test.c",
         "test.o",
         true,
-        {
-            "-o1", "-o2", NULL
-        },
-        {
-            "c++", "-f1", "-f2", "-o1", "-o2", "-o", "test.o",
-            "-c", "test.c", NULL
-        },
+        { "-o1", "-o2", NULL },
+        { "c++", "-f1", "-f2", "-o1", "-o2", "-o", "test.o", "-c", "test.c",
+          NULL },
     },
 
     {

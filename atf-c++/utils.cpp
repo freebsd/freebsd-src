@@ -73,7 +73,6 @@ atf::utils::fork(void)
 void
 atf::utils::reset_resultsfile(void)
 {
-
     atf_utils_reset_resultsfile();
 }
 

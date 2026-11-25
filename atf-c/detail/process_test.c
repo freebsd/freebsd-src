@@ -23,11 +23,11 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "atf-c/detail/process.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
 #include <sys/types.h>
-#include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/time.h>
 #include <sys/wait.h>
 
 #include <errno.h>
@@ -38,13 +38,13 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <atf-c.h>
-
+#include "atf-c.h"
 #include "atf-c/defs.h"
+#include "atf-c/detail/process.h"
 #include "atf-c/detail/sanity.h"
 #include "atf-c/detail/test_helpers.h"
 
-atf_error_t atf_process_status_init(atf_process_status_t *, siginfo_t *);
+atf_error_t atf_process_status_init(atf_process_status_t*, siginfo_t*);
 
 /* ---------------------------------------------------------------------
  * Auxiliary functions for testing of 'atf_process_fork'.
@@ -67,26 +67,22 @@ atf_error_t atf_process_status_init(atf_process_status_t *, siginfo_t *);
 enum out_type { stdout_type, stderr_type };
 
 struct base_stream {
-    void (*init)(void *);
-    void (*process)(void *, atf_process_child_t *);
-    void (*fini)(void *);
+    void (*init)(void*);
+    void (*process)(void*, atf_process_child_t*);
+    void (*fini)(void*);
 
     /* m_sb is initialized by subclasses that need it, but all consumers
      * must use m_sb_ptr, which may or may not point to m_sb.  This allows
      * us to test the interface with a NULL value, which triggers a
      * default behavior. */
     atf_process_stream_t m_sb;
-    atf_process_stream_t *m_sb_ptr;
+    atf_process_stream_t* m_sb_ptr;
     enum out_type m_type;
 };
 #define BASE_STREAM(ihook, phook, fhook, type) \
-    { .init = ihook, \
-      .process = phook, \
-      .fini = fhook, \
-      .m_type = type }
+    { .init = ihook, .process = phook, .fini = fhook, .m_type = type }
 
-static
-void
+static void
 check_file(const enum out_type type)
 {
     switch (type) {
@@ -106,30 +102,26 @@ check_file(const enum out_type type)
 struct capture_stream {
     struct base_stream m_base;
 
-    char *m_msg;
+    char* m_msg;
 };
-#define CAPTURE_STREAM(type) \
-    { .m_base = BASE_STREAM(capture_stream_init, \
-                            capture_stream_process, \
-                            capture_stream_fini, \
-                            type) }
+#define CAPTURE_STREAM(type)                                             \
+    { .m_base = BASE_STREAM(capture_stream_init, capture_stream_process, \
+                            capture_stream_fini, type) }
 
-static
-void
-capture_stream_init(void *v)
+static void
+capture_stream_init(void* v)
 {
-    struct capture_stream *s = v;
+    struct capture_stream* s = v;
 
     s->m_base.m_sb_ptr = &s->m_base.m_sb;
     RE(atf_process_stream_init_capture(&s->m_base.m_sb));
     s->m_msg = NULL;
 }
 
-static
-void
-capture_stream_process(void *v, atf_process_child_t *c)
+static void
+capture_stream_process(void* v, atf_process_child_t* c)
 {
-    struct capture_stream *s = v;
+    struct capture_stream* s = v;
 
     switch (s->m_base.m_type) {
     case stdout_type:
@@ -143,11 +135,10 @@ capture_stream_process(void *v, atf_process_child_t *c)
     }
 }
 
-static
-void
-capture_stream_fini(void *v)
+static void
+capture_stream_fini(void* v)
 {
-    struct capture_stream *s = v;
+    struct capture_stream* s = v;
 
     switch (s->m_base.m_type) {
     case stdout_type:
@@ -172,17 +163,14 @@ struct connect_stream {
 
     int m_fd;
 };
-#define CONNECT_STREAM(type) \
-    { .m_base = BASE_STREAM(connect_stream_init, \
-                            NULL, \
-                            connect_stream_fini, \
+#define CONNECT_STREAM(type)                                                \
+    { .m_base = BASE_STREAM(connect_stream_init, NULL, connect_stream_fini, \
                             type) }
 
-static
-void
-connect_stream_init(void *v)
+static void
+connect_stream_init(void* v)
 {
-    struct connect_stream *s = v;
+    struct connect_stream* s = v;
     int src_fd;
 
     switch (s->m_base.m_type) {
@@ -204,11 +192,10 @@ connect_stream_init(void *v)
     RE(atf_process_stream_init_connect(&s->m_base.m_sb, src_fd, s->m_fd));
 }
 
-static
-void
-connect_stream_fini(void *v)
+static void
+connect_stream_fini(void* v)
 {
-    struct connect_stream *s = v;
+    struct connect_stream* s = v;
 
     ATF_REQUIRE(close(s->m_fd) != -1);
 
@@ -223,18 +210,15 @@ struct inherit_stream {
 
     int m_old_fd;
 };
-#define INHERIT_STREAM(type) \
-    { .m_base = BASE_STREAM(inherit_stream_init, \
-                            NULL, \
-                            inherit_stream_fini, \
+#define INHERIT_STREAM(type)                                                \
+    { .m_base = BASE_STREAM(inherit_stream_init, NULL, inherit_stream_fini, \
                             type) }
 
-static
-void
-inherit_stream_init(void *v)
+static void
+inherit_stream_init(void* v)
 {
-    struct inherit_stream *s = v;
-    const char *name;
+    struct inherit_stream* s = v;
+    const char* name;
 
     s->m_base.m_sb_ptr = &s->m_base.m_sb;
     RE(atf_process_stream_init_inherit(&s->m_base.m_sb));
@@ -256,15 +240,13 @@ inherit_stream_init(void *v)
     s->m_old_fd = dup(s->m_fd);
     ATF_REQUIRE(s->m_old_fd != -1);
     ATF_REQUIRE(close(s->m_fd) != -1);
-    ATF_REQUIRE_EQ(open(name, O_WRONLY | O_CREAT | O_TRUNC, 0644),
-                   s->m_fd);
+    ATF_REQUIRE_EQ(open(name, O_WRONLY | O_CREAT | O_TRUNC, 0644), s->m_fd);
 }
 
-static
-void
-inherit_stream_fini(void *v)
+static void
+inherit_stream_fini(void* v)
 {
-    struct inherit_stream *s = v;
+    struct inherit_stream* s = v;
 
     ATF_REQUIRE(dup2(s->m_old_fd, s->m_fd) != -1);
     ATF_REQUIRE(close(s->m_old_fd) != -1);
@@ -275,25 +257,21 @@ inherit_stream_fini(void *v)
 }
 
 #define default_stream inherit_stream
-#define DEFAULT_STREAM(type) \
-    { .m_base = BASE_STREAM(default_stream_init, \
-                            NULL, \
-                            default_stream_fini, \
+#define DEFAULT_STREAM(type)                                                \
+    { .m_base = BASE_STREAM(default_stream_init, NULL, default_stream_fini, \
                             type) }
 
-static
-void
-default_stream_init(void *v)
+static void
+default_stream_init(void* v)
 {
-    struct inherit_stream *s = v;
+    struct inherit_stream* s = v;
 
     inherit_stream_init(v);
     s->m_base.m_sb_ptr = NULL;
 }
 
-static
-void
-default_stream_fini(void *v)
+static void
+default_stream_fini(void* v)
 {
     inherit_stream_fini(v);
 }
@@ -303,17 +281,14 @@ struct redirect_fd_stream {
 
     int m_fd;
 };
-#define REDIRECT_FD_STREAM(type) \
-    { .m_base = BASE_STREAM(redirect_fd_stream_init, \
-                            NULL, \
-                            redirect_fd_stream_fini, \
-                            type) }
+#define REDIRECT_FD_STREAM(type)                           \
+    { .m_base = BASE_STREAM(redirect_fd_stream_init, NULL, \
+                            redirect_fd_stream_fini, type) }
 
-static
-void
-redirect_fd_stream_init(void *v)
+static void
+redirect_fd_stream_init(void* v)
 {
-    struct redirect_fd_stream *s = v;
+    struct redirect_fd_stream* s = v;
 
     switch (s->m_base.m_type) {
     case stdout_type:
@@ -331,11 +306,10 @@ redirect_fd_stream_init(void *v)
     RE(atf_process_stream_init_redirect_fd(&s->m_base.m_sb, s->m_fd));
 }
 
-static
-void
-redirect_fd_stream_fini(void *v)
+static void
+redirect_fd_stream_fini(void* v)
 {
-    struct redirect_fd_stream *s = v;
+    struct redirect_fd_stream* s = v;
 
     ATF_REQUIRE(close(s->m_fd) != -1);
 
@@ -349,17 +323,14 @@ struct redirect_path_stream {
 
     atf_fs_path_t m_path;
 };
-#define REDIRECT_PATH_STREAM(type) \
-    { .m_base = BASE_STREAM(redirect_path_stream_init, \
-                            NULL, \
-                            redirect_path_stream_fini, \
-                            type) }
+#define REDIRECT_PATH_STREAM(type)                           \
+    { .m_base = BASE_STREAM(redirect_path_stream_init, NULL, \
+                            redirect_path_stream_fini, type) }
 
-static
-void
-redirect_path_stream_init(void *v)
+static void
+redirect_path_stream_init(void* v)
 {
-    struct redirect_path_stream *s = v;
+    struct redirect_path_stream* s = v;
 
     switch (s->m_base.m_type) {
     case stdout_type:
@@ -376,11 +347,10 @@ redirect_path_stream_init(void *v)
     RE(atf_process_stream_init_redirect_path(&s->m_base.m_sb, &s->m_path));
 }
 
-static
-void
-redirect_path_stream_fini(void *v)
+static void
+redirect_path_stream_fini(void* v)
 {
-    struct redirect_path_stream *s = v;
+    struct redirect_path_stream* s = v;
 
     atf_process_stream_fini(&s->m_base.m_sb);
 
@@ -389,17 +359,16 @@ redirect_path_stream_fini(void *v)
     check_file(s->m_base.m_type);
 }
 
-static void child_print(void *) ATF_DEFS_ATTRIBUTE_NORETURN;
+static void child_print(void*) ATF_DEFS_ATTRIBUTE_NORETURN;
 
 struct child_print_data {
-    const char *m_msg;
+    const char* m_msg;
 };
 
-static
-void
-child_print(void *v)
+static void
+child_print(void* v)
 {
-    struct child_print_data *cpd = v;
+    struct child_print_data* cpd = v;
 
     fprintf(stdout, "stdout: %s\n", cpd->m_msg);
     fprintf(stderr, "stderr: %s\n", cpd->m_msg);
@@ -407,10 +376,9 @@ child_print(void *v)
     exit(EXIT_SUCCESS);
 }
 
-static
-void
-do_fork(const struct base_stream *outfs, void *out,
-        const struct base_stream *errfs, void *err)
+static void
+do_fork(const struct base_stream* outfs, void* out,
+        const struct base_stream* errfs, void* err)
 {
     atf_process_child_t child;
     atf_process_status_t status;
@@ -419,8 +387,8 @@ do_fork(const struct base_stream *outfs, void *out,
     outfs->init(out);
     errfs->init(err);
 
-    RE(atf_process_fork(&child, child_print, outfs->m_sb_ptr,
-                        errfs->m_sb_ptr, &cpd));
+    RE(atf_process_fork(&child, child_print, outfs->m_sb_ptr, errfs->m_sb_ptr,
+                        &cpd));
     if (outfs->process != NULL)
         outfs->process(out, &child);
     if (errfs->process != NULL)
@@ -440,7 +408,8 @@ do_fork(const struct base_stream *outfs, void *out,
 ATF_TC(stream_init_capture);
 ATF_TC_HEAD(stream_init_capture, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the "
                       "atf_process_stream_init_capture function");
 }
 ATF_TC_BODY(stream_init_capture, tc)
@@ -449,8 +418,7 @@ ATF_TC_BODY(stream_init_capture, tc)
 
     RE(atf_process_stream_init_capture(&sb));
 
-    ATF_CHECK_EQ(atf_process_stream_type(&sb),
-                 atf_process_stream_type_capture);
+    ATF_CHECK_EQ(atf_process_stream_type(&sb), atf_process_stream_type_capture);
 
     atf_process_stream_fini(&sb);
 }
@@ -458,7 +426,8 @@ ATF_TC_BODY(stream_init_capture, tc)
 ATF_TC(stream_init_connect);
 ATF_TC_HEAD(stream_init_connect, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the "
                       "atf_process_stream_init_connect function");
 }
 ATF_TC_BODY(stream_init_connect, tc)
@@ -467,8 +436,7 @@ ATF_TC_BODY(stream_init_connect, tc)
 
     RE(atf_process_stream_init_connect(&sb, 1, 2));
 
-    ATF_CHECK_EQ(atf_process_stream_type(&sb),
-                 atf_process_stream_type_connect);
+    ATF_CHECK_EQ(atf_process_stream_type(&sb), atf_process_stream_type_connect);
 
     atf_process_stream_fini(&sb);
 }
@@ -476,7 +444,8 @@ ATF_TC_BODY(stream_init_connect, tc)
 ATF_TC(stream_init_inherit);
 ATF_TC_HEAD(stream_init_inherit, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the "
                       "atf_process_stream_init_inherit function");
 }
 ATF_TC_BODY(stream_init_inherit, tc)
@@ -485,8 +454,7 @@ ATF_TC_BODY(stream_init_inherit, tc)
 
     RE(atf_process_stream_init_inherit(&sb));
 
-    ATF_CHECK_EQ(atf_process_stream_type(&sb),
-                 atf_process_stream_type_inherit);
+    ATF_CHECK_EQ(atf_process_stream_type(&sb), atf_process_stream_type_inherit);
 
     atf_process_stream_fini(&sb);
 }
@@ -494,7 +462,8 @@ ATF_TC_BODY(stream_init_inherit, tc)
 ATF_TC(stream_init_redirect_fd);
 ATF_TC_HEAD(stream_init_redirect_fd, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the "
                       "atf_process_stream_init_redirect_fd function");
 }
 ATF_TC_BODY(stream_init_redirect_fd, tc)
@@ -512,7 +481,8 @@ ATF_TC_BODY(stream_init_redirect_fd, tc)
 ATF_TC(stream_init_redirect_path);
 ATF_TC_HEAD(stream_init_redirect_path, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the "
                       "atf_process_stream_init_redirect_path function");
 }
 ATF_TC_BODY(stream_init_redirect_path, tc)
@@ -573,9 +543,8 @@ child_sigterm(void)
     abort();
 }
 
-static
-void
-fork_and_wait_child(void (*child_func)(void), siginfo_t *info)
+static void
+fork_and_wait_child(void (*child_func)(void), siginfo_t* info)
 {
     pid_t pid;
 
@@ -592,7 +561,8 @@ fork_and_wait_child(void (*child_func)(void), siginfo_t *info)
 ATF_TC(status_exited);
 ATF_TC_HEAD(status_exited, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the status type for processes "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the status type for processes "
                       "that exit cleanly");
 }
 ATF_TC_BODY(status_exited, tc)
@@ -623,7 +593,8 @@ ATF_TC_BODY(status_exited, tc)
 ATF_TC(status_signaled);
 ATF_TC_HEAD(status_signaled, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the status type for processes "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the status type for processes "
                       "that end due to a signal");
 }
 ATF_TC_BODY(status_signaled, tc)
@@ -656,7 +627,8 @@ ATF_TC_BODY(status_signaled, tc)
 ATF_TC(status_coredump);
 ATF_TC_HEAD(status_coredump, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the status type for processes "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the status type for processes "
                       "that crash");
 }
 ATF_TC_BODY(status_coredump, tc)
@@ -676,8 +648,7 @@ ATF_TC_BODY(status_coredump, tc)
      * TODO(ngie,144): this test fails when run locally on my machines, but not
      * in the GHA container images.
      */
-    atf_tc_skip(
-        "atf_process_status_coredump check fails on macOS");
+    atf_tc_skip("atf_process_status_coredump check fails on macOS");
 #endif
 
     siginfo_t info;
@@ -695,11 +666,10 @@ ATF_TC_BODY(status_coredump, tc)
  * Test cases for the "child" type.
  * --------------------------------------------------------------------- */
 
-static void child_report_pid(void *) ATF_DEFS_ATTRIBUTE_NORETURN;
+static void child_report_pid(void*) ATF_DEFS_ATTRIBUTE_NORETURN;
 
-static
-void
-child_report_pid(void *v ATF_DEFS_ATTRIBUTE_UNUSED)
+static void
+child_report_pid(void* v ATF_DEFS_ATTRIBUTE_UNUSED)
 {
     const pid_t pid = getpid();
     if (write(STDOUT_FILENO, &pid, sizeof(pid)) != sizeof(pid))
@@ -711,7 +681,8 @@ child_report_pid(void *v ATF_DEFS_ATTRIBUTE_UNUSED)
 ATF_TC(child_pid);
 ATF_TC_HEAD(child_pid, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the correctness of the pid "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the correctness of the pid "
                       "stored in the child type");
 }
 ATF_TC_BODY(child_pid, tc)
@@ -738,35 +709,32 @@ ATF_TC_BODY(child_pid, tc)
     atf_process_stream_fini(&errsb);
 }
 
-static
-void
-child_loop(void *v ATF_DEFS_ATTRIBUTE_UNUSED)
+static void
+child_loop(void* v ATF_DEFS_ATTRIBUTE_UNUSED)
 {
     for (;;)
         sleep(1);
 }
 
-static
-void
+static void
 nop_signal(int sig ATF_DEFS_ATTRIBUTE_UNUSED)
 {
 }
 
-static
-void
-child_spawn_loop_and_wait_eintr(void *v ATF_DEFS_ATTRIBUTE_UNUSED)
+static void
+child_spawn_loop_and_wait_eintr(void* v ATF_DEFS_ATTRIBUTE_UNUSED)
 {
     atf_process_child_t child;
     atf_process_status_t status;
     struct sigaction sighup, old_sighup;
 
-#define RE_ABORT(expr) \
-    do { \
-        atf_error_t _aux_err = expr; \
+#define RE_ABORT(expr)                \
+    do {                              \
+        atf_error_t _aux_err = expr;  \
         if (atf_is_error(_aux_err)) { \
             atf_error_free(_aux_err); \
-            abort(); \
-        } \
+            abort();                  \
+        }                             \
     } while (0)
 
     {
@@ -821,7 +789,8 @@ child_spawn_loop_and_wait_eintr(void *v ATF_DEFS_ATTRIBUTE_UNUSED)
 ATF_TC(child_wait_eintr);
 ATF_TC_HEAD(child_wait_eintr, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the interruption of the wait "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the interruption of the wait "
                       "method by an external signal, and the return of "
                       "an EINTR error");
     atf_tc_set_md_var(tc, "timeout", "30");
@@ -836,8 +805,8 @@ ATF_TC_BODY(child_wait_eintr, tc)
 
         RE(atf_process_stream_init_capture(&outsb));
         RE(atf_process_stream_init_inherit(&errsb));
-        RE(atf_process_fork(&child, child_spawn_loop_and_wait_eintr,
-                            &outsb, &errsb, NULL));
+        RE(atf_process_fork(&child, child_spawn_loop_and_wait_eintr, &outsb,
+                            &errsb, NULL));
         atf_process_stream_fini(&outsb);
         atf_process_stream_fini(&errsb);
     }
@@ -849,8 +818,8 @@ ATF_TC_BODY(child_wait_eintr, tc)
          * to do this. */
         char buf[16];
         printf("Waiting for child to issue wait(2)\n");
-        ATF_REQUIRE(read(atf_process_child_stdout(&child), buf,
-                         sizeof(buf)) > 0);
+        ATF_REQUIRE(read(atf_process_child_stdout(&child), buf, sizeof(buf)) >
+                    0);
         sleep(1);
     }
 
@@ -868,13 +837,12 @@ ATF_TC_BODY(child_wait_eintr, tc)
  * Tests cases for the free functions.
  * --------------------------------------------------------------------- */
 
-static
-void
-do_exec(const atf_tc_t *tc, const char *helper_name, atf_process_status_t *s,
+static void
+do_exec(const atf_tc_t* tc, const char* helper_name, atf_process_status_t* s,
         void (*prehook)(void))
 {
     atf_fs_path_t process_helpers;
-    const char *argv[3];
+    const char* argv[3];
 
     get_process_helpers_path(tc, true, &process_helpers);
 
@@ -887,11 +855,10 @@ do_exec(const atf_tc_t *tc, const char *helper_name, atf_process_status_t *s,
     atf_fs_path_fini(&process_helpers);
 }
 
-static
-void
-check_line(int fd, const char *exp)
+static void
+check_line(int fd, const char* exp)
 {
-    char *line = atf_utils_readline(fd);
+    char* line = atf_utils_readline(fd);
     ATF_CHECK(line != NULL);
     ATF_CHECK_STREQ_MSG(exp, line, "read: '%s', expected: '%s'", line, exp);
     free(line);
@@ -935,8 +902,8 @@ ATF_TC_BODY(exec_list, tc)
 
         RE(atf_fs_path_init_fmt(&outpath, "stdout"));
         RE(atf_process_stream_init_redirect_path(&outsb, &outpath));
-        RE(atf_process_exec_list(&status, &process_helpers, &argv, &outsb,
-                                 NULL, NULL));
+        RE(atf_process_exec_list(&status, &process_helpers, &argv, &outsb, NULL,
+                                 NULL));
         atf_process_stream_fini(&outsb);
         atf_fs_path_fini(&outpath);
     }
@@ -995,9 +962,8 @@ ATF_TC_BODY(exec_success, tc)
 static const int exit_v_null = 1;
 static const int exit_v_notnull = 2;
 
-static
-void
-child_cookie(void *v)
+static void
+child_cookie(void* v)
 {
     if (v == NULL)
         exit(exit_v_null);
@@ -1010,7 +976,8 @@ child_cookie(void *v)
 ATF_TC(fork_cookie);
 ATF_TC_HEAD(fork_cookie, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests forking a child, with "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests forking a child, with "
                       "a null and non-null data cookie");
 }
 ATF_TC_BODY(fork_cookie, tc)
@@ -1051,18 +1018,19 @@ ATF_TC_BODY(fork_cookie, tc)
     atf_process_stream_fini(&outsb);
 }
 
-#define TC_FORK_STREAMS(outlc, outuc, errlc, erruc) \
-    ATF_TC(fork_out_ ## outlc ## _err_ ## errlc); \
-    ATF_TC_HEAD(fork_out_ ## outlc ## _err_ ## errlc, tc) \
-    { \
-        atf_tc_set_md_var(tc, "descr", "Tests forking a child, with " \
+#define TC_FORK_STREAMS(outlc, outuc, errlc, erruc)                \
+    ATF_TC(fork_out_##outlc##_err_##errlc);                        \
+    ATF_TC_HEAD(fork_out_##outlc##_err_##errlc, tc)                \
+    {                                                              \
+        atf_tc_set_md_var(tc, "descr",                             \
+                          "Tests forking a child, with "           \
                           "stdout " #outlc " and stderr " #errlc); \
-    } \
-    ATF_TC_BODY(fork_out_ ## outlc ## _err_ ## errlc, tc) \
-    { \
-        struct outlc ## _stream out = outuc ## _STREAM(stdout_type); \
-        struct errlc ## _stream err = erruc ## _STREAM(stderr_type); \
-        do_fork(&out.m_base, &out, &err.m_base, &err); \
+    }                                                              \
+    ATF_TC_BODY(fork_out_##outlc##_err_##errlc, tc)                \
+    {                                                              \
+        struct outlc##_stream out = outuc##_STREAM(stdout_type);   \
+        struct errlc##_stream err = erruc##_STREAM(stderr_type);   \
+        do_fork(&out.m_base, &out, &err.m_base, &err);             \
     }
 
 TC_FORK_STREAMS(capture, CAPTURE, capture, CAPTURE);

@@ -41,21 +41,19 @@ namespace impl = atf::build;
 // Auxiliary functions.
 // ------------------------------------------------------------------------
 
-inline
-atf::process::argv_array
+inline atf::process::argv_array
 cargv_to_argv(const atf_list_t* l)
 {
-    std::vector< const char* > aux;
+    std::vector<const char*> aux;
 
     atf_list_citer_t iter;
     atf_list_for_each_c(iter, l)
-        aux.push_back(static_cast< const char* >(atf_list_citer_data(iter)));
+        aux.push_back(static_cast<const char*>(atf_list_citer_data(iter)));
 
     return atf::process::argv_array(aux);
 }
 
-inline
-atf::process::argv_array
+inline atf::process::argv_array
 cargv_to_argv_and_free(char** l)
 {
     try {

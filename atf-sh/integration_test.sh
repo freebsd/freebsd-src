@@ -54,11 +54,11 @@ EOF
 atf_test_case arguments
 arguments_body()
 {
-    create_test_program tp <<EOF
+    create_test_program tp <<'EOF'
 main() {
-    echo ">>>\${0}<<<"
-    while test \${#} -gt 0; do
-        echo ">>>\${1}<<<"
+    echo ">>>${0}<<<"
+    while test ${#} -gt 0; do
+        echo ">>>${1}<<<"
         shift
     done
     true
@@ -89,10 +89,10 @@ This is the custom shell
 This is the test program
 EOF
 
-    cat >custom-shell <<EOF
+    cat >custom-shell <<'EOF'
 #! /bin/sh
 echo "This is the custom shell"
-exec /bin/sh "\${@}"
+exec /bin/sh "${@}"
 EOF
     chmod +x custom-shell
 
@@ -108,10 +108,10 @@ This is the custom shell
 This is the test program
 EOF
 
-    cat >custom-shell <<EOF
+    cat >custom-shell <<'EOF'
 #! /bin/sh
 echo "This is the custom shell"
-exec /bin/sh "\${@}"
+exec /bin/sh "${@}"
 EOF
     chmod +x custom-shell
 
@@ -128,9 +128,9 @@ set_e_head()
 }
 set_e_body()
 {
-    cat >custom-shell <<EOF
+    cat >custom-shell <<'EOF'
 #! /bin/sh
-exec /bin/sh -e "\${@}"
+exec /bin/sh -e "${@}"
 EOF
     chmod +x custom-shell
 

@@ -23,25 +23,24 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "atf-c/error.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-#include <atf-c.h>
-
+#include "atf-c.h"
 #include "atf-c/defs.h"
+#include "atf-c/error.h"
 
 /* ---------------------------------------------------------------------
  * Auxiliary functions.
  * --------------------------------------------------------------------- */
 
-static
-void
-test_format(const atf_error_t err ATF_DEFS_ATTRIBUTE_UNUSED,
-            char *buf, size_t buflen)
+static void
+test_format(const atf_error_t err ATF_DEFS_ATTRIBUTE_UNUSED, char* buf,
+            size_t buflen)
 {
     snprintf(buf, buflen, "Test formatting function");
 }
@@ -53,7 +52,8 @@ test_format(const atf_error_t err ATF_DEFS_ATTRIBUTE_UNUSED,
 ATF_TC(error_new);
 ATF_TC_HEAD(error_new, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks the construction of an error "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks the construction of an error "
                       "object");
 }
 ATF_TC_BODY(error_new, tc)
@@ -72,24 +72,25 @@ ATF_TC_BODY(error_new, tc)
     ATF_REQUIRE(atf_error_is(err, "test_data_error"));
     ATF_REQUIRE(!atf_error_is(err, "unknown_error"));
     ATF_REQUIRE(atf_error_data(err) != NULL);
-    ATF_REQUIRE_EQ(*((const int *)atf_error_data(err)), 5);
+    ATF_REQUIRE_EQ(*((const int*)atf_error_data(err)), 5);
     atf_error_free(err);
 }
 
 ATF_TC(error_new_wo_memory);
 ATF_TC_HEAD(error_new_wo_memory, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks that an unavailable memory error "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks that an unavailable memory error "
                       "raised when constructing an error object "
-                            "is properly converted to the no_memory "
-                            "static error type");
+                      "is properly converted to the no_memory "
+                      "static error type");
 }
 ATF_TC_BODY(error_new_wo_memory, tc)
 {
     atf_error_t err;
-    void *invalid;
+    void* invalid;
 
-    invalid = (void *)1;
+    invalid = (void*)1;
 
     err = atf_error_new("test_error", invalid, SIZE_MAX, NULL);
     ATF_REQUIRE(atf_error_is(err, "no_memory"));
@@ -100,7 +101,8 @@ ATF_TC_BODY(error_new_wo_memory, tc)
 ATF_TC(no_error);
 ATF_TC_HEAD(no_error, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks that constructing a non-error "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks that constructing a non-error "
                       "object works");
 }
 ATF_TC_BODY(no_error, tc)
@@ -114,7 +116,8 @@ ATF_TC_BODY(no_error, tc)
 ATF_TC(is_error);
 ATF_TC_HEAD(is_error, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks the is_error method to determine "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks the is_error method to determine "
                       "if an error object holds success or an error");
 }
 ATF_TC_BODY(is_error, tc)
@@ -132,7 +135,8 @@ ATF_TC_BODY(is_error, tc)
 ATF_TC(format);
 ATF_TC_HEAD(format, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks the default formatting function "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks the default formatting function "
                       "and the ability to change it");
 }
 ATF_TC_BODY(format, tc)
@@ -217,7 +221,8 @@ ATF_TC_BODY(libc_format, tc)
 ATF_TC(no_memory_new);
 ATF_TC_HEAD(no_memory_new, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks the construction of no_memory "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks the construction of no_memory "
                       "errors");
 }
 ATF_TC_BODY(no_memory_new, tc)
@@ -233,7 +238,8 @@ ATF_TC_BODY(no_memory_new, tc)
 ATF_TC(no_memory_format);
 ATF_TC_HEAD(no_memory_format, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks the formatting of no_memory "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks the formatting of no_memory "
                       "errors");
 }
 ATF_TC_BODY(no_memory_format, tc)
@@ -250,7 +256,8 @@ ATF_TC_BODY(no_memory_format, tc)
 ATF_TC(no_memory_twice);
 ATF_TC_HEAD(no_memory_twice, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks the construction of no_memory "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks the construction of no_memory "
                       "errors multiple times, as this error is initialized "
                       "statically");
 }

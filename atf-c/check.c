@@ -23,7 +23,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "atf-c/check.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
 #include <sys/wait.h>
 
@@ -36,6 +36,7 @@
 #include <unistd.h>
 
 #include "atf-c/build.h"
+#include "atf-c/check.h"
 #include "atf-c/defs.h"
 #include "atf-c/detail/dynstr.h"
 #include "atf-c/detail/env.h"
@@ -50,9 +51,8 @@
  * Auxiliary functions.
  * --------------------------------------------------------------------- */
 
-static
-atf_error_t
-create_tmpdir(atf_fs_path_t *dir)
+static atf_error_t
+create_tmpdir(atf_fs_path_t* dir)
 {
     atf_error_t err;
 
@@ -72,10 +72,9 @@ out:
     return err;
 }
 
-static
-void
-cleanup_tmpdir(const atf_fs_path_t *dir, const atf_fs_path_t *outfile,
-               const atf_fs_path_t *errfile)
+static void
+cleanup_tmpdir(const atf_fs_path_t* dir, const atf_fs_path_t* outfile,
+               const atf_fs_path_t* errfile)
 {
     {
         atf_error_t err = atf_fs_unlink(outfile);
@@ -103,18 +102,16 @@ cleanup_tmpdir(const atf_fs_path_t *dir, const atf_fs_path_t *outfile,
     }
 }
 
-static
-int
-const_execvp(const char *file, const char *const *argv)
+static int
+const_execvp(const char* file, const char* const* argv)
 {
-#define UNCONST(a) ((void *)(uintptr_t)(const void *)(a))
+#define UNCONST(a) ((void*)(uintptr_t)(const void*)(a))
     return execvp(file, UNCONST(argv));
 #undef UNCONST
 }
 
-static
-atf_error_t
-init_sb(const atf_fs_path_t *path, atf_process_stream_t *sb)
+static atf_error_t
+init_sb(const atf_fs_path_t* path, atf_process_stream_t* sb)
 {
     atf_error_t err;
 
@@ -126,10 +123,9 @@ init_sb(const atf_fs_path_t *path, atf_process_stream_t *sb)
     return err;
 }
 
-static
-atf_error_t
-init_sbs(const atf_fs_path_t *outfile, atf_process_stream_t *outsb,
-         const atf_fs_path_t *errfile, atf_process_stream_t *errsb)
+static atf_error_t
+init_sbs(const atf_fs_path_t* outfile, atf_process_stream_t* outsb,
+         const atf_fs_path_t* errfile, atf_process_stream_t* errsb)
 {
     atf_error_t err;
 
@@ -148,26 +144,24 @@ out:
 }
 
 struct exec_data {
-    const char *const *m_argv;
+    const char* const* m_argv;
 };
 
-static void exec_child(void *) ATF_DEFS_ATTRIBUTE_NORETURN;
+static void exec_child(void*) ATF_DEFS_ATTRIBUTE_NORETURN;
 
-static
-void
-exec_child(void *v)
+static void
+exec_child(void* v)
 {
-    struct exec_data *ea = v;
+    struct exec_data* ea = v;
 
     const_execvp(ea->m_argv[0], ea->m_argv);
     fprintf(stderr, "execvp(%s) failed: %s\n", ea->m_argv[0], strerror(errno));
     exit(127);
 }
 
-static
-atf_error_t
-fork_and_wait(const char *const *argv, const atf_fs_path_t *outfile,
-              const atf_fs_path_t *errfile, atf_process_status_t *status)
+static atf_error_t
+fork_and_wait(const char* const* argv, const atf_fs_path_t* outfile,
+              const atf_fs_path_t* errfile, atf_process_status_t* status)
 {
     atf_error_t err;
     atf_process_child_t child;
@@ -191,13 +185,12 @@ out:
     return err;
 }
 
-static
-void
-update_success_from_status(const char *progname,
-                           const atf_process_status_t *status, bool *success)
+static void
+update_success_from_status(const char* progname,
+                           const atf_process_status_t* status, bool* success)
 {
     bool s = atf_process_status_exited(status) &&
-             atf_process_status_exitstatus(status) == EXIT_SUCCESS;
+        atf_process_status_exitstatus(status) == EXIT_SUCCESS;
 
     if (atf_process_status_exited(status)) {
         if (atf_process_status_exitstatus(status) == EXIT_SUCCESS)
@@ -220,9 +213,8 @@ update_success_from_status(const char *progname,
     *success = s;
 }
 
-static
-atf_error_t
-array_to_list(const char *const *a, atf_list_t *l)
+static atf_error_t
+array_to_list(const char* const* a, atf_list_t* l)
 {
     atf_error_t err;
 
@@ -231,7 +223,7 @@ array_to_list(const char *const *a, atf_list_t *l)
         goto out;
 
     while (*a != NULL) {
-        char *item = strdup(*a);
+        char* item = strdup(*a);
         if (item == NULL) {
             err = atf_no_memory_error();
             goto out;
@@ -249,9 +241,9 @@ out:
 }
 
 static void
-print_array(const char *const *array, const char *pfx)
+print_array(const char* const* array, const char* pfx)
 {
-    const char *const *ptr;
+    const char* const* ptr;
 
     printf("%s", pfx);
     for (ptr = array; *ptr != NULL; ptr++)
@@ -259,9 +251,8 @@ print_array(const char *const *array, const char *pfx)
     printf("\n");
 }
 
-static
-atf_error_t
-check_build_run(const char *const *argv, bool *success)
+static atf_error_t
+check_build_run(const char* const* argv, bool* success)
 {
     atf_error_t err;
     atf_process_status_t status;
@@ -292,10 +283,9 @@ struct atf_check_result_impl {
     atf_process_status_t m_status;
 };
 
-static
-atf_error_t
-atf_check_result_init(atf_check_result_t *r, const char *const *argv,
-                      const atf_fs_path_t *dir)
+static atf_error_t
+atf_check_result_init(atf_check_result_t* r, const char* const* argv,
+                      const atf_fs_path_t* dir)
 {
     atf_error_t err;
 
@@ -335,12 +325,11 @@ out:
 }
 
 void
-atf_check_result_fini(atf_check_result_t *r)
+atf_check_result_fini(atf_check_result_t* r)
 {
     atf_process_status_fini(&r->pimpl->m_status);
 
-    cleanup_tmpdir(&r->pimpl->m_dir, &r->pimpl->m_stdout,
-                   &r->pimpl->m_stderr);
+    cleanup_tmpdir(&r->pimpl->m_dir, &r->pimpl->m_stdout, &r->pimpl->m_stderr);
     atf_fs_path_fini(&r->pimpl->m_stdout);
     atf_fs_path_fini(&r->pimpl->m_stderr);
     atf_fs_path_fini(&r->pimpl->m_dir);
@@ -351,38 +340,38 @@ atf_check_result_fini(atf_check_result_t *r)
     r->pimpl = NULL;
 }
 
-const char *
-atf_check_result_stdout(const atf_check_result_t *r)
+const char*
+atf_check_result_stdout(const atf_check_result_t* r)
 {
     return atf_fs_path_cstring(&r->pimpl->m_stdout);
 }
 
-const char *
-atf_check_result_stderr(const atf_check_result_t *r)
+const char*
+atf_check_result_stderr(const atf_check_result_t* r)
 {
     return atf_fs_path_cstring(&r->pimpl->m_stderr);
 }
 
 bool
-atf_check_result_exited(const atf_check_result_t *r)
+atf_check_result_exited(const atf_check_result_t* r)
 {
     return atf_process_status_exited(&r->pimpl->m_status);
 }
 
 int
-atf_check_result_exitcode(const atf_check_result_t *r)
+atf_check_result_exitcode(const atf_check_result_t* r)
 {
     return atf_process_status_exitstatus(&r->pimpl->m_status);
 }
 
 bool
-atf_check_result_signaled(const atf_check_result_t *r)
+atf_check_result_signaled(const atf_check_result_t* r)
 {
     return atf_process_status_signaled(&r->pimpl->m_status);
 }
 
 int
-atf_check_result_termsig(const atf_check_result_t *r)
+atf_check_result_termsig(const atf_check_result_t* r)
 {
     return atf_process_status_termsig(&r->pimpl->m_status);
 }
@@ -395,19 +384,17 @@ atf_check_result_termsig(const atf_check_result_t *r)
  * and stderr, and it provides a very high-end interface.  This belongs,
  * probably, somewhere related to test cases (such as in the tc module). */
 atf_error_t
-atf_check_build_c_o(const char *sfile,
-                    const char *ofile,
-                    const char *const optargs[],
-                    bool *success)
+atf_check_build_c_o(const char* sfile, const char* ofile,
+                    const char* const optargs[], bool* success)
 {
     atf_error_t err;
-    char **argv;
+    char** argv;
 
     err = atf_build_c_o(sfile, ofile, optargs, &argv);
     if (atf_is_error(err))
         goto out;
 
-    err = check_build_run((const char *const *)argv, success);
+    err = check_build_run((const char* const*)argv, success);
 
     atf_utils_free_charpp(argv);
 out:
@@ -415,19 +402,17 @@ out:
 }
 
 atf_error_t
-atf_check_build_cpp(const char *sfile,
-                    const char *ofile,
-                    const char *const optargs[],
-                    bool *success)
+atf_check_build_cpp(const char* sfile, const char* ofile,
+                    const char* const optargs[], bool* success)
 {
     atf_error_t err;
-    char **argv;
+    char** argv;
 
     err = atf_build_cpp(sfile, ofile, optargs, &argv);
     if (atf_is_error(err))
         goto out;
 
-    err = check_build_run((const char *const *)argv, success);
+    err = check_build_run((const char* const*)argv, success);
 
     atf_utils_free_charpp(argv);
 out:
@@ -435,19 +420,17 @@ out:
 }
 
 atf_error_t
-atf_check_build_cxx_o(const char *sfile,
-                      const char *ofile,
-                      const char *const optargs[],
-                      bool *success)
+atf_check_build_cxx_o(const char* sfile, const char* ofile,
+                      const char* const optargs[], bool* success)
 {
     atf_error_t err;
-    char **argv;
+    char** argv;
 
     err = atf_build_cxx_o(sfile, ofile, optargs, &argv);
     if (atf_is_error(err))
         goto out;
 
-    err = check_build_run((const char *const *)argv, success);
+    err = check_build_run((const char* const*)argv, success);
 
     atf_utils_free_charpp(argv);
 out:
@@ -455,7 +438,7 @@ out:
 }
 
 atf_error_t
-atf_check_exec_array(const char *const *argv, atf_check_result_t *r)
+atf_check_exec_array(const char* const* argv, atf_check_result_t* r)
 {
     atf_error_t err;
     atf_fs_path_t dir;

@@ -23,13 +23,13 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "atf-c/detail/env.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
 #include <stdlib.h>
 #include <string.h>
 
-#include <atf-c.h>
-
+#include "atf-c.h"
+#include "atf-c/detail/env.h"
 #include "atf-c/detail/test_helpers.h"
 #include "atf-c/detail/text.h"
 
@@ -55,7 +55,7 @@ ATF_TC_HEAD(get, tc)
 }
 ATF_TC_BODY(get, tc)
 {
-    const char *val;
+    const char* val;
 
     ATF_REQUIRE(atf_env_has("PATH"));
 
@@ -67,12 +67,13 @@ ATF_TC_BODY(get, tc)
 ATF_TC(get_with_default);
 ATF_TC_HEAD(get_with_default, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the atf_env_get_with_default "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the atf_env_get_with_default "
                       "function");
 }
 ATF_TC_BODY(get_with_default, tc)
 {
-    const char *val;
+    const char* val;
 
     ATF_REQUIRE(atf_env_has("PATH"));
 
@@ -90,7 +91,7 @@ ATF_TC_HEAD(set, tc)
 }
 ATF_TC_BODY(set, tc)
 {
-    char *oldval;
+    char* oldval;
 
     ATF_REQUIRE(atf_env_has("PATH"));
     RE(atf_text_format(&oldval, "%s", atf_env_get("PATH")));
@@ -101,8 +102,7 @@ ATF_TC_BODY(set, tc)
 
     ATF_REQUIRE(!atf_env_has("_UNDEFINED_VARIABLE_"));
     RE(atf_env_set("_UNDEFINED_VARIABLE_", "foo2-bar2"));
-    ATF_REQUIRE(strcmp(atf_env_get("_UNDEFINED_VARIABLE_"),
-                     "foo2-bar2") == 0);
+    ATF_REQUIRE(strcmp(atf_env_get("_UNDEFINED_VARIABLE_"), "foo2-bar2") == 0);
 }
 
 ATF_TC(unset);

@@ -77,7 +77,6 @@ find_sources() {
     find . \( -name "AUTHORS" -o \
               -name "COPYING" -o \
               -name "ChangeLog" -o \
-              -name "NEWS" -o \
               -name "README.md" -o \
               -name "TODO" -o \
               -name "*.[0-9]" -o \
@@ -94,6 +93,7 @@ find_sources() {
            \) -a \( \
               \! -path "*/atf-[0-9]*" -a \
               \! -path "*autom4te*" -a \
+              \! -path "*externals*" -a \
               -type f -a \
               \! -name "ac_cxx_compile_stdcxx.m4" \
               \! -name "aclocal.m4" \

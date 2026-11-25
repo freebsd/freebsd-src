@@ -28,7 +28,7 @@ AC_DEFUN([ATF_MODULE_FS], [
     AC_COMPILE_IFELSE(
         [AC_LANG_PROGRAM([#include <libgen.h>], [
          const char* s = "/foo/bar/";
-         (void)::basename(s);
+         (void)basename(s);
          ])],
         AC_MSG_RESULT(yes)
         AC_DEFINE([HAVE_CONST_BASENAME], [1],
@@ -39,7 +39,7 @@ AC_DEFUN([ATF_MODULE_FS], [
     AC_COMPILE_IFELSE(
         [AC_LANG_PROGRAM([#include <libgen.h>], [
          const char* s = "/foo/bar/";
-         (void)::dirname(s);
+         (void)dirname(s);
          ])],
         AC_MSG_RESULT(yes)
         AC_DEFINE([HAVE_CONST_DIRNAME], [1],
@@ -53,7 +53,9 @@ AC_DEFUN([ATF_MODULE_FS], [
             [AC_LANG_PROGRAM([#include <stdlib.h>
 #include <unistd.h>], [
          char *cwd = getcwd(NULL, 0);
-         return (cwd != NULL) ? EXIT_SUCCESS : EXIT_FAILURE;
+         int result = (cwd != NULL) ? EXIT_SUCCESS : EXIT_FAILURE;
+         free(cwd);
+         return result;
          ])],
          [kyua_cv_getcwd_works=yes],
          [kyua_cv_getcwd_works=no])

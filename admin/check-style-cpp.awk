@@ -33,17 +33,17 @@ BEGIN {
     error = 0
 }
 
-/NO_CHECK_STYLE_BEGIN/ {
+/NOLINTBEGIN/ {
     skip = 1
     next
 }
 
-/NO_CHECK_STYLE_END/ {
+/NOLINTEND/ {
     skip = 0
     next
 }
 
-/NO_CHECK_STYLE/ {
+/NOLINT/ {
     next
 }
 
@@ -64,7 +64,7 @@ BEGIN {
     warn("Use the macros in sanity.hpp instead of assert");
 }
 
-/include.*assert/ {
+/#.*include.*assert/ {
     warn("Do not include assert.h nor cassert");
 }
 
@@ -78,7 +78,7 @@ BEGIN {
 
 END {
     if (skip)
-        warn("Missing NO_CHECK_STYLE_END");
+        warn("Missing NOLINTEND");
     if (error)
         exit 1
 }

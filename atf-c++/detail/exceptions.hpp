@@ -47,7 +47,7 @@ public:
     const char* what(void) const throw();
 };
 
-void throw_atf_error(struct atf_error *);
+void throw_atf_error(struct atf_error*);
 
 } // namespace atf
 

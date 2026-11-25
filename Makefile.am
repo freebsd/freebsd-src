@@ -67,18 +67,22 @@ TESTS_ENVIRONMENT = PATH=$(prefix)/bin:$${PATH} \
 if HAVE_ASAN
 # NB: the trailing comma is intentional. I hate automake not allowing `:=` use on subsequent lines.
 if HAVE_LSAN
-LSAN_OPTIONS = detect_leaks=1,
+ASAN_LEAK_OPTIONS = detect_leaks=1,
 else
-LSAN_OPTIONS =
+ASAN_LEAK_OPTIONS =
 endif
 # Some of the testcases trigger false positives as they pass
 # `SIZE_MAX - 1`, etc, to malloc(3).
-ASAN_OPTIONS = ${LSAN_OPTIONS}allocator_may_return_null=1
+ASAN_OPTIONS = ${ASAN_LEAK_OPTIONS}allocator_may_return_null=1
 TESTS_ENVIRONMENT+= ASAN_OPTIONS=${ASAN_OPTIONS}
 endif
 if HAVE_UBSAN
 TESTS_ENVIRONMENT+= UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1
 endif
+
+AM_CFLAGS=	$(pc_cflags)
+AM_CXXFLAGS=	$(pc_cxxflags)
+AM_LDFLAGS=	$(pc_ldflags)
 
 # Allow the caller to override the configuration file to passed to our
 # test runs below.
@@ -140,9 +144,10 @@ installcheck-local: $(INSTALLCHECK_TARGETS)
 pkgtests_DATA = Kyuafile
 EXTRA_DIST += $(pkgtests_DATA)
 
+# Use octal \043 for '#' to avoid Automake's escaped-comment warning
 BUILD_SH_TP = \
 	test -d "$$(dirname "$${dst}")" || mkdir -p "$$(dirname "$${dst}")"; \
-	echo "\#! $(bindir)/atf-sh" >"$${dst}"; \
+	printf '\043! %s/atf-sh\n' "$(bindir)" >"$${dst}"; \
 	if [ -n "$${substs}" ]; then \
 	    cat $${src} | sed $${substs} >>"$${dst}"; \
 	else \

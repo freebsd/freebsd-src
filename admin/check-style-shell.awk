@@ -35,17 +35,17 @@ BEGIN {
     vim_modeline = 0
 }
 
-/NO_CHECK_STYLE_BEGIN/ {
+/NOLINTBEGIN/ {
     skip = 1
     next
 }
 
-/NO_CHECK_STYLE_END/ {
+/NOLINTEND/ {
     skip = 0
     next
 }
 
-/NO_CHECK_STYLE/ {
+/NOLINT/ {
     next
 }
 
@@ -92,7 +92,7 @@ BEGIN {
 
 END {
     if (skip)
-        warn("Missing NO_CHECK_STYLE_END");
+        warn("Missing NOLINTEND");
     if (! vim_modeline)
         warn("Missing mode lines");
     if (error)

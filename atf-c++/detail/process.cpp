@@ -45,7 +45,7 @@ namespace impl = atf::process;
 // Auxiliary functions.
 // ------------------------------------------------------------------------
 
-template< class C >
+template <class C>
 std::vector<const char*>
 collection_to_argv(const C& c)
 {
@@ -60,7 +60,7 @@ collection_to_argv(const C& c)
     return argv;
 }
 
-template<class C>
+template <class C>
 C
 argv_to_collection(const char* const* argv)
 {
@@ -77,8 +77,7 @@ argv_to_collection(const char* const* argv)
 // The "argv_array" type.
 // ------------------------------------------------------------------------
 
-impl::argv_array::argv_array(void) :
-    m_exec_argv(collection_to_argv(m_args))
+impl::argv_array::argv_array(void) : m_exec_argv(collection_to_argv(m_args))
 {
 }
 
@@ -100,7 +99,7 @@ impl::argv_array::argv_array(const char* arg1, ...)
 }
 
 impl::argv_array::argv_array(const char* const* ca) :
-    m_args(argv_to_collection< args_vector >(ca)),
+    m_args(argv_to_collection<args_vector>(ca)),
     m_exec_argv(collection_to_argv(m_args))
 {
 }
@@ -118,36 +117,31 @@ impl::argv_array::ctor_init_exec_argv(void)
 }
 
 const char* const*
-impl::argv_array::exec_argv(void)
-    const
+impl::argv_array::exec_argv(void) const
 {
     return m_exec_argv.data();
 }
 
 impl::argv_array::size_type
-impl::argv_array::size(void)
-    const
+impl::argv_array::size(void) const
 {
     return m_args.size();
 }
 
 const char*
-impl::argv_array::operator[](int idx)
-    const
+impl::argv_array::operator[](int idx) const
 {
     return m_args[idx].c_str();
 }
 
 impl::argv_array::const_iterator
-impl::argv_array::begin(void)
-    const
+impl::argv_array::begin(void) const
 {
     return m_args.begin();
 }
 
 impl::argv_array::const_iterator
-impl::argv_array::end(void)
-    const
+impl::argv_array::end(void) const
 {
     return m_args.end();
 }
@@ -166,8 +160,7 @@ impl::argv_array::operator=(const argv_array& a)
 // The "stream" types.
 // ------------------------------------------------------------------------
 
-impl::basic_stream::basic_stream(void) :
-    m_inited(false)
+impl::basic_stream::basic_stream(void) : m_inited(false)
 {
 }
 
@@ -178,8 +171,7 @@ impl::basic_stream::~basic_stream(void)
 }
 
 const atf_process_stream_t*
-impl::basic_stream::get_sb(void)
-    const
+impl::basic_stream::get_sb(void) const
 {
     INV(m_inited);
     return &m_sb;
@@ -229,8 +221,7 @@ impl::stream_redirect_path::stream_redirect_path(const fs::path& p)
 // The "status" type.
 // ------------------------------------------------------------------------
 
-impl::status::status(atf_process_status_t& s) :
-    m_status(s)
+impl::status::status(atf_process_status_t& s) : m_status(s)
 {
 }
 
@@ -240,36 +231,31 @@ impl::status::~status(void)
 }
 
 bool
-impl::status::exited(void)
-    const
+impl::status::exited(void) const
 {
     return atf_process_status_exited(&m_status);
 }
 
 int
-impl::status::exitstatus(void)
-    const
+impl::status::exitstatus(void) const
 {
     return atf_process_status_exitstatus(&m_status);
 }
 
 bool
-impl::status::signaled(void)
-    const
+impl::status::signaled(void) const
 {
     return atf_process_status_signaled(&m_status);
 }
 
 int
-impl::status::termsig(void)
-    const
+impl::status::termsig(void) const
 {
     return atf_process_status_termsig(&m_status);
 }
 
 bool
-impl::status::coredump(void)
-    const
+impl::status::coredump(void) const
 {
     return atf_process_status_coredump(&m_status);
 }
@@ -278,9 +264,7 @@ impl::status::coredump(void)
 // The "child" type.
 // ------------------------------------------------------------------------
 
-impl::child::child(atf_process_child_t& c) :
-    m_child(c),
-    m_waited(false)
+impl::child::child(atf_process_child_t& c) : m_child(c), m_waited(false)
 {
 }
 
@@ -310,8 +294,7 @@ impl::child::wait(void)
 }
 
 pid_t
-impl::child::pid(void)
-    const
+impl::child::pid(void) const
 {
     return atf_process_child_pid(&m_child);
 }

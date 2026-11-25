@@ -23,8 +23,6 @@
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "atf-c++/check.hpp"
-
 extern "C" {
 #include <fcntl.h>
 #include <signal.h>
@@ -39,8 +37,8 @@ extern "C" {
 #include <memory>
 #include <vector>
 
-#include <atf-c++.hpp>
-
+#include "atf-c++.hpp"
+#include "atf-c++/check.hpp"
 #include "atf-c++/detail/fs.hpp"
 #include "atf-c++/detail/process.hpp"
 #include "atf-c++/detail/test_helpers.hpp"
@@ -51,11 +49,10 @@ extern "C" {
 // Auxiliary functions.
 // ------------------------------------------------------------------------
 
-static
-std::unique_ptr< atf::check::check_result >
+static std::unique_ptr<atf::check::check_result>
 do_exec(const atf::tests::tc* tc, const char* helper_name)
 {
-    std::vector< std::string > argv;
+    std::vector<std::string> argv;
     argv.push_back(get_process_helpers_path(*tc, false).str());
     argv.push_back(helper_name);
     std::cout << "Executing " << argv[0] << " " << argv[1] << "\n";
@@ -64,16 +61,15 @@ do_exec(const atf::tests::tc* tc, const char* helper_name)
     return atf::check::exec(argva);
 }
 
-static
-std::unique_ptr< atf::check::check_result >
-do_exec(const atf::tests::tc* tc, const char* helper_name, const char *carg2)
+static std::unique_ptr<atf::check::check_result>
+do_exec(const atf::tests::tc* tc, const char* helper_name, const char* carg2)
 {
-    std::vector< std::string > argv;
+    std::vector<std::string> argv;
     argv.push_back(get_process_helpers_path(*tc, false).str());
     argv.push_back(helper_name);
     argv.push_back(carg2);
-    std::cout << "Executing " << argv[0] << " " << argv[1] << " "
-              << argv[2] << "\n";
+    std::cout << "Executing " << argv[0] << " " << argv[1] << " " << argv[2]
+              << "\n";
 
     atf::process::argv_array argva(argv);
     return atf::check::exec(argva);
@@ -187,12 +183,12 @@ ATF_TEST_CASE_HEAD(build_c_o)
 ATF_TEST_CASE_BODY(build_c_o)
 {
     ATF_TEST_CASE_USE(h_build_c_o_ok);
-    run_h_tc< ATF_TEST_CASE_NAME(h_build_c_o_ok) >();
+    run_h_tc<ATF_TEST_CASE_NAME(h_build_c_o_ok)>();
     ATF_REQUIRE(atf::utils::grep_file("-o test.o", "stdout"));
     ATF_REQUIRE(atf::utils::grep_file("-c test.c", "stdout"));
 
     ATF_TEST_CASE_USE(h_build_c_o_fail);
-    run_h_tc< ATF_TEST_CASE_NAME(h_build_c_o_fail) >();
+    run_h_tc<ATF_TEST_CASE_NAME(h_build_c_o_fail)>();
     ATF_REQUIRE(atf::utils::grep_file("-o test.o", "stdout"));
     ATF_REQUIRE(atf::utils::grep_file("-c test.c", "stdout"));
     ATF_REQUIRE(atf::utils::grep_file("test.c", "stderr"));
@@ -207,13 +203,13 @@ ATF_TEST_CASE_HEAD(build_cpp)
 ATF_TEST_CASE_BODY(build_cpp)
 {
     ATF_TEST_CASE_USE(h_build_cpp_ok);
-    run_h_tc< ATF_TEST_CASE_NAME(h_build_cpp_ok) >();
+    run_h_tc<ATF_TEST_CASE_NAME(h_build_cpp_ok)>();
     ATF_REQUIRE(atf::utils::grep_file("-o.*test.p", "stdout"));
     ATF_REQUIRE(atf::utils::grep_file("test.c", "stdout"));
     ATF_REQUIRE(atf::utils::grep_file("foo bar", "test.p"));
 
     ATF_TEST_CASE_USE(h_build_cpp_fail);
-    run_h_tc< ATF_TEST_CASE_NAME(h_build_cpp_fail) >();
+    run_h_tc<ATF_TEST_CASE_NAME(h_build_cpp_fail)>();
     ATF_REQUIRE(atf::utils::grep_file("-o test.p", "stdout"));
     ATF_REQUIRE(atf::utils::grep_file("test.c", "stdout"));
     ATF_REQUIRE(atf::utils::grep_file("test.c", "stderr"));
@@ -228,12 +224,12 @@ ATF_TEST_CASE_HEAD(build_cxx_o)
 ATF_TEST_CASE_BODY(build_cxx_o)
 {
     ATF_TEST_CASE_USE(h_build_cxx_o_ok);
-    run_h_tc< ATF_TEST_CASE_NAME(h_build_cxx_o_ok) >();
+    run_h_tc<ATF_TEST_CASE_NAME(h_build_cxx_o_ok)>();
     ATF_REQUIRE(atf::utils::grep_file("-o test.o", "stdout"));
     ATF_REQUIRE(atf::utils::grep_file("-c test.cpp", "stdout"));
 
     ATF_TEST_CASE_USE(h_build_cxx_o_fail);
-    run_h_tc< ATF_TEST_CASE_NAME(h_build_cxx_o_fail) >();
+    run_h_tc<ATF_TEST_CASE_NAME(h_build_cxx_o_fail)>();
     ATF_REQUIRE(atf::utils::grep_file("-o test.o", "stdout"));
     ATF_REQUIRE(atf::utils::grep_file("-c test.cpp", "stdout"));
     ATF_REQUIRE(atf::utils::grep_file("test.cpp", "stderr"));
@@ -243,17 +239,18 @@ ATF_TEST_CASE_BODY(build_cxx_o)
 ATF_TEST_CASE(exec_cleanup);
 ATF_TEST_CASE_HEAD(exec_cleanup)
 {
-    set_md_var("descr", "Tests that exec properly cleans up the temporary "
-               "files it creates");
+    set_md_var(
+        "descr",
+        "Tests that exec properly cleans up the temporary files it creates");
 }
 ATF_TEST_CASE_BODY(exec_cleanup)
 {
-    std::unique_ptr< atf::fs::path > out;
-    std::unique_ptr< atf::fs::path > err;
+    std::unique_ptr<atf::fs::path> out;
+    std::unique_ptr<atf::fs::path> err;
 
     {
-        std::unique_ptr< atf::check::check_result > r =
-            do_exec(this, "exit-success");
+        std::unique_ptr<atf::check::check_result> r = do_exec(this,
+                                                              "exit-success");
         out.reset(new atf::fs::path(r->stdout_path()));
         err.reset(new atf::fs::path(r->stderr_path()));
         ATF_REQUIRE(atf::fs::exists(*out.get()));
@@ -266,68 +263,70 @@ ATF_TEST_CASE_BODY(exec_cleanup)
 ATF_TEST_CASE(exec_exitstatus);
 ATF_TEST_CASE_HEAD(exec_exitstatus)
 {
-    set_md_var("descr", "Tests that exec properly captures the exit "
-               "status of the executed command");
+    set_md_var("descr",
+               "Tests that exec properly captures the exit status of the "
+               "executed command");
 }
 ATF_TEST_CASE_BODY(exec_exitstatus)
 {
     {
-        std::unique_ptr< atf::check::check_result > r =
-            do_exec(this, "exit-success");
+        std::unique_ptr<atf::check::check_result> r = do_exec(this,
+                                                              "exit-success");
         ATF_REQUIRE(r->exited());
         ATF_REQUIRE(!r->signaled());
         ATF_REQUIRE_EQ(r->exitcode(), EXIT_SUCCESS);
     }
 
     {
-        std::unique_ptr< atf::check::check_result > r =
-            do_exec(this, "exit-failure");
+        std::unique_ptr<atf::check::check_result> r = do_exec(this,
+                                                              "exit-failure");
         ATF_REQUIRE(r->exited());
         ATF_REQUIRE(!r->signaled());
         ATF_REQUIRE_EQ(r->exitcode(), EXIT_FAILURE);
     }
 
     {
-        std::unique_ptr< atf::check::check_result > r =
-            do_exec(this, "exit-signal");
+        std::unique_ptr<atf::check::check_result> r = do_exec(this,
+                                                              "exit-signal");
         ATF_REQUIRE(!r->exited());
         ATF_REQUIRE(r->signaled());
         ATF_REQUIRE_EQ(r->termsig(), SIGKILL);
     }
 }
 
-static
-void
-check_lines(const std::string& path, const char* outname,
-            const char* resname)
+static void
+check_lines(const std::string& path, const char* outname, const char* resname)
 {
     std::ifstream f(path.c_str());
     ATF_REQUIRE(f);
 
     std::string line;
     std::getline(f, line);
-    ATF_REQUIRE_EQ(line, std::string("Line 1 to ") + outname + " for " +
-                    resname);
+    ATF_REQUIRE_EQ(line,
+                   std::string("Line 1 to ") + outname + " for " + resname);
     std::getline(f, line);
-    ATF_REQUIRE_EQ(line, std::string("Line 2 to ") + outname + " for " +
-                    resname);
+    ATF_REQUIRE_EQ(line,
+                   std::string("Line 2 to ") + outname + " for " + resname);
 }
 
 ATF_TEST_CASE(exec_stdout_stderr);
 ATF_TEST_CASE_HEAD(exec_stdout_stderr)
 {
-    set_md_var("descr", "Tests that exec properly captures the stdout "
+    set_md_var("descr",
+               "Tests that exec properly captures the stdout "
                "and stderr streams of the child process");
 }
 ATF_TEST_CASE_BODY(exec_stdout_stderr)
 {
-    std::unique_ptr< atf::check::check_result > r1 =
-        do_exec(this, "stdout-stderr", "result1");
+    std::unique_ptr<atf::check::check_result> r1 = do_exec(this,
+                                                           "stdout-stderr",
+                                                           "result1");
     ATF_REQUIRE(r1->exited());
     ATF_REQUIRE_EQ(r1->exitcode(), EXIT_SUCCESS);
 
-    std::unique_ptr< atf::check::check_result > r2 =
-        do_exec(this, "stdout-stderr", "result2");
+    std::unique_ptr<atf::check::check_result> r2 = do_exec(this,
+                                                           "stdout-stderr",
+                                                           "result2");
     ATF_REQUIRE(r2->exited());
     ATF_REQUIRE_EQ(r2->exitcode(), EXIT_SUCCESS);
 
@@ -363,16 +362,16 @@ ATF_TEST_CASE_BODY(exec_stdout_stderr)
 ATF_TEST_CASE(exec_unknown);
 ATF_TEST_CASE_HEAD(exec_unknown)
 {
-    set_md_var("descr", "Tests that running a non-existing binary "
-               "is handled correctly");
+    set_md_var("descr",
+               "Tests that running a non-existing binary is handled correctly");
 }
 ATF_TEST_CASE_BODY(exec_unknown)
 {
-    std::vector< std::string > argv;
+    std::vector<std::string> argv;
     argv.push_back("/foo/bar/non-existent");
 
     atf::process::argv_array argva(argv);
-    std::unique_ptr< atf::check::check_result > r = atf::check::exec(argva);
+    std::unique_ptr<atf::check::check_result> r = atf::check::exec(argva);
     ATF_REQUIRE(r->exited());
     ATF_REQUIRE_EQ(r->exitcode(), 127);
 }

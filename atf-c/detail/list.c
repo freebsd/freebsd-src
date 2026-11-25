@@ -23,11 +23,12 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "atf-c/detail/list.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
 #include <stdlib.h>
 #include <string.h>
 
+#include "atf-c/detail/list.h"
 #include "atf-c/detail/sanity.h"
 #include "atf-c/error.h"
 #include "atf-c/utils.h"
@@ -37,15 +38,14 @@
  * --------------------------------------------------------------------- */
 
 struct list_entry {
-    struct list_entry *m_prev;
-    struct list_entry *m_next;
-    void *m_object;
+    struct list_entry* m_prev;
+    struct list_entry* m_next;
+    void* m_object;
     bool m_managed;
 };
 
-static
-atf_list_citer_t
-entry_to_citer(const atf_list_t *l, const struct list_entry *le)
+static atf_list_citer_t
+entry_to_citer(const atf_list_t* l, const struct list_entry* le)
 {
     atf_list_citer_t iter;
     iter.m_list = l;
@@ -53,9 +53,8 @@ entry_to_citer(const atf_list_t *l, const struct list_entry *le)
     return iter;
 }
 
-static
-atf_list_iter_t
-entry_to_iter(atf_list_t *l, struct list_entry *le)
+static atf_list_iter_t
+entry_to_iter(atf_list_t* l, struct list_entry* le)
 {
     atf_list_iter_t iter;
     iter.m_list = l;
@@ -63,13 +62,12 @@ entry_to_iter(atf_list_t *l, struct list_entry *le)
     return iter;
 }
 
-static
-struct list_entry *
-new_entry(void *object, bool managed)
+static struct list_entry*
+new_entry(void* object, bool managed)
 {
-    struct list_entry *le;
+    struct list_entry* le;
 
-    le = (struct list_entry *)malloc(sizeof(*le));
+    le = (struct list_entry*)malloc(sizeof(*le));
     if (le != NULL) {
         le->m_prev = le->m_next = NULL;
         le->m_object = object;
@@ -80,9 +78,8 @@ new_entry(void *object, bool managed)
     return le;
 }
 
-static
-void
-delete_entry(struct list_entry *le)
+static void
+delete_entry(struct list_entry* le)
 {
     if (le->m_managed) {
         free(le->m_object);
@@ -92,12 +89,11 @@ delete_entry(struct list_entry *le)
     free(le);
 }
 
-static
-struct list_entry *
-new_entry_and_link(void *object, bool managed, struct list_entry *prev,
-                   struct list_entry *next)
+static struct list_entry*
+new_entry_and_link(void* object, bool managed, struct list_entry* prev,
+                   struct list_entry* next)
 {
-    struct list_entry *le;
+    struct list_entry* le;
 
     le = new_entry(object, managed);
     if (le != NULL) {
@@ -119,10 +115,10 @@ new_entry_and_link(void *object, bool managed, struct list_entry *prev,
  * Getters.
  */
 
-const void *
+const void*
 atf_list_citer_data(const atf_list_citer_t citer)
 {
-    const struct list_entry *le = citer.m_entry;
+    const struct list_entry* le = citer.m_entry;
     PRE(le != NULL);
     return le->m_object;
 }
@@ -130,7 +126,7 @@ atf_list_citer_data(const atf_list_citer_t citer)
 atf_list_citer_t
 atf_list_citer_next(const atf_list_citer_t citer)
 {
-    const struct list_entry *le = citer.m_entry;
+    const struct list_entry* le = citer.m_entry;
     atf_list_citer_t newciter;
 
     PRE(le != NULL);
@@ -156,10 +152,10 @@ atf_equal_list_citer_list_citer(const atf_list_citer_t i1,
  * Getters.
  */
 
-void *
+void*
 atf_list_iter_data(const atf_list_iter_t iter)
 {
-    const struct list_entry *le = iter.m_entry;
+    const struct list_entry* le = iter.m_entry;
     PRE(le != NULL);
     return le->m_object;
 }
@@ -167,7 +163,7 @@ atf_list_iter_data(const atf_list_iter_t iter)
 atf_list_iter_t
 atf_list_iter_next(const atf_list_iter_t iter)
 {
-    const struct list_entry *le = iter.m_entry;
+    const struct list_entry* le = iter.m_entry;
     atf_list_iter_t newiter;
 
     PRE(le != NULL);
@@ -194,7 +190,7 @@ atf_equal_list_iter_list_iter(const atf_list_iter_t i1,
  */
 
 atf_error_t
-atf_list_init(atf_list_t *l)
+atf_list_init(atf_list_t* l)
 {
     struct list_entry *lebeg, *leend;
 
@@ -224,15 +220,15 @@ atf_list_init(atf_list_t *l)
 }
 
 void
-atf_list_fini(atf_list_t *l)
+atf_list_fini(atf_list_t* l)
 {
-    struct list_entry *le;
+    struct list_entry* le;
     size_t freed;
 
-    le = (struct list_entry *)l->m_begin;
+    le = (struct list_entry*)l->m_begin;
     freed = 0;
     while (le != NULL) {
-        struct list_entry *lenext;
+        struct list_entry* lenext;
 
         lenext = le->m_next;
         delete_entry(le);
@@ -248,33 +244,33 @@ atf_list_fini(atf_list_t *l)
  */
 
 atf_list_iter_t
-atf_list_begin(atf_list_t *l)
+atf_list_begin(atf_list_t* l)
 {
-    struct list_entry *le = l->m_begin;
+    struct list_entry* le = l->m_begin;
     return entry_to_iter(l, le->m_next);
 }
 
 atf_list_citer_t
-atf_list_begin_c(const atf_list_t *l)
+atf_list_begin_c(const atf_list_t* l)
 {
-    const struct list_entry *le = l->m_begin;
+    const struct list_entry* le = l->m_begin;
     return entry_to_citer(l, le->m_next);
 }
 
 atf_list_iter_t
-atf_list_end(atf_list_t *l)
+atf_list_end(atf_list_t* l)
 {
     return entry_to_iter(l, l->m_end);
 }
 
 atf_list_citer_t
-atf_list_end_c(const atf_list_t *l)
+atf_list_end_c(const atf_list_t* l)
 {
     return entry_to_citer(l, l->m_end);
 }
 
-void *
-atf_list_index(atf_list_t *list, const size_t idx)
+void*
+atf_list_index(atf_list_t* list, const size_t idx)
 {
     atf_list_iter_t iter;
 
@@ -292,8 +288,8 @@ atf_list_index(atf_list_t *list, const size_t idx)
     return atf_list_iter_data(iter);
 }
 
-const void *
-atf_list_index_c(const atf_list_t *list, const size_t idx)
+const void*
+atf_list_index_c(const atf_list_t* list, const size_t idx)
 {
     atf_list_citer_t iter;
 
@@ -303,8 +299,7 @@ atf_list_index_c(const atf_list_t *list, const size_t idx)
     {
         size_t pos = 0;
         while (pos < idx &&
-               !atf_equal_list_citer_list_citer((iter),
-                                                atf_list_end_c(list))) {
+               !atf_equal_list_citer_list_citer((iter), atf_list_end_c(list))) {
             iter = atf_list_citer_next(iter);
             pos++;
         }
@@ -313,25 +308,26 @@ atf_list_index_c(const atf_list_t *list, const size_t idx)
 }
 
 size_t
-atf_list_size(const atf_list_t *l)
+atf_list_size(const atf_list_t* l)
 {
     return l->m_size;
 }
 
-char **
-atf_list_to_charpp(const atf_list_t *l)
+char**
+atf_list_to_charpp(const atf_list_t* l)
 {
-    char **array;
+    char** array;
     atf_list_citer_t iter;
     size_t i;
 
-    array = malloc(sizeof(char *) * (atf_list_size(l) + 1));
+    array = malloc(sizeof(char*) * (atf_list_size(l) + 1));
     if (array == NULL)
         goto out;
 
     i = 0;
-    atf_list_for_each_c(iter, l) {
-        array[i] = strdup((const char *)atf_list_citer_data(iter));
+    atf_list_for_each_c(iter, l)
+    {
+        array[i] = strdup((const char*)atf_list_citer_data(iter));
         if (array[i] == NULL) {
             atf_utils_free_charpp(array);
             array = NULL;
@@ -351,12 +347,12 @@ out:
  */
 
 atf_error_t
-atf_list_append(atf_list_t *l, void *data, bool managed)
+atf_list_append(atf_list_t* l, void* data, bool managed)
 {
     struct list_entry *le, *next, *prev;
     atf_error_t err;
 
-    next = (struct list_entry *)l->m_end;
+    next = (struct list_entry*)l->m_end;
     prev = next->m_prev;
     le = new_entry_and_link(data, managed, prev, next);
     if (le == NULL)
@@ -370,12 +366,12 @@ atf_list_append(atf_list_t *l, void *data, bool managed)
 }
 
 void
-atf_list_append_list(atf_list_t *l, atf_list_t *src)
+atf_list_append_list(atf_list_t* l, atf_list_t* src)
 {
     struct list_entry *e1, *e2, *ghost1, *ghost2;
 
-    ghost1 = (struct list_entry *)l->m_end;
-    ghost2 = (struct list_entry *)src->m_begin;
+    ghost1 = (struct list_entry*)l->m_end;
+    ghost2 = (struct list_entry*)src->m_begin;
 
     e1 = ghost1->m_prev;
     e2 = ghost2->m_next;

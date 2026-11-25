@@ -61,12 +61,6 @@
 .Nm ATF_TC_WITHOUT_HEAD ,
 .Nm ATF_TP_ADD_TC ,
 .Nm ATF_TP_ADD_TCS ,
-.Nm atf_tc_get_config_var ,
-.Nm atf_tc_get_config_var_wd ,
-.Nm atf_tc_get_config_var_as_bool ,
-.Nm atf_tc_get_config_var_as_bool_wd ,
-.Nm atf_tc_get_config_var_as_long ,
-.Nm atf_tc_get_config_var_as_long_wd ,
 .Nm atf_no_error ,
 .Nm atf_tc_expect_death ,
 .Nm atf_tc_expect_exit ,
@@ -76,6 +70,13 @@
 .Nm atf_tc_expect_timeout ,
 .Nm atf_tc_fail ,
 .Nm atf_tc_fail_nonfatal ,
+.Nm atf_tc_get_config_var ,
+.Nm atf_tc_get_config_var_as_bool ,
+.Nm atf_tc_get_config_var_as_bool_wd ,
+.Nm atf_tc_get_config_var_as_long ,
+.Nm atf_tc_get_config_var_as_long_wd ,
+.Nm atf_tc_get_config_var_wd ,
+.Nm atf_tc_has_config_var ,
 .Nm atf_tc_pass ,
 .Nm atf_tc_require_kmod ,
 .Nm atf_tc_require_prog ,
@@ -95,7 +96,7 @@
 .Nd C API to write ATF-based test programs
 .Sh SYNOPSIS
 .In atf-c.h
-.\" NO_CHECK_STYLE_BEGIN
+.\" NOLINTBEGIN
 .Fn ATF_CHECK "expression"
 .Fn ATF_CHECK_MSG "expression" "fail_msg_fmt" ...
 .Fn ATF_CHECK_EQ "expected_expression" "actual_expression"
@@ -118,7 +119,7 @@
 .Fn ATF_REQUIRE_INTEQ "expected_int" "actual_int"
 .Fn ATF_REQUIRE_INTEQ_MSG "expected_int" "actual_int" "fail_msg_fmt" ...
 .Fn ATF_REQUIRE_ERRNO "expected_errno" "bool_expression"
-.\" NO_CHECK_STYLE_END
+.\" NOLINTEND
 .Fn ATF_TC "name"
 .Fn ATF_TC_BODY "name" "tc"
 .Fn ATF_TC_BODY_NAME "name"
@@ -131,39 +132,6 @@
 .Fn ATF_TC_WITHOUT_HEAD "name"
 .Fn ATF_TP_ADD_TC "tp_name" "tc_name"
 .Fn ATF_TP_ADD_TCS "tp_name"
-.Ft const char*
-.Fo atf_tc_get_config_var
-.Fa "const atf_tc_t *tc"
-.Fa "const char *name"
-.Fc
-.Ft const char*
-.Fo atf_tc_get_config_var_wd
-.Fa "const atf_tc_t *tc"
-.Fa "const char *name"
-.Fa "const char *defval"
-.Fc
-.Ft bool
-.Fo atf_tc_get_config_var_as_bool
-.Fa "const atf_tc_t *tc"
-.Fa "const char *name"
-.Fc
-.Ft bool
-.Fo atf_tc_get_config_var_as_bool_wd
-.Fa "const atf_tc_t *tc"
-.Fa "const char *name"
-.Fa "const bool defval"
-.Fc
-.Ft long
-.Fo atf_tc_get_config_var_as_long
-.Fa "const atf_tc_t *tc"
-.Fa "const char *name"
-.Fc
-.Ft long
-.Fo atf_tc_get_config_var_as_long_wd
-.Fa "const atf_tc_t *tc"
-.Fa "const char *name"
-.Fa "const long defval"
-.Fc
 .Ft void
 .Fo atf_no_error
 .Fa "void"
@@ -206,6 +174,44 @@
 .Ft void
 .Fo atf_tc_fail_nonfatal
 .Fa "const char *reason"
+.Fc
+.Ft const char*
+.Fo atf_tc_get_config_var
+.Fa "const atf_tc_t *tc"
+.Fa "const char *name"
+.Fc
+.Ft bool
+.Fo atf_tc_get_config_var_as_bool
+.Fa "const atf_tc_t *tc"
+.Fa "const char *name"
+.Fc
+.Ft bool
+.Fo atf_tc_get_config_var_as_bool_wd
+.Fa "const atf_tc_t *tc"
+.Fa "const char *name"
+.Fa "const bool defval"
+.Fc
+.Ft long
+.Fo atf_tc_get_config_var_as_long
+.Fa "const atf_tc_t *tc"
+.Fa "const char *name"
+.Fc
+.Ft long
+.Fo atf_tc_get_config_var_as_long_wd
+.Fa "const atf_tc_t *tc"
+.Fa "const char *name"
+.Fa "const long defval"
+.Fc
+.Ft const char*
+.Fo atf_tc_get_config_var_wd
+.Fa "const atf_tc_t *tc"
+.Fa "const char *name"
+.Fa "const char *defval"
+.Fc
+.Ft void
+.Fo atf_tc_has_config_var
+.Fa "const atf_tc_t *tc"
+.Fa "const char *name"
 .Fc
 .Ft void
 .Fo atf_tc_pass
@@ -408,21 +414,14 @@ Both of them are strings.
 .Ss Configuration variables
 The test case has read-only access to the current configuration variables
 by means of the
-.Ft bool
-.Fn atf_tc_has_config_var ,
-.Ft const char *
 .Fn atf_tc_get_config_var ,
-.Ft const char *
-.Fn atf_tc_get_config_var_wd ,
-.Ft bool
 .Fn atf_tc_get_config_var_as_bool ,
-.Ft bool
 .Fn atf_tc_get_config_var_as_bool_wd ,
-.Ft long
 .Fn atf_tc_get_config_var_as_long ,
+.Fn atf_tc_get_config_var_as_long_wd ,
+.Fn atf_tc_get_config_var_wd ,
 and the
-.Ft long
-.Fn atf_tc_get_config_var_as_long_wd
+.Fn atf_tc_has_config_var
 functions, which can be called in any of the three parts of a test case.
 .Pp
 The

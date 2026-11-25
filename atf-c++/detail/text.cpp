@@ -78,10 +78,10 @@ impl::to_lower(const std::string& str)
     return lc;
 }
 
-std::vector< std::string >
+std::vector<std::string>
 impl::split(const std::string& str, const std::string& delim)
 {
-    std::vector< std::string > words;
+    std::vector<std::string> words;
 
     std::string::size_type pos = 0, newpos = 0;
     while (pos < str.length() && newpos != std::string::npos) {
@@ -131,18 +131,30 @@ impl::to_bytes(std::string str)
     const char unit = str[str.length() - 1];
     int64_t multiplier;
     switch (unit) {
-    case 'k': case 'K': multiplier = 1 << 10; break;
-    case 'm': case 'M': multiplier = 1 << 20; break;
-    case 'g': case 'G': multiplier = 1 << 30; break;
-    case 't': case 'T': multiplier = int64_t(1) << 40; break;
+    case 'k':
+    case 'K':
+        multiplier = 1 << 10;
+        break;
+    case 'm':
+    case 'M':
+        multiplier = 1 << 20;
+        break;
+    case 'g':
+    case 'G':
+        multiplier = 1 << 30;
+        break;
+    case 't':
+    case 'T':
+        multiplier = int64_t(1) << 40;
+        break;
     default:
         if (!std::isdigit(unit))
-            throw std::runtime_error(std::string("Unknown size unit '") + unit
-                                     + "'");
+            throw std::runtime_error(std::string("Unknown size unit '") + unit +
+                                     "'");
         multiplier = 1;
     }
     if (multiplier != 1)
         str.erase(str.length() - 1);
 
-    return to_type< int64_t >(str) * multiplier;
+    return to_type<int64_t>(str) * multiplier;
 }

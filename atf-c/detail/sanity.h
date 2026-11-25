@@ -23,43 +23,45 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
+/* SPDX-License-Identifier: BSD-2-Clause */
+
 #if !defined(ATF_C_DETAIL_SANITY_H)
 #define ATF_C_DETAIL_SANITY_H
 
-void atf_sanity_inv(const char *, int, const char *);
-void atf_sanity_pre(const char *, int, const char *);
-void atf_sanity_post(const char *, int, const char *);
+void atf_sanity_inv(const char*, int, const char*);
+void atf_sanity_pre(const char*, int, const char*);
+void atf_sanity_post(const char*, int, const char*);
 
 #if !defined(NDEBUG)
 
-#define INV(x) \
-    do { \
-        if (!(x)) \
+#define INV(x)                                      \
+    do {                                            \
+        if (!(x))                                   \
             atf_sanity_inv(__FILE__, __LINE__, #x); \
     } while (0)
-#define PRE(x) \
-    do { \
-        if (!(x)) \
+#define PRE(x)                                      \
+    do {                                            \
+        if (!(x))                                   \
             atf_sanity_pre(__FILE__, __LINE__, #x); \
     } while (0)
-#define POST(x) \
-    do { \
-        if (!(x)) \
+#define POST(x)                                      \
+    do {                                             \
+        if (!(x))                                    \
             atf_sanity_post(__FILE__, __LINE__, #x); \
     } while (0)
 
 #else /* defined(NDEBUG) */
 
 #define INV(x) \
-    do { \
+    do {       \
     } while (0)
 
 #define PRE(x) \
-    do { \
+    do {       \
     } while (0)
 
 #define POST(x) \
-    do { \
+    do {        \
     } while (0)
 
 #endif /* !defined(NDEBUG) */

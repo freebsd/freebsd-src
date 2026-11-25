@@ -23,9 +23,11 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "atf-c/tc.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
 #include <sys/types.h>
+
+#include "atf-c/tc.h"
 #if defined(__FreeBSD__)
 #include <sys/linker.h>
 #include <sys/module.h>
@@ -65,8 +67,8 @@ enum expect_type {
 };
 
 struct context {
-    const atf_tc_t *tc;
-    const char *resfile;
+    const atf_tc_t* tc;
+    const char* resfile;
     int resfilefd;
     size_t fail_count;
 
@@ -78,46 +80,43 @@ struct context {
     int expect_signo;
 };
 
-static void context_init(struct context *, const atf_tc_t *, const char *);
-static void context_set_resfile(struct context *, const char *);
-static void context_close_resfile(struct context *);
+static void context_init(struct context*, const atf_tc_t*, const char*);
+static void context_fini(struct context*);
+static void context_set_resfile(struct context*, const char*);
+static void context_close_resfile(struct context*);
 static void check_fatal_error(atf_error_t);
-static void report_fatal_error(const char *, ...)
-    ATF_DEFS_ATTRIBUTE_NORETURN;
-static atf_error_t write_resfile(const int, const char *, const int,
-                                 const atf_dynstr_t *);
-static void create_resfile(struct context *, const char *, const int,
-                           atf_dynstr_t *);
-static void error_in_expect(struct context *, const char *, ...)
-    ATF_DEFS_ATTRIBUTE_NORETURN;
-static void validate_expect(struct context *);
-static void expected_failure(struct context *, atf_dynstr_t *)
-    ATF_DEFS_ATTRIBUTE_NORETURN;
-static void fail_requirement(struct context *, atf_dynstr_t *)
-    ATF_DEFS_ATTRIBUTE_NORETURN;
-static void fail_check(struct context *, atf_dynstr_t *);
-static void pass(struct context *)
-    ATF_DEFS_ATTRIBUTE_NORETURN;
-static void skip(struct context *, atf_dynstr_t *)
-    ATF_DEFS_ATTRIBUTE_NORETURN;
-static void format_reason_ap(atf_dynstr_t *, const char *, const size_t,
-                             const char *, va_list);
-static void format_reason_fmt(atf_dynstr_t *, const char *, const size_t,
-                              const char *, ...);
-static void errno_test(struct context *, const char *, const size_t,
-                       const int, const char *, const bool,
-                       void (*)(struct context *, atf_dynstr_t *));
-static atf_error_t check_kmod(struct context *, const char *);
-static atf_error_t check_prog_in_dir(const char *, void *);
-static atf_error_t check_prog(struct context *, const char *);
+static void report_fatal_error(const char*, ...) ATF_DEFS_ATTRIBUTE_NORETURN;
+static atf_error_t write_resfile(const int, const char*, const int,
+                                 const atf_dynstr_t*);
+static void create_resfile(struct context*, const char*, const int,
+                           atf_dynstr_t*);
+static void error_in_expect(struct context*, const char*,
+                            ...) ATF_DEFS_ATTRIBUTE_NORETURN;
+static void validate_expect(struct context*);
+static void expected_failure(struct context*,
+                             atf_dynstr_t*) ATF_DEFS_ATTRIBUTE_NORETURN;
+static void fail_requirement(struct context*,
+                             atf_dynstr_t*) ATF_DEFS_ATTRIBUTE_NORETURN;
+static void fail_check(struct context*, atf_dynstr_t*);
+static void pass(struct context*) ATF_DEFS_ATTRIBUTE_NORETURN;
+static void skip(struct context*, atf_dynstr_t*) ATF_DEFS_ATTRIBUTE_NORETURN;
+static void format_reason_ap(atf_dynstr_t*, const char*, const size_t,
+                             const char*, va_list);
+static void format_reason_fmt(atf_dynstr_t*, const char*, const size_t,
+                              const char*, ...);
+static void errno_test(struct context*, const char*, const size_t, const int,
+                       const char*, const bool,
+                       void (*)(struct context*, atf_dynstr_t*));
+static atf_error_t check_kmod(struct context*, const char*);
+static atf_error_t check_prog_in_dir(const char*, void*);
+static atf_error_t check_prog(struct context*, const char*);
 
 /* No prototype in header for this one, it's a little sketchy (internal). */
-void atf_tc_set_resultsfile(const char *);
+void atf_tc_set_resultsfile(const char*);
 
 static void
-context_init(struct context *ctx, const atf_tc_t *tc, const char *resfile)
+context_init(struct context* ctx, const atf_tc_t* tc, const char* resfile)
 {
-
     ctx->tc = tc;
     ctx->resfilefd = -1;
     context_set_resfile(ctx, resfile);
@@ -131,7 +130,18 @@ context_init(struct context *ctx, const atf_tc_t *tc, const char *resfile)
 }
 
 static void
-context_set_resfile(struct context *ctx, const char *resfile)
+context_fini(struct context* ctx)
+{
+    if (ctx->tc == NULL)
+        return;
+
+    context_close_resfile(ctx);
+    atf_dynstr_fini(&ctx->expect_reason);
+    ctx->tc = NULL;
+}
+
+static void
+context_set_resfile(struct context* ctx, const char* resfile)
 {
     atf_error_t err;
 
@@ -143,20 +153,18 @@ context_set_resfile(struct context *ctx, const char *resfile)
         ctx->resfilefd = STDERR_FILENO;
     else
         ctx->resfilefd = open(resfile, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
-            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+                              S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     if (ctx->resfilefd == -1) {
-            err = atf_libc_error(errno,
-                "Cannot create results file '%s'", resfile);
-            check_fatal_error(err);
+        err = atf_libc_error(errno, "Cannot create results file '%s'", resfile);
+        check_fatal_error(err);
     }
 
     ctx->resfile = resfile;
 }
 
 static void
-context_close_resfile(struct context *ctx)
+context_close_resfile(struct context* ctx)
 {
-
     if (ctx->resfilefd == -1)
         return;
     if (ctx->resfilefd != STDOUT_FILENO && ctx->resfilefd != STDERR_FILENO)
@@ -178,7 +186,7 @@ check_fatal_error(atf_error_t err)
 }
 
 static void
-report_fatal_error(const char *msg, ...)
+report_fatal_error(const char* msg, ...)
 {
     va_list ap;
     fprintf(stderr, "FATAL ERROR: ");
@@ -199,19 +207,19 @@ report_fatal_error(const char *msg, ...)
  * because the caller needs to clean up the reason object before terminating.
  */
 static atf_error_t
-write_resfile(const int fd, const char *result, const int arg,
-              const atf_dynstr_t *reason)
+write_resfile(const int fd, const char* result, const int arg,
+              const atf_dynstr_t* reason)
 {
     static char NL[] = "\n", CS[] = ": ";
     char buf[64];
-    const char *r;
+    const char* r;
     struct iovec iov[5];
     ssize_t ret;
     int count = 0;
 
     INV(arg == -1 || reason != NULL);
 
-#define UNCONST(a) ((void *)(uintptr_t)(const void *)(a))
+#define UNCONST(a) ((void*)(uintptr_t)(const void*)(a))
     iov[count].iov_base = UNCONST(result);
     iov[count++].iov_len = strlen(result);
 
@@ -238,9 +246,10 @@ write_resfile(const int fd, const char *result, const int arg,
     if (ret != -1)
         return atf_no_error();
 
-    return atf_libc_error(
-        errno, "Failed to write results file; result %s, reason %s", result,
-        reason == NULL ? "null" : atf_dynstr_cstring(reason));
+    return atf_libc_error(errno,
+                          "Failed to write results file; result %s, reason %s",
+                          result,
+                          reason == NULL ? "null" : atf_dynstr_cstring(reason));
 }
 
 /** Creates a results file.
@@ -251,8 +260,8 @@ write_resfile(const int fd, const char *result, const int arg,
  * not return any error code.
  */
 static void
-create_resfile(struct context *ctx, const char *result, const int arg,
-               atf_dynstr_t *reason)
+create_resfile(struct context* ctx, const char* result, const int arg,
+               atf_dynstr_t* reason)
 {
     atf_error_t err;
 
@@ -277,7 +286,7 @@ create_resfile(struct context *ctx, const char *result, const int arg,
 
 /** Fails a test case if validate_expect fails. */
 static void
-error_in_expect(struct context *ctx, const char *fmt, ...)
+error_in_expect(struct context* ctx, const char* fmt, ...)
 {
     atf_dynstr_t reason;
     va_list ap;
@@ -286,7 +295,7 @@ error_in_expect(struct context *ctx, const char *fmt, ...)
     format_reason_ap(&reason, NULL, 0, fmt, ap);
     va_end(ap);
 
-    ctx->expect = EXPECT_PASS;  /* Ensure fail_requirement really fails. */
+    ctx->expect = EXPECT_PASS; /* Ensure fail_requirement really fails. */
     fail_requirement(ctx, &reason);
 }
 
@@ -295,44 +304,49 @@ error_in_expect(struct context *ctx, const char *fmt, ...)
  * Call this function before modifying the current value of expect.
  */
 static void
-validate_expect(struct context *ctx)
+validate_expect(struct context* ctx)
 {
     if (ctx->expect == EXPECT_DEATH) {
-        error_in_expect(ctx, "Test case was expected to terminate abruptly "
-            "but it continued execution");
+        error_in_expect(ctx,
+                        "Test case was expected to terminate abruptly "
+                        "but it continued execution");
     } else if (ctx->expect == EXPECT_EXIT) {
-        error_in_expect(ctx, "Test case was expected to exit cleanly but it "
-            "continued execution");
+        error_in_expect(ctx,
+                        "Test case was expected to exit cleanly but it "
+                        "continued execution");
     } else if (ctx->expect == EXPECT_FAIL) {
         if (ctx->expect_fail_count == ctx->expect_previous_fail_count)
-            error_in_expect(ctx, "Test case was expecting a failure but none "
-                "were raised");
+            error_in_expect(ctx,
+                            "Test case was expecting a failure but none "
+                            "were raised");
         else
             INV(ctx->expect_fail_count > ctx->expect_previous_fail_count);
     } else if (ctx->expect == EXPECT_PASS) {
         /* Nothing to validate. */
     } else if (ctx->expect == EXPECT_SIGNAL) {
-        error_in_expect(ctx, "Test case was expected to receive a termination "
-            "signal but it continued execution");
+        error_in_expect(ctx,
+                        "Test case was expected to receive a termination "
+                        "signal but it continued execution");
     } else if (ctx->expect == EXPECT_TIMEOUT) {
-        error_in_expect(ctx, "Test case was expected to hang but it continued "
-            "execution");
+        error_in_expect(ctx,
+                        "Test case was expected to hang but it continued "
+                        "execution");
     } else
         UNREACHABLE;
 }
 
 static void
-expected_failure(struct context *ctx, atf_dynstr_t *reason)
+expected_failure(struct context* ctx, atf_dynstr_t* reason)
 {
-    check_fatal_error(atf_dynstr_prepend_fmt(reason, "%s: ",
-        atf_dynstr_cstring(&ctx->expect_reason)));
+    check_fatal_error(atf_dynstr_prepend_fmt(
+        reason, "%s: ", atf_dynstr_cstring(&ctx->expect_reason)));
     create_resfile(ctx, "expected_failure", -1, reason);
     context_close_resfile(ctx);
     exit(EXIT_SUCCESS);
 }
 
 static void
-fail_requirement(struct context *ctx, atf_dynstr_t *reason)
+fail_requirement(struct context* ctx, atf_dynstr_t* reason)
 {
     if (ctx->expect == EXPECT_FAIL) {
         expected_failure(ctx, reason);
@@ -341,50 +355,56 @@ fail_requirement(struct context *ctx, atf_dynstr_t *reason)
         context_close_resfile(ctx);
         exit(EXIT_FAILURE);
     } else {
-        error_in_expect(ctx, "Test case raised a failure but was not "
-            "expecting one; reason was %s", atf_dynstr_cstring(reason));
+        error_in_expect(ctx,
+                        "Test case raised a failure but was not "
+                        "expecting one; reason was %s",
+                        atf_dynstr_cstring(reason));
     }
     UNREACHABLE;
 }
 
 static void
-fail_check(struct context *ctx, atf_dynstr_t *reason)
+fail_check(struct context* ctx, atf_dynstr_t* reason)
 {
     if (ctx->expect == EXPECT_FAIL) {
         fprintf(stderr, "*** Expected check failure: %s: %s\n",
-            atf_dynstr_cstring(&ctx->expect_reason),
-            atf_dynstr_cstring(reason));
+                atf_dynstr_cstring(&ctx->expect_reason),
+                atf_dynstr_cstring(reason));
         ctx->expect_fail_count++;
     } else if (ctx->expect == EXPECT_PASS) {
         fprintf(stderr, "*** Check failed: %s\n", atf_dynstr_cstring(reason));
         ctx->fail_count++;
     } else {
-        error_in_expect(ctx, "Test case raised a failure but was not "
-            "expecting one; reason was %s", atf_dynstr_cstring(reason));
+        error_in_expect(ctx,
+                        "Test case raised a failure but was not "
+                        "expecting one; reason was %s",
+                        atf_dynstr_cstring(reason));
     }
 
     atf_dynstr_fini(reason);
 }
 
 static void
-pass(struct context *ctx)
+pass(struct context* ctx)
 {
     if (ctx->expect == EXPECT_FAIL) {
-        error_in_expect(ctx, "Test case was expecting a failure but got "
-            "a pass instead");
+        error_in_expect(ctx,
+                        "Test case was expecting a failure but got "
+                        "a pass instead");
     } else if (ctx->expect == EXPECT_PASS) {
         create_resfile(ctx, "passed", -1, NULL);
         context_close_resfile(ctx);
         exit(EXIT_SUCCESS);
     } else {
-        error_in_expect(ctx, "Test case asked to explicitly pass but was "
-            "not expecting such condition");
+        error_in_expect(ctx,
+                        "Test case asked to explicitly pass but was "
+                        "not expecting such condition");
     }
     UNREACHABLE;
 }
 
 static void
-skip(struct context *ctx, atf_dynstr_t *reason)
+skip(struct context* ctx, atf_dynstr_t* reason)
 {
     create_resfile(ctx, "skipped", -1, reason);
     context_close_resfile(ctx);
@@ -404,9 +424,8 @@ skip(struct context *ctx, atf_dynstr_t *reason)
  * fatal error.
  */
 static void
-format_reason_ap(atf_dynstr_t *out_reason,
-                 const char *source_file, const size_t source_line,
-                 const char *reason, va_list ap)
+format_reason_ap(atf_dynstr_t* out_reason, const char* source_file,
+                 const size_t source_line, const char* reason, va_list ap)
 {
     atf_error_t err;
 
@@ -429,9 +448,8 @@ format_reason_ap(atf_dynstr_t *out_reason,
 }
 
 static void
-format_reason_fmt(atf_dynstr_t *out_reason,
-                  const char *source_file, const size_t source_line,
-                  const char *reason, ...)
+format_reason_fmt(atf_dynstr_t* out_reason, const char* source_file,
+                  const size_t source_line, const char* reason, ...)
 {
     va_list ap;
 
@@ -441,10 +459,9 @@ format_reason_fmt(atf_dynstr_t *out_reason,
 }
 
 static void
-errno_test(struct context *ctx, const char *file, const size_t line,
-           const int exp_errno, const char *expr_str,
-           const bool expr_result,
-           void (*fail_func)(struct context *, atf_dynstr_t *))
+errno_test(struct context* ctx, const char* file, const size_t line,
+           const int exp_errno, const char* expr_str, const bool expr_result,
+           void (*fail_func)(struct context*, atf_dynstr_t*))
 {
     const int actual_errno = errno;
 
@@ -452,22 +469,24 @@ errno_test(struct context *ctx, const char *file, const size_t line,
         if (exp_errno != actual_errno) {
             atf_dynstr_t reason;
 
-            format_reason_fmt(&reason, file, line, "Expected errno %d, got %d, "
-                "in %s", exp_errno, actual_errno, expr_str);
+            format_reason_fmt(&reason, file, line,
+                              "Expected errno %d, got %d, "
+                              "in %s",
+                              exp_errno, actual_errno, expr_str);
             fail_func(ctx, &reason);
         }
     } else {
         atf_dynstr_t reason;
 
         format_reason_fmt(&reason, file, line, "Expected true value in %s",
-            expr_str);
+                          expr_str);
         fail_func(ctx, &reason);
     }
 }
 
 #if defined(__FreeBSD__)
 atf_error_t
-check_kmod(struct context *ctx, const char *kmod)
+check_kmod(struct context* ctx, const char* kmod)
 {
     struct kld_file_stat fstat = { .version = sizeof(fstat) };
     struct module_stat mstat = { .version = sizeof(mstat) };
@@ -493,8 +512,8 @@ check_kmod(struct context *ctx, const char *kmod)
                 goto done;
         }
     }
-    format_reason_fmt(&reason, NULL, 0,
-        "The required kmod %s is not loaded", kmod);
+    format_reason_fmt(&reason, NULL, 0, "The required kmod %s is not loaded",
+                      kmod);
     fail_requirement(ctx, &reason);
 
 done:
@@ -502,26 +521,26 @@ done:
 }
 #else
 atf_error_t
-check_kmod(struct context *ctx, const char *kmod ATF_DEFS_ATTRIBUTE_UNUSED)
+check_kmod(struct context* ctx, const char* kmod ATF_DEFS_ATTRIBUTE_UNUSED)
 {
     atf_dynstr_t reason;
 
     format_reason_fmt(&reason, NULL, 0,
-        "This API is only available on FreeBSD");
+                      "This API is only available on FreeBSD");
     fail_requirement(ctx, &reason);
     return atf_no_error();
 }
 #endif
 
 struct prog_found_pair {
-    const char *prog;
+    const char* prog;
     bool found;
 };
 
 static atf_error_t
-check_prog_in_dir(const char *dir, void *data)
+check_prog_in_dir(const char* dir, void* data)
 {
-    struct prog_found_pair *pf = data;
+    struct prog_found_pair* pf = data;
     atf_error_t err;
 
     if (pf->found)
@@ -542,7 +561,7 @@ check_prog_in_dir(const char *dir, void *data)
             err = atf_no_error();
         }
 
-out_p:
+    out_p:
         atf_fs_path_fini(&p);
     }
 
@@ -550,7 +569,7 @@ out_p:
 }
 
 static atf_error_t
-check_prog(struct context *ctx, const char *prog)
+check_prog(struct context* ctx, const char* prog)
 {
     atf_error_t err;
     atf_fs_path_t p;
@@ -566,12 +585,14 @@ check_prog(struct context *ctx, const char *prog)
 
             atf_error_free(err);
             atf_fs_path_fini(&p);
-            format_reason_fmt(&reason, NULL, 0, "The required program %s could "
-                "not be found", prog);
+            format_reason_fmt(&reason, NULL, 0,
+                              "The required program %s could "
+                              "not be found",
+                              prog);
             skip(ctx, &reason);
         }
     } else {
-        const char *path = atf_env_get("PATH");
+        const char* path = atf_env_get("PATH");
         struct prog_found_pair pf;
         atf_fs_path_t bp;
 
@@ -584,7 +605,8 @@ check_prog(struct context *ctx, const char *prog)
             atf_fs_path_fini(&p);
 
             report_fatal_error("Relative paths are not allowed when searching "
-                "for a program (%s)", prog);
+                               "for a program (%s)",
+                               prog);
             UNREACHABLE;
         }
 
@@ -599,12 +621,14 @@ check_prog(struct context *ctx, const char *prog)
 
             atf_fs_path_fini(&bp);
             atf_fs_path_fini(&p);
-            format_reason_fmt(&reason, NULL, 0, "The required program %s could "
-                "not be found in the PATH", prog);
+            format_reason_fmt(&reason, NULL, 0,
+                              "The required program %s could "
+                              "not be found in the PATH",
+                              prog);
             fail_requirement(ctx, &reason);
         }
 
-out_bp:
+    out_bp:
         atf_fs_path_fini(&bp);
     }
 
@@ -619,7 +643,7 @@ out:
  * --------------------------------------------------------------------- */
 
 struct atf_tc_impl {
-    const char *m_ident;
+    const char* m_ident;
 
     atf_map_t m_vars;
     atf_map_t m_config;
@@ -634,9 +658,9 @@ struct atf_tc_impl {
  */
 
 atf_error_t
-atf_tc_init(atf_tc_t *tc, const char *ident, atf_tc_head_t head,
+atf_tc_init(atf_tc_t* tc, const char* ident, atf_tc_head_t head,
             atf_tc_body_t body, atf_tc_cleanup_t cleanup,
-            const char *const *config)
+            const char* const* config)
 {
     atf_error_t err;
 
@@ -675,7 +699,7 @@ atf_tc_init(atf_tc_t *tc, const char *ident, atf_tc_head_t head,
 
     if (strcmp(atf_tc_get_md_var(tc, "ident"), ident) != 0) {
         report_fatal_error("Test case head modified the read-only 'ident' "
-            "property");
+                           "property");
         UNREACHABLE;
     }
 
@@ -691,15 +715,15 @@ err:
 }
 
 atf_error_t
-atf_tc_init_pack(atf_tc_t *tc, const atf_tc_pack_t *pack,
-                 const char *const *config)
+atf_tc_init_pack(atf_tc_t* tc, const atf_tc_pack_t* pack,
+                 const char* const* config)
 {
     return atf_tc_init(tc, pack->m_ident, pack->m_head, pack->m_body,
                        pack->m_cleanup, config);
 }
 
 void
-atf_tc_fini(atf_tc_t *tc)
+atf_tc_fini(atf_tc_t* tc)
 {
     atf_map_fini(&tc->pimpl->m_config);
     atf_map_fini(&tc->pimpl->m_vars);
@@ -711,16 +735,16 @@ atf_tc_fini(atf_tc_t *tc)
  * Getters.
  */
 
-const char *
-atf_tc_get_ident(const atf_tc_t *tc)
+const char*
+atf_tc_get_ident(const atf_tc_t* tc)
 {
     return tc->pimpl->m_ident;
 }
 
-const char *
-atf_tc_get_config_var(const atf_tc_t *tc, const char *name)
+const char*
+atf_tc_get_config_var(const atf_tc_t* tc, const char* name)
 {
-    const char *val;
+    const char* val;
     atf_map_citer_t iter;
 
     PRE(atf_tc_has_config_var(tc, name));
@@ -731,11 +755,11 @@ atf_tc_get_config_var(const atf_tc_t *tc, const char *name)
     return val;
 }
 
-const char *
-atf_tc_get_config_var_wd(const atf_tc_t *tc, const char *name,
-                         const char *defval)
+const char*
+atf_tc_get_config_var_wd(const atf_tc_t* tc, const char* name,
+                         const char* defval)
 {
-    const char *val;
+    const char* val;
 
     if (!atf_tc_has_config_var(tc, name))
         val = defval;
@@ -746,10 +770,10 @@ atf_tc_get_config_var_wd(const atf_tc_t *tc, const char *name,
 }
 
 bool
-atf_tc_get_config_var_as_bool(const atf_tc_t *tc, const char *name)
+atf_tc_get_config_var_as_bool(const atf_tc_t* tc, const char* name)
 {
     bool val;
-    const char *strval;
+    const char* strval;
     atf_error_t err;
 
     strval = atf_tc_get_config_var(tc, name);
@@ -757,14 +781,15 @@ atf_tc_get_config_var_as_bool(const atf_tc_t *tc, const char *name)
     if (atf_is_error(err)) {
         atf_error_free(err);
         atf_tc_fail("Configuration variable %s does not have a valid "
-                    "boolean value; found %s", name, strval);
+                    "boolean value; found %s",
+                    name, strval);
     }
 
     return val;
 }
 
 bool
-atf_tc_get_config_var_as_bool_wd(const atf_tc_t *tc, const char *name,
+atf_tc_get_config_var_as_bool_wd(const atf_tc_t* tc, const char* name,
                                  const bool defval)
 {
     bool val;
@@ -778,10 +803,10 @@ atf_tc_get_config_var_as_bool_wd(const atf_tc_t *tc, const char *name,
 }
 
 long
-atf_tc_get_config_var_as_long(const atf_tc_t *tc, const char *name)
+atf_tc_get_config_var_as_long(const atf_tc_t* tc, const char* name)
 {
     long val;
-    const char *strval;
+    const char* strval;
     atf_error_t err;
 
     strval = atf_tc_get_config_var(tc, name);
@@ -789,14 +814,15 @@ atf_tc_get_config_var_as_long(const atf_tc_t *tc, const char *name)
     if (atf_is_error(err)) {
         atf_error_free(err);
         atf_tc_fail("Configuration variable %s does not have a valid "
-                    "long value; found %s", name, strval);
+                    "long value; found %s",
+                    name, strval);
     }
 
     return val;
 }
 
 long
-atf_tc_get_config_var_as_long_wd(const atf_tc_t *tc, const char *name,
+atf_tc_get_config_var_as_long_wd(const atf_tc_t* tc, const char* name,
                                  const long defval)
 {
     long val;
@@ -809,10 +835,10 @@ atf_tc_get_config_var_as_long_wd(const atf_tc_t *tc, const char *name,
     return val;
 }
 
-const char *
-atf_tc_get_md_var(const atf_tc_t *tc, const char *name)
+const char*
+atf_tc_get_md_var(const atf_tc_t* tc, const char* name)
 {
-    const char *val;
+    const char* val;
     atf_map_citer_t iter;
 
     PRE(atf_tc_has_md_var(tc, name));
@@ -823,14 +849,14 @@ atf_tc_get_md_var(const atf_tc_t *tc, const char *name)
     return val;
 }
 
-char **
-atf_tc_get_md_vars(const atf_tc_t *tc)
+char**
+atf_tc_get_md_vars(const atf_tc_t* tc)
 {
     return atf_map_to_charpp(&tc->pimpl->m_vars);
 }
 
 bool
-atf_tc_has_config_var(const atf_tc_t *tc, const char *name)
+atf_tc_has_config_var(const atf_tc_t* tc, const char* name)
 {
     atf_map_citer_t end, iter;
 
@@ -840,7 +866,7 @@ atf_tc_has_config_var(const atf_tc_t *tc, const char *name)
 }
 
 bool
-atf_tc_has_md_var(const atf_tc_t *tc, const char *name)
+atf_tc_has_md_var(const atf_tc_t* tc, const char* name)
 {
     atf_map_citer_t end, iter;
 
@@ -854,10 +880,10 @@ atf_tc_has_md_var(const atf_tc_t *tc, const char *name)
  */
 
 atf_error_t
-atf_tc_set_md_var(atf_tc_t *tc, const char *name, const char *fmt, ...)
+atf_tc_set_md_var(atf_tc_t* tc, const char* name, const char* fmt, ...)
 {
     atf_error_t err;
-    char *value;
+    char* value;
     va_list ap;
 
     va_start(ap, fmt);
@@ -878,33 +904,33 @@ atf_tc_set_md_var(atf_tc_t *tc, const char *name, const char *fmt, ...)
  * Free functions, as they should be publicly but they can't.
  * --------------------------------------------------------------------- */
 
-static void _atf_tc_fail(struct context *, const char *, va_list)
-    ATF_DEFS_ATTRIBUTE_NORETURN;
-static void _atf_tc_fail_nonfatal(struct context *, const char *, va_list);
-static void _atf_tc_fail_check(struct context *, const char *, const size_t,
-    const char *, va_list);
-static void _atf_tc_fail_requirement(struct context *, const char *,
-    const size_t, const char *, va_list) ATF_DEFS_ATTRIBUTE_NORETURN;
-static void _atf_tc_pass(struct context *) ATF_DEFS_ATTRIBUTE_NORETURN;
-static void _atf_tc_require_kmod(struct context *, const char *);
-static void _atf_tc_require_prog(struct context *, const char *);
-static void _atf_tc_skip(struct context *, const char *, va_list)
-    ATF_DEFS_ATTRIBUTE_NORETURN;
-static void _atf_tc_check_errno(struct context *, const char *, const size_t,
-    const int, const char *, const bool);
-static void _atf_tc_require_errno(struct context *, const char *, const size_t,
-    const int, const char *, const bool);
-static void _atf_tc_expect_pass(struct context *);
-static void _atf_tc_expect_fail(struct context *, const char *, va_list);
-static void _atf_tc_expect_exit(struct context *, const int, const char *,
-    va_list);
-static void _atf_tc_expect_signal(struct context *, const int, const char *,
-    va_list);
-static void _atf_tc_expect_death(struct context *, const char *,
-    va_list);
+static void _atf_tc_fail(struct context*, const char*,
+                         va_list) ATF_DEFS_ATTRIBUTE_NORETURN;
+static void _atf_tc_fail_nonfatal(struct context*, const char*, va_list);
+static void _atf_tc_fail_check(struct context*, const char*, const size_t,
+                               const char*, va_list);
+static void _atf_tc_fail_requirement(struct context*, const char*, const size_t,
+                                     const char*,
+                                     va_list) ATF_DEFS_ATTRIBUTE_NORETURN;
+static void _atf_tc_pass(struct context*) ATF_DEFS_ATTRIBUTE_NORETURN;
+static void _atf_tc_require_kmod(struct context*, const char*);
+static void _atf_tc_require_prog(struct context*, const char*);
+static void _atf_tc_skip(struct context*, const char*,
+                         va_list) ATF_DEFS_ATTRIBUTE_NORETURN;
+static void _atf_tc_check_errno(struct context*, const char*, const size_t,
+                                const int, const char*, const bool);
+static void _atf_tc_require_errno(struct context*, const char*, const size_t,
+                                  const int, const char*, const bool);
+static void _atf_tc_expect_pass(struct context*);
+static void _atf_tc_expect_fail(struct context*, const char*, va_list);
+static void _atf_tc_expect_exit(struct context*, const int, const char*,
+                                va_list);
+static void _atf_tc_expect_signal(struct context*, const int, const char*,
+                                  va_list);
+static void _atf_tc_expect_death(struct context*, const char*, va_list);
 
 static void
-_atf_tc_fail(struct context *ctx, const char *fmt, va_list ap)
+_atf_tc_fail(struct context* ctx, const char* fmt, va_list ap)
 {
     va_list ap2;
     atf_dynstr_t reason;
@@ -918,7 +944,7 @@ _atf_tc_fail(struct context *ctx, const char *fmt, va_list ap)
 }
 
 static void
-_atf_tc_fail_nonfatal(struct context *ctx, const char *fmt, va_list ap)
+_atf_tc_fail_nonfatal(struct context* ctx, const char* fmt, va_list ap)
 {
     va_list ap2;
     atf_dynstr_t reason;
@@ -931,8 +957,8 @@ _atf_tc_fail_nonfatal(struct context *ctx, const char *fmt, va_list ap)
 }
 
 static void
-_atf_tc_fail_check(struct context *ctx, const char *file, const size_t line,
-                   const char *fmt, va_list ap)
+_atf_tc_fail_check(struct context* ctx, const char* file, const size_t line,
+                   const char* fmt, va_list ap)
 {
     va_list ap2;
     atf_dynstr_t reason;
@@ -945,8 +971,8 @@ _atf_tc_fail_check(struct context *ctx, const char *file, const size_t line,
 }
 
 static void
-_atf_tc_fail_requirement(struct context *ctx, const char *file,
-                         const size_t line, const char *fmt, va_list ap)
+_atf_tc_fail_requirement(struct context* ctx, const char* file,
+                         const size_t line, const char* fmt, va_list ap)
 {
     va_list ap2;
     atf_dynstr_t reason;
@@ -960,26 +986,26 @@ _atf_tc_fail_requirement(struct context *ctx, const char *file,
 }
 
 static void
-_atf_tc_pass(struct context *ctx)
+_atf_tc_pass(struct context* ctx)
 {
     pass(ctx);
     UNREACHABLE;
 }
 
 static void
-_atf_tc_require_kmod(struct context *ctx, const char *prog)
+_atf_tc_require_kmod(struct context* ctx, const char* kmod)
 {
-    check_fatal_error(check_kmod(ctx, prog));
+    check_fatal_error(check_kmod(ctx, kmod));
 }
 
 static void
-_atf_tc_require_prog(struct context *ctx, const char *prog)
+_atf_tc_require_prog(struct context* ctx, const char* prog)
 {
     check_fatal_error(check_prog(ctx, prog));
 }
 
 static void
-_atf_tc_skip(struct context *ctx, const char *fmt, va_list ap)
+_atf_tc_skip(struct context* ctx, const char* fmt, va_list ap)
 {
     atf_dynstr_t reason;
     va_list ap2;
@@ -992,24 +1018,24 @@ _atf_tc_skip(struct context *ctx, const char *fmt, va_list ap)
 }
 
 static void
-_atf_tc_check_errno(struct context *ctx, const char *file, const size_t line,
-                    const int exp_errno, const char *expr_str,
+_atf_tc_check_errno(struct context* ctx, const char* file, const size_t line,
+                    const int exp_errno, const char* expr_str,
                     const bool expr_result)
 {
     errno_test(ctx, file, line, exp_errno, expr_str, expr_result, fail_check);
 }
 
 static void
-_atf_tc_require_errno(struct context *ctx, const char *file, const size_t line,
-                      const int exp_errno, const char *expr_str,
+_atf_tc_require_errno(struct context* ctx, const char* file, const size_t line,
+                      const int exp_errno, const char* expr_str,
                       const bool expr_result)
 {
     errno_test(ctx, file, line, exp_errno, expr_str, expr_result,
-        fail_requirement);
+               fail_requirement);
 }
 
 static void
-_atf_tc_expect_pass(struct context *ctx)
+_atf_tc_expect_pass(struct context* ctx)
 {
     validate_expect(ctx);
 
@@ -1017,7 +1043,7 @@ _atf_tc_expect_pass(struct context *ctx)
 }
 
 static void
-_atf_tc_expect_fail(struct context *ctx, const char *reason, va_list ap)
+_atf_tc_expect_fail(struct context* ctx, const char* reason, va_list ap)
 {
     va_list ap2;
 
@@ -1032,7 +1058,7 @@ _atf_tc_expect_fail(struct context *ctx, const char *reason, va_list ap)
 }
 
 static void
-_atf_tc_expect_exit(struct context *ctx, const int exitcode, const char *reason,
+_atf_tc_expect_exit(struct context* ctx, const int exitcode, const char* reason,
                     va_list ap)
 {
     va_list ap2;
@@ -1049,7 +1075,7 @@ _atf_tc_expect_exit(struct context *ctx, const int exitcode, const char *reason,
 }
 
 static void
-_atf_tc_expect_signal(struct context *ctx, const int signo, const char *reason,
+_atf_tc_expect_signal(struct context* ctx, const int signo, const char* reason,
                       va_list ap)
 {
     va_list ap2;
@@ -1066,7 +1092,7 @@ _atf_tc_expect_signal(struct context *ctx, const int signo, const char *reason,
 }
 
 static void
-_atf_tc_expect_death(struct context *ctx, const char *reason, va_list ap)
+_atf_tc_expect_death(struct context* ctx, const char* reason, va_list ap)
 {
     va_list ap2;
     atf_dynstr_t formatted;
@@ -1082,7 +1108,7 @@ _atf_tc_expect_death(struct context *ctx, const char *reason, va_list ap)
 }
 
 static void
-_atf_tc_expect_timeout(struct context *ctx, const char *reason, va_list ap)
+_atf_tc_expect_timeout(struct context* ctx, const char* reason, va_list ap)
 {
     va_list ap2;
     atf_dynstr_t formatted;
@@ -1098,9 +1124,8 @@ _atf_tc_expect_timeout(struct context *ctx, const char *reason, va_list ap)
 }
 
 static void
-_atf_tc_set_resultsfile(struct context *ctx, const char *file)
+_atf_tc_set_resultsfile(struct context* ctx, const char* file)
 {
-
     context_set_resfile(ctx, file);
 }
 
@@ -1111,8 +1136,9 @@ _atf_tc_set_resultsfile(struct context *ctx, const char *file)
 static struct context Current;
 
 atf_error_t
-atf_tc_run(const atf_tc_t *tc, const char *resfile)
+atf_tc_run(const atf_tc_t* tc, const char* resfile)
 {
+    context_fini(&Current);
     context_init(&Current, tc, resfile);
 
     tc->pimpl->m_body(tc);
@@ -1122,14 +1148,18 @@ atf_tc_run(const atf_tc_t *tc, const char *resfile)
     if (Current.fail_count > 0) {
         atf_dynstr_t reason;
 
-        format_reason_fmt(&reason, NULL, 0, "%d checks failed; see output for "
-            "more details", Current.fail_count);
+        format_reason_fmt(&reason, NULL, 0,
+                          "%d checks failed; see output for "
+                          "more details",
+                          Current.fail_count);
         fail_requirement(&Current, &reason);
     } else if (Current.expect_fail_count > 0) {
         atf_dynstr_t reason;
 
-        format_reason_fmt(&reason, NULL, 0, "%d checks failed as expected; "
-            "see output for more details", Current.expect_fail_count);
+        format_reason_fmt(&reason, NULL, 0,
+                          "%d checks failed as expected; "
+                          "see output for more details",
+                          Current.expect_fail_count);
         expected_failure(&Current, &reason);
     } else {
         pass(&Current);
@@ -1139,7 +1169,7 @@ atf_tc_run(const atf_tc_t *tc, const char *resfile)
 }
 
 atf_error_t
-atf_tc_cleanup(const atf_tc_t *tc)
+atf_tc_cleanup(const atf_tc_t* tc)
 {
     if (tc->pimpl->m_cleanup != NULL)
         tc->pimpl->m_cleanup(tc);
@@ -1162,7 +1192,7 @@ atf_tc_cleanup(const atf_tc_t *tc)
  */
 
 void
-atf_tc_fail(const char *fmt, ...)
+atf_tc_fail(const char* fmt, ...)
 {
     va_list ap;
 
@@ -1174,7 +1204,7 @@ atf_tc_fail(const char *fmt, ...)
 }
 
 void
-atf_tc_fail_nonfatal(const char *fmt, ...)
+atf_tc_fail_nonfatal(const char* fmt, ...)
 {
     va_list ap;
 
@@ -1186,7 +1216,7 @@ atf_tc_fail_nonfatal(const char *fmt, ...)
 }
 
 void
-atf_tc_fail_check(const char *file, const size_t line, const char *fmt, ...)
+atf_tc_fail_check(const char* file, const size_t line, const char* fmt, ...)
 {
     va_list ap;
 
@@ -1198,8 +1228,8 @@ atf_tc_fail_check(const char *file, const size_t line, const char *fmt, ...)
 }
 
 void
-atf_tc_fail_requirement(const char *file, const size_t line,
-                        const char *fmt, ...)
+atf_tc_fail_requirement(const char* file, const size_t line, const char* fmt,
+                        ...)
 {
     va_list ap;
 
@@ -1219,7 +1249,7 @@ atf_tc_pass(void)
 }
 
 void
-atf_tc_require_kmod(const char *kmod)
+atf_tc_require_kmod(const char* kmod)
 {
     PRE(Current.tc != NULL);
 
@@ -1227,7 +1257,7 @@ atf_tc_require_kmod(const char *kmod)
 }
 
 void
-atf_tc_require_prog(const char *prog)
+atf_tc_require_prog(const char* prog)
 {
     PRE(Current.tc != NULL);
 
@@ -1235,7 +1265,7 @@ atf_tc_require_prog(const char *prog)
 }
 
 void
-atf_tc_skip(const char *fmt, ...)
+atf_tc_skip(const char* fmt, ...)
 {
     va_list ap;
 
@@ -1247,18 +1277,17 @@ atf_tc_skip(const char *fmt, ...)
 }
 
 void
-atf_tc_check_errno(const char *file, const size_t line, const int exp_errno,
-                   const char *expr_str, const bool expr_result)
+atf_tc_check_errno(const char* file, const size_t line, const int exp_errno,
+                   const char* expr_str, const bool expr_result)
 {
     PRE(Current.tc != NULL);
 
-    _atf_tc_check_errno(&Current, file, line, exp_errno, expr_str,
-                        expr_result);
+    _atf_tc_check_errno(&Current, file, line, exp_errno, expr_str, expr_result);
 }
 
 void
-atf_tc_require_errno(const char *file, const size_t line, const int exp_errno,
-                     const char *expr_str, const bool expr_result)
+atf_tc_require_errno(const char* file, const size_t line, const int exp_errno,
+                     const char* expr_str, const bool expr_result)
 {
     PRE(Current.tc != NULL);
 
@@ -1275,7 +1304,7 @@ atf_tc_expect_pass(void)
 }
 
 void
-atf_tc_expect_fail(const char *reason, ...)
+atf_tc_expect_fail(const char* reason, ...)
 {
     va_list ap;
 
@@ -1287,7 +1316,7 @@ atf_tc_expect_fail(const char *reason, ...)
 }
 
 void
-atf_tc_expect_exit(const int exitcode, const char *reason, ...)
+atf_tc_expect_exit(const int exitcode, const char* reason, ...)
 {
     va_list ap;
 
@@ -1299,7 +1328,7 @@ atf_tc_expect_exit(const int exitcode, const char *reason, ...)
 }
 
 void
-atf_tc_expect_signal(const int signo, const char *reason, ...)
+atf_tc_expect_signal(const int signo, const char* reason, ...)
 {
     va_list ap;
 
@@ -1311,7 +1340,7 @@ atf_tc_expect_signal(const int signo, const char *reason, ...)
 }
 
 void
-atf_tc_expect_death(const char *reason, ...)
+atf_tc_expect_death(const char* reason, ...)
 {
     va_list ap;
 
@@ -1323,7 +1352,7 @@ atf_tc_expect_death(const char *reason, ...)
 }
 
 void
-atf_tc_expect_timeout(const char *reason, ...)
+atf_tc_expect_timeout(const char* reason, ...)
 {
     va_list ap;
 
@@ -1336,9 +1365,8 @@ atf_tc_expect_timeout(const char *reason, ...)
 
 /* Internal! */
 void
-atf_tc_set_resultsfile(const char *file)
+atf_tc_set_resultsfile(const char* file)
 {
-
     PRE(Current.tc != NULL);
 
     _atf_tc_set_resultsfile(&Current, file);

@@ -23,7 +23,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "atf-c/detail/fs.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -35,8 +35,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <atf-c.h>
-
+#include "atf-c.h"
+#include "atf-c/detail/fs.h"
 #include "atf-c/detail/test_helpers.h"
 #include "atf-c/detail/user.h"
 
@@ -44,9 +44,8 @@
  * Auxiliary functions.
  * --------------------------------------------------------------------- */
 
-static
-void
-create_dir(const char *p, int mode)
+static void
+create_dir(const char* p, int mode)
 {
     int ret;
 
@@ -55,9 +54,8 @@ create_dir(const char *p, int mode)
         atf_tc_fail("Could not create helper directory %s", p);
 }
 
-static
-void
-create_file(const char *p, int mode)
+static void
+create_file(const char* p, int mode)
 {
     int fd;
 
@@ -67,16 +65,14 @@ create_file(const char *p, int mode)
     close(fd);
 }
 
-static
-bool
-exists(const atf_fs_path_t *p)
+static bool
+exists(const atf_fs_path_t* p)
 {
     return access(atf_fs_path_cstring(p), F_OK) == 0;
 }
 
-static
-atf_error_t
-mkstemp_discard_fd(atf_fs_path_t *p)
+static atf_error_t
+mkstemp_discard_fd(atf_fs_path_t* p)
 {
     int fd;
     atf_error_t err = atf_fs_mkstemp(p, &fd);
@@ -97,32 +93,82 @@ ATF_TC_HEAD(path_normalize, tc)
 ATF_TC_BODY(path_normalize, tc)
 {
     struct test {
-        const char *in;
-        const char *out;
+        const char* in;
+        const char* out;
     } tests[] = {
-        { ".", ".", },
-        { "..", "..", },
+        /* NOLINTBEGIN */ /* clang-format: off */
+        {
+            ".",
+            ".",
+        },
+        {
+            "..",
+            "..",
+        },
 
-        { "/", "/", },
-        { "//", "/", }, /* NO_CHECK_STYLE */
-        { "///", "/", }, /* NO_CHECK_STYLE */
+        {
+            "/",
+            "/",
+        },
 
-        { "foo", "foo", },
-        { "foo/", "foo", },
-        { "foo/bar", "foo/bar", },
-        { "foo/bar/", "foo/bar", },
+        {
+            "foo",
+            "foo",
+        },
+        {
+            "foo/",
+            "foo",
+        },
+        {
+            "foo/bar",
+            "foo/bar",
+        },
+        {
+            "foo/bar/",
+            "foo/bar",
+        },
 
-        { "/foo", "/foo", },
-        { "/foo/bar", "/foo/bar", },
-        { "/foo/bar/", "/foo/bar", },
+        {
+            "/foo",
+            "/foo",
+        },
+        {
+            "/foo/bar",
+            "/foo/bar",
+        },
+        {
+            "/foo/bar/",
+            "/foo/bar",
+        },
 
-        { "///foo", "/foo", }, /* NO_CHECK_STYLE */
-        { "///foo///bar", "/foo/bar", }, /* NO_CHECK_STYLE */
-        { "///foo///bar///", "/foo/bar", }, /* NO_CHECK_STYLE */
+        /* NOLINTBEGIN */
+        {
+            "//",
+            "/",
+        },
+        {
+            "///",
+            "/",
+        },
+
+        {
+            "///foo",
+            "/foo",
+        },
+        {
+            "///foo///bar",
+            "/foo/bar",
+        },
+        {
+            "///foo///bar///",
+            "/foo/bar",
+        },
+        /* NOLINTEND */
 
         { NULL, NULL }
+        /* NOLINTEND */ /* clang-format: on */
     };
-    struct test *t;
+    struct test* t;
 
     for (t = &tests[0]; t->in != NULL; t++) {
         atf_fs_path_t p;
@@ -169,18 +215,22 @@ ATF_TC_HEAD(path_is_absolute, tc)
 ATF_TC_BODY(path_is_absolute, tc)
 {
     struct test {
-        const char *in;
+        const char* in;
         bool abs;
     } tests[] = {
+        /* NOLINTBEGIN */ /* clang-format: off */
         { "/", true },
-        { "////", true }, /* NO_CHECK_STYLE */
-        { "////a", true }, /* NO_CHECK_STYLE */
-        { "//a//", true }, /* NO_CHECK_STYLE */
-        { "a////", false }, /* NO_CHECK_STYLE */
+        /* NOLINTBEGIN */
+        { "////", true },
+        { "////a", true },
+        { "//a//", true },
+        { "a////", false },
+        /* NOLINTEND */
         { "../foo", false },
         { NULL, false },
+        /* NOLINTBEGIN */ /* clang-format: on */
     };
-    struct test *t;
+    struct test* t;
 
     for (t = &tests[0]; t->in != NULL; t++) {
         atf_fs_path_t p;
@@ -209,18 +259,22 @@ ATF_TC_HEAD(path_is_root, tc)
 ATF_TC_BODY(path_is_root, tc)
 {
     struct test {
-        const char *in;
+        const char* in;
         bool root;
     } tests[] = {
+        /* NOLINTBEGIN */ /* clang-format: off */
         { "/", true },
-        { "////", true }, /* NO_CHECK_STYLE */
-        { "////a", false }, /* NO_CHECK_STYLE */
-        { "//a//", false }, /* NO_CHECK_STYLE */
-        { "a////", false }, /* NO_CHECK_STYLE */
+        /* NOLINTBEGIN */
+        { "////", true },
+        { "////a", false },
+        { "//a//", false },
+        { "a////", false },
+        /* NOLINTEND */
         { "../foo", false },
         { NULL, false },
+        /* NOLINTEND */ /* clang-format: on */
     };
-    struct test *t;
+    struct test* t;
 
     for (t = &tests[0]; t->in != NULL; t++) {
         atf_fs_path_t p;
@@ -244,23 +298,25 @@ ATF_TC_BODY(path_is_root, tc)
 ATF_TC(path_branch_path);
 ATF_TC_HEAD(path_branch_path, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the atf_fs_path_branch_path "
-                      "function");
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the atf_fs_path_branch_path function");
 }
 ATF_TC_BODY(path_branch_path, tc)
 {
     struct test {
-        const char *in;
-        const char *branch;
+        const char* in;
+        const char* branch;
     } tests[] = {
+        /* NOLINTBEGIN */ /* clang-format: off */
         { ".", "." },
         { "foo", "." },
         { "foo/bar", "foo" },
         { "/foo", "/" },
         { "/foo/bar", "/foo" },
         { NULL, NULL },
+        /* NOLINTEND */ /* clang-format: on */
     };
-    struct test *t;
+    struct test* t;
 
     for (t = &tests[0]; t->in != NULL; t++) {
         atf_fs_path_t p, bp;
@@ -282,23 +338,22 @@ ATF_TC_BODY(path_branch_path, tc)
 ATF_TC(path_leaf_name);
 ATF_TC_HEAD(path_leaf_name, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the atf_fs_path_leaf_name "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the atf_fs_path_leaf_name "
                       "function");
 }
 ATF_TC_BODY(path_leaf_name, tc)
 {
     struct test {
-        const char *in;
-        const char *leaf;
+        const char* in;
+        const char* leaf;
     } tests[] = {
-        { ".", "." },
-        { "foo", "foo" },
-        { "foo/bar", "bar" },
-        { "/foo", "foo" },
-        { "/foo/bar", "bar" },
-        { NULL, NULL },
+        /* NOLINTBEGIN */
+        { ".", "." },      { "foo", "foo" },      { "foo/bar", "bar" },
+        { "/foo", "foo" }, { "/foo/bar", "bar" }, { NULL, NULL },
+        /* NOLINTEND */
     };
-    struct test *t;
+    struct test* t;
 
     for (t = &tests[0]; t->in != NULL; t++) {
         atf_fs_path_t p;
@@ -321,24 +376,25 @@ ATF_TC_BODY(path_leaf_name, tc)
 ATF_TC(path_append);
 ATF_TC_HEAD(path_append, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the concatenation of multiple "
-                      "paths");
+    atf_tc_set_md_var(tc, "descr", "Tests the concatenation of multiple paths");
 }
 ATF_TC_BODY(path_append, tc)
 {
     struct test {
-        const char *in;
-        const char *ap;
-        const char *out;
+        const char* in;
+        const char* ap;
+        const char* out;
     } tests[] = {
+        /* NOLINTBEGIN */
         { "foo", "bar", "foo/bar" },
         { "foo/", "/bar", "foo/bar" },
         { "foo/", "/bar/baz", "foo/bar/baz" },
-        { "foo/", "///bar///baz", "foo/bar/baz" }, /* NO_CHECK_STYLE */
+        { "foo/", "///bar///baz", "foo/bar/baz" }, /* NOLINT */
 
         { NULL, NULL, NULL }
+        /* NOLINTEND */
     };
-    struct test *t;
+    struct test* t;
 
     for (t = &tests[0]; t->in != NULL; t++) {
         atf_fs_path_t p;
@@ -363,13 +419,14 @@ ATF_TC_BODY(path_append, tc)
 ATF_TC(path_to_absolute);
 ATF_TC_HEAD(path_to_absolute, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the atf_fs_path_to_absolute "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the atf_fs_path_to_absolute "
                       "function");
 }
 ATF_TC_BODY(path_to_absolute, tc)
 {
-    const char *names[] = { ".", "dir", NULL };
-    const char **n;
+    const char* names[] = { ".", "dir", NULL };
+    const char** n;
 
     ATF_REQUIRE(mkdir("dir", 0755) != -1);
 
@@ -388,9 +445,9 @@ ATF_TC_BODY(path_to_absolute, tc)
         RE(atf_fs_stat_init(&st2, &p2));
 
         ATF_REQUIRE_EQ(atf_fs_stat_get_device(&st1),
-                        atf_fs_stat_get_device(&st2));
+                       atf_fs_stat_get_device(&st2));
         ATF_REQUIRE_EQ(atf_fs_stat_get_inode(&st1),
-                        atf_fs_stat_get_inode(&st2));
+                       atf_fs_stat_get_inode(&st2));
 
         atf_fs_stat_fini(&st2);
         atf_fs_stat_fini(&st1);
@@ -430,7 +487,8 @@ ATF_TC_BODY(path_equal, tc)
 ATF_TC(stat_mode);
 ATF_TC_HEAD(stat_mode, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the atf_fs_stat_get_mode function "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the atf_fs_stat_get_mode function "
                       "and, indirectly, the constructor");
 }
 ATF_TC_BODY(stat_mode, tc)
@@ -457,7 +515,8 @@ ATF_TC_BODY(stat_mode, tc)
 ATF_TC(stat_type);
 ATF_TC_HEAD(stat_type, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the atf_fs_stat_get_type function "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the atf_fs_stat_get_type function "
                       "and, indirectly, the constructor");
 }
 ATF_TC_BODY(stat_type, tc)
@@ -495,19 +554,19 @@ ATF_TC_BODY(stat_perms, tc)
 
     RE(atf_fs_path_init_fmt(&p, "reg"));
 
-#define perms(ur, uw, ux, gr, gw, gx, othr, othw, othx) \
-    { \
-        RE(atf_fs_stat_init(&st, &p)); \
-        ATF_REQUIRE(atf_fs_stat_is_owner_readable(&st) == ur); \
-        ATF_REQUIRE(atf_fs_stat_is_owner_writable(&st) == uw); \
-        ATF_REQUIRE(atf_fs_stat_is_owner_executable(&st) == ux); \
-        ATF_REQUIRE(atf_fs_stat_is_group_readable(&st) == gr); \
-        ATF_REQUIRE(atf_fs_stat_is_group_writable(&st) == gw); \
-        ATF_REQUIRE(atf_fs_stat_is_group_executable(&st) == gx); \
-        ATF_REQUIRE(atf_fs_stat_is_other_readable(&st) == othr); \
-        ATF_REQUIRE(atf_fs_stat_is_other_writable(&st) == othw); \
+#define perms(ur, uw, ux, gr, gw, gx, othr, othw, othx)            \
+    {                                                              \
+        RE(atf_fs_stat_init(&st, &p));                             \
+        ATF_REQUIRE(atf_fs_stat_is_owner_readable(&st) == ur);     \
+        ATF_REQUIRE(atf_fs_stat_is_owner_writable(&st) == uw);     \
+        ATF_REQUIRE(atf_fs_stat_is_owner_executable(&st) == ux);   \
+        ATF_REQUIRE(atf_fs_stat_is_group_readable(&st) == gr);     \
+        ATF_REQUIRE(atf_fs_stat_is_group_writable(&st) == gw);     \
+        ATF_REQUIRE(atf_fs_stat_is_group_executable(&st) == gx);   \
+        ATF_REQUIRE(atf_fs_stat_is_other_readable(&st) == othr);   \
+        ATF_REQUIRE(atf_fs_stat_is_other_writable(&st) == othw);   \
         ATF_REQUIRE(atf_fs_stat_is_other_executable(&st) == othx); \
-        atf_fs_stat_fini(&st); \
+        atf_fs_stat_fini(&st);                                     \
     }
 
     chmod("reg", 0000);
@@ -615,13 +674,14 @@ ATF_TC_BODY(eaccess, tc)
 {
     const int modes[] = { atf_fs_access_f, atf_fs_access_r, atf_fs_access_w,
                           atf_fs_access_x, 0 };
-    const int *m;
+    const int* m;
     struct tests {
         mode_t fmode;
         int amode;
         int uerror;
         int rerror;
     } tests[] = {
+        /* NOLINTBEGIN */
         { 0000, atf_fs_access_r, EACCES, 0 },
         { 0000, atf_fs_access_w, EACCES, 0 },
         { 0000, atf_fs_access_x, EACCES, EACCES },
@@ -638,27 +698,27 @@ ATF_TC_BODY(eaccess, tc)
 
         { 0010, atf_fs_access_r, EACCES, 0 },
         { 0010, atf_fs_access_w, EACCES, 0 },
-        { 0010, atf_fs_access_x, 0,      0 },
+        { 0010, atf_fs_access_x, 0, 0 },
         { 0020, atf_fs_access_r, EACCES, 0 },
-        { 0020, atf_fs_access_w, 0,      0 },
+        { 0020, atf_fs_access_w, 0, 0 },
         { 0020, atf_fs_access_x, EACCES, EACCES },
-        { 0040, atf_fs_access_r, 0,      0 },
+        { 0040, atf_fs_access_r, 0, 0 },
         { 0040, atf_fs_access_w, EACCES, 0 },
         { 0040, atf_fs_access_x, EACCES, EACCES },
 
         { 0100, atf_fs_access_r, EACCES, 0 },
         { 0100, atf_fs_access_w, EACCES, 0 },
-        { 0100, atf_fs_access_x, 0,      0 },
+        { 0100, atf_fs_access_x, 0, 0 },
         { 0200, atf_fs_access_r, EACCES, 0 },
-        { 0200, atf_fs_access_w, 0,      0 },
+        { 0200, atf_fs_access_w, 0, 0 },
         { 0200, atf_fs_access_x, EACCES, EACCES },
-        { 0400, atf_fs_access_r, 0,      0 },
+        { 0400, atf_fs_access_r, 0, 0 },
         { 0400, atf_fs_access_w, EACCES, 0 },
         { 0400, atf_fs_access_x, EACCES, EACCES },
 
-        { 0, 0, 0, 0 }
+        { 0, 0, 0, 0 } /* NOLINTEND */
     };
-    struct tests *t;
+    struct tests* t;
     atf_fs_path_t p;
     atf_error_t err;
 
@@ -698,7 +758,7 @@ ATF_TC_BODY(eaccess, tc)
             else
                 printf("Error         : Non-libc error\n");
         } else
-                printf("Error         : None\n");
+            printf("Error         : None\n");
         if (experr == 0) {
             ATF_REQUIRE(!atf_is_error(err));
         } else {
@@ -721,7 +781,7 @@ ATF_TC_BODY(getcwd, tc)
 {
     atf_fs_path_t cwd1, cwd2;
 
-    create_dir ("root", 0755);
+    create_dir("root", 0755);
 
     RE(atf_fs_getcwd(&cwd1));
     ATF_REQUIRE(chdir("root") != -1);
@@ -811,7 +871,8 @@ ATF_TC_BODY(rmdir_eperm, tc)
 ATF_TC_CLEANUP(rmdir_eperm, tc)
 {
     if (chmod("test-dir", 0755) == -1) {
-        fprintf(stderr, "Failed to unprotect test-dir; test directory "
+        fprintf(stderr,
+                "Failed to unprotect test-dir; test directory "
                 "cleanup will fail\n");
     }
 }
@@ -819,7 +880,8 @@ ATF_TC_CLEANUP(rmdir_eperm, tc)
 ATF_TC(mkdtemp_ok);
 ATF_TC_HEAD(mkdtemp_ok, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the atf_fs_mkdtemp function, "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the atf_fs_mkdtemp function, "
                       "successful execution");
 }
 ATF_TC_BODY(mkdtemp_ok, tc)
@@ -837,9 +899,9 @@ ATF_TC_BODY(mkdtemp_ok, tc)
 
     RE(atf_fs_stat_init(&s1, &p1));
     ATF_REQUIRE_EQ(atf_fs_stat_get_type(&s1), atf_fs_stat_dir_type);
-    ATF_REQUIRE( atf_fs_stat_is_owner_readable(&s1));
-    ATF_REQUIRE( atf_fs_stat_is_owner_writable(&s1));
-    ATF_REQUIRE( atf_fs_stat_is_owner_executable(&s1));
+    ATF_REQUIRE(atf_fs_stat_is_owner_readable(&s1));
+    ATF_REQUIRE(atf_fs_stat_is_owner_writable(&s1));
+    ATF_REQUIRE(atf_fs_stat_is_owner_executable(&s1));
     ATF_REQUIRE(!atf_fs_stat_is_group_readable(&s1));
     ATF_REQUIRE(!atf_fs_stat_is_group_writable(&s1));
     ATF_REQUIRE(!atf_fs_stat_is_group_executable(&s1));
@@ -849,9 +911,9 @@ ATF_TC_BODY(mkdtemp_ok, tc)
 
     RE(atf_fs_stat_init(&s2, &p2));
     ATF_REQUIRE_EQ(atf_fs_stat_get_type(&s2), atf_fs_stat_dir_type);
-    ATF_REQUIRE( atf_fs_stat_is_owner_readable(&s2));
-    ATF_REQUIRE( atf_fs_stat_is_owner_writable(&s2));
-    ATF_REQUIRE( atf_fs_stat_is_owner_executable(&s2));
+    ATF_REQUIRE(atf_fs_stat_is_owner_readable(&s2));
+    ATF_REQUIRE(atf_fs_stat_is_owner_writable(&s2));
+    ATF_REQUIRE(atf_fs_stat_is_owner_executable(&s2));
     ATF_REQUIRE(!atf_fs_stat_is_group_readable(&s2));
     ATF_REQUIRE(!atf_fs_stat_is_group_writable(&s2));
     ATF_REQUIRE(!atf_fs_stat_is_group_executable(&s2));
@@ -868,7 +930,8 @@ ATF_TC_BODY(mkdtemp_ok, tc)
 ATF_TC(mkdtemp_err);
 ATF_TC_HEAD(mkdtemp_err, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the atf_fs_mkdtemp function, "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the atf_fs_mkdtemp function, "
                       "error conditions");
     atf_tc_set_md_var(tc, "require.user", "unprivileged");
 }
@@ -893,12 +956,11 @@ ATF_TC_BODY(mkdtemp_err, tc)
     atf_fs_path_fini(&p);
 }
 
-static
-void
-do_umask_check(atf_error_t (*const mk_func)(atf_fs_path_t *),
-               atf_error_t (*const rm_func)(const atf_fs_path_t *),
-               atf_fs_path_t *tmpl, const mode_t test_mask,
-               const char *exp_name)
+static void
+do_umask_check(atf_error_t (*const mk_func)(atf_fs_path_t*),
+               atf_error_t (*const rm_func)(const atf_fs_path_t*),
+               atf_fs_path_t* tmpl, const mode_t test_mask,
+               const char* exp_name)
 {
     atf_fs_path_t path;
     atf_error_t err;
@@ -914,13 +976,16 @@ do_umask_check(atf_error_t (*const mk_func)(atf_fs_path_t *),
 
     ATF_REQUIRE(!atf_is_error(err));
     ATF_CHECK_EQ(post_mask, test_mask);
-    RE(rm_func(&path));
+    err = rm_func(&path);
+    atf_fs_path_fini(&path);
+    RE(err);
 }
 
 ATF_TC(mkdtemp_umask);
 ATF_TC_HEAD(mkdtemp_umask, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the atf_fs_mkdtemp function "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the atf_fs_mkdtemp function "
                       "causing an error due to a too strict umask");
 }
 ATF_TC_BODY(mkdtemp_umask, tc)
@@ -941,7 +1006,8 @@ ATF_TC_BODY(mkdtemp_umask, tc)
 ATF_TC(mkstemp_ok);
 ATF_TC_HEAD(mkstemp_ok, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the atf_fs_mkstemp function, "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the atf_fs_mkstemp function, "
                       "successful execution");
 }
 ATF_TC_BODY(mkstemp_ok, tc)
@@ -968,8 +1034,8 @@ ATF_TC_BODY(mkstemp_ok, tc)
 
     RE(atf_fs_stat_init(&s1, &p1));
     ATF_CHECK_EQ(atf_fs_stat_get_type(&s1), atf_fs_stat_reg_type);
-    ATF_CHECK( atf_fs_stat_is_owner_readable(&s1));
-    ATF_CHECK( atf_fs_stat_is_owner_writable(&s1));
+    ATF_CHECK(atf_fs_stat_is_owner_readable(&s1));
+    ATF_CHECK(atf_fs_stat_is_owner_writable(&s1));
     ATF_CHECK(!atf_fs_stat_is_owner_executable(&s1));
     ATF_CHECK(!atf_fs_stat_is_group_readable(&s1));
     ATF_CHECK(!atf_fs_stat_is_group_writable(&s1));
@@ -980,8 +1046,8 @@ ATF_TC_BODY(mkstemp_ok, tc)
 
     RE(atf_fs_stat_init(&s2, &p2));
     ATF_CHECK_EQ(atf_fs_stat_get_type(&s2), atf_fs_stat_reg_type);
-    ATF_CHECK( atf_fs_stat_is_owner_readable(&s2));
-    ATF_CHECK( atf_fs_stat_is_owner_writable(&s2));
+    ATF_CHECK(atf_fs_stat_is_owner_readable(&s2));
+    ATF_CHECK(atf_fs_stat_is_owner_writable(&s2));
     ATF_CHECK(!atf_fs_stat_is_owner_executable(&s2));
     ATF_CHECK(!atf_fs_stat_is_group_readable(&s2));
     ATF_CHECK(!atf_fs_stat_is_group_writable(&s2));
@@ -999,7 +1065,8 @@ ATF_TC_BODY(mkstemp_ok, tc)
 ATF_TC(mkstemp_err);
 ATF_TC_HEAD(mkstemp_err, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the atf_fs_mkstemp function, "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the atf_fs_mkstemp function, "
                       "error conditions");
     atf_tc_set_md_var(tc, "require.user", "unprivileged");
 }
@@ -1030,7 +1097,8 @@ ATF_TC_BODY(mkstemp_err, tc)
 ATF_TC(mkstemp_umask);
 ATF_TC_HEAD(mkstemp_umask, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the atf_fs_mkstemp function "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the atf_fs_mkstemp function "
                       "causing an error due to a too strict umask");
 }
 ATF_TC_BODY(mkstemp_umask, tc)
@@ -1042,7 +1110,7 @@ ATF_TC_BODY(mkstemp_umask, tc)
     do_umask_check(mkstemp_discard_fd, atf_fs_unlink, &p, 00100,
                    "regular file");
     do_umask_check(mkstemp_discard_fd, atf_fs_unlink, &p, 00200,
-                  "regular file");
+                   "regular file");
     do_umask_check(mkstemp_discard_fd, atf_fs_unlink, &p, 00400,
                    "regular file");
 

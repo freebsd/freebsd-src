@@ -23,8 +23,6 @@
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "atf-c++/utils.hpp"
-
 extern "C" {
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -40,7 +38,8 @@ extern "C" {
 #include <string>
 #include <vector>
 
-#include <atf-c++.hpp>
+#include "atf-c++.hpp"
+#include "atf-c++/utils.hpp"
 
 static std::string
 read_file(const std::string& path)
@@ -55,7 +54,7 @@ read_file(const std::string& path)
     ATF_REQUIRE(length != -1);
     if (length == sizeof(buffer) - 1)
         ATF_FAIL("Internal buffer not long enough to read temporary file");
-    ((char *)buffer)[length] = '\0';
+    ((char*)buffer)[length] = '\0';
 
     return buffer;
 }
@@ -211,8 +210,8 @@ ATF_TEST_CASE_BODY(file_exists)
 {
     atf::utils::create_file("test.txt", "foo");
 
-    ATF_REQUIRE( atf::utils::file_exists("test.txt"));
-    ATF_REQUIRE( atf::utils::file_exists("./test.txt"));
+    ATF_REQUIRE(atf::utils::file_exists("test.txt"));
+    ATF_REQUIRE(atf::utils::file_exists("./test.txt"));
     ATF_REQUIRE(!atf::utils::file_exists("./test.tx"));
     ATF_REQUIRE(!atf::utils::file_exists("test.txt2"));
 }
@@ -246,24 +245,24 @@ ATF_TEST_CASE_BODY(fork)
 ATF_TEST_CASE_WITHOUT_HEAD(grep_collection__set);
 ATF_TEST_CASE_BODY(grep_collection__set)
 {
-    std::set< std::string > strings;
+    std::set<std::string> strings;
     strings.insert("First");
     strings.insert("Second");
 
-    ATF_REQUIRE( atf::utils::grep_collection("irs", strings));
-    ATF_REQUIRE( atf::utils::grep_collection("cond", strings));
+    ATF_REQUIRE(atf::utils::grep_collection("irs", strings));
+    ATF_REQUIRE(atf::utils::grep_collection("cond", strings));
     ATF_REQUIRE(!atf::utils::grep_collection("Third", strings));
 }
 
 ATF_TEST_CASE_WITHOUT_HEAD(grep_collection__vector);
 ATF_TEST_CASE_BODY(grep_collection__vector)
 {
-    std::vector< std::string > strings;
+    std::vector<std::string> strings;
     strings.push_back("First");
     strings.push_back("Second");
 
-    ATF_REQUIRE( atf::utils::grep_collection("irs", strings));
-    ATF_REQUIRE( atf::utils::grep_collection("cond", strings));
+    ATF_REQUIRE(atf::utils::grep_collection("irs", strings));
+    ATF_REQUIRE(atf::utils::grep_collection("cond", strings));
     ATF_REQUIRE(!atf::utils::grep_collection("Third", strings));
 }
 
@@ -283,7 +282,7 @@ ATF_TEST_CASE_BODY(grep_file)
 ATF_TEST_CASE_WITHOUT_HEAD(grep_string);
 ATF_TEST_CASE_BODY(grep_string)
 {
-    const char *str = "a string - aaaabbbb";
+    const char* str = "a string - aaaabbbb";
     ATF_REQUIRE(atf::utils::grep_string("a string", str));
     ATF_REQUIRE(atf::utils::grep_string("^a string", str));
     ATF_REQUIRE(atf::utils::grep_string("aaaabbbb$", str));

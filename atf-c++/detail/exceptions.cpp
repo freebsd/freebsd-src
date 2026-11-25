@@ -45,30 +45,24 @@ extern "C" {
 // ------------------------------------------------------------------------
 
 atf::system_error::system_error(const std::string& who,
-                                const std::string& message,
-                                int sys_err) :
+                                const std::string& message, int sys_err) :
     std::runtime_error(who + ": " + message),
     m_sys_err(sys_err)
 {
 }
 
-atf::system_error::~system_error(void)
-    throw()
+atf::system_error::~system_error(void) throw()
 {
 }
 
 int
-atf::system_error::code(void)
-    const
-    throw()
+atf::system_error::code(void) const throw()
 {
     return m_sys_err;
 }
 
 const char*
-atf::system_error::what(void)
-    const
-    throw()
+atf::system_error::what(void) const throw()
 {
     try {
         if (m_message.length() == 0) {
@@ -86,8 +80,7 @@ atf::system_error::what(void)
 // Free functions.
 // ------------------------------------------------------------------------
 
-static
-void
+static void
 throw_libc_error(atf_error_t err)
 {
     PRE(atf_error_is(err, "libc"));
@@ -98,8 +91,7 @@ throw_libc_error(atf_error_t err)
     throw atf::system_error("XXX", msg, ecode);
 }
 
-static
-void
+static void
 throw_no_memory_error(atf_error_t err)
 {
     PRE(atf_error_is(err, "no_memory"));
@@ -108,8 +100,7 @@ throw_no_memory_error(atf_error_t err)
     throw std::bad_alloc();
 }
 
-static
-void
+static void
 throw_unknown_error(atf_error_t err)
 {
     PRE(atf_is_error(err));

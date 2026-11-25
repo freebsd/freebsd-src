@@ -23,7 +23,7 @@
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <atf-c++.hpp>
+#include "atf-c++.hpp"
 
 ATF_TEST_CASE(this_is_used);
 ATF_TEST_CASE_HEAD(this_is_used)
@@ -44,5 +44,5 @@ ATF_TEST_CASE_BODY(this_is_unused)
 ATF_INIT_TEST_CASES(tcs)
 {
     ATF_ADD_TEST_CASE(tcs, this_is_used);
-    //ATF_ADD_TEST_CASE(tcs, this_is_unused);
+    // ATF_ADD_TEST_CASE(tcs, this_is_unused);
 }

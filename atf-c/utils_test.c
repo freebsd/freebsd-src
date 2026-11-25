@@ -23,7 +23,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "atf-c/utils.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -35,10 +35,10 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <atf-c.h>
-
+#include "atf-c.h"
 #include "atf-c/detail/dynstr.h"
 #include "atf-c/detail/test_helpers.h"
+#include "atf-c/utils.h"
 
 /** Reads the contents of a file into a buffer.
  *
@@ -53,14 +53,14 @@
  *
  * \return The count of bytes read. */
 static ssize_t
-read_file(const char *path, void *const buffer, const size_t buflen)
+read_file(const char* path, void* const buffer, const size_t buflen)
 {
     const int fd = open(path, O_RDONLY);
     ATF_REQUIRE_MSG(fd != -1, "Cannot open %s", path);
     const ssize_t length = read(fd, buffer, buflen - 1);
     close(fd);
     ATF_REQUIRE(length != -1);
-    ((char *)buffer)[length] = '\0';
+    ((char*)buffer)[length] = '\0';
     return length;
 }
 
@@ -220,8 +220,8 @@ ATF_TC_BODY(file_exists, tc)
 {
     atf_utils_create_file("test.txt", "foo");
 
-    ATF_REQUIRE( atf_utils_file_exists("test.txt"));
-    ATF_REQUIRE( atf_utils_file_exists("./test.txt"));
+    ATF_REQUIRE(atf_utils_file_exists("test.txt"));
+    ATF_REQUIRE(atf_utils_file_exists("./test.txt"));
     ATF_REQUIRE(!atf_utils_file_exists("./test.tx"));
     ATF_REQUIRE(!atf_utils_file_exists("test.txt2"));
 }
@@ -261,7 +261,7 @@ ATF_TC_BODY(fork, tc)
 ATF_TC_WITHOUT_HEAD(free_charpp__empty);
 ATF_TC_BODY(free_charpp__empty, tc)
 {
-    char **array = malloc(sizeof(char *) * 1);
+    char** array = malloc(sizeof(char*) * 1);
     array[0] = NULL;
 
     atf_utils_free_charpp(array);
@@ -270,7 +270,7 @@ ATF_TC_BODY(free_charpp__empty, tc)
 ATF_TC_WITHOUT_HEAD(free_charpp__some);
 ATF_TC_BODY(free_charpp__some, tc)
 {
-    char **array = malloc(sizeof(char *) * 4);
+    char** array = malloc(sizeof(char*) * 4);
     array[0] = strdup("first");
     array[1] = strdup("second");
     array[2] = strdup("third");
@@ -296,7 +296,7 @@ ATF_TC_BODY(grep_file, tc)
 ATF_TC_WITHOUT_HEAD(grep_string);
 ATF_TC_BODY(grep_string, tc)
 {
-    const char *str = "a string - aaaabbbb";
+    const char* str = "a string - aaaabbbb";
     ATF_CHECK(atf_utils_grep_string("a string", str));
     ATF_CHECK(atf_utils_grep_string("^a string", str));
     ATF_CHECK(atf_utils_grep_string("aaaabbbb$", str));
@@ -320,16 +320,16 @@ ATF_TC_BODY(readline__none, tc)
 ATF_TC_WITHOUT_HEAD(readline__some);
 ATF_TC_BODY(readline__some, tc)
 {
-    const char *l1 = "First line with % formatting % characters %";
-    const char *l2 = "Second line; much longer than the first one";
-    const char *l3 = "Last line, without terminator";
+    const char* l1 = "First line with % formatting % characters %";
+    const char* l2 = "Second line; much longer than the first one";
+    const char* l3 = "Last line, without terminator";
 
     atf_utils_create_file("test.txt", "%s\n%s\n%s", l1, l2, l3);
 
     const int fd = open("test.txt", O_RDONLY);
     ATF_REQUIRE(fd != -1);
 
-    char *line;
+    char* line;
 
     line = atf_utils_readline(fd);
     ATF_REQUIRE_STREQ(l1, line);
@@ -375,7 +375,7 @@ ATF_TC_BODY(redirect__stderr, tc)
 ATF_TC_WITHOUT_HEAD(redirect__other);
 ATF_TC_BODY(redirect__other, tc)
 {
-    const char *message = "Foo bar\nbaz\n";
+    const char* message = "Foo bar\nbaz\n";
     atf_utils_redirect(15, "captured.txt");
     ATF_REQUIRE(write(15, message, strlen(message)) != -1);
     close(15);

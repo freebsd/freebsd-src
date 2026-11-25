@@ -23,8 +23,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include <atf-c.h>
-
+#include "atf-c.h"
 #include "atf-c/error.h"
 
 ATF_TC(pass);
@@ -50,8 +49,7 @@ ATF_TC_BODY(fail, tc)
 ATF_TC(skip);
 ATF_TC_HEAD(skip, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "An empty test case that is always "
-                      "skipped");
+    atf_tc_set_md_var(tc, "descr", "An empty test case that is always skipped");
 }
 ATF_TC_BODY(skip, tc)
 {
@@ -61,7 +59,8 @@ ATF_TC_BODY(skip, tc)
 ATF_TC(default);
 ATF_TC_HEAD(default, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "A test case that passes without "
+    atf_tc_set_md_var(tc, "descr",
+                      "A test case that passes without "
                       "explicitly stating it");
 }
 ATF_TC_BODY(default, tc)

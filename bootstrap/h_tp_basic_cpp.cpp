@@ -23,7 +23,7 @@
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <atf-c++.hpp>
+#include "atf-c++.hpp"
 
 ATF_TEST_CASE(pass);
 
@@ -65,8 +65,8 @@ ATF_TEST_CASE(default);
 
 ATF_TEST_CASE_HEAD(default)
 {
-    set_md_var("descr", "A test case that passes without explicitly "
-               "stating it");
+    set_md_var("descr",
+               "A test case that passes without explicitly stating it");
 }
 
 ATF_TEST_CASE_BODY(default)

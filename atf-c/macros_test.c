@@ -21,9 +21,9 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
-#include "atf-c/macros.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -37,32 +37,30 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <atf-c.h>
-
+#include "atf-c.h"
 #include "atf-c/detail/fs.h"
 #include "atf-c/detail/process.h"
 #include "atf-c/detail/test_helpers.h"
 #include "atf-c/detail/text.h"
+#include "atf-c/macros.h"
 
 /* ---------------------------------------------------------------------
  * Auxiliary functions.
  * --------------------------------------------------------------------- */
 
-static
-void
-create_ctl_file(const char *name)
+static void
+create_ctl_file(const char* name)
 {
     atf_fs_path_t p;
 
     RE(atf_fs_path_init_fmt(&p, "%s", name));
-    ATF_REQUIRE(open(atf_fs_path_cstring(&p),
-                   O_CREAT | O_WRONLY | O_TRUNC, 0644) != -1);
+    ATF_REQUIRE(open(atf_fs_path_cstring(&p), O_CREAT | O_WRONLY | O_TRUNC,
+                     0644) != -1);
     atf_fs_path_fini(&p);
 }
 
-static
-bool
-exists(const char *p)
+static bool
+exists(const char* p)
 {
     bool b;
     atf_fs_path_t pp;
@@ -74,13 +72,12 @@ exists(const char *p)
     return b;
 }
 
-static
-void
-init_and_run_h_tc(const char *name, void (*head)(atf_tc_t *),
-                  void (*body)(const atf_tc_t *))
+static void
+init_and_run_h_tc(const char* name, void (*head)(atf_tc_t*),
+                  void (*body)(const atf_tc_t*))
 {
     atf_tc_t tc;
-    const char *const config[] = { NULL };
+    const char* const config[] = { NULL };
 
     RE(atf_tc_init(&tc, name, head, body, NULL, config));
     run_h_tc(&tc, "output", "error", "result");
@@ -91,119 +88,108 @@ init_and_run_h_tc(const char *name, void (*head)(atf_tc_t *),
  * Helper test cases.
  * --------------------------------------------------------------------- */
 
-#define H_DEF(id, macro) \
-    ATF_TC_HEAD(h_ ## id, tc) \
-    { \
+#define H_DEF(id, macro)                                    \
+    ATF_TC_HEAD(h_##id, tc)                                 \
+    {                                                       \
         atf_tc_set_md_var(tc, "descr", "Helper test case"); \
-    } \
-    ATF_TC_BODY(h_ ## id, tc) \
-    { \
-        create_ctl_file("before"); \
-        macro; \
-        create_ctl_file("after"); \
+    }                                                       \
+    ATF_TC_BODY(h_##id, tc)                                 \
+    {                                                       \
+        create_ctl_file("before");                          \
+        macro;                                              \
+        create_ctl_file("after");                           \
     }
 
-#define H_CHECK_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_check_ ## id)
-#define H_CHECK_BODY_NAME(id) ATF_TC_BODY_NAME(h_check_ ## id)
-#define H_CHECK(id, condition) \
-    H_DEF(check_ ## id, ATF_CHECK(condition))
+#define H_CHECK_HEAD_NAME(id)     ATF_TC_HEAD_NAME(h_check_##id)
+#define H_CHECK_BODY_NAME(id)     ATF_TC_BODY_NAME(h_check_##id)
+#define H_CHECK(id, condition)    H_DEF(check_##id, ATF_CHECK(condition))
 
-#define H_CHECK_MSG_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_check_msg_ ## id)
-#define H_CHECK_MSG_BODY_NAME(id) ATF_TC_BODY_NAME(h_check_msg_ ## id)
+#define H_CHECK_MSG_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_check_msg_##id)
+#define H_CHECK_MSG_BODY_NAME(id) ATF_TC_BODY_NAME(h_check_msg_##id)
 #define H_CHECK_MSG(id, condition, msg) \
-    H_DEF(check_msg_ ## id, ATF_CHECK_MSG(condition, msg))
+    H_DEF(check_msg_##id, ATF_CHECK_MSG(condition, msg))
 
-#define H_CHECK_EQ_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_check_eq_ ## id)
-#define H_CHECK_EQ_BODY_NAME(id) ATF_TC_BODY_NAME(h_check_eq_ ## id)
-#define H_CHECK_EQ(id, v1, v2) \
-    H_DEF(check_eq_ ## id, ATF_CHECK_EQ(v1, v2))
+#define H_CHECK_EQ_HEAD_NAME(id)    ATF_TC_HEAD_NAME(h_check_eq_##id)
+#define H_CHECK_EQ_BODY_NAME(id)    ATF_TC_BODY_NAME(h_check_eq_##id)
+#define H_CHECK_EQ(id, v1, v2)      H_DEF(check_eq_##id, ATF_CHECK_EQ(v1, v2))
 
-#define H_CHECK_STREQ_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_check_streq_ ## id)
-#define H_CHECK_STREQ_BODY_NAME(id) ATF_TC_BODY_NAME(h_check_streq_ ## id)
+#define H_CHECK_STREQ_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_check_streq_##id)
+#define H_CHECK_STREQ_BODY_NAME(id) ATF_TC_BODY_NAME(h_check_streq_##id)
 #define H_CHECK_STREQ(id, v1, v2) \
-    H_DEF(check_streq_ ## id, ATF_CHECK_STREQ(v1, v2))
+    H_DEF(check_streq_##id, ATF_CHECK_STREQ(v1, v2))
 
-#define H_CHECK_MATCH_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_check_match_ ## id)
-#define H_CHECK_MATCH_BODY_NAME(id) ATF_TC_BODY_NAME(h_check_match_ ## id)
+#define H_CHECK_MATCH_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_check_match_##id)
+#define H_CHECK_MATCH_BODY_NAME(id) ATF_TC_BODY_NAME(h_check_match_##id)
 #define H_CHECK_MATCH(id, v1, v2) \
-    H_DEF(check_match_ ## id, ATF_CHECK_MATCH(v1, v2))
+    H_DEF(check_match_##id, ATF_CHECK_MATCH(v1, v2))
 
-#define H_CHECK_EQ_MSG_HEAD_NAME(id) \
-    ATF_TC_HEAD_NAME(h_check_eq_msg_ ## id)
-#define H_CHECK_EQ_MSG_BODY_NAME(id) \
-    ATF_TC_BODY_NAME(h_check_eq_msg_ ## id)
+#define H_CHECK_EQ_MSG_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_check_eq_msg_##id)
+#define H_CHECK_EQ_MSG_BODY_NAME(id) ATF_TC_BODY_NAME(h_check_eq_msg_##id)
 #define H_CHECK_EQ_MSG(id, v1, v2, msg) \
-    H_DEF(check_eq_msg_ ## id, ATF_CHECK_EQ_MSG(v1, v2, msg))
+    H_DEF(check_eq_msg_##id, ATF_CHECK_EQ_MSG(v1, v2, msg))
 
-#define H_CHECK_STREQ_MSG_HEAD_NAME(id) \
-    ATF_TC_HEAD_NAME(h_check_streq_msg_ ## id)
-#define H_CHECK_STREQ_MSG_BODY_NAME(id) \
-    ATF_TC_BODY_NAME(h_check_streq_msg_ ## id)
+#define H_CHECK_STREQ_MSG_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_check_streq_msg_##id)
+#define H_CHECK_STREQ_MSG_BODY_NAME(id) ATF_TC_BODY_NAME(h_check_streq_msg_##id)
 #define H_CHECK_STREQ_MSG(id, v1, v2, msg) \
-    H_DEF(check_streq_msg_ ## id, ATF_CHECK_STREQ_MSG(v1, v2, msg))
+    H_DEF(check_streq_msg_##id, ATF_CHECK_STREQ_MSG(v1, v2, msg))
 
-#define H_CHECK_MATCH_MSG_HEAD_NAME(id) \
-    ATF_TC_HEAD_NAME(h_check_match_msg_ ## id)
-#define H_CHECK_MATCH_MSG_BODY_NAME(id) \
-    ATF_TC_BODY_NAME(h_check_match_msg_ ## id)
+#define H_CHECK_MATCH_MSG_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_check_match_msg_##id)
+#define H_CHECK_MATCH_MSG_BODY_NAME(id) ATF_TC_BODY_NAME(h_check_match_msg_##id)
 #define H_CHECK_MATCH_MSG(id, v1, v2, msg) \
-    H_DEF(check_match_msg_ ## id, ATF_CHECK_MATCH_MSG(v1, v2, msg))
+    H_DEF(check_match_msg_##id, ATF_CHECK_MATCH_MSG(v1, v2, msg))
 
-#define H_CHECK_ERRNO_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_check_errno_ ## id)
-#define H_CHECK_ERRNO_BODY_NAME(id) ATF_TC_BODY_NAME(h_check_errno_ ## id)
+#define H_CHECK_ERRNO_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_check_errno_##id)
+#define H_CHECK_ERRNO_BODY_NAME(id) ATF_TC_BODY_NAME(h_check_errno_##id)
 #define H_CHECK_ERRNO(id, exp_errno, bool_expr) \
-    H_DEF(check_errno_ ## id, ATF_CHECK_ERRNO(exp_errno, bool_expr))
+    H_DEF(check_errno_##id, ATF_CHECK_ERRNO(exp_errno, bool_expr))
 
-#define H_REQUIRE_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_require_ ## id)
-#define H_REQUIRE_BODY_NAME(id) ATF_TC_BODY_NAME(h_require_ ## id)
-#define H_REQUIRE(id, condition) \
-    H_DEF(require_ ## id, ATF_REQUIRE(condition))
+#define H_REQUIRE_HEAD_NAME(id)     ATF_TC_HEAD_NAME(h_require_##id)
+#define H_REQUIRE_BODY_NAME(id)     ATF_TC_BODY_NAME(h_require_##id)
+#define H_REQUIRE(id, condition)    H_DEF(require_##id, ATF_REQUIRE(condition))
 
-#define H_REQUIRE_MSG_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_require_msg_ ## id)
-#define H_REQUIRE_MSG_BODY_NAME(id) ATF_TC_BODY_NAME(h_require_msg_ ## id)
+#define H_REQUIRE_MSG_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_require_msg_##id)
+#define H_REQUIRE_MSG_BODY_NAME(id) ATF_TC_BODY_NAME(h_require_msg_##id)
 #define H_REQUIRE_MSG(id, condition, msg) \
-    H_DEF(require_msg_ ## id, ATF_REQUIRE_MSG(condition, msg))
+    H_DEF(require_msg_##id, ATF_REQUIRE_MSG(condition, msg))
 
-#define H_REQUIRE_EQ_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_require_eq_ ## id)
-#define H_REQUIRE_EQ_BODY_NAME(id) ATF_TC_BODY_NAME(h_require_eq_ ## id)
+#define H_REQUIRE_EQ_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_require_eq_##id)
+#define H_REQUIRE_EQ_BODY_NAME(id) ATF_TC_BODY_NAME(h_require_eq_##id)
 #define H_REQUIRE_EQ(id, v1, v2) \
-    H_DEF(require_eq_ ## id, ATF_REQUIRE_EQ(v1, v2))
+    H_DEF(require_eq_##id, ATF_REQUIRE_EQ(v1, v2)) /* NOLINT */
 
-#define H_REQUIRE_STREQ_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_require_streq_ ## id)
-#define H_REQUIRE_STREQ_BODY_NAME(id) ATF_TC_BODY_NAME(h_require_streq_ ## id)
+#define H_REQUIRE_STREQ_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_require_streq_##id)
+#define H_REQUIRE_STREQ_BODY_NAME(id) ATF_TC_BODY_NAME(h_require_streq_##id)
 #define H_REQUIRE_STREQ(id, v1, v2) \
-    H_DEF(require_streq_ ## id, ATF_REQUIRE_STREQ(v1, v2))
+    H_DEF(require_streq_##id, ATF_REQUIRE_STREQ(v1, v2))
 
-#define H_REQUIRE_MATCH_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_require_match_ ## id)
-#define H_REQUIRE_MATCH_BODY_NAME(id) ATF_TC_BODY_NAME(h_require_match_ ## id)
+#define H_REQUIRE_MATCH_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_require_match_##id)
+#define H_REQUIRE_MATCH_BODY_NAME(id) ATF_TC_BODY_NAME(h_require_match_##id)
 #define H_REQUIRE_MATCH(id, v1, v2) \
-    H_DEF(require_match_ ## id, ATF_REQUIRE_MATCH(v1, v2))
+    H_DEF(require_match_##id, ATF_REQUIRE_MATCH(v1, v2))
 
-#define H_REQUIRE_EQ_MSG_HEAD_NAME(id) \
-    ATF_TC_HEAD_NAME(h_require_eq_msg_ ## id)
-#define H_REQUIRE_EQ_MSG_BODY_NAME(id) \
-    ATF_TC_BODY_NAME(h_require_eq_msg_ ## id)
+#define H_REQUIRE_EQ_MSG_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_require_eq_msg_##id)
+#define H_REQUIRE_EQ_MSG_BODY_NAME(id) ATF_TC_BODY_NAME(h_require_eq_msg_##id)
 #define H_REQUIRE_EQ_MSG(id, v1, v2, msg) \
-    H_DEF(require_eq_msg_ ## id, ATF_REQUIRE_EQ_MSG(v1, v2, msg))
+    H_DEF(require_eq_msg_##id, ATF_REQUIRE_EQ_MSG(v1, v2, msg))
 
 #define H_REQUIRE_STREQ_MSG_HEAD_NAME(id) \
-    ATF_TC_HEAD_NAME(h_require_streq_msg_ ## id)
+    ATF_TC_HEAD_NAME(h_require_streq_msg_##id)
 #define H_REQUIRE_STREQ_MSG_BODY_NAME(id) \
-    ATF_TC_BODY_NAME(h_require_streq_msg_ ## id)
+    ATF_TC_BODY_NAME(h_require_streq_msg_##id)
 #define H_REQUIRE_STREQ_MSG(id, v1, v2, msg) \
-    H_DEF(require_streq_msg_ ## id, ATF_REQUIRE_STREQ_MSG(v1, v2, msg))
+    H_DEF(require_streq_msg_##id, ATF_REQUIRE_STREQ_MSG(v1, v2, msg))
 
 #define H_REQUIRE_MATCH_MSG_HEAD_NAME(id) \
-    ATF_TC_HEAD_NAME(h_require_match_msg_ ## id)
+    ATF_TC_HEAD_NAME(h_require_match_msg_##id)
 #define H_REQUIRE_MATCH_MSG_BODY_NAME(id) \
-    ATF_TC_BODY_NAME(h_require_match_msg_ ## id)
+    ATF_TC_BODY_NAME(h_require_match_msg_##id)
 #define H_REQUIRE_MATCH_MSG(id, v1, v2, msg) \
-    H_DEF(require_match_msg_ ## id, ATF_REQUIRE_MATCH_MSG(v1, v2, msg))
+    H_DEF(require_match_msg_##id, ATF_REQUIRE_MATCH_MSG(v1, v2, msg))
 
-#define H_REQUIRE_ERRNO_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_require_errno_ ## id)
-#define H_REQUIRE_ERRNO_BODY_NAME(id) ATF_TC_BODY_NAME(h_require_errno_ ## id)
+#define H_REQUIRE_ERRNO_HEAD_NAME(id) ATF_TC_HEAD_NAME(h_require_errno_##id)
+#define H_REQUIRE_ERRNO_BODY_NAME(id) ATF_TC_BODY_NAME(h_require_errno_##id)
 #define H_REQUIRE_ERRNO(id, exp_errno, bool_expr) \
-    H_DEF(require_errno_ ## id, ATF_REQUIRE_ERRNO(exp_errno, bool_expr))
+    H_DEF(require_errno_##id, ATF_REQUIRE_ERRNO(exp_errno, bool_expr))
 
 /* ---------------------------------------------------------------------
  * Test cases for the ATF_{CHECK,REQUIRE}_ERRNO macros.
@@ -238,22 +224,22 @@ ATF_TC_HEAD(check_errno, tc)
 ATF_TC_BODY(check_errno, tc)
 {
     struct test {
-        void (*head)(atf_tc_t *);
-        void (*body)(const atf_tc_t *);
+        void (*head)(atf_tc_t*);
+        void (*body)(const atf_tc_t*);
         bool ok;
-        const char *exp_regex;
-    } *t, tests[] = {
-        { H_CHECK_ERRNO_HEAD_NAME(no_error),
-          H_CHECK_ERRNO_BODY_NAME(no_error),
-          false, "Expected true value in errno_ok_stub\\(\\) == -1" },
-        { H_CHECK_ERRNO_HEAD_NAME(errno_ok),
-          H_CHECK_ERRNO_BODY_NAME(errno_ok),
-          true, NULL },
-        { H_CHECK_ERRNO_HEAD_NAME(errno_fail),
-          H_CHECK_ERRNO_BODY_NAME(errno_fail),
-          false, "Expected errno 3, got 4, in errno_fail_stub\\(4\\) == -1" },
-        { NULL, NULL, false, NULL }
-    };
+        const char* exp_regex;
+    } *t,
+        tests[] = {
+            { H_CHECK_ERRNO_HEAD_NAME(no_error),
+              H_CHECK_ERRNO_BODY_NAME(no_error), false,
+              "Expected true value in errno_ok_stub\\(\\) == -1" },
+            { H_CHECK_ERRNO_HEAD_NAME(errno_ok),
+              H_CHECK_ERRNO_BODY_NAME(errno_ok), true, NULL },
+            { H_CHECK_ERRNO_HEAD_NAME(errno_fail),
+              H_CHECK_ERRNO_BODY_NAME(errno_fail), false,
+              "Expected errno 3, got 4, in errno_fail_stub\\(4\\) == -1" },
+            { NULL, NULL, false, NULL }
+        };
 
     for (t = &tests[0]; t->head != NULL; t++) {
         init_and_run_h_tc("h_check_errno", t->head, t->body);
@@ -265,8 +251,8 @@ ATF_TC_BODY(check_errno, tc)
             ATF_REQUIRE(atf_utils_grep_file("^passed", "result"));
         } else {
             ATF_REQUIRE(atf_utils_grep_file("^failed", "result"));
-            ATF_REQUIRE(atf_utils_grep_file(
-                "macros_test.c:[0-9]+: %s$", "error", t->exp_regex));
+            ATF_REQUIRE(atf_utils_grep_file("macros_test.c:[0-9]+: %s$",
+                                            "error", t->exp_regex));
         }
 
         ATF_REQUIRE(unlink("before") != -1);
@@ -282,22 +268,22 @@ ATF_TC_HEAD(require_errno, tc)
 ATF_TC_BODY(require_errno, tc)
 {
     struct test {
-        void (*head)(atf_tc_t *);
-        void (*body)(const atf_tc_t *);
+        void (*head)(atf_tc_t*);
+        void (*body)(const atf_tc_t*);
         bool ok;
-        const char *exp_regex;
-    } *t, tests[] = {
-        { H_REQUIRE_ERRNO_HEAD_NAME(no_error),
-          H_REQUIRE_ERRNO_BODY_NAME(no_error),
-          false, "Expected true value in errno_ok_stub\\(\\) == -1" },
-        { H_REQUIRE_ERRNO_HEAD_NAME(errno_ok),
-          H_REQUIRE_ERRNO_BODY_NAME(errno_ok),
-          true, NULL },
-        { H_REQUIRE_ERRNO_HEAD_NAME(errno_fail),
-          H_REQUIRE_ERRNO_BODY_NAME(errno_fail),
-          false, "Expected errno 3, got 4, in errno_fail_stub\\(4\\) == -1" },
-        { NULL, NULL, false, NULL }
-    };
+        const char* exp_regex;
+    } *t,
+        tests[] = {
+            { H_REQUIRE_ERRNO_HEAD_NAME(no_error),
+              H_REQUIRE_ERRNO_BODY_NAME(no_error), false,
+              "Expected true value in errno_ok_stub\\(\\) == -1" },
+            { H_REQUIRE_ERRNO_HEAD_NAME(errno_ok),
+              H_REQUIRE_ERRNO_BODY_NAME(errno_ok), true, NULL },
+            { H_REQUIRE_ERRNO_HEAD_NAME(errno_fail),
+              H_REQUIRE_ERRNO_BODY_NAME(errno_fail), false,
+              "Expected errno 3, got 4, in errno_fail_stub\\(4\\) == -1" },
+            { NULL, NULL, false, NULL }
+        };
 
     for (t = &tests[0]; t->head != NULL; t++) {
         init_and_run_h_tc("h_require_errno", t->head, t->body);
@@ -307,9 +293,9 @@ ATF_TC_BODY(require_errno, tc)
             ATF_REQUIRE(atf_utils_grep_file("^passed", "result"));
             ATF_REQUIRE(exists("after"));
         } else {
-            ATF_REQUIRE(atf_utils_grep_file(
-                "^failed: .*macros_test.c:[0-9]+: %s$", "result",
-                t->exp_regex));
+            ATF_REQUIRE(
+                atf_utils_grep_file("^failed: .*macros_test.c:[0-9]+: %s$",
+                                    "result", t->exp_regex));
             ATF_REQUIRE(!exists("after"));
         }
 
@@ -331,28 +317,28 @@ H_CHECK_MSG(1, 1, "expected a true value");
 ATF_TC(check);
 ATF_TC_HEAD(check, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the ATF_CHECK and "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the ATF_CHECK and "
                       "ATF_CHECK_MSG macros");
 }
 ATF_TC_BODY(check, tc)
 {
     struct test {
-        void (*head)(atf_tc_t *);
-        void (*body)(const atf_tc_t *);
+        void (*head)(atf_tc_t*);
+        void (*body)(const atf_tc_t*);
         bool value;
-        const char *msg;
+        const char* msg;
         bool ok;
-    } *t, tests[] = {
-        { H_CHECK_HEAD_NAME(0), H_CHECK_BODY_NAME(0), 0,
-          "0 not met", false },
-        { H_CHECK_HEAD_NAME(1), H_CHECK_BODY_NAME(1), 1,
-          "1 not met", true },
-        { H_CHECK_MSG_HEAD_NAME(0), H_CHECK_MSG_BODY_NAME(0), 0,
-          "expected a false value", false },
-        { H_CHECK_MSG_HEAD_NAME(1), H_CHECK_MSG_BODY_NAME(1), 1,
-          "expected a true value", true },
-        { NULL, NULL, false, NULL, false }
-    };
+    } *t,
+        tests[] = { { H_CHECK_HEAD_NAME(0), H_CHECK_BODY_NAME(0), 0,
+                      "0 not met", false },
+                    { H_CHECK_HEAD_NAME(1), H_CHECK_BODY_NAME(1), 1,
+                      "1 not met", true },
+                    { H_CHECK_MSG_HEAD_NAME(0), H_CHECK_MSG_BODY_NAME(0), 0,
+                      "expected a false value", false },
+                    { H_CHECK_MSG_HEAD_NAME(1), H_CHECK_MSG_BODY_NAME(1), 1,
+                      "expected a true value", true },
+                    { NULL, NULL, false, NULL, false } };
 
     for (t = &tests[0]; t->head != NULL; t++) {
         printf("Checking with a %d value\n", t->value);
@@ -367,7 +353,8 @@ ATF_TC_BODY(check, tc)
         } else {
             ATF_REQUIRE(atf_utils_grep_file("^failed", "result"));
             ATF_REQUIRE(atf_utils_grep_file("Check failed: .*"
-                "macros_test.c:[0-9]+: %s$", "error", t->msg));
+                                            "macros_test.c:[0-9]+: %s$",
+                                            "error", t->msg));
         }
 
         ATF_REQUIRE(unlink("before") != -1);
@@ -380,19 +367,18 @@ ATF_TC_BODY(check, tc)
  * --------------------------------------------------------------------- */
 
 struct check_eq_test {
-    void (*head)(atf_tc_t *);
-    void (*body)(const atf_tc_t *);
-    const char *v1;
-    const char *v2;
-    const char *msg;
+    void (*head)(atf_tc_t*);
+    void (*body)(const atf_tc_t*);
+    const char* v1;
+    const char* v2;
+    const char* msg;
     bool ok;
 };
 
-static
-void
-do_check_eq_tests(const struct check_eq_test *tests)
+static void
+do_check_eq_tests(const struct check_eq_test* tests)
 {
-    const struct check_eq_test *t;
+    const struct check_eq_test* t;
 
     for (t = &tests[0]; t->head != NULL; t++) {
         printf("Checking with %s, %s and expecting %s\n", t->v1, t->v2,
@@ -408,7 +394,8 @@ do_check_eq_tests(const struct check_eq_test *tests)
         } else {
             ATF_REQUIRE(atf_utils_grep_file("^failed", "result"));
             ATF_CHECK(atf_utils_grep_file("Check failed: .*"
-                "macros_test.c:[0-9]+: %s$", "error", t->msg));
+                                          "macros_test.c:[0-9]+: %s$",
+                                          "error", t->msg));
         }
 
         ATF_CHECK(unlink("before") != -1);
@@ -428,28 +415,29 @@ H_CHECK_EQ_MSG(2_2, 2, 2, "2 does not match 2");
 ATF_TC(check_eq);
 ATF_TC_HEAD(check_eq, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the ATF_CHECK_EQ and "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the ATF_CHECK_EQ and "
                       "ATF_CHECK_EQ_MSG macros");
 }
 ATF_TC_BODY(check_eq, tc)
 {
     struct check_eq_test tests[] = {
-        { H_CHECK_EQ_HEAD_NAME(1_1), H_CHECK_EQ_BODY_NAME(1_1),
-          "1", "1", "1 != 1", true },
-        { H_CHECK_EQ_HEAD_NAME(1_2), H_CHECK_EQ_BODY_NAME(1_2),
-          "1", "2", "1 != 2", false },
-        { H_CHECK_EQ_HEAD_NAME(2_1), H_CHECK_EQ_BODY_NAME(2_1),
-          "2", "1", "2 != 1", false },
-        { H_CHECK_EQ_HEAD_NAME(2_2), H_CHECK_EQ_BODY_NAME(2_2),
-          "2", "2", "2 != 2", true },
-        { H_CHECK_EQ_MSG_HEAD_NAME(1_1), H_CHECK_EQ_MSG_BODY_NAME(1_1),
-          "1", "1", "1 != 1: 1 does not match 1", true },
-        { H_CHECK_EQ_MSG_HEAD_NAME(1_2), H_CHECK_EQ_MSG_BODY_NAME(1_2),
-          "1", "2", "1 != 2: 1 does not match 2", false },
-        { H_CHECK_EQ_MSG_HEAD_NAME(2_1), H_CHECK_EQ_MSG_BODY_NAME(2_1),
-          "2", "1", "2 != 1: 2 does not match 1", false },
-        { H_CHECK_EQ_MSG_HEAD_NAME(2_2), H_CHECK_EQ_MSG_BODY_NAME(2_2),
-          "2", "2", "2 != 2: 2 does not match 2", true },
+        { H_CHECK_EQ_HEAD_NAME(1_1), H_CHECK_EQ_BODY_NAME(1_1), "1", "1",
+          "1 != 1", true },
+        { H_CHECK_EQ_HEAD_NAME(1_2), H_CHECK_EQ_BODY_NAME(1_2), "1", "2",
+          "1 != 2", false },
+        { H_CHECK_EQ_HEAD_NAME(2_1), H_CHECK_EQ_BODY_NAME(2_1), "2", "1",
+          "2 != 1", false },
+        { H_CHECK_EQ_HEAD_NAME(2_2), H_CHECK_EQ_BODY_NAME(2_2), "2", "2",
+          "2 != 2", true },
+        { H_CHECK_EQ_MSG_HEAD_NAME(1_1), H_CHECK_EQ_MSG_BODY_NAME(1_1), "1",
+          "1", "1 != 1: 1 does not match 1", true },
+        { H_CHECK_EQ_MSG_HEAD_NAME(1_2), H_CHECK_EQ_MSG_BODY_NAME(1_2), "1",
+          "2", "1 != 2: 1 does not match 2", false },
+        { H_CHECK_EQ_MSG_HEAD_NAME(2_1), H_CHECK_EQ_MSG_BODY_NAME(2_1), "2",
+          "1", "2 != 1: 2 does not match 1", false },
+        { H_CHECK_EQ_MSG_HEAD_NAME(2_2), H_CHECK_EQ_MSG_BODY_NAME(2_2), "2",
+          "2", "2 != 2: 2 does not match 2", true },
         { NULL, NULL, 0, 0, "", false }
     };
     do_check_eq_tests(tests);
@@ -465,43 +453,41 @@ H_CHECK_STREQ_MSG(2_1, "2", "1", "2 does not match 1");
 H_CHECK_STREQ_MSG(2_2, "2", "2", "2 does not match 2");
 #define CHECK_STREQ_VAR1 "5"
 #define CHECK_STREQ_VAR2 "9"
-const char *check_streq_var1 = CHECK_STREQ_VAR1;
-const char *check_streq_var2 = CHECK_STREQ_VAR2;
+const char* check_streq_var1 = CHECK_STREQ_VAR1;
+const char* check_streq_var2 = CHECK_STREQ_VAR2;
 H_CHECK_STREQ(vars, check_streq_var1, check_streq_var2);
 
 ATF_TC(check_streq);
 ATF_TC_HEAD(check_streq, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the ATF_CHECK_STREQ and "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the ATF_CHECK_STREQ and "
                       "ATF_CHECK_STREQ_MSG macros");
 }
 ATF_TC_BODY(check_streq, tc)
 {
     struct check_eq_test tests[] = {
-        { H_CHECK_STREQ_HEAD_NAME(1_1), H_CHECK_STREQ_BODY_NAME(1_1),
-          "1", "1", "\"1\" != \"1\" \\(1 != 1\\)", true },
-        { H_CHECK_STREQ_HEAD_NAME(1_2), H_CHECK_STREQ_BODY_NAME(1_2),
-          "1", "2", "\"1\" != \"2\" \\(1 != 2\\)", false },
-        { H_CHECK_STREQ_HEAD_NAME(2_1), H_CHECK_STREQ_BODY_NAME(2_1),
-          "2", "1", "\"2\" != \"1\" \\(2 != 1\\)", false },
-        { H_CHECK_STREQ_HEAD_NAME(2_2), H_CHECK_STREQ_BODY_NAME(2_2),
-          "2", "2", "\"2\" != \"2\" \\(2 != 2\\)", true },
-        { H_CHECK_STREQ_MSG_HEAD_NAME(1_1),
-          H_CHECK_STREQ_MSG_BODY_NAME(1_1),
+        { H_CHECK_STREQ_HEAD_NAME(1_1), H_CHECK_STREQ_BODY_NAME(1_1), "1", "1",
+          "\"1\" != \"1\" \\(1 != 1\\)", true },
+        { H_CHECK_STREQ_HEAD_NAME(1_2), H_CHECK_STREQ_BODY_NAME(1_2), "1", "2",
+          "\"1\" != \"2\" \\(1 != 2\\)", false },
+        { H_CHECK_STREQ_HEAD_NAME(2_1), H_CHECK_STREQ_BODY_NAME(2_1), "2", "1",
+          "\"2\" != \"1\" \\(2 != 1\\)", false },
+        { H_CHECK_STREQ_HEAD_NAME(2_2), H_CHECK_STREQ_BODY_NAME(2_2), "2", "2",
+          "\"2\" != \"2\" \\(2 != 2\\)", true },
+        { H_CHECK_STREQ_MSG_HEAD_NAME(1_1), H_CHECK_STREQ_MSG_BODY_NAME(1_1),
           "1", "1", "\"1\" != \"1\" \\(1 != 1\\): 1 does not match 1", true },
-        { H_CHECK_STREQ_MSG_HEAD_NAME(1_2),
-          H_CHECK_STREQ_MSG_BODY_NAME(1_2),
+        { H_CHECK_STREQ_MSG_HEAD_NAME(1_2), H_CHECK_STREQ_MSG_BODY_NAME(1_2),
           "1", "2", "\"1\" != \"2\" \\(1 != 2\\): 1 does not match 2", false },
-        { H_CHECK_STREQ_MSG_HEAD_NAME(2_1),
-          H_CHECK_STREQ_MSG_BODY_NAME(2_1),
+        { H_CHECK_STREQ_MSG_HEAD_NAME(2_1), H_CHECK_STREQ_MSG_BODY_NAME(2_1),
           "2", "1", "\"2\" != \"1\" \\(2 != 1\\): 2 does not match 1", false },
-        { H_CHECK_STREQ_MSG_HEAD_NAME(2_2),
-          H_CHECK_STREQ_MSG_BODY_NAME(2_2),
+        { H_CHECK_STREQ_MSG_HEAD_NAME(2_2), H_CHECK_STREQ_MSG_BODY_NAME(2_2),
           "2", "2", "\"2\" != \"2\" \\(2 != 2\\): 2 does not match 2", true },
         { H_CHECK_STREQ_HEAD_NAME(vars), H_CHECK_STREQ_BODY_NAME(vars),
           check_streq_var1, check_streq_var2,
-          "check_streq_var1 != check_streq_var2 \\("
-          CHECK_STREQ_VAR1 " != " CHECK_STREQ_VAR2 "\\)", false },
+          "check_streq_var1 != check_streq_var2 \\(" CHECK_STREQ_VAR1
+          " != " CHECK_STREQ_VAR2 "\\)",
+          false },
         { NULL, NULL, 0, 0, "", false }
     };
     do_check_eq_tests(tests);
@@ -519,7 +505,8 @@ H_CHECK_MATCH_MSG(no, "hello [a-z]+", "abc hello WORLD", "uppercase");
 ATF_TC(check_match);
 ATF_TC_HEAD(check_match, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the ATF_CHECK_MATCH and "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the ATF_CHECK_MATCH and "
                       "ATF_CHECK_MATCH_MSG macros");
 }
 ATF_TC_BODY(check_match, tc)
@@ -553,28 +540,28 @@ H_REQUIRE_MSG(1, 1, "expected a true value");
 ATF_TC(require);
 ATF_TC_HEAD(require, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the ATF_REQUIRE and "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the ATF_REQUIRE and "
                       "ATF_REQUIRE_MSG macros");
 }
 ATF_TC_BODY(require, tc)
 {
     struct test {
-        void (*head)(atf_tc_t *);
-        void (*body)(const atf_tc_t *);
+        void (*head)(atf_tc_t*);
+        void (*body)(const atf_tc_t*);
         bool value;
-        const char *msg;
+        const char* msg;
         bool ok;
-    } *t, tests[] = {
-        { H_REQUIRE_HEAD_NAME(0), H_REQUIRE_BODY_NAME(0), 0,
-          "0 not met", false },
-        { H_REQUIRE_HEAD_NAME(1), H_REQUIRE_BODY_NAME(1), 1,
-          "1 not met", true },
-        { H_REQUIRE_MSG_HEAD_NAME(0), H_REQUIRE_MSG_BODY_NAME(0), 0,
-          "expected a false value", false },
-        { H_REQUIRE_MSG_HEAD_NAME(1), H_REQUIRE_MSG_BODY_NAME(1), 1,
-          "expected a true value", true },
-        { NULL, NULL, false, NULL, false }
-    };
+    } *t,
+        tests[] = { { H_REQUIRE_HEAD_NAME(0), H_REQUIRE_BODY_NAME(0), 0,
+                      "0 not met", false },
+                    { H_REQUIRE_HEAD_NAME(1), H_REQUIRE_BODY_NAME(1), 1,
+                      "1 not met", true },
+                    { H_REQUIRE_MSG_HEAD_NAME(0), H_REQUIRE_MSG_BODY_NAME(0), 0,
+                      "expected a false value", false },
+                    { H_REQUIRE_MSG_HEAD_NAME(1), H_REQUIRE_MSG_BODY_NAME(1), 1,
+                      "expected a true value", true },
+                    { NULL, NULL, false, NULL, false } };
 
     for (t = &tests[0]; t->head != NULL; t++) {
         printf("Checking with a %d value\n", t->value);
@@ -602,19 +589,18 @@ ATF_TC_BODY(require, tc)
  * --------------------------------------------------------------------- */
 
 struct require_eq_test {
-    void (*head)(atf_tc_t *);
-    void (*body)(const atf_tc_t *);
-    const char *v1;
-    const char *v2;
-    const char *msg;
+    void (*head)(atf_tc_t*);
+    void (*body)(const atf_tc_t*);
+    const char* v1;
+    const char* v2;
+    const char* msg;
     bool ok;
 };
 
-static
-void
-do_require_eq_tests(const struct require_eq_test *tests)
+static void
+do_require_eq_tests(const struct require_eq_test* tests)
 {
-    const struct require_eq_test *t;
+    const struct require_eq_test* t;
 
     for (t = &tests[0]; t->head != NULL; t++) {
         printf("Checking with %s, %s and expecting %s\n", t->v1, t->v2,
@@ -628,7 +614,8 @@ do_require_eq_tests(const struct require_eq_test *tests)
             ATF_REQUIRE(exists("after"));
         } else {
             ATF_REQUIRE(atf_utils_grep_file("^failed: .*macros_test.c"
-                ":[0-9]+: %s$", "result", t->msg));
+                                            ":[0-9]+: %s$",
+                                            "result", t->msg));
             ATF_REQUIRE(!exists("after"));
         }
 
@@ -650,28 +637,29 @@ H_REQUIRE_EQ_MSG(2_2, 2, 2, "2 does not match 2");
 ATF_TC(require_eq);
 ATF_TC_HEAD(require_eq, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the ATF_REQUIRE_EQ and "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the ATF_REQUIRE_EQ and "
                       "ATF_REQUIRE_EQ_MSG macros");
 }
 ATF_TC_BODY(require_eq, tc)
 {
     struct require_eq_test tests[] = {
-        { H_REQUIRE_EQ_HEAD_NAME(1_1), H_REQUIRE_EQ_BODY_NAME(1_1),
-          "1", "1", "1 != 1", true },
-        { H_REQUIRE_EQ_HEAD_NAME(1_2), H_REQUIRE_EQ_BODY_NAME(1_2),
-          "1", "2", "1 != 2", false },
-        { H_REQUIRE_EQ_HEAD_NAME(2_1), H_REQUIRE_EQ_BODY_NAME(2_1),
-          "2", "1", "2 != 1", false },
-        { H_REQUIRE_EQ_HEAD_NAME(2_2), H_REQUIRE_EQ_BODY_NAME(2_2),
-          "2", "2", "2 != 2", true },
-        { H_REQUIRE_EQ_MSG_HEAD_NAME(1_1), H_REQUIRE_EQ_MSG_BODY_NAME(1_1),
-          "1", "1", "1 != 1: 1 does not match 1", true },
-        { H_REQUIRE_EQ_MSG_HEAD_NAME(1_2), H_REQUIRE_EQ_MSG_BODY_NAME(1_2),
-          "1", "2", "1 != 2: 1 does not match 2", false },
-        { H_REQUIRE_EQ_MSG_HEAD_NAME(2_1), H_REQUIRE_EQ_MSG_BODY_NAME(2_1),
-          "2", "1", "2 != 1: 2 does not match 1", false },
-        { H_REQUIRE_EQ_MSG_HEAD_NAME(2_2), H_REQUIRE_EQ_MSG_BODY_NAME(2_2),
-          "2", "2", "2 != 2: 2 does not match 2", true },
+        { H_REQUIRE_EQ_HEAD_NAME(1_1), H_REQUIRE_EQ_BODY_NAME(1_1), "1", "1",
+          "1 != 1", true },
+        { H_REQUIRE_EQ_HEAD_NAME(1_2), H_REQUIRE_EQ_BODY_NAME(1_2), "1", "2",
+          "1 != 2", false },
+        { H_REQUIRE_EQ_HEAD_NAME(2_1), H_REQUIRE_EQ_BODY_NAME(2_1), "2", "1",
+          "2 != 1", false },
+        { H_REQUIRE_EQ_HEAD_NAME(2_2), H_REQUIRE_EQ_BODY_NAME(2_2), "2", "2",
+          "2 != 2", true },
+        { H_REQUIRE_EQ_MSG_HEAD_NAME(1_1), H_REQUIRE_EQ_MSG_BODY_NAME(1_1), "1",
+          "1", "1 != 1: 1 does not match 1", true },
+        { H_REQUIRE_EQ_MSG_HEAD_NAME(1_2), H_REQUIRE_EQ_MSG_BODY_NAME(1_2), "1",
+          "2", "1 != 2: 1 does not match 2", false },
+        { H_REQUIRE_EQ_MSG_HEAD_NAME(2_1), H_REQUIRE_EQ_MSG_BODY_NAME(2_1), "2",
+          "1", "2 != 1: 2 does not match 1", false },
+        { H_REQUIRE_EQ_MSG_HEAD_NAME(2_2), H_REQUIRE_EQ_MSG_BODY_NAME(2_2), "2",
+          "2", "2 != 2: 2 does not match 2", true },
         { NULL, NULL, 0, 0, "", false }
     };
     do_require_eq_tests(tests);
@@ -687,43 +675,45 @@ H_REQUIRE_STREQ_MSG(2_1, "2", "1", "2 does not match 1");
 H_REQUIRE_STREQ_MSG(2_2, "2", "2", "2 does not match 2");
 #define REQUIRE_STREQ_VAR1 "5"
 #define REQUIRE_STREQ_VAR2 "9"
-const char *require_streq_var1 = REQUIRE_STREQ_VAR1;
-const char *require_streq_var2 = REQUIRE_STREQ_VAR2;
+const char* require_streq_var1 = REQUIRE_STREQ_VAR1;
+const char* require_streq_var2 = REQUIRE_STREQ_VAR2;
 H_REQUIRE_STREQ(vars, require_streq_var1, require_streq_var2);
 
 ATF_TC(require_streq);
 ATF_TC_HEAD(require_streq, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the ATF_REQUIRE_STREQ and "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the ATF_REQUIRE_STREQ and "
                       "ATF_REQUIRE_STREQ_MSG macros");
 }
 ATF_TC_BODY(require_streq, tc)
 {
     struct require_eq_test tests[] = {
-        { H_REQUIRE_STREQ_HEAD_NAME(1_1), H_REQUIRE_STREQ_BODY_NAME(1_1),
-          "1", "1", "\"1\" != \"1\" \\(1 != 1\\)", true },
-        { H_REQUIRE_STREQ_HEAD_NAME(1_2), H_REQUIRE_STREQ_BODY_NAME(1_2),
-          "1", "2", "\"1\" != \"2\" \\(1 != 2\\)", false },
-        { H_REQUIRE_STREQ_HEAD_NAME(2_1), H_REQUIRE_STREQ_BODY_NAME(2_1),
-          "2", "1", "\"2\" != \"1\" \\(2 != 1\\)", false },
-        { H_REQUIRE_STREQ_HEAD_NAME(2_2), H_REQUIRE_STREQ_BODY_NAME(2_2),
-          "2", "2", "\"2\" != \"2\" \\(2 != 2\\)", true },
+        { H_REQUIRE_STREQ_HEAD_NAME(1_1), H_REQUIRE_STREQ_BODY_NAME(1_1), "1",
+          "1", "\"1\" != \"1\" \\(1 != 1\\)", true },
+        { H_REQUIRE_STREQ_HEAD_NAME(1_2), H_REQUIRE_STREQ_BODY_NAME(1_2), "1",
+          "2", "\"1\" != \"2\" \\(1 != 2\\)", false },
+        { H_REQUIRE_STREQ_HEAD_NAME(2_1), H_REQUIRE_STREQ_BODY_NAME(2_1), "2",
+          "1", "\"2\" != \"1\" \\(2 != 1\\)", false },
+        { H_REQUIRE_STREQ_HEAD_NAME(2_2), H_REQUIRE_STREQ_BODY_NAME(2_2), "2",
+          "2", "\"2\" != \"2\" \\(2 != 2\\)", true },
         { H_REQUIRE_STREQ_MSG_HEAD_NAME(1_1),
-          H_REQUIRE_STREQ_MSG_BODY_NAME(1_1),
-          "1", "1", "\"1\" != \"1\" \\(1 != 1\\): 1 does not match 1", true },
+          H_REQUIRE_STREQ_MSG_BODY_NAME(1_1), "1", "1",
+          "\"1\" != \"1\" \\(1 != 1\\): 1 does not match 1", true },
         { H_REQUIRE_STREQ_MSG_HEAD_NAME(1_2),
-          H_REQUIRE_STREQ_MSG_BODY_NAME(1_2),
-          "1", "2", "\"1\" != \"2\" \\(1 != 2\\): 1 does not match 2", false },
+          H_REQUIRE_STREQ_MSG_BODY_NAME(1_2), "1", "2",
+          "\"1\" != \"2\" \\(1 != 2\\): 1 does not match 2", false },
         { H_REQUIRE_STREQ_MSG_HEAD_NAME(2_1),
-          H_REQUIRE_STREQ_MSG_BODY_NAME(2_1),
-          "2", "1", "\"2\" != \"1\" \\(2 != 1\\): 2 does not match 1", false },
+          H_REQUIRE_STREQ_MSG_BODY_NAME(2_1), "2", "1",
+          "\"2\" != \"1\" \\(2 != 1\\): 2 does not match 1", false },
         { H_REQUIRE_STREQ_MSG_HEAD_NAME(2_2),
-          H_REQUIRE_STREQ_MSG_BODY_NAME(2_2),
-          "2", "2", "\"2\" != \"2\" \\(2 != 2\\): 2 does not match 2", true },
+          H_REQUIRE_STREQ_MSG_BODY_NAME(2_2), "2", "2",
+          "\"2\" != \"2\" \\(2 != 2\\): 2 does not match 2", true },
         { H_REQUIRE_STREQ_HEAD_NAME(vars), H_REQUIRE_STREQ_BODY_NAME(vars),
           require_streq_var1, require_streq_var2,
-          "require_streq_var1 != require_streq_var2 \\("
-          REQUIRE_STREQ_VAR1 " != " REQUIRE_STREQ_VAR2 "\\)", false },
+          "require_streq_var1 != require_streq_var2 \\(" REQUIRE_STREQ_VAR1
+          " != " REQUIRE_STREQ_VAR2 "\\)",
+          false },
         { NULL, NULL, 0, 0, "", false }
     };
     do_require_eq_tests(tests);
@@ -741,7 +731,8 @@ H_REQUIRE_MATCH_MSG(no, "hello [a-z]+", "abc hello WORLD", "uppercase");
 ATF_TC(require_match);
 ATF_TC_HEAD(require_match, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the ATF_REQUIRE_MATCH and "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the ATF_REQUIRE_MATCH and "
                       "ATF_REQUIRE_MATCH_MSG macros");
 }
 ATF_TC_BODY(require_match, tc)
@@ -753,8 +744,8 @@ ATF_TC_BODY(require_match, tc)
           "hello [a-z]+", "abc hello WORLD",
           "'hello \\[a-z\\]\\+' not matched in 'abc hello WORLD'", false },
         { H_REQUIRE_MATCH_MSG_HEAD_NAME(yes),
-          H_REQUIRE_MATCH_MSG_BODY_NAME(yes),
-          "hello [a-z]+", "abc hello world", "", true },
+          H_REQUIRE_MATCH_MSG_BODY_NAME(yes), "hello [a-z]+", "abc hello world",
+          "", true },
         { H_REQUIRE_MATCH_MSG_HEAD_NAME(no), H_REQUIRE_MATCH_MSG_BODY_NAME(no),
           "hello [a-z]+", "abc hello WORLD",
           "'hello \\[a-z\\]\\+' not matched in 'abc hello WORLD': uppercase",
@@ -768,16 +759,14 @@ ATF_TC_BODY(require_match, tc)
  * Miscellaneous test cases covering several macros.
  * --------------------------------------------------------------------- */
 
-static
-bool
-aux_bool(const char *fmt ATF_DEFS_ATTRIBUTE_UNUSED)
+static bool
+aux_bool(const char* fmt ATF_DEFS_ATTRIBUTE_UNUSED)
 {
     return false;
 }
 
-static
-const char *
-aux_str(const char *fmt ATF_DEFS_ATTRIBUTE_UNUSED)
+static const char*
+aux_str(const char* fmt ATF_DEFS_ATTRIBUTE_UNUSED)
 {
     return "foo";
 }
@@ -790,28 +779,30 @@ H_REQUIRE_STREQ(msg, aux_str("%d"), "");
 ATF_TC(msg_embedded_fmt);
 ATF_TC_HEAD(msg_embedded_fmt, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests that format strings passed "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests that format strings passed "
                       "as part of the automatically-generated messages "
                       "do not get expanded");
 }
 ATF_TC_BODY(msg_embedded_fmt, tc)
 {
     struct test {
-        void (*head)(atf_tc_t *);
-        void (*body)(const atf_tc_t *);
+        void (*head)(atf_tc_t*);
+        void (*body)(const atf_tc_t*);
         bool fatal;
-        const char *msg;
-    } *t, tests[] = {
-       {  H_CHECK_HEAD_NAME(msg), H_CHECK_BODY_NAME(msg), false,
-          "aux_bool\\(\"%d\"\\) not met" },
-       {  H_REQUIRE_HEAD_NAME(msg), H_REQUIRE_BODY_NAME(msg), true,
-          "aux_bool\\(\"%d\"\\) not met" },
-       {  H_CHECK_STREQ_HEAD_NAME(msg), H_CHECK_STREQ_BODY_NAME(msg), false,
-          "aux_str\\(\"%d\"\\) != \"\" \\(foo != \\)" },
-       {  H_REQUIRE_STREQ_HEAD_NAME(msg), H_REQUIRE_STREQ_BODY_NAME(msg), true,
-          "aux_str\\(\"%d\"\\) != \"\" \\(foo != \\)" },
-       { NULL, NULL, false, NULL }
-    };
+        const char* msg;
+    } *t,
+        tests[] = {
+            { H_CHECK_HEAD_NAME(msg), H_CHECK_BODY_NAME(msg), false,
+              "aux_bool\\(\"%d\"\\) not met" },
+            { H_REQUIRE_HEAD_NAME(msg), H_REQUIRE_BODY_NAME(msg), true,
+              "aux_bool\\(\"%d\"\\) not met" },
+            { H_CHECK_STREQ_HEAD_NAME(msg), H_CHECK_STREQ_BODY_NAME(msg), false,
+              "aux_str\\(\"%d\"\\) != \"\" \\(foo != \\)" },
+            { H_REQUIRE_STREQ_HEAD_NAME(msg), H_REQUIRE_STREQ_BODY_NAME(msg),
+              true, "aux_str\\(\"%d\"\\) != \"\" \\(foo != \\)" },
+            { NULL, NULL, false, NULL }
+        };
 
     for (t = &tests[0]; t->head != NULL; t++) {
         printf("Checking with an expected '%s' message\n", t->msg);
@@ -819,13 +810,13 @@ ATF_TC_BODY(msg_embedded_fmt, tc)
         init_and_run_h_tc("h_check", t->head, t->body);
 
         if (t->fatal) {
-            bool matched =
-                atf_utils_grep_file(
-                    "^failed: .*macros_test.c:[0-9]+: %s$", "result", t->msg);
+            bool matched = atf_utils_grep_file(
+                "^failed: .*macros_test.c:[0-9]+: %s$", "result", t->msg);
             ATF_CHECK_MSG(matched, "couldn't find error string in result");
         } else {
             bool matched = atf_utils_grep_file("Check failed: .*"
-                "macros_test.c:[0-9]+: %s$", "error", t->msg);
+                                               "macros_test.c:[0-9]+: %s$",
+                                               "error", t->msg);
             ATF_CHECK_MSG(matched, "couldn't find error string in output");
         }
     }

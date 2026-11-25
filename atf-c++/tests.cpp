@@ -34,6 +34,7 @@ extern "C" {
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/wait.h>
+
 #include <signal.h>
 #include <unistd.h>
 }
@@ -65,9 +66,9 @@ extern "C" {
 #include "atf-c++/detail/text.hpp"
 
 #if defined(HAVE_GNU_GETOPT)
-#   define GETOPT_POSIX "+"
+#define GETOPT_POSIX "+"
 #else
-#   define GETOPT_POSIX ""
+#define GETOPT_POSIX ""
 #endif
 
 namespace impl = atf::tests;
@@ -135,8 +136,8 @@ detail::match(const std::string& regexp, const std::string& str)
 // The "tc" class.
 // ------------------------------------------------------------------------
 
-static std::map< atf_tc_t*, impl::tc* > wraps;
-static std::map< const atf_tc_t*, const impl::tc* > cwraps;
+static std::map<atf_tc_t*, impl::tc*> wraps;
+static std::map<const atf_tc_t*, const impl::tc*> cwraps;
 
 struct impl::tc_impl {
 private:
@@ -155,27 +156,24 @@ public:
     {
     }
 
-    static void
-    wrap_head(atf_tc_t *tc)
+    static void wrap_head(atf_tc_t* tc)
     {
-        std::map< atf_tc_t*, impl::tc* >::iterator iter = wraps.find(tc);
+        std::map<atf_tc_t*, impl::tc*>::iterator iter = wraps.find(tc);
         INV(iter != wraps.end());
         (*iter).second->head();
     }
 
-    static void
-    wrap_body(const atf_tc_t *tc)
+    static void wrap_body(const atf_tc_t* tc)
     {
-        std::map< const atf_tc_t*, const impl::tc* >::const_iterator iter =
+        std::map<const atf_tc_t*, const impl::tc*>::const_iterator iter =
             cwraps.find(tc);
         INV(iter != cwraps.end());
         (*iter).second->body();
     }
 
-    static void
-    wrap_cleanup(const atf_tc_t *tc)
+    static void wrap_cleanup(const atf_tc_t* tc)
     {
-        std::map< const atf_tc_t*, const impl::tc* >::const_iterator iter =
+        std::map<const atf_tc_t*, const impl::tc*>::const_iterator iter =
             cwraps.find(tc);
         INV(iter != cwraps.end());
         (*iter).second->cleanup();
@@ -200,13 +198,13 @@ impl::tc::init(const vars_map& config)
 {
     atf_error_t err;
 
-    std::vector< const char * > array;
+    std::vector<const char*> array;
     array.reserve((config.size() * 2) + 1);
 
-    for (vars_map::const_iterator iter = config.begin();
-         iter != config.end(); iter++) {
-         array.push_back((*iter).first.c_str());
-         array.push_back((*iter).second.c_str());
+    for (vars_map::const_iterator iter = config.begin(); iter != config.end();
+         iter++) {
+        array.push_back((*iter).first.c_str());
+        array.push_back((*iter).second.c_str());
     }
     array.push_back(nullptr);
 
@@ -214,56 +212,52 @@ impl::tc::init(const vars_map& config)
     cwraps[&pimpl->m_tc] = this;
 
     err = atf_tc_init(&pimpl->m_tc, pimpl->m_ident.c_str(), pimpl->wrap_head,
-        pimpl->wrap_body, pimpl->m_has_cleanup ? pimpl->wrap_cleanup : NULL,
-        array.data());
+                      pimpl->wrap_body,
+                      pimpl->m_has_cleanup ? pimpl->wrap_cleanup : NULL,
+                      array.data());
     if (atf_is_error(err))
         throw_atf_error(err);
 }
 
 bool
-impl::tc::has_config_var(const std::string& var)
-    const
+impl::tc::has_config_var(const std::string& var) const
 {
     return atf_tc_has_config_var(&pimpl->m_tc, var.c_str());
 }
 
 bool
-impl::tc::has_md_var(const std::string& var)
-    const
+impl::tc::has_md_var(const std::string& var) const
 {
     return atf_tc_has_md_var(&pimpl->m_tc, var.c_str());
 }
 
 const std::string
-impl::tc::get_config_var(const std::string& var)
-    const
+impl::tc::get_config_var(const std::string& var) const
 {
     return atf_tc_get_config_var(&pimpl->m_tc, var.c_str());
 }
 
 const std::string
-impl::tc::get_config_var(const std::string& var, const std::string& defval)
-    const
+impl::tc::get_config_var(const std::string& var,
+                         const std::string& defval) const
 {
     return atf_tc_get_config_var_wd(&pimpl->m_tc, var.c_str(), defval.c_str());
 }
 
 const std::string
-impl::tc::get_md_var(const std::string& var)
-    const
+impl::tc::get_md_var(const std::string& var) const
 {
     return atf_tc_get_md_var(&pimpl->m_tc, var.c_str());
 }
 
 const impl::vars_map
-impl::tc::get_md_vars(void)
-    const
+impl::tc::get_md_vars(void) const
 {
     vars_map vars;
 
-    char **array = atf_tc_get_md_vars(&pimpl->m_tc);
+    char** array = atf_tc_get_md_vars(&pimpl->m_tc);
     try {
-        char **ptr;
+        char** ptr;
         for (ptr = array; *ptr != NULL; ptr += 2)
             vars[*ptr] = *(ptr + 1);
         atf_utils_free_charpp(array);
@@ -284,8 +278,7 @@ impl::tc::set_md_var(const std::string& var, const std::string& val)
 }
 
 void
-impl::tc::run(const std::string& resfile)
-    const
+impl::tc::run(const std::string& resfile) const
 {
     atf_error_t err = atf_tc_run(&pimpl->m_tc, resfile.c_str());
     if (atf_is_error(err))
@@ -293,8 +286,7 @@ impl::tc::run(const std::string& resfile)
 }
 
 void
-impl::tc::run_cleanup(void)
-    const
+impl::tc::run_cleanup(void) const
 {
     atf_error_t err = atf_tc_cleanup(&pimpl->m_tc);
     if (atf_is_error(err))
@@ -307,21 +299,18 @@ impl::tc::head(void)
 }
 
 void
-impl::tc::cleanup(void)
-    const
+impl::tc::cleanup(void) const
 {
 }
 
 void
-impl::tc::require_kmod(const std::string& kmod)
-    const
+impl::tc::require_kmod(const std::string& kmod) const
 {
     atf_tc_require_kmod(kmod.c_str());
 }
 
 void
-impl::tc::require_prog(const std::string& prog)
-    const
+impl::tc::require_prog(const std::string& prog) const
 {
     atf_tc_require_prog(prog.c_str());
 }
@@ -406,7 +395,7 @@ impl::tc::expect_timeout(const std::string& reason)
 
 namespace {
 
-typedef std::vector< impl::tc * > tc_vector;
+typedef std::vector<impl::tc*> tc_vector;
 
 enum tc_part { BODY, CLEANUP };
 
@@ -416,7 +405,7 @@ parse_vflag(const std::string& str, atf::tests::vars_map& vars)
     if (str.empty())
         throw std::runtime_error("-v requires a non-empty argument");
 
-    std::vector< std::string > ws = atf::text::split(str, "=");
+    std::vector<std::string> ws = atf::text::split(str, "=");
     if (ws.size() == 1 && str[str.length() - 1] == '=') {
         vars[ws[0]] = "";
     } else {
@@ -442,7 +431,8 @@ handle_srcdir(const char* argv0, const std::string& srcdir_arg)
 
     if (!atf::fs::exists(srcdir / Program_Name))
         throw usage_error("Cannot find the test program in the source "
-                          "directory `%s'", srcdir.c_str());
+                          "directory `%s'",
+                          srcdir.c_str());
 
     if (!srcdir.is_absolute())
         srcdir = srcdir.to_absolute();
@@ -465,8 +455,8 @@ list_tcs(const tc_vector& tcs)
 {
     detail::atf_tp_writer writer(std::cout);
 
-    for (tc_vector::const_iterator iter = tcs.begin();
-         iter != tcs.end(); iter++) {
+    for (tc_vector::const_iterator iter = tcs.begin(); iter != tcs.end();
+         iter++) {
         const impl::vars_map vars = (*iter)->get_md_vars();
 
         {
@@ -491,9 +481,8 @@ list_tcs(const tc_vector& tcs)
 static impl::tc*
 find_tc(tc_vector tcs, const std::string& name)
 {
-    std::vector< std::string > ids;
-    for (tc_vector::iterator iter = tcs.begin();
-         iter != tcs.end(); iter++) {
+    std::vector<std::string> ids;
+    for (tc_vector::iterator iter = tcs.begin(); iter != tcs.end(); iter++) {
         impl::tc* tc = *iter;
 
         if (tc->get_md_var("ident") == name)
@@ -502,7 +491,7 @@ find_tc(tc_vector tcs, const std::string& name)
     throw usage_error("Unknown test case `%s'", name.c_str());
 }
 
-static std::pair< std::string, tc_part >
+static std::pair<std::string, tc_part>
 process_tcarg(const std::string& tcarg)
 {
     const std::string::size_type pos = tcarg.find(':');
@@ -525,18 +514,19 @@ process_tcarg(const std::string& tcarg)
 static int
 run_tc(tc_vector& tcs, const std::string& tcarg, const atf::fs::path& resfile)
 {
-    const std::pair< std::string, tc_part > fields = process_tcarg(tcarg);
+    const std::pair<std::string, tc_part> fields = process_tcarg(tcarg);
 
     impl::tc* tc = find_tc(tcs, fields.first);
 
-    if (!atf::env::has("__RUNNING_INSIDE_ATF_RUN") || atf::env::get(
-        "__RUNNING_INSIDE_ATF_RUN") != "internal-yes-value")
-    {
-        std::cerr << Program_Name << ": WARNING: Running test cases outside "
-            "of kyua(1) is unsupported\n";
-        std::cerr << Program_Name << ": WARNING: No isolation nor timeout "
-            "control is being applied; you may get unexpected failures; see "
-            "atf-test-case(4)\n";
+    if (!atf::env::has("__RUNNING_INSIDE_ATF_RUN") ||
+        atf::env::get("__RUNNING_INSIDE_ATF_RUN") != "internal-yes-value") {
+        std::cerr << Program_Name
+                  << ": WARNING: Running test cases outside of kyua(1) is "
+                     "unsupported\n";
+        std::cerr
+            << Program_Name
+            << ": WARNING: No isolation nor timeout control is being applied; "
+               "you may get unexpected failures; see atf-test-case(4)\n";
     }
 
     switch (fields.second) {
@@ -623,7 +613,7 @@ safe_main(int argc, char** argv, void (*add_tcs)(tc_vector&))
         init_tcs(add_tcs, tcs, vars);
         errcode = lflag ? list_tcs(tcs) : run_tc(tcs, argv[0], resfile);
     } catch (...) {
-        for (auto& tc: tcs) {
+        for (auto& tc : tcs) {
             delete tc;
         }
         throw;
@@ -632,12 +622,12 @@ safe_main(int argc, char** argv, void (*add_tcs)(tc_vector&))
     return errcode;
 }
 
-}  // anonymous namespace
+} // anonymous namespace
 
 namespace atf {
-    namespace tests {
-        int run_tp(int, char**, void (*)(tc_vector&));
-    }
+namespace tests {
+int run_tp(int, char**, void (*)(tc_vector&));
+}
 }
 
 int
@@ -647,9 +637,9 @@ impl::run_tp(int argc, char** argv, void (*add_tcs)(tc_vector&))
         set_program_name(argv[0]);
         return ::safe_main(argc, argv, add_tcs);
     } catch (const usage_error& e) {
-        std::cerr
-            << Program_Name << ": ERROR: " << e.what() << '\n'
-            << Program_Name << ": See atf-test-program(1) for usage details.\n";
+        std::cerr << Program_Name << ": ERROR: " << e.what() << '\n'
+                  << Program_Name
+                  << ": See atf-test-program(1) for usage details.\n";
         return EXIT_FAILURE;
     }
 }

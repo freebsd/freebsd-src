@@ -1,5 +1,60 @@
 # Major changes between releases
 
+## Changes in version 0.26.1
+
+Released on 2026/11/25.
+
+### Summary
+
+This release addresses a number of bugs in ATF that were present in
+0.26[.0]. Most of these are Developer Workflow related, however, these
+changes deserve special attention:
+
+* The remaining [known] memory leak issues were resolved by @holmuk in #215.
+* A key issue with how macros in atf-c(3) are evaluated was also resolved by
+  @dag-erling in #229.
+
+### A Note on Versioning
+
+This release will be the first release that uses a [SemVer 2.0][]
+compatible version. All future versions will start out with a subminor
+version of .0, which will increase (monotonically), until the minor version
+is bumped.
+
+[SemVer 2.0]: https://semver.org/
+
+### Bugfixes
+
+* #128: SPDX license identifiers to atf-c
+* #199: atf-check: remove pre-C++17 compatibility
+* #202: atf-sh/integration_test: fix hang when invoked via kyua
+* #203: atf_require_kmod: fix variable name typo
+* #205: Add -v flag to atf-check
+* #207: atf-c(3): mention `atf_tc_has_config_var` in manpage
+* #214: feat: remove `std::vsnprintf` autotools tests/conditionals
+* #215: Fix memory leaks reported by Linux ASAN/LSAN
+* #219: feat(ci): update CI image/LLVM versions in use
+* #221: fix(m4): Express basename and dirname tests using C
+* #222: fix: don't spam C*FLAGS and LDFLAGS with ASAN/LSAN/UBSAN flags
+* #223: fix: Improve legacy style assertion logic
+* #229: atf-c: Guard against multiple evaluation
+* #231: Fix Automake escaped-comment warning
+
+### Developer Workflow Changes
+
+* #200: [ci] add NetBSD 11.0-RELEASE job
+* #208: feat(dev): add commit-check support to the project
+* #209: chore: change `ubuntu-latest` to 24.04 where needed
+* #210: fix(commit-check): tighten subject criteria
+* #211: feat: Enforce C/C++ style in the project with `clang-format`
+* #212: chore: change `NO_STYLE_CHECK*` to `NOLINT*`
+* #217: Enable sanitizers for Linux, MacOS and FreeBSD
+* #224: chore(ci): update FreeBSD 14 image from 14.4 to 14.5
+* #225: Add GHA build timeouts
+* #226: chore(ci): sync ATF's build.yaml with Kyua's build.yaml
+
+**Full Changelog**: https://github.com/freebsd/atf/compare/atf-0.26...atf-0.26.1
+
 ## Changes in version 0.26
 
 Released on 2026/09/22.

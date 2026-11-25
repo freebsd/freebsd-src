@@ -24,21 +24,22 @@ dnl OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 dnl IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 AC_DEFUN([ATF_MODULE_APPLICATION], [
-    ATF_CHECK_STD_VSNPRINTF
-
     AC_CACHE_CHECK(
       [whether getopt allows a + sign for POSIX behavior],
       [kyua_cv_getopt_plus], [
       AC_LANG_PUSH([C])
       AC_RUN_IFELSE([AC_LANG_PROGRAM([#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>], [
     int argc = 4;
+    char arg0@<:@@:>@ = "conftest";
+    char arg1@<:@@:>@ = "-+";
+    char arg2@<:@@:>@ = "-a";
+    char arg3@<:@@:>@ = "bar";
     char* argv@<:@5@:>@ = {
-        strdup("conftest"),
-        strdup("-+"),
-        strdup("-a"),
-        strdup("bar"),
+        arg0,
+        arg1,
+        arg2,
+        arg3,
         NULL
     };
     int ch;

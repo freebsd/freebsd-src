@@ -33,17 +33,17 @@ BEGIN {
     error = 0
 }
 
-/NO_CHECK_STYLE_BEGIN|^\.Bd/ {
+/NOLINTBEGIN|^\.Bd/ {
     skip = 1
     next
 }
 
-/NO_CHECK_STYLE_END|^\.Ed/ {
+/NOLINTEND|^\.Ed/ {
     skip = 0
     next
 }
 
-/NO_CHECK_STYLE/ {
+/NOLINT/ {
     next
 }
 
@@ -66,7 +66,7 @@ BEGIN {
 
 END {
     if (skip)
-        warn("Missing NO_CHECK_STYLE_END");
+        warn("Missing NOLINTEND");
     if (error)
         exit 1
 }
