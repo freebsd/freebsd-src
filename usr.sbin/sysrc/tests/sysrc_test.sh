@@ -44,8 +44,12 @@ set_variable_body()
 	    sysrc -f "${SYSRC_CONF}" test_enable=YES
 	atf_check -o inline:'test_enable="YES"\n' cat "${SYSRC_CONF}"
 	# Change set variable
-	atf_check -o inline:"test_enable: YES -> YES\n" \
+	atf_check -o inline:"test_enable: YES (unchanged)\n" \
 	    sysrc -f "${SYSRC_CONF}" test_enable=YES
+	atf_check -o inline:"test_enable (unchanged)\n" \
+	    sysrc -f "${SYSRC_CONF}" -N test_enable=YES
+	atf_check -o empty \
+	    sysrc -f "${SYSRC_CONF}" -qN test_enable=YES
 	atf_check -o inline:'test_enable="YES"\n' cat "${SYSRC_CONF}"
 	atf_check -o inline:"test_enable: YES -> NO\n" \
 	    sysrc -f "${SYSRC_CONF}" test_enable=NO
@@ -53,6 +57,13 @@ set_variable_body()
 	# Set an empty variable
 	atf_check -o inline:"test2_enable:  -> \n" \
 	    sysrc -f "${SYSRC_CONF}" test2_enable=""
+	atf_check -o inline:'test_enable="NO"\ntest2_enable=""\n' \
+	    cat "${SYSRC_CONF}"
+	# Already NULL
+	atf_check -o inline:"test2_enable:  (unchanged)\n" \
+	    sysrc -f "${SYSRC_CONF}" test2_enable=""
+	atf_check -o inline:"test2_enable (unchanged)\n" \
+	    sysrc -f "${SYSRC_CONF}" -N test2_enable=""
 	atf_check -o inline:'test_enable="NO"\ntest2_enable=""\n' \
 	    cat "${SYSRC_CONF}"
 }
@@ -89,8 +100,10 @@ append_list_body()
 	atf_check -o inline:"test_list:  -> item1\n" \
 	    sysrc -f "${SYSRC_CONF}" test_list+=item1
 	atf_check -o inline:'test_list="item1"\n' cat "${SYSRC_CONF}"
-	atf_check -o inline:"test_list: item1 -> item1\n" \
+	atf_check -o inline:"test_list: item1 (unchanged)\n" \
 	    sysrc -f "${SYSRC_CONF}" test_list+=item1
+	atf_check -o inline:"test_list (unchanged)\n" \
+	    sysrc -f "${SYSRC_CONF}" -N test_list+=item1
 	atf_check -o inline:'test_list="item1"\n' cat "${SYSRC_CONF}"
 	atf_check -o inline:"test_list: item1 -> item1 item2\n" \
 	    sysrc -f "${SYSRC_CONF}" test_list+=item2
@@ -113,7 +126,7 @@ subtract_list_body()
 	atf_check -o inline:"test_list: item1 -> \n" \
 	    sysrc -f "${SYSRC_CONF}" test_list-=item1
 	atf_check -o inline:'test_list=""\n' cat "${SYSRC_CONF}"
-	atf_check -o inline:"test_list:  -> \n" \
+	atf_check -o inline:"test_list:  (unchanged)\n" \
 	    sysrc -f "${SYSRC_CONF}" test_list-=item3
 	atf_check -o inline:'test_list=""\n' cat "${SYSRC_CONF}"
 
@@ -426,8 +439,7 @@ r_flag_body()
 	    cat "${SYSRC_CONF}"
 
 	# Appending a token already present does not duplicate it
-	msg="test_flags: \$test_flags -J 16 extra ->"
-	msg="$msg \$test_flags -J 16 extra"
+	msg="test_flags: \$test_flags -J 16 extra (unchanged)"
 	atf_check -o inline:"$msg\n" \
 	    sysrc -f "${SYSRC_CONF}" -r test_flags+=extra
 

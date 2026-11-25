@@ -16,7 +16,7 @@ pgm="${0##*/}" # Program basename
 #
 # Version information
 #
-SYSRC_VERSION="9.1 Nov-18,2026"
+SYSRC_VERSION="9.2 Nov-18,2026"
 
 #
 # Options
@@ -308,6 +308,7 @@ if [ "$DESCRIBE" ]; then
 		*=*) usage "-d does not take values" ;; # NOTREACHED
 		esac
 	done
+	unset item
 fi
 [ "$JAIL" -a "$ROOTDIR" ] &&
 	usage "-j and -R are mutually exclusive" # NOTREACHED
@@ -398,6 +399,7 @@ for name in "$@"; do
 	[ "$name" = "${name#*[!$VALID_VARNAME_CHARS]}" ] ||
 		die "%s: name contains characters not allowed in shell" "$name"
 done
+unset name
 
 #
 # Process `-s name' argument
@@ -500,6 +502,7 @@ elif [ "$DELETE" ]; then
 		*=*) die "%s: -x does not take a value" "$item" ;;
 		esac
 	done
+	unset item
 fi
 
 #
@@ -561,6 +564,7 @@ if [ "$JAIL" -o "$ROOTDIR" ]; then
 		f_shell_escape "$arg" arg
 		args="$args '$arg'"
 	done
+	unset arg
 
 	#
 	# If both are supplied, `-j jail' supercedes `-R dir'
@@ -897,6 +901,41 @@ while [ $# -gt 0 ]; do
 				warn "%s: %s: already set to \`%s'" \
 					"$( f_sysrc_find "$NAME" )" \
 					"$NAME" "$before"
+			fi
+			shift 1
+			continue
+		fi
+
+		# Empty append or remove changes nothing
+		case "$mode:${1#*=}" in
+		LISTAPPEND:|LISTREMOVE:|STRAPPEND:)
+			if [ "$QUIET" ]; then
+				: nothing
+			elif [ "$SHOW_EQUALS" ]; then
+				shell_fmt "$NAME=%s # unchanged\n" "$before"
+			elif [ ! "$SHOW_VALUE" ]; then
+				echo "$NAME (unchanged)"
+			else
+				echo "${SHOW_NAME:+$NAME$SEP}$before" \
+					"(unchanged)"
+			fi
+			shift 1
+			continue ;;
+		esac
+
+		# An unset name is not already NULL
+		if [ "$before" = "$new" ] &&
+		   IGNORED=$( f_sysrc_get "$NAME?" )
+		then
+			if [ "$QUIET" ]; then
+				: nothing
+			elif [ "$SHOW_EQUALS" ]; then
+				shell_fmt "$NAME=%s # unchanged\n" "$before"
+			elif [ ! "$SHOW_VALUE" ]; then
+				echo "$NAME (unchanged)"
+			else
+				echo "${SHOW_NAME:+$NAME$SEP}$before" \
+					"(unchanged)"
 			fi
 			shift 1
 			continue
