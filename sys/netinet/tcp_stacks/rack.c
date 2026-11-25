@@ -858,6 +858,28 @@ sysctl_rack_wma_divisor(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+static int
+sysctl_rack_pace_max_seg(SYSCTL_HANDLER_ARGS)
+{
+	int32_t val;
+	int error;
+
+	val = *(int32_t *)arg1;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	/*
+	 * This becomes rc_user_set_max_segs of each new connection, so
+	 * apply the same 1 to MAX_USER_SET_SEG limit as the
+	 * TCP_RACK_PACE_MAX_SEG socket option. A value of 0 leads to a
+	 * division by zero in rack_setup_fast_output().
+	 */
+	if (val < 1 || val > MAX_USER_SET_SEG)
+		return (EINVAL);
+	*(int32_t *)arg1 = val;
+	return (0);
+}
+
 static void
 rack_init_sysctls(void)
 {
@@ -1082,11 +1104,11 @@ rack_init_sysctls(void)
 	    OID_AUTO, "gp_per_rec", CTLFLAG_RW,
 	    &rack_per_of_gp_rec, 200,
 	    "If non zero, what percentage of goodput to pace at in recovery");
-	SYSCTL_ADD_S32(&rack_sysctl_ctx,
+	SYSCTL_ADD_PROC(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_pacing),
-	    OID_AUTO, "pace_max_seg", CTLFLAG_RW,
-	    &rack_hptsi_segments, 40,
-	    "What size is the max for TSO segments in pacing and burst mitigation");
+	    OID_AUTO, "pace_max_seg", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    &rack_hptsi_segments, 0, sysctl_rack_pace_max_seg, "I",
+	    "What size is the max for TSO segments in pacing and burst mitigation (1-63)");
 	SYSCTL_ADD_S32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_pacing),
 	    OID_AUTO, "burst_reduces", CTLFLAG_RW,
@@ -23244,6 +23266,15 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 	case TCP_RACK_PACE_MAX_SEG:
 		/* Max segments size in a pace in bytes */
 		RACK_OPTS_INC(tcp_rack_max_seg);
+		if (optval == 0) {
+			/*
+			 * Valid values are 1 to MAX_USER_SET_SEG (larger
+			 * values are clamped below). A value of 0 leads to
+			 * a division by zero in rack_setup_fast_output().
+			 */
+			error = EINVAL;
+			break;
+		}
 		if ((rack->dgp_on == 1) &&
 		    (rack->r_ctl.pacing_method & RACK_DGP_PACING)) {
 			/*
