@@ -16,7 +16,7 @@ pgm="${0##*/}" # Program basename
 #
 # Version information
 #
-SYSRC_VERSION="8.6 Nov-18,2026"
+SYSRC_VERSION="8.7 Nov-18,2026"
 
 #
 # Options
@@ -123,9 +123,7 @@ help()
 	f_err "$optfmt" "-i" \
 	      "Ignore unknown variables."
 	f_err "$optfmt" "-j jail" \
-	      "The jid or name of the jail to operate within (overrides"
-	f_err "$optfmt" "" \
-	      "\`-R dir'; requires jexec(8))."
+	      "The jid or name of the jail to operate within."
 	f_err "$optfmt" "-L" \
 	      "List all configuration files including rc.conf.d entries."
 	f_err "$optfmt" "-l" \
@@ -264,6 +262,30 @@ while getopts AacDdEeFf:hij:LlNnqR:rs:vXx flag; do
 	esac
 done
 shift $(( $OPTIND - 1 ))
+
+#
+# Sanity checks
+#
+if [ "$SHOW_ALL" ]; then
+	[ $# -eq 0 ] || usage "-a/-A do not take names" # NOTREACHED
+fi
+if [ "$DESCRIBE" ]; then
+	if [ "$CHECK_ONLY$DELETE$LIST_CONFS$LIST_SERVICE_CONFS$RAW" ]; then
+		if [ "$DELETE" = "2" ]; then
+			# NB: Do not advertise secret `-X' unless it was used
+			usage "-d cannot be combined with -c/-l/-L/-r/-x/-X"
+			# NOTREACHED
+		fi
+		usage "-d cannot be combined with -c/-l/-L/-r/-x" # NOTREACHED
+	fi
+	for item in "$@"; do
+		case "$item" in
+		*=*) usage "-d does not take values" ;; # NOTREACHED
+		esac
+	done
+fi
+[ "$JAIL" -a "$ROOTDIR" ] &&
+	usage "-j and -R are mutually exclusive" # NOTREACHED
 
 #
 # Process `-L' flag
@@ -434,6 +456,14 @@ errmsg="\`-x' option incompatible with \`-a'/\`-A' options"
 errmsg="$errmsg (use \`-X' to override)"
 if [ "$DELETE" -a "$SHOW_ALL" ]; then
 	[ "$DELETE" = "2" ] || die "$errmsg"
+elif [ "$DELETE" = "2" ]; then
+	die "-X requires -a/-A" # NOTREACHED
+elif [ "$DELETE" ]; then
+	for item in "$@"; do
+		case "$item" in
+		*=*) die "%s: -x does not take a value" "$item" ;;
+		esac
+	done
 fi
 
 #
@@ -725,16 +755,6 @@ while [ $# -gt 0 ]; do
 			else
 				echo -n "$file: "
 			fi
-		fi
-
-		#
-		# If `-x' or `-X' is passed, delete the variable and ignore the
-		# desire to set some value
-		#
-		if [ "$DELETE" ]; then
-			f_sysrc_delete "$NAME" || status=$FAILURE
-			shift 1
-			continue
 		fi
 
 		#
