@@ -21,9 +21,6 @@ SRCS=	entropy_common.c \
 	zstd_ddict.c \
 	zstd_decompress.c \
 	zstd_decompress_block.c \
-	zbuff_common.c \
-	zbuff_compress.c \
-	zbuff_decompress.c \
 	cover.c \
 	divsufsort.c \
 	zdict.c \
@@ -50,7 +47,7 @@ PRIVATELIB=	yes
 
 ZSTDDIR=	${SRCTOP}/sys/contrib/zstd
 .PATH:	${ZSTDDIR}/lib/common ${ZSTDDIR}/lib/compress \
-	${ZSTDDIR}/lib/decompress ${ZSTDDIR}/lib/deprecated \
+	${ZSTDDIR}/lib/decompress \
 	${ZSTDDIR}/lib/dictBuilder ${ZSTDDIR}/lib
 
 .include <bsd.compiler.mk>

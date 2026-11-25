@@ -5,6 +5,7 @@
 .github
 .gitignore
 .travis.yml
+CMakeLists.txt
 CODE_OF_CONDUCT.md
 CONTRIBUTING.md
 Makefile
@@ -15,5 +16,6 @@ contrib
 doc
 examples
 lib/dll
+lib/install_oses.mk
 programs/windres
 tests

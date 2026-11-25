@@ -20,7 +20,6 @@ CFLAGS+=	-I${SRCTOP}/sys/contrib/zstd/programs \
 		-I${SRCTOP}/sys/contrib/zstd/lib/dictBuilder \
 		-I${SRCTOP}/sys/contrib/zstd/lib \
 		-DXXH_NAMESPACE=ZSTD_ \
-		-DHAVE_THREAD=1 \
 		-DZSTD_MULTITHREAD=1
 LINKS=	${BINDIR}/zstd ${BINDIR}/unzstd \
 	${BINDIR}/zstd ${BINDIR}/zstdcat \

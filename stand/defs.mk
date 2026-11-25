@@ -193,8 +193,8 @@ ZLIB_CFLAGS=-DHAVE_MEMCPY -I${SYSDIR}/contrib/zlib ${NO_WDEPRECATED_NON_PROTOTYP
 # BZIP2 flags
 BZIP2_CFLAGS=-I${SRCTOP}/contrib/bzip2  -DBZ_NO_STDIO -DBZ_NO_COMPRESS
 
-# ZSTD client cflags
-ZSTD_CFLAGS=-I${SYSDIR}/contrib/zstd/lib
+# ZSTD client cflags (match the OpenZFS zstd linked into libsa)
+ZSTD_CFLAGS=-I${ZFSTOP}/module/zstd/lib
 
 # XZ flags
 XZ_DIR=${SRCTOP}/sys/contrib/xz-embedded
