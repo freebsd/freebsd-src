@@ -4042,7 +4042,7 @@ bnxt_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 {
 	uint8_t *mta = arg;
 
-	if (cnt == BNXT_MAX_MC_ADDRS)
+	if (cnt >= BNXT_MAX_MC_ADDRS)
 		return (1);
 
 	bcopy(LLADDR(sdl), &mta[cnt * ETHER_ADDR_LEN], ETHER_ADDR_LEN);
