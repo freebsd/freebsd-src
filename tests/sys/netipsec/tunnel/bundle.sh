@@ -3,13 +3,16 @@
 
 KEY="12345678901234567890"
 
-# bundle_use 4|6: ipsecA's outbound policy bundles a required ESP tunnel
-# with an AH transport request at level "use", and only the ESP SAs exist.
-# The AH request is skipped, so the packets must leave with ESP alone;
-# ipsecB has a plain ESP tunnel and drops anything else.
+# bundle_use 4|6 [DFBIT]: ipsecA's outbound policy bundles a required ESP
+# tunnel with an AH transport request at level "use", and only the ESP SAs
+# exist.  The AH request is skipped, so the packets must leave with ESP
+# alone: ipsecB has a plain ESP tunnel and drops anything else, and the
+# router has no route to lan_b for a packet sent without the tunnel.
+# DFBIT sets net.inet.ipsec.dfbit on ipsecA, which makes IPv4 run the PMTU
+# check, as forwarded IPv6 always does.
 bundle_use()
 {
-	af=$1
+	af=$1; dfbit=${2:-}
 	if [ ${af} = 4 ]; then
 		lan_a=192.0.2.0/30; lan_b=203.0.113.0/30; target=203.0.113.1
 		gw_a=198.51.100.2; gw_b=198.51.100.6
@@ -23,6 +26,10 @@ add ${gw_b} ${gw_a} esp 0x1001 -m tunnel -E aes-gcm-16 \"${KEY}\";"
 	ist_init
 	ist_labsetup
 	ist_v${af}_setup
+	if [ -n "${dfbit}" ]; then
+		atf_check -s exit:0 -o ignore \
+		    jexec ipsecA sysctl net.inet.ipsec.dfbit=${dfbit}
+	fi
 	cat > ${TMPDIR}/ipsec.ipsecA.conf <<-EOF
 	flush;
 	spdflush;
@@ -57,7 +64,39 @@ use_v4_cleanup()
 	ist_cleanup
 }
 
+atf_test_case "use_v4_dfbit" "cleanup"
+use_v4_dfbit_head()
+{
+	atf_set descr 'A bundled request at level use without an SA is skipped (IPv4, PMTU check)'
+	atf_set require.user root
+}
+use_v4_dfbit_body()
+{
+	bundle_use 4 1
+}
+use_v4_dfbit_cleanup()
+{
+	ist_cleanup
+}
+
+atf_test_case "use_v6" "cleanup"
+use_v6_head()
+{
+	atf_set descr 'A bundled request at level use without an SA is skipped (IPv6)'
+	atf_set require.user root
+}
+use_v6_body()
+{
+	bundle_use 6
+}
+use_v6_cleanup()
+{
+	ist_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "use_v4"
+	atf_add_test_case "use_v4_dfbit"
+	atf_add_test_case "use_v6"
 }

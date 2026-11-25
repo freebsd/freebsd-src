@@ -374,6 +374,16 @@ setdf:
 	idx = sp->tcount - 1;
 	sav = ipsec4_allocsa(ifp, m, ip1, sp, &idx, &error);
 	if (sav == NULL) {
+		/*
+		 * No SA was found for the last request and it does not
+		 * require one.  The requests before it may still apply, and
+		 * a transport request after a tunnel request was looked up
+		 * with the addresses of this packet rather than those of the
+		 * tunnel, so it may have an SA after all.  Leave them to
+		 * ipsec4_process_packet() and skip the PMTU check.
+		 */
+		if (error == EJUSTRETURN)
+			return (0);
 		key_freesp(&sp);
 		/*
 		 * No matching SA was found and SADB_ACQUIRE message was generated.
@@ -381,8 +391,7 @@ setdf:
 		 */
 		if (error == 0)
 			error = EINPROGRESS;
-		if (error != EJUSTRETURN)
-			m_freem(m);
+		m_freem(m);
 
 		return (error);
 	}
@@ -451,12 +460,8 @@ ipsec4_common_output1(struct ifnet *ifp, struct mbuf *m, struct inpcb *inp,
 
 	/* NB: callee frees mbuf and releases reference to SP */
 	error = ipsec4_check_pmtu(ifp, m, ip1, sp, forwarding);
-	if (error != 0) {
-		if (error == EJUSTRETURN)
-			return (0);
-
+	if (error != 0)
 		return (error);
-	}
 
 	error = ipsec4_process_packet(ifp, m, ip1, sp, inp, mtu);
 	if (error == EJUSTRETURN) {
@@ -793,6 +798,16 @@ ipsec6_check_pmtu(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
 	idx = sp->tcount - 1;
 	sav = ipsec6_allocsa(ifp, m, sp, &idx, &error);
 	if (sav == NULL) {
+		/*
+		 * No SA was found for the last request and it does not
+		 * require one.  The requests before it may still apply, and
+		 * a transport request after a tunnel request was looked up
+		 * with the addresses of this packet rather than those of the
+		 * tunnel, so it may have an SA after all.  Leave them to
+		 * ipsec6_process_packet() and skip the PMTU check.
+		 */
+		if (error == EJUSTRETURN)
+			return (0);
 		key_freesp(&sp);
 		/*
 		 * No matching SA was found and SADB_ACQUIRE message was generated.
@@ -800,8 +815,7 @@ ipsec6_check_pmtu(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
 		 */
 		if (error == 0)
 			error = EINPROGRESS;
-		if (error != EJUSTRETURN)
-			m_freem(m);
+		m_freem(m);
 
 		return (error);
 	}
@@ -855,12 +869,8 @@ ipsec6_common_output(struct ifnet *ifp, struct mbuf *m, struct inpcb *inp,
 	}
 
 	error = ipsec6_check_pmtu(ifp, m, sp, forwarding);
-	if (error != 0) {
-		if (error == EJUSTRETURN)
-			return (0);
-
+	if (error != 0)
 		return (error);
-	}
 
 	/* NB: callee frees mbuf and releases reference to SP */
 	error = ipsec6_process_packet(ifp, m, sp, inp, mtu);
