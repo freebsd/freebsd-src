@@ -614,7 +614,7 @@ pci_vtinput_legacy_config(nvlist_t *nvl, const char *opts)
 	 * parse opts:
 	 *   virtio-input,/dev/input/eventX
 	 */
-	char *cp = strchr(opts, ',');
+	const char *cp = strchr(opts, ',');
 	if (cp == NULL) {
 		set_config_value_node(nvl, "path", opts);
 		return (0);
