@@ -32,6 +32,7 @@
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/sysent.h>
 
 struct domainset;
 struct thread;
@@ -64,5 +65,19 @@ linux_set_current_flags(struct thread *td, int flags)
 
 typedef void fpu_safe_exec_cb_t(void *ctx);
 void lkpi_fpu_safe_exec(fpu_safe_exec_cb_t func, void *ctx);
+
+/*
+ * Linux only treats a system call as a compat one when a 32-bit process
+ * runs on a 64-bit kernel, so native 32-bit kernels always return false.
+ */
+static inline bool
+in_compat_syscall(void)
+{
+#ifdef __LP64__
+	return (SV_CURPROC_FLAG(SV_ILP32) != 0);
+#else
+	return (false);
+#endif
+}
 
 #endif	/* _LINUXKPI_LINUX_COMPAT_H_ */
