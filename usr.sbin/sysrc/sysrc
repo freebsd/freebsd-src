@@ -16,7 +16,7 @@ pgm="${0##*/}" # Program basename
 #
 # Version information
 #
-SYSRC_VERSION="8.4 Nov-18,2026"
+SYSRC_VERSION="8.5 Nov-18,2026"
 
 #
 # Options
@@ -50,9 +50,11 @@ VERBOSE=		# -v
 die()
 {
 	local fmt="$1"
-	[ $# -gt 0 ] && shift 1
-	[  "$fmt"  ] && f_err "$fmt\n" "$@"
 
+	if [ "$fmt" ]; then
+		shift 1 # fmt
+		f_err "%s: $fmt\n" "$pgm" "$@"
+	fi
 	exit $FAILURE
 }
 
@@ -233,7 +235,7 @@ while getopts AacDdEeFf:hij:LlNnqR:rs:vXx flag; do
 	h) usage ;; # NOTREACHED
 	i) IGNORE_UNKNOWNS=1 ;;
 	j) [ "$OPTARG" ] ||
-		die "%s: Missing or null argument to \`-j' flag" "$pgm"
+		die "Missing or null argument to \`-j' flag"
 	   JAIL="$OPTARG" ;;
 	L) LIST_SERVICE_CONFS=1 ;;
 	l) LIST_CONFS=1 ;;
@@ -241,11 +243,11 @@ while getopts AacDdEeFf:hij:LlNnqR:rs:vXx flag; do
 	n) SHOW_NAME= ;;
 	q) QUIET=1 VERBOSE= ;;
 	R) [ "$OPTARG" ] ||
-		die "%s: Missing or null argument to \`-R' flag" "$pgm"
+		die "Missing or null argument to \`-R' flag"
 	   ROOTDIR="$OPTARG" ;;
 	r) RAW=1 ;;
 	s) [ "$OPTARG" ] ||
-		die "%s: Missing or null argument to \`-s' flag" "$pgm"
+		die "Missing or null argument to \`-s' flag"
 	   SERVICE="$OPTARG" ;;
 	v) VERBOSE=1 QUIET= ;;
 	X) DELETE=2 ;;
@@ -334,9 +336,8 @@ for name in "$@"; do
 	name="${name%%:[+=-]*}"
 	name="${name%%.=*}" # string append
 	name="${name%%[%#+=-]*}"
-	[ "$name" = "${name#*[!$VALID_VARNAME_CHARS]}" ] || die \
-		"%s: %s: name contains characters not allowed in shell" \
-		"$pgm" "$name"
+	[ "$name" = "${name#*[!$VALID_VARNAME_CHARS]}" ] ||
+		die "%s: name contains characters not allowed in shell" "$name"
 done
 
 #
@@ -399,7 +400,7 @@ fi
 #
 # Taint-check all rc.conf(5) files
 #
-errmsg="$pgm: Exiting due to previous syntax errors"
+errmsg="Exiting due to previous syntax errors"
 if [ "${RC_CONFS+set}" ]; then
 	( for i in $RC_CONFS; do
 	  	[ -e "$i" ] || continue
@@ -421,7 +422,7 @@ fi
 #
 # Process `-x' (and secret `-X') command-line options
 #
-errmsg="$pgm: \`-x' option incompatible with \`-a'/\`-A' options"
+errmsg="\`-x' option incompatible with \`-a'/\`-A' options"
 errmsg="$errmsg (use \`-X' to override)"
 if [ "$DELETE" -a "$SHOW_ALL" ]; then
 	[ "$DELETE" = "2" ] || die "$errmsg"
@@ -431,7 +432,7 @@ fi
 # Pre-flight for `-c' command-line option
 #
 [ "$CHECK_ONLY" -a "$SHOW_ALL" ] &&
-	die "$pgm: \`-c' option incompatible with \`-a'/\`-A' options"
+	die "\`-c' option incompatible with \`-a'/\`-A' options"
 
 #
 # Process `-e', `-N', and `-n' command-line options
@@ -524,7 +525,7 @@ if [ "$JAIL" -o "$ROOTDIR" ]; then
 			# directory, exit with error.
 			#
 			if [ "$jid" -a "${jid%[$IFS]*}" != "$jid" ]; then
-				die "%s: %s: %s" "$pgm" "$ROOTDIR" \
+				die "%s: %s" "$ROOTDIR" \
 				    "$( echo "Multiple jails claim this" \
 				             "directory as their root." \
 				             "(use \`-j jail' instead)" )"
