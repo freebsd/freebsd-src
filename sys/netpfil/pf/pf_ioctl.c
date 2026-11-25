@@ -559,10 +559,14 @@ pf_free_eth_rule(struct pf_keth_rule *rule)
 	if (rule->kif)
 		pfi_kkif_unref(rule->kif);
 
-	if (rule->ipsrc.addr.type == PF_ADDR_TABLE)
-		pfr_detach_table(rule->ipsrc.addr.p.tbl);
-	if (rule->ipdst.addr.type == PF_ADDR_TABLE)
-		pfr_detach_table(rule->ipdst.addr.p.tbl);
+	if (rule->ipsrc.addr.type == PF_ADDR_TABLE) {
+		if (rule->ipsrc.addr.p.tbl)
+			pfr_detach_table(rule->ipsrc.addr.p.tbl);
+	}
+	if (rule->ipdst.addr.type == PF_ADDR_TABLE) {
+		if (rule->ipdst.addr.p.tbl)
+			pfr_detach_table(rule->ipdst.addr.p.tbl);
+	}
 
 	counter_u64_free(rule->evaluations);
 	for (int i = 0; i < 2; i++) {
