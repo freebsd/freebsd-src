@@ -295,7 +295,7 @@ struct e82545_softc {
 	uint32_t	esc_TADV;	/* x382C intr absolute delay */
 
 	/* L2 frame acceptance */
-	struct eth_uni	esc_uni[16];	/* 16 x unicast MAC addresses */
+	struct eth_uni	esc_uni[E82545_RAR_MAX + 1]; /* unicast MAC addresses */
 	uint32_t	esc_fmcast[128]; /* Multicast filter bit-match */
 	uint32_t	esc_fvlan[128]; /* VLAN 4096-bit filter */
 
@@ -1571,7 +1571,7 @@ e82545_write_ra(struct e82545_softc *sc, int reg, uint32_t wval)
 	int idx;
 
 	idx = reg >> 1;
-	assert(idx < 15);
+	assert(idx <= E82545_RAR_MAX);
 
 	eu = &sc->esc_uni[idx];
 
@@ -1598,7 +1598,7 @@ e82545_read_ra(struct e82545_softc *sc, int reg)
 	int idx;
 
 	idx = reg >> 1;
-	assert(idx < 15);
+	assert(idx <= E82545_RAR_MAX);
 
 	eu = &sc->esc_uni[idx];
 
@@ -1764,7 +1764,7 @@ e82545_write_register(struct e82545_softc *sc, uint32_t offset, uint32_t value)
 	case E1000_TADV:
 		sc->esc_TADV = value & ~0xFFFF0000;
 		break;
-	case E1000_RAL(0) ... E1000_RAH(15):
+	case E1000_RAL(0) ... E1000_RAH(E82545_RAR_MAX):
 		/* convert to u32 offset */
 		ridx = (offset - E1000_RAL(0)) >> 2;
 		e82545_write_ra(sc, ridx, value);
@@ -1961,7 +1961,7 @@ e82545_read_register(struct e82545_softc *sc, uint32_t offset)
 	case E1000_TADV:
 		retval = sc->esc_TADV;
 		break;
-	case E1000_RAL(0) ... E1000_RAH(15):
+	case E1000_RAL(0) ... E1000_RAH(E82545_RAR_MAX):
 		/* convert to u32 offset */
 		ridx = (offset - E1000_RAL(0)) >> 2;
 		retval = e82545_read_ra(sc, ridx);
@@ -2219,7 +2219,7 @@ e82545_read(struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 static void
 e82545_reset(struct e82545_softc *sc, int drvr)
 {
-	int i;
+	size_t i;
 
 	e82545_rx_disable(sc);
 	e82545_tx_disable(sc);
@@ -2265,7 +2265,7 @@ e82545_reset(struct e82545_softc *sc, int drvr)
 		    ETHER_ADDR_LEN);
 	} else {
 		/* Clear RAH valid bits */
-		for (i = 0; i < 16; i++)
+		for (i = 0; i < nitems(sc->esc_uni); i++)
 			sc->esc_uni[i].eu_valid = 0;
 	}
 
