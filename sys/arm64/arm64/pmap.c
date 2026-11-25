@@ -10076,6 +10076,16 @@ pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 	if (pmap->pm_stage == PM_STAGE2)
 		return (pmap_stage2_fault(pmap, esr, far));
 
+	/*
+	 * pmap_pte() ignores the high-order address bits that distinguish
+	 * between kernel and user virtual addresses.  Consequently, given a
+	 * user pmap and a kernel virtual address, pmap_pte() is not
+	 * guaranteed to fail.  It may return the PTE for the user virtual
+	 * address with the same low-order bits.
+	 */
+	KASSERT(ADDR_IS_KERNEL(far) == (pmap == kernel_pmap),
+	    ("%s: address %#lx is not in pmap %p", __func__, far, pmap));
+
 	/* Data and insn aborts use same encoding for FSC field. */
 	switch (esr & ISS_DATA_DFSC_MASK) {
 	case ISS_DATA_DFSC_AFF_L1:

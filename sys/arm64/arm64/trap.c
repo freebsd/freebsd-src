@@ -327,6 +327,14 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 
 	fault_va = far;
 	if (lower) {
+		/*
+		 * Don't allow user-mode faults in the kernel address space.
+		 */
+		if (__predict_false(ADDR_IS_KERNEL(far))) {
+			call_trapsignal(td, SIGSEGV, SEGV_MAPERR, (void *)far,
+			    ESR_ELx_EXCEPTION(esr));
+			return;
+		}
 		map = &td->td_proc->p_vmspace->vm_map;
 		if ((td->td_proc->p_md.md_tcr & TCR_TBI0) != 0)
 			fault_va = ADDR_MAKE_CANONICAL(far);
