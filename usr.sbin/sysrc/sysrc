@@ -16,7 +16,7 @@ pgm="${0##*/}" # Program basename
 #
 # Version information
 #
-SYSRC_VERSION="8.7 Nov-18,2026"
+SYSRC_VERSION="8.8 Nov-18,2026"
 
 #
 # Options
@@ -40,6 +40,11 @@ SHOW_FILE=		# -F
 SHOW_NAME=1		# -n
 SHOW_VALUE=1		# -N
 VERBOSE=		# -v
+
+#
+# Miscellaneous
+#
+SEP=": "
 
 ############################################################ FUNCTIONS
 
@@ -177,29 +182,49 @@ jail_depend()
 	cat $SYSRC_SHARE/sysrc.subr
 }
 
-# escape $string [$var_to_set]
+# escape_required $string
 #
-# Escape $string contents so that the contents can be properly encapsulated in
-# single-quotes (making for safe evaluation).
+# Returns success if $string contains characters unsafe if not escaped. These
+# are characters that would alter the contents or break a shell interpreter's
+# parsing if simply double-quoted.
 #
-# NB: See `bsdconfig includes -dF escape' for relevant information/discussion.
-# NB: Abridged version of `f_shell_escape()' from bsdconfig(8) `strings.subr'.
-#
-escape()
+escape_required()
 {
-	local __start="$1" __var_to_set="$2" __string=
-	while [ "$__start" ]; do
-		case "$__start" in *\'*)
-			__string="$__string${__start%%\'*}'\\''"
-			__start="${__start#*\'}" continue
-		esac
-		break
-	done
-	__string="$__string$__start"
-	if [ "$__var_to_set" ]; then
-		setvar "$__var_to_set" "$__string"
+	case "$1" in
+	*[\'\"\$\`\\]*) return $SUCCESS ;;
+	esac
+	return $FAILURE
+}
+
+# quote_required $string
+#
+# Returns success if $string contains characters unsafe if left unquoted.
+#
+quote_required()
+{
+	case "$1" in
+	*[!-%+,./0-9:=@A-Z\]\[_a-z{}]*) return $SUCCESS ;;
+	esac
+	return $FAILURE
+}
+
+# shell_fmt $fmt $string
+#
+# $fmt should contain precisely one %s. Depending on the contents of $string,
+# Replace %s in $fmt either with "$string", '$string', or $string.
+#
+shell_fmt()
+{
+	local fmt="$1"
+	local string="$2"
+
+	if escape_required "$string"; then
+		f_shell_escape "$string" string
+		printf "$fmt" "'$string'"
+	elif quote_required "$string"; then
+		printf "$fmt" "\"$string\""
 	else
-		echo "$__string"
+		printf "$fmt" "$string"
 	fi
 }
 
@@ -310,9 +335,9 @@ if [ "$LIST_SERVICE_CONFS" ]; then
 	list="${list# }"
 	if [ $# -eq 0 ]; then
 		if [ "$VERBOSE" ]; then
-			echo rc_conf_files: $list
+			echo "rc_conf_files$SEP$list"
 		elif [ "$SHOW_EQUALS" ]; then
-			echo "rc_conf_files=\"$list\""
+			shell_fmt "rc_conf_files=%s\n" "$list"
 		fi
 	fi
 
@@ -340,10 +365,10 @@ if [ "$LIST_SERVICE_CONFS" ]; then
 			[ "$slist" ] || retval=$?
 		fi
 		if [ "$VERBOSE" ]; then
-			[ "$slist" ] && echo "$service: $slist"
+			[ "$slist" ] && echo "$service$SEP$slist"
 			continue
 		elif [ "$SHOW_EQUALS" ]; then
-			[ "$slist" ] && echo "$service=\"$slist\""
+			[ "$slist" ] && shell_fmt "$service=%s\n" "$slist"
 			continue
 		fi
 		list="$list${slist:+ }$slist"
@@ -475,7 +500,6 @@ fi
 #
 # Process `-e', `-N', and `-n' command-line options
 #
-SEP=': '
 [ "$SHOW_FILE" ] && SHOW_EQUALS=
 [ "$SHOW_NAME" ] || SHOW_EQUALS=
 [ "$VERBOSE" = "0" ] && VERBOSE=
@@ -483,7 +507,6 @@ if [ ! "$SHOW_VALUE" ]; then
 	SHOW_NAME=1
 	SHOW_EQUALS=
 fi
-[ "$SHOW_EQUALS" ] && SEP='="'
 
 #
 # Process `-j jail' and `-R dir' command-line options
@@ -514,17 +537,17 @@ if [ "$JAIL" -o "$ROOTDIR" ]; then
 		$( [ "$SHOW_FILE"  ] && echo \ -F )
 	"
 	if [ "$SERVICE" ]; then
-		escape "$SERVICE" _SERVICE
+		f_shell_escape "$SERVICE" _SERVICE
 		args="$args -s '$_SERVICE'"
 		unset _SERVICE
 	fi
 	if [ "${RC_CONFS+set}" ]; then
-		escape "$RC_CONFS" _RC_CONFS
+		f_shell_escape "$RC_CONFS" _RC_CONFS
 		args="$args -f '$_RC_CONFS'"
 		unset _RC_CONFS
 	fi
 	for arg in "$@"; do
-		escape "$arg" arg
+		f_shell_escape "$arg" arg
 		args="$args '$arg'"
 	done
 
@@ -673,10 +696,21 @@ if [ "$SHOW_ALL" ]; then
 			grep -Ev "^($EXCEPT)$"
 		); do
 			#
-			# If enabled, describe rather than expand value
+			# If `-d' is passed, describe rather than expand value
 			#
 			if [ "$DESCRIBE" ]; then
-				echo "$NAME: $( f_sysrc_desc "$NAME" )"
+				if [ ! "$SHOW_NAME" ]; then
+					echo "$( f_sysrc_desc "$NAME" )"
+				elif [ ! "$SHOW_VALUE" ]; then
+					echo "$NAME"
+				elif [ "$SHOW_EQUALS" ]; then
+					desc=$( f_sysrc_desc "$NAME" )
+					shell_fmt "$NAME=%s\n" "$desc"
+				else
+					echo "$NAME$SEP$(
+						f_sysrc_desc "$NAME"
+					)"
+				fi
 				continue
 			fi
 
@@ -684,7 +718,7 @@ if [ "$SHOW_ALL" ]; then
 			# If `-F' is passed, find it and move on
 			#
 			if [ "$SHOW_FILE" ]; then
-				[ "$SHOW_NAME" ] && echo -n "$NAME: "
+				[ "$SHOW_NAME" ] && echo -n "$NAME$SEP"
 				f_sysrc_find "$NAME"
 				continue
 			fi
@@ -697,8 +731,14 @@ if [ "$SHOW_ALL" ]; then
 				continue
 			fi
 
-			[ "$VERBOSE" ] &&
-				echo -n "$( f_sysrc_find "$NAME" ): "
+			if [ "$VERBOSE" ]; then
+				if [ "$SHOW_EQUALS" ]; then
+					file=$( f_sysrc_find "$NAME" )
+					shell_fmt "_file_$NAME=%s " "$file"
+				else
+					echo -n "$( f_sysrc_find "$NAME" )$SEP"
+				fi
+			fi
 
 			#
 			# If `-N' is passed, simplify the output
@@ -708,9 +748,12 @@ if [ "$SHOW_ALL" ]; then
 				continue
 			fi
 
-			echo "${SHOW_NAME:+$NAME$SEP}$(
-				f_sysrc_get${RAW:+_raw} "$NAME"
-			)${SHOW_EQUALS:+\"}"
+			value=$( f_sysrc_get${RAW:+_raw} "$NAME" )
+			if [ "$SHOW_EQUALS" ]; then
+				shell_fmt "$NAME=%s\n" "$value"
+			else
+				echo "${SHOW_NAME:+$NAME$SEP}$value"
+			fi
 
 		done
 	)
@@ -735,25 +778,17 @@ while [ $# -gt 0 ]; do
 	 *) mode=ASSIGN
 	esac
 
-	[ "$DESCRIBE" ] &&
-		echo "$NAME: $( f_sysrc_desc "$NAME" )"
-
 	case "$1" in
 	*=*)
-		#
-		# Like sysctl(8), if both `-d' AND "name=value" is passed,
-		# first describe (done above), then attempt to set
-		#
-
 		# If verbose, prefix line with where the directive lives
 		if [ "$VERBOSE" -a ! "$CHECK_ONLY" ]; then
 			file=$( f_sysrc_find "$NAME" )
 			[ "$file" = "$RC_DEFAULTS" -o ! "$file" ] &&
 				file=$( f_sysrc_get 'rc_conf_files%%[$IFS]*' )
 			if [ "$SHOW_EQUALS" ]; then
-				echo -n ": $file; "
+				shell_fmt "_file_$NAME=%s " "$file"
 			else
-				echo -n "$file: "
+				echo -n "$file$SEP"
 			fi
 		fi
 
@@ -869,16 +904,22 @@ while [ $# -gt 0 ]; do
 							f_sysrc_get_raw "$NAME"
 						)
 					fi
-					echo -n "${SHOW_NAME:+$NAME$SEP}"
-					echo -n "$before${SHOW_EQUALS:+\" #}"
-					echo -n " -> ${SHOW_EQUALS:+\"}$after"
-					echo "${SHOW_EQUALS:+\"}"
+					if [ "$SHOW_EQUALS" ]; then
+						shell_fmt "_$NAME=%s " "$before"
+						shell_fmt "$NAME=%s\n" "$after"
+					else
+						if [ "$SHOW_NAME" ]; then
+							echo -n "$NAME$SEP"
+						fi
+						echo "$before -> $after"
+					fi
 				fi
 			else
 				status=$FAILURE
 			fi
 		fi
 		;;
+
 	*)
 		if ! IGNORED=$( f_sysrc_get "$NAME?" ); then
 			[ "$IGNORE_UNKNOWNS" -o "$QUIET" ] ||
@@ -897,10 +938,19 @@ while [ $# -gt 0 ]; do
 
 		#
 		# Like sysctl(8), when `-d' is passed, desribe it
-		# (already done above) rather than expanding it
+		# rather than expanding it
 		#
-
 		if [ "$DESCRIBE" ]; then
+			if [ ! "$SHOW_NAME" ]; then
+				echo "$( f_sysrc_desc "$NAME" )"
+			elif [ ! "$SHOW_VALUE" ]; then
+				echo "$NAME"
+			elif [ "$SHOW_EQUALS" ]; then
+				desc=$( f_sysrc_desc "$NAME" )
+				shell_fmt "$NAME=%s\n" "$desc"
+			else
+				echo "$NAME$SEP$( f_sysrc_desc "$NAME" )"
+			fi
 			shift 1
 			continue
 		fi
@@ -918,7 +968,7 @@ while [ $# -gt 0 ]; do
 		# If `-F' is passed, find it and move on
 		#
 		if [ "$SHOW_FILE" ]; then
-			[ "$SHOW_NAME" ] && echo -n "$NAME: "
+			[ "$SHOW_NAME" ] && echo -n "$NAME$SEP"
 			f_sysrc_find "$NAME"
 			shift 1
 			continue
@@ -926,9 +976,10 @@ while [ $# -gt 0 ]; do
 
 		if [ "$VERBOSE" ]; then
 			if [ "$SHOW_EQUALS" ]; then
-				echo -n ": $( f_sysrc_find "$NAME" ); "
+				file=$( f_sysrc_find "$NAME" )
+				shell_fmt "_file_$NAME=%s " "$file"
 			else
-				echo -n "$( f_sysrc_find "$NAME" ): "
+				echo -n "$( f_sysrc_find "$NAME" )$SEP"
 			fi
 		fi
 
@@ -937,10 +988,13 @@ while [ $# -gt 0 ]; do
 		#
 		if [ ! "$SHOW_VALUE" ]; then
 			echo "$NAME"
+		elif [ "$SHOW_EQUALS" ]; then
+			value=$( f_sysrc_get${RAW:+_raw} "$NAME" )
+			shell_fmt "$NAME=%s\n" "$value"
 		else
 			echo "${SHOW_NAME:+$NAME$SEP}$(
 				f_sysrc_get${RAW:+_raw} "$NAME"
-			)${SHOW_EQUALS:+\"}"
+			)"
 		fi
 	esac
 	shift 1

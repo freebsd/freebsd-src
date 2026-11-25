@@ -121,6 +121,34 @@ f_getvar()
 }
 fi
 
+# f_shell_escape $string [$var_to_set]
+#
+# Escape $string contents so that the contents can be properly encapsulated in
+# single-quotes (making for safe evaluation).
+#
+# NB: See `bsdconfig api -dF escape' for relevant information/discussion.
+# NB: Abridged version of `f_shell_escape()' from bsdconfig(8) `strings.subr'.
+#
+if ! f_have f_shell_escape; then
+f_shell_escape()
+{
+	local __start="$1" __var_to_set="$2" __string=
+	while [ "$__start" ]; do
+		case "$__start" in *\'*)
+			__string="$__string${__start%%\'*}'\\''"
+			__start="${__start#*\'}" continue
+		esac
+		break
+	done
+	__string="$__string$__start"
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$__string"
+	else
+		echo "$__string"
+	fi
+}
+fi
+
 # f_eval_catch [-de] [-k $var_to_set] $funcname $utility \
 #	$printf_format [$printf_args ...]
 #
@@ -341,6 +369,9 @@ f_sysrc_get()
 # example, passing an argument of "hostname%%.*" (properly quoted) will
 # return the hostname up to (but not including) the first `.' (see sh(1),
 # "Parameter Expansion" for more information on additional formats).
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
 #
 f_sysrc_get_raw_awk='
 # Variables that should be defined on the invocation line:
