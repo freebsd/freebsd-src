@@ -152,7 +152,8 @@ struct sysentvec {
 	vm_offset_t	sv_fxrng_gen_offset;
 	void		(*sv_onexec_old)(struct thread *td);
 	int		(*sv_onexec)(struct proc *, struct image_params *);
-	void		(*sv_protect)(struct image_params *, int);
+	void		(*sv_protect)(struct image_params *, unsigned long,
+			    const void *, int);
 	void		(*sv_onexit)(struct proc *);
 	void		(*sv_ontdexit)(struct thread *td);
 	int		(*sv_setid_allowed)(struct thread *td,

@@ -73,7 +73,8 @@ struct arm64_addr_mask elf64_addr_mask = {
 struct arm64_addr_mask elf64_addr_mask_14;
 #endif
 
-static void arm64_exec_protect(struct image_params *, int);
+static void arm64_exec_protect(struct image_params *, unsigned long,
+    const void *, int);
 
 static struct sysentvec elf64_freebsd_sysvec = {
 	.sv_size	= SYS_MAXSYSCALL,
@@ -365,7 +366,8 @@ gnu_property_cb(const Elf_Note *note, void *arg0, bool *res)
 }
 
 static void
-arm64_exec_protect(struct image_params *imgp, int flags __unused)
+arm64_exec_protect(struct image_params *imgp, unsigned long base_addr,
+    const void *_phdr, int flags __unused)
 {
 	const Elf_Ehdr *hdr;
 	const Elf_Phdr *phdr;
@@ -378,7 +380,7 @@ arm64_exec_protect(struct image_params *imgp, int flags __unused)
 		return;
 
 	hdr = (const Elf_Ehdr *)imgp->image_header;
-	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
+	phdr = (const Elf_Phdr *)_phdr;
 
 	found = false;
 	for (i = 0; i < hdr->e_phnum; i++) {
@@ -396,7 +398,7 @@ arm64_exec_protect(struct image_params *imgp, int flags __unused)
 		if (phdr[i].p_type != PT_LOAD || phdr[i].p_memsz == 0)
 			continue;
 
-		sva = phdr[i].p_vaddr + imgp->et_dyn_addr;
+		sva = phdr[i].p_vaddr + base_addr;
 		eva = sva + phdr[i].p_memsz;
 		pmap_bti_set(vmspace_pmap(imgp->proc->p_vmspace), sva, eva);
 	}
