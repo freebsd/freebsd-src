@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 17, 2026
+.Dd November 18, 2026
 .Dt SYSRC 8
 .Os
 .Sh NAME
@@ -33,25 +33,25 @@
 .Nd safely edit system rc files
 .Sh SYNOPSIS
 .Nm
-.Op Fl cdDeEFhinNqrvx
-.Op Fl s Ar name
+.Op Fl cDdEeFhiNnqrvx
 .Op Fl f Ar file
 .Op Fl j Ar jail | Fl R Ar dir
+.Op Fl s Ar name
 .Ar name Ns Op Ns Oo +|-|. Oc Ns = Ns Ar value
 .Ar ...
 .Nm
-.Op Fl cdDeEFhinNqrvx
-.Op Fl s Ar name
+.Op Fl cDdEeFhiNnqrvx
 .Op Fl f Ar file
 .Op Fl j Ar jail | Fl R Ar dir
-.Fl a | A
+.Op Fl s Ar name
+.Fl A | a
 .Nm
 .Op Fl E
-.Op Fl s Ar name
 .Op Fl f Ar file
+.Op Fl s Ar name
 .Fl l
 .Nm
-.Op Fl eEqv
+.Op Fl Eeqv
 .Fl L
 .Op Ar name ...
 .Sh DESCRIPTION
@@ -64,11 +64,11 @@ appropriate privilege to change values in a safe and effective manner.
 .Pp
 The following options are available:
 .Bl -tag -width indent+
-.It Fl a
-Dump a list of all non-default configuration variables.
 .It Fl A
 Dump a list of all configuration variables
 .Pq incl. defaults .
+.It Fl a
+Dump a list of all non-default configuration variables.
 .It Fl c
 Check only.
 For querying, return success if all requested variables are set
@@ -78,11 +78,18 @@ For assignments, return success if no changes are required, otherwise failure.
 If verbose
 .Pq see Dq Fl v
 prints a message stating whether variables are set and/or changes are required.
-.It Fl d
-Print a description of the given variable.
 .It Fl D
 Show default value(s) only (this is the same as setting RC_CONFS to NULL or
 passing `-f' with a NULL file-argument).
+.It Fl d
+Print a description of the given variable.
+.It Fl E
+When given
+.Sq Fl l
+or
+.Sq Fl L
+to list configuration files, only list those that exist.
+When changing a setting, prefer to modify existing files.
 .It Fl e
 Print query results as
 .Xr sh 1
@@ -93,13 +100,10 @@ Ignored if either
 or
 .Ql Fl F
 is specified.
-.It Fl E
-When given
-.Sq Fl l
-or
-.Sq Fl L
-to list configuration files, only list those that exist.
-When changing a setting, prefer to modify existing files.
+.It Fl F
+Show only the last
+.Xr rc.conf 5
+file each directive is in.
 .It Fl f Ar file
 Operate on the specified file(s) instead of the files obtained by reading the
 .Sq rc_conf_files
@@ -107,10 +111,6 @@ entry in the
 .Ev RC_DEFAULTS
 file.
 This option can be specified multiple times for additional files.
-.It Fl F
-Show only the last
-.Xr rc.conf 5
-file each directive is in.
 .It Fl h
 Print a short usage message to stderr and exit.
 .It Fl -help
@@ -124,8 +124,6 @@ or name of the
 .Ar jail
 to operate within
 .Pq overrides So Fl R Ar dir Sc ; requires Xr jexec 8 .
-.It Fl l
-List configuration files used at startup on stdout and exit.
 .It Fl L
 List all configuration files including rc.conf.d entries on stdout and exit.
 Can be combined with
@@ -135,10 +133,12 @@ or
 to show service names.
 .Nm
 exits with success if all named services are installed, failure otherwise.
-.It Fl n
-Show only variable values, not their names.
+.It Fl l
+List configuration files used at startup on stdout and exit.
 .It Fl N
 Show only variable names, not their values.
+.It Fl n
+Show only variable values, not their names.
 .It Fl q
 Quiet.
 Disable verbose and hide certain errors.
@@ -147,13 +147,13 @@ When combined with
 and one or more
 .Ar name
 arguments, provide only exit status and no output.
-.It Fl r
-Show raw, unexpanded value(s).
 .It Fl R Ar dir
 Operate within the root directory
 .Sq Ar dir
 rather than
 .Sq / .
+.It Fl r
+Show raw, unexpanded value(s).
 .It Fl s Ar name
 If an
 .Li rc.d
@@ -465,26 +465,26 @@ The following standard commands are required by
 .Xr awk 1 ,
 .Xr cat 1 ,
 .Xr chmod 1 ,
+.Xr chown 8 ,
+.Xr chroot 8 ,
 .Xr env 1 ,
 .Xr grep 1 ,
+.Xr jexec 8 ,
+.Xr jls 8 ,
 .Xr mktemp 1 ,
 .Xr mv 1 ,
 .Xr rm 1 ,
 .Xr sh 1 ,
 .Xr stat 1 ,
-.Xr tail 1 ,
-.Xr chown 8 ,
-.Xr chroot 8 ,
-.Xr jls 8 ,
 and
-.Xr jexec 8 .
+.Xr tail 1 .
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
 .It Pa /etc/defaults/rc.conf
 .It Pa /etc/rc.conf
-.It Pa /etc/rc.conf.local
 .It Pa /etc/rc.conf.d/name
 .It Pa /etc/rc.conf.d/name/*
+.It Pa /etc/rc.conf.local
 .It Pa /usr/local/etc/rc.conf.d/name
 .It Pa /usr/local/etc/rc.conf.d/name/*
 .El
@@ -542,11 +542,11 @@ Return
 if $cloned_interfaces is set:
 .Dl sysrc cloned_interfaces+"alternate"
 .Sh SEE ALSO
-.Xr rc.conf 5 ,
 .Xr jail 8 ,
 .Xr jexec 8 ,
 .Xr jls 8 ,
 .Xr rc 8 ,
+.Xr rc.conf 5 ,
 .Xr rc.subr 8 ,
 .Xr sysctl 8
 .Sh HISTORY

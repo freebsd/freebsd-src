@@ -16,30 +16,30 @@ pgm="${0##*/}" # Program basename
 #
 # Version information
 #
-SYSRC_VERSION="8.3 Nov-16,2026"
+SYSRC_VERSION="8.4 Nov-18,2026"
 
 #
 # Options
 #
-CHECK_ONLY=
-DEFAULT=
-DELETE=
-DESCRIBE=
-EXISTING_ONLY=
-IGNORE_UNKNOWNS=
-JAIL=
-LIST_SERVICE_CONFS=
-LIST_CONFS=
-QUIET=
-RAW=
-ROOTDIR=
-SERVICE=
-SHOW_ALL=
-SHOW_EQUALS=
-SHOW_FILE=
-SHOW_NAME=1
-SHOW_VALUE=1
-VERBOSE=
+CHECK_ONLY=		# -c
+DEFAULT=		# -D
+DELETE=			# -x / -X
+DESCRIBE=		# -d
+EXISTING_ONLY=		# -E
+IGNORE_UNKNOWNS=	# -i
+JAIL=			# -j jail
+LIST_CONFS=		# -l
+LIST_SERVICE_CONFS=	# -L
+QUIET=			# -q
+RAW=			# -r
+ROOTDIR=		# -R rootdir
+SERVICE=		# -s svcname
+SHOW_ALL=		# -a / -A
+SHOW_EQUALS=		# -e
+SHOW_FILE=		# -F
+SHOW_NAME=1		# -n
+SHOW_VALUE=1		# -N
+VERBOSE=		# -v
 
 ############################################################ FUNCTIONS
 
@@ -82,30 +82,30 @@ help()
 	f_err "Usage: %s [OPTIONS] -l | -L [name ...]\n" "$pgm"
 
 	f_err "OPTIONS:\n"
-	f_err "$optfmt" "-a" \
-	      "Dump a list of all non-default configuration variables."
 	f_err "$optfmt" "-A" \
 	      "Dump a list of all configuration variables (incl. defaults)."
+	f_err "$optfmt" "-a" \
+	      "Dump a list of all non-default configuration variables."
 	f_err "$optfmt" "-c" \
 	      "Check. Return success if set or no changes, else error."
-	f_err "$optfmt" "-d" \
-	      "Print a description of the given variable."
 	f_err "$optfmt" "-D" \
 	      "Show default value(s) only (this is the same as setting"
 	f_err "$optfmt" "" \
 	      "RC_CONFS to NULL or passing \`-f' with a NULL file-argument)."
+	f_err "$optfmt" "-d" \
+	      "Print a description of the given variable."
+	f_err "$optfmt" "-E" \
+	      "Existing files only with \`-[lL]' or when changing a setting."
 	f_err "$optfmt" "-e" \
 	      "Print query results as \`var=value' (useful for producing"
 	f_err "$optfmt" "" \
 	      "output to be fed back in). Ignored if \`-n' is specified."
-	f_err "$optfmt" "-E" \
-	      "Existing files only with \`-[lL]' or when changing a setting."
+	f_err "$optfmt" "-F" \
+	      "Show only the last rc.conf(5) file each directive is in."
 	f_err "$optfmt" "-f file" \
 	      "Operate on the specified file(s) instead of rc_conf_files."
 	f_err "$optfmt" "" \
 	      "Can be specified multiple times for additional files."
-	f_err "$optfmt" "-F" \
-	      "Show only the last rc.conf(5) file each directive is in."
 	f_err "$optfmt" "-h" \
 	      "Print a short usage statement to stderr and exit."
 	f_err "$optfmt" "--help" \
@@ -116,20 +116,20 @@ help()
 	      "The jid or name of the jail to operate within (overrides"
 	f_err "$optfmt" "" \
 	      "\`-R dir'; requires jexec(8))."
-	f_err "$optfmt" "-l" \
-	      "List configuration files used at startup on stdout and exit."
 	f_err "$optfmt" "-L" \
 	      "List all configuration files including rc.conf.d entries."
-	f_err "$optfmt" "-n" \
-	      "Show only variable values, not their names."
+	f_err "$optfmt" "-l" \
+	      "List configuration files used at startup on stdout and exit."
 	f_err "$optfmt" "-N" \
 	      "Show only variable names, not their values."
+	f_err "$optfmt" "-n" \
+	      "Show only variable values, not their names."
 	f_err "$optfmt" "-q" \
 	      "Quiet. Disable verbose and hide certain errors."
-	f_err "$optfmt" "-r" \
-	      "Show raw, unexpanded value(s)."
 	f_err "$optfmt" "-R dir" \
 	      "Operate within the root directory \`dir' rather than \`/'."
+	f_err "$optfmt" "-r" \
+	      "Show raw, unexpanded value(s)."
 	f_err "$optfmt" "-s name" \
 	      "Process additional \`rc.conf.d' entries for service name."
 	f_err "$optfmt" "" \
@@ -219,37 +219,37 @@ unset arg
 #
 # Process command-line flags
 #
-while getopts aAcdDeEf:Fhij:lLnNqrR:s:vxX flag; do
+while getopts AacDdEeFf:hij:LlNnqR:rs:vXx flag; do
 	case "$flag" in
-	a) SHOW_ALL=${SHOW_ALL:-1} ;;
 	A) SHOW_ALL=2 ;;
+	a) SHOW_ALL=${SHOW_ALL:-1} ;;
 	c) CHECK_ONLY=1 ;;
-	d) DESCRIBE=1 ;;
 	D) DEFAULT=1 RC_CONFS= ;;
-	e) SHOW_EQUALS=1 ;;
+	d) DESCRIBE=1 ;;
 	E) EXISTING_ONLY=1 ;;
-	f) DEFAULT= RC_CONFS="$RC_CONFS${RC_CONFS:+ }$OPTARG" ;;
+	e) SHOW_EQUALS=1 ;;
 	F) SHOW_FILE=1 ;;
+	f) DEFAULT= RC_CONFS="$RC_CONFS${RC_CONFS:+ }$OPTARG" ;;
 	h) usage ;; # NOTREACHED
 	i) IGNORE_UNKNOWNS=1 ;;
 	j) [ "$OPTARG" ] ||
 		die "%s: Missing or null argument to \`-j' flag" "$pgm"
 	   JAIL="$OPTARG" ;;
-	l) LIST_CONFS=1 ;;
 	L) LIST_SERVICE_CONFS=1 ;;
-	n) SHOW_NAME= ;;
+	l) LIST_CONFS=1 ;;
 	N) SHOW_VALUE= ;;
+	n) SHOW_NAME= ;;
 	q) QUIET=1 VERBOSE= ;;
-	r) RAW=1 ;;
 	R) [ "$OPTARG" ] ||
 		die "%s: Missing or null argument to \`-R' flag" "$pgm"
 	   ROOTDIR="$OPTARG" ;;
+	r) RAW=1 ;;
 	s) [ "$OPTARG" ] ||
 		die "%s: Missing or null argument to \`-s' flag" "$pgm"
 	   SERVICE="$OPTARG" ;;
 	v) VERBOSE=1 QUIET= ;;
-	x) DELETE=${DELETE:-1} ;;
 	X) DELETE=2 ;;
+	x) DELETE=${DELETE:-1} ;;
 	\?) usage ;; # NOTREACHED
 	esac
 done
@@ -434,7 +434,7 @@ fi
 	die "$pgm: \`-c' option incompatible with \`-a'/\`-A' options"
 
 #
-# Process `-e', `-n', and `-N' command-line options
+# Process `-e', `-N', and `-n' command-line options
 #
 SEP=': '
 [ "$SHOW_FILE" ] && SHOW_EQUALS=
@@ -452,6 +452,7 @@ fi
 if [ "$JAIL" -o "$ROOTDIR" ]; then
 	#
 	# Reconstruct the arguments that we want to carry-over
+	# NB: Order matters
 	#
 	args="
 		${VERBOSE:+-v}
