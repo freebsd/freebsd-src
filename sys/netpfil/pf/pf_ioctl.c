@@ -4220,6 +4220,8 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 
 		anchor = nvlist_get_string(nvl, "anchor");
 
+		PF_RULES_RLOCK();
+
 		rs = pf_find_keth_ruleset(anchor);
 
 		nvlist_destroy(nvl);
@@ -4227,15 +4229,17 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		free(packed, M_NVLIST);
 		packed = NULL;
 
-		if (rs == NULL)
+		if (rs == NULL) {
+			PF_RULES_RUNLOCK();
 			ERROUT(ENOENT);
+		}
 
 		/* Reply */
 		nvl = nvlist_create(0);
-		if (nvl == NULL)
+		if (nvl == NULL) {
+			PF_RULES_RUNLOCK();
 			ERROUT(ENOMEM);
-
-		PF_RULES_RLOCK();
+		}
 
 		ticket = rs->active.ticket;
 		tail = TAILQ_LAST(rs->active.rules, pf_keth_ruleq);
@@ -4373,7 +4377,8 @@ DIOCGETETHRULE_error:
 		struct pfi_kkif		*kif = NULL, *bridge_to_kif = NULL;
 		const char		*anchor = "", *anchor_call = "";
 
-#define ERROUT(x)	ERROUT_IOCTL(DIOCADDETHRULE_error, x)
+#define ERROUT_LOCKED(x)	ERROUT_IOCTL(DIOCADDETHRULE_error_locked, x)
+#define ERROUT(x)		ERROUT_IOCTL(DIOCADDETHRULE_error, x)
 
 		if (nv->len > pf_ioctl_maxcount)
 			ERROUT(ENOMEM);
@@ -4395,19 +4400,6 @@ DIOCGETETHRULE_error:
 		if (nvlist_exists_string(nvl, "anchor_call"))
 			anchor_call = nvlist_get_string(nvl, "anchor_call");
 
-		ruleset = pf_find_keth_ruleset(anchor);
-		if (ruleset == NULL)
-			ERROUT(EINVAL);
-
-		if (nvlist_get_number(nvl, "ticket") !=
-		    ruleset->inactive.ticket) {
-			DPFPRINTF(PF_DEBUG_MISC,
-			    "ticket: %d != %d",
-			    (u_int32_t)nvlist_get_number(nvl, "ticket"),
-			    ruleset->inactive.ticket);
-			ERROUT(EBUSY);
-		}
-
 		rule = malloc(sizeof(*rule), M_PFRULE, M_WAITOK);
 		rule->timestamp = NULL;
 
@@ -4428,15 +4420,29 @@ DIOCGETETHRULE_error:
 		    M_WAITOK | M_ZERO);
 
 		PF_RULES_WLOCK();
+		ruleset = pf_find_keth_ruleset(anchor);
+		if (ruleset == NULL)
+			ERROUT_LOCKED(EINVAL);
+
+		if (nvlist_get_number(nvl, "ticket") !=
+		    ruleset->inactive.ticket) {
+			DPFPRINTF(PF_DEBUG_MISC,
+			    "ticket: %d != %d",
+			    (u_int32_t)nvlist_get_number(nvl, "ticket"),
+			    ruleset->inactive.ticket);
+			ERROUT_LOCKED(EBUSY);
+		}
 
 		if (rule->ifname[0]) {
 			rule->kif = pfi_kkif_attach(kif, rule->ifname);
+			kif = NULL;
 			pfi_kkif_ref(rule->kif);
 		} else
 			rule->kif = NULL;
 		if (rule->bridge_to_name[0]) {
 			rule->bridge_to = pfi_kkif_attach(bridge_to_kif,
 			    rule->bridge_to_name);
+			bridge_to_kif = NULL;
 			pfi_kkif_ref(rule->bridge_to);
 		} else
 			rule->bridge_to = NULL;
@@ -4463,17 +4469,11 @@ DIOCGETETHRULE_error:
 		if (error == 0 && rule->ipsrc.addr.type == PF_ADDR_TABLE)
 			error = pf_eth_addr_setup(ruleset, &rule->ipsrc.addr);
 
-		if (error) {
-			pf_free_eth_rule(rule);
-			PF_RULES_WUNLOCK();
-			ERROUT(error);
-		}
+		if (error)
+			ERROUT_LOCKED(error);
 
-		if (pf_keth_anchor_setup(rule, ruleset, anchor_call)) {
-			pf_free_eth_rule(rule);
-			PF_RULES_WUNLOCK();
-			ERROUT(EINVAL);
-		}
+		if (pf_keth_anchor_setup(rule, ruleset, anchor_call))
+			ERROUT_LOCKED(EINVAL);
 
 		tail = TAILQ_LAST(ruleset->inactive.rules, pf_keth_ruleq);
 		if (tail)
@@ -4482,10 +4482,16 @@ DIOCGETETHRULE_error:
 			rule->nr = 0;
 
 		TAILQ_INSERT_TAIL(ruleset->inactive.rules, rule, entries);
-
-		PF_RULES_WUNLOCK();
+		rule = NULL;
 
 #undef ERROUT
+#undef ERROUT_LOCKED
+DIOCADDETHRULE_error_locked:
+		pf_kkif_free(kif);
+		pf_kkif_free(bridge_to_kif);
+		pf_free_eth_rule(rule);
+		PF_RULES_WUNLOCK();
+
 DIOCADDETHRULE_error:
 		nvlist_destroy(nvl);
 		free(nvlpacked, M_NVLIST);
@@ -4493,7 +4499,6 @@ DIOCADDETHRULE_error:
 	}
 
 	case DIOCGETETHRULESETS: {
-		struct epoch_tracker	 et;
 		struct pfioc_nv		*nv = (struct pfioc_nv *)addr;
 		nvlist_t		*nvl = NULL;
 		void			*nvlpacked = NULL;
@@ -4517,11 +4522,11 @@ DIOCADDETHRULE_error:
 		if (! nvlist_exists_string(nvl, "path"))
 			ERROUT(EBADMSG);
 
-		NET_EPOCH_ENTER(et);
+		PF_RULES_RLOCK();
 
 		if ((ruleset = pf_find_keth_ruleset(
 		    nvlist_get_string(nvl, "path"))) == NULL) {
-			NET_EPOCH_EXIT(et);
+			PF_RULES_RUNLOCK();
 			ERROUT(ENOENT);
 		}
 
@@ -4535,7 +4540,7 @@ DIOCADDETHRULE_error:
 				nr++;
 		}
 
-		NET_EPOCH_EXIT(et);
+		PF_RULES_RUNLOCK();
 
 		nvlist_destroy(nvl);
 		nvl = NULL;
@@ -4567,7 +4572,6 @@ DIOCGETETHRULESETS_error:
 	}
 
 	case DIOCGETETHRULESET: {
-		struct epoch_tracker	 et;
 		struct pfioc_nv		*nv = (struct pfioc_nv *)addr;
 		nvlist_t		*nvl = NULL;
 		void			*nvlpacked = NULL;
@@ -4596,11 +4600,11 @@ DIOCGETETHRULESETS_error:
 
 		req_nr = nvlist_get_number(nvl, "nr");
 
-		NET_EPOCH_ENTER(et);
+		PF_RULES_RLOCK();
 
 		if ((ruleset = pf_find_keth_ruleset(
 		    nvlist_get_string(nvl, "path"))) == NULL) {
-			NET_EPOCH_EXIT(et);
+			PF_RULES_RUNLOCK();
 			ERROUT(ENOENT);
 		}
 
@@ -4611,7 +4615,7 @@ DIOCGETETHRULESETS_error:
 
 		nvl = nvlist_create(0);
 		if (nvl == NULL) {
-			NET_EPOCH_EXIT(et);
+			PF_RULES_RUNLOCK();
 			ERROUT(ENOMEM);
 		}
 
@@ -4633,7 +4637,7 @@ DIOCGETETHRULESETS_error:
 			}
 		}
 
-		NET_EPOCH_EXIT(et);
+		PF_RULES_RUNLOCK();
 		if (found) {
 			nvlist_add_number(nvl, "nr", nr);
 			nvlist_add_string(nvl, "name", anchor->name);

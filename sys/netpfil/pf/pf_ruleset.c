@@ -561,6 +561,8 @@ _pf_find_keth_anchor(struct pf_keth_ruleset *rs, const char *path)
 {
 	struct pf_keth_anchor	*key, *found;
 
+	PF_RULES_ASSERT();
+
 	key = (struct pf_keth_anchor *)rs_malloc(sizeof(*key));
 	if (key == NULL)
 		return (NULL);
