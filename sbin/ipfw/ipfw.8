@@ -1,5 +1,5 @@
 .\"
-.Dd September 9, 2026
+.Dd November 24, 2026
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1068,11 +1068,33 @@ It is possible to use the
 keyword with a skipto for a
 .Em computed
 skipto.
-Skipto may work either in O(log(N)) or in O(1) depending
-on amount of memory and/or sysctl variables.
-See the
-.Sx SYSCTL VARIABLES
-section for more details.
+.Pp
+The target rule of a
+.Cm skipto
+or
+.Cm call
+action is found with a binary search of the ruleset, in O(log(N)) time.
+For a fixed
+.Ar number
+the result is remembered until the ruleset changes, but a computed
+target is looked up for every packet.
+The
+.Nm
+.Cm enable skipto_cache
+command enables the skipto cache, a table indexed by rule number that
+finds the target in O(1) time.
+The cache is disabled by default, and
+.Nm
+.Cm disable skipto_cache
+turns it off again.
+The setting is per
+.Xr VNET 9
+and its state is shown by the
+.Va net.inet.ip.fw.skipto_cache
+variable.
+The cache takes 512 KB of kernel memory in each
+.Xr VNET 9 ,
+which is allocated even while the cache is disabled.
 .It Cm call Ar number | tablearg
 The current rule number is saved in the internal stack and
 ruleset processing continues with the first rule numbered
@@ -4350,6 +4372,19 @@ pipe or from
 node is not passed though the firewall again.
 Otherwise, after an action, the packet is
 reinjected into the firewall at the next rule.
+.It Va net.inet.ip.fw.skipto_cache : No 0
+Status of the skipto cache, 1 if enabled and 0 if disabled
+(read-only).
+Use
+.Nm
+.Cm enable skipto_cache
+or
+.Nm
+.Cm disable skipto_cache
+to change it, as described for the
+.Cm skipto
+action in
+.Sx RULE ACTIONS .
 .It Va net.inet.ip.fw.tables_max : No 128
 Maximum number of tables.
 .It Va net.inet.ip.fw.verbose : No 1
