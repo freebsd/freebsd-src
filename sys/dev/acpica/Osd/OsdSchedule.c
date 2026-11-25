@@ -239,15 +239,12 @@ AcpiOsWaitEventsComplete(void)
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-    if (!atomic_load_int(&acpi_taskq_started) &&
-	atomic_load_int(&acpi_boot_tasks_nb) > 0) {
-	if (!warning_printed) {
-	    warning_printed = true;
-	    printf("%s: Task processing not started, ignoring request\n",
-		   __func__);
-	}
-    } else
+    if (atomic_load_int(&acpi_taskq_started))
 	taskqueue_drain_all(acpi_taskq);
+    else if (!warning_printed && atomic_load_int(&acpi_boot_tasks_nb) > 0) {
+	warning_printed = true;
+	printf("%s: Task processing not started, ignoring request\n", __func__);
+    }
 
     return_VOID;
 }
