@@ -880,6 +880,27 @@ sysctl_rack_pace_max_seg(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+static int
+sysctl_rack_rate_sample_method(SYSCTL_HANDLER_ARGS)
+{
+	int32_t val;
+	int error;
+
+	val = *(int32_t *)arg1;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	/*
+	 * Accept the same values as the TCP_BBR_RACK_RTT_USE socket option.
+	 * tcp_rack_xmit_timer_commit() panics on any other value with
+	 * INVARIANTS, and ignores every RTT sample without.
+	 */
+	if (val != USE_RTT_HIGH && val != USE_RTT_LOW && val != USE_RTT_AVG)
+		return (EINVAL);
+	*(int32_t *)arg1 = val;
+	return (0);
+}
+
 static void
 rack_init_sysctls(void)
 {
@@ -900,11 +921,12 @@ rack_init_sysctls(void)
 	    "stats",
 	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 	    "Rack Counters");
-	SYSCTL_ADD_S32(&rack_sysctl_ctx,
+	SYSCTL_ADD_PROC(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_sysctl_root),
-	    OID_AUTO, "rate_sample_method", CTLFLAG_RW,
-	    &rack_rate_sample_method , USE_RTT_LOW,
-	    "What method should we use for rate sampling 0=high, 1=low ");
+	    OID_AUTO, "rate_sample_method",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    &rack_rate_sample_method, 0, sysctl_rack_rate_sample_method, "I",
+	    "What method should we use for rate sampling 0=high, 1=low, 2=avg");
 	/* Probe rtt related controls */
 	rack_probertt = SYSCTL_ADD_NODE(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_sysctl_root),

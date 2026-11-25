@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 18, 2024
+.Dd November 25, 2026
 .Dt TCP_RACK 4
 .Os
 .Sh NAME
@@ -107,7 +107,8 @@ must be in before we start pacing?
 .It Va net.inet.tcp.rack.use_pacing
 If set we use pacing, if clear we use only the original burst mitigation
 .It Va net.inet.tcp.rack.rate_sample_method
-What method should we use for rate sampling 0=high, 1=low
+Which RTT sample to use when one acknowledgment yields several:
+0 for the highest, 1 for the lowest (the default), or 2 for their average.
 .El
 .Sh SEE ALSO
 .Xr cc_chd 4 ,
