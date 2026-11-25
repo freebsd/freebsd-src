@@ -16,7 +16,7 @@ pgm="${0##*/}" # Program basename
 #
 # Version information
 #
-SYSRC_VERSION="8.9 Nov-18,2026"
+SYSRC_VERSION="9.0 Nov-18,2026"
 
 #
 # Options
@@ -316,13 +316,14 @@ fi
 # Process `-L' flag
 #
 if [ "$LIST_SERVICE_CONFS" ]; then
-	list= 
+	list=
 
 	#
 	# List rc_conf_files if no service names given
 	#
 	files=
 	[ $# -eq 0 ] && files=$( f_sysrc_get rc_conf_files )
+	set -f # noglob
 	for file in $files; do
 		if [ "$EXISTING_ONLY" ]; then
 			[ -e "$file" -a ! -d "$file" ] || continue
@@ -333,6 +334,7 @@ if [ "$LIST_SERVICE_CONFS" ]; then
 		list="$list $file"
 		[ "$VERBOSE$SHOW_EQUALS" ] || echo "$file"
 	done
+	set +f # glob
 	list="${list# }"
 	if [ $# -eq 0 ]; then
 		if [ "$VERBOSE" ]; then
@@ -349,6 +351,7 @@ if [ "$LIST_SERVICE_CONFS" ]; then
 	for service in ${*:-$( service -l )}; do
 		slist=
 		f_sysrc_service_configs $service files || retval=$? continue
+		set -f # noglob
 		for file in $files; do
 			if [ "$EXISTING_ONLY" ]; then
 				[ -e "$file" -a ! -d "$file" ] || continue
@@ -360,6 +363,7 @@ if [ "$LIST_SERVICE_CONFS" ]; then
 			fi
 			slist="$slist $file"
 		done
+		set +f # glob
 		slist="${slist# }"
 		if [ $# -gt 0 ]; then
 			[ "$slist" ] || retval=$?
@@ -371,9 +375,11 @@ if [ "$LIST_SERVICE_CONFS" ]; then
 			[ "$slist" ] && shell_fmt "$service=%s\n" "$slist"
 			continue
 		elif [ $# -eq 0 -o ! "$QUIET" ]; then
+			set -f # noglob
 			for item in $slist; do
 				echo "$item"
 			done
+			set +f # glob
 		fi
 		list="$list${slist:+ }$slist"
 	done
@@ -415,7 +421,7 @@ if [ "$EXISTING_ONLY" ]; then
 	# RC_CONFS to override the unpreened value. If RC_CONFS already has a
 	# value (`-D', `-f file', `-s name', or inherited from parent), use it.
 	# Otherwise, include filtered contents of rc_conf_files.
-	# 
+	#
 	RC_CONFS=$(
 		if [ "${RC_CONFS+set}" ]; then
 			set -- $RC_CONFS
@@ -442,9 +448,11 @@ if [ "$LIST_CONFS" ]; then
 	else
 		list=$( f_sysrc_get rc_conf_files )
 	fi
+	set -f # noglob
 	for item in $list; do
 		echo "$item"
 	done
+	set +f # glob
 	exit $SUCCESS
 fi
 
@@ -458,7 +466,8 @@ fi
 #
 errmsg="Exiting due to previous syntax errors"
 if [ "${RC_CONFS+set}" ]; then
-	( for i in $RC_CONFS; do
+	( set -f # noglob
+	  for i in $RC_CONFS; do
 	  	[ -e "$i" ] || continue
 	  	/bin/sh -n "$i" || exit $FAILURE
 	  done
@@ -467,6 +476,7 @@ if [ "${RC_CONFS+set}" ]; then
 else
 	/bin/sh -n "$RC_DEFAULTS" || die "$errmsg"
 	( . "$RC_DEFAULTS"
+	  set -f # noglob
 	  for i in $rc_conf_files; do
 	  	[ -e "$i" ] || continue
 	  	/bin/sh -n "$i" || exit $FAILURE
@@ -680,7 +690,9 @@ if [ "$SHOW_ALL" ]; then
 				rc_conf_files="${rc_conf_files% }"
 			fi
 
+			set -f # noglob
 			source_rc_confs
+			set +f # glob
 
 			#
 			# If passed `-a' (rather than `-A'), remove
