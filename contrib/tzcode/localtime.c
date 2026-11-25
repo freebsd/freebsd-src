@@ -2419,8 +2419,8 @@ timesub(const time_t *timep, int_fast32_t offset,
 			+ ((y % DAYSPERWEEK - TM_YEAR_BASE % DAYSPERWEEK)
 			   % DAYSPERWEEK
 			   * (DAYSPERNYEAR % DAYSPERWEEK))
-			+ leaps_thru_end_of(y - 1)
-			- leaps_thru_end_of(TM_YEAR_BASE - 1)
+			+ leaps_thru_end_of(y - 1) % DAYSPERWEEK
+			- leaps_thru_end_of(TM_YEAR_BASE - 1) % DAYSPERWEEK
 			+ idays);
 	tmp->tm_wday %= DAYSPERWEEK;
 	if (tmp->tm_wday < 0)
