@@ -4645,7 +4645,6 @@ DIOCGETETHRULESETS_error:
 			}
 		}
 
-		PF_RULES_RUNLOCK();
 		if (found) {
 			nvlist_add_number(nvl, "nr", nr);
 			nvlist_add_string(nvl, "name", anchor->name);
@@ -4655,8 +4654,10 @@ DIOCGETETHRULESETS_error:
 			else
 				nvlist_add_string(nvl, "path", "");
 		} else {
+			PF_RULES_RUNLOCK();
 			ERROUT(EBUSY);
 		}
+		PF_RULES_RUNLOCK();
 
 		nvlpacked = nvlist_pack(nvl, &nv->len);
 		if (nvlpacked == NULL)
