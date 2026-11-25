@@ -963,8 +963,14 @@ copy_obj(char **start, char *end, void *_o, const char *msg, int i)
 	int have = end - *start;
 
 	memcpy(&o, _o, sizeof(o));
-	if (have < o.len || o.len == 0 || o.type == 0) {
+	if (o.len == 0 || o.type == 0) {
 		D("(WARN) type %d %s %d have %d need %d",
+		    o.type, msg, i, have, o.len);
+		return 1;
+	}
+	if (have < o.len) {
+		/* Expected with a range: userland retries with more space. */
+		DX(2, "type %d %s %d have %d need %d",
 		    o.type, msg, i, have, o.len);
 		return 1;
 	}
@@ -998,8 +1004,14 @@ copy_obj_q(char **start, char *end, void *_o, const char *msg, int i)
 	int have = end - *start;
 	int len = sizeof(struct dn_flow); /* see above comment */
 
-	if (have < len || o->len == 0 || o->type != DN_QUEUE) {
+	if (o->len == 0 || o->type != DN_QUEUE) {
 		D("ERROR type %d %s %d have %d need %d",
+			o->type, msg, i, have, len);
+		return 1;
+	}
+	if (have < len) {
+		/* Expected with a range: userland retries with more space. */
+		DX(2, "type %d %s %d have %d need %d",
 			o->type, msg, i, have, len);
 		return 1;
 	}
