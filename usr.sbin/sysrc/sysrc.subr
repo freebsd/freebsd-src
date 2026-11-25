@@ -30,6 +30,7 @@ FAILURE=1
 msg_cannot_create_permission_denied="%s: cannot create %s: Permission denied"
 msg_permission_denied="%s: %s: Permission denied"
 msg_previous_syntax_errors="%s: Not overwriting \`%s' due to previous syntax errors"
+msg_awk_failure="%s: Not overwriting \`%s' due to awk(1) failure"
 
 #
 # Valid characters that can appear in an sh(1) variable name
@@ -1093,61 +1094,80 @@ f_sysrc_desc()
 f_sysrc_set_awk='
 # Variables that should be defined on the invocation line:
 # 	-v varname="varname"
-# 	-v new_value="new_value"
+# The new value is ENVIRON["SYSRC_NV"], not -v. awk -v rejects a newline.
 #
 BEGIN {
 	regex = "^[[:space:]]*"varname"="
-	found = retval = 0
+	new_value = ENVIRON["SYSRC_NV"]
+	retval = 0
 }
-{
-	# If already found... just spew
-	if ( found ) { print; next }
+{ lines[NR] = $0 }
+END {
+	last = 0
+	for (i = 1; i <= NR; i++)
+		if ( match(lines[i], regex) ) last = i
+	if ( !last ) {
+		for (i = 1; i <= NR; i++) print lines[i]
+		exit 0
+	}
+	for (i = 1; i < last; i++) print lines[i]
 
-	# Does this line match an assignment to our variable?
-	if ( ! match($0, regex) ) { print; next }
+	# From the last assignment through EOF, so a quoted newline stays
+	# with the value and the remainder of the file stays after it.
+	text = lines[last]
+	for (i = last + 1; i <= NR; i++)
+		text = text "\n" lines[i]
 
-	# Save important match information
-	found = 1
+	match(text, regex)
 	matchlen = RSTART + RLENGTH - 1
-
-	# Store the value text for later munging
-	value = substr($0, matchlen + 1, length($0) - matchlen)
-
-	# Store the first character of the value
+	value = substr(text, matchlen + 1, length(text) - matchlen)
 	t1 = t2 = substr(value, 0, 1)
 
 	# Assignment w/ back-ticks, expression, or misc.
 	# We ignore these since we did not generate them
 	#
-	if ( t1 ~ /[`$\\]/ ) { retval = 1; print; next }
+	if ( t1 ~ /[`$\\]/ ) { retval = 1; print text }
 
 	# Assignment w/ single-quoted value
 	else if ( t1 == "'\''" ) {
 		sub(/^'\''[^'\'']*/, "", value)
 		if ( length(value) == 0 ) t2 = ""
 		sub(/^'\''/, "", value)
+		printf "%s%c%s%c%s\n", substr(text, 0, matchlen), \
+			t1, new_value, t2, value
 	}
 
 	# Assignment w/ double-quoted value
+	# NB: \\ does not escape the closing quote
 	else if ( t1 == "\"" ) {
-		sub(/^"(.*\\\\+")*[^"]*/, "", value)
+		sub(/^"([^"\\]|\\.)*/, "", value)
 		if ( length(value) == 0 ) t2 = ""
 		sub(/^"/, "", value)
+		printf "%s%c%s%c%s\n", substr(text, 0, matchlen), \
+			t1, new_value, t2, value
 	}
 
 	# Assignment w/ non-quoted value
 	else if ( t1 ~ /[^[:space:];]/ ) {
 		t1 = t2 = "\""
 		sub(/^[^[:space:]]*/, "", value)
+		printf "%s%c%s%c%s\n", substr(text, 0, matchlen), \
+			t1, new_value, t2, value
 	}
 
 	# Null-assignment
-	else if ( t1 ~ /[[:space:];]/ ) { t1 = t2 = "\"" }
+	else if ( t1 ~ /[[:space:];]/ ) {
+		t1 = t2 = "\""
+		printf "%s%c%s%c%s\n", substr(text, 0, matchlen), \
+			t1, new_value, t2, value
+	}
 
-	printf "%s%c%s%c%s\n", substr($0, 0, matchlen), \
-		t1, new_value, t2, value
+	else
+		printf "%s%c%s%c%s\n", substr(text, 0, matchlen), \
+			t1, new_value, t2, value
+
+	exit retval
 }
-END { exit retval }
 '
 f_sysrc_set()
 {
@@ -1248,21 +1268,26 @@ f_sysrc_set()
 	#
 	# Operate on the matching file, replacing only the last occurrence.
 	#
-	# Use awk to ensure LF at end of each line, else files without ending
-	# LF will trigger a bug in `tail -r' where last two lines are joined.
+	# A newline in the value is data. awk -v cannot carry one, so the
+	# value is passed in the environment. Physical lines are not reversed;
+	# a newline inside quotes belongs to the value.
 	#
 	local new_contents retval
-	new_contents=$( awk 1 "$file" 2> /dev/null | tail -r )
-	new_contents=$( echo "$new_contents" | awk -v varname="$varname" \
-		-v new_value="$new_value" "$f_sysrc_set_awk" )
+	new_contents=$( SYSRC_NV="$new_value" awk -v varname="$varname" \
+		"$f_sysrc_set_awk" "$file" )
 	retval=$?
+	if [ "$retval" -gt 1 ]; then
+		f_err "$msg_awk_failure\n" "$pgm" "$file"
+		rm -f "$tmpfile"
+		return $FAILURE
+	fi
 
 	#
 	# Write the temporary file contents.
 	#
-	echo "$new_contents" | tail -r > "$tmpfile" || return $FAILURE
-	if [ $retval -ne $SUCCESS ]; then
-		echo "$varname=\"$new_value\"" >> "$tmpfile"
+	printf '%s\n' "$new_contents" > "$tmpfile" || return $FAILURE
+	if [ "$retval" -ne "$SUCCESS" ]; then
+		printf '%s="%s"\n' "$varname" "$new_value" >> "$tmpfile"
 	fi
 
 	#

@@ -506,10 +506,77 @@ strappend_body()
 	    sysrc -f "${SYSRC_CONF}" 'cron_flags+=-J 15'
 }
 
+atf_test_case set_variable_newline
+set_variable_newline_head()
+{
+	atf_set "descr" "Assignment values may contain a newline"
+}
+set_variable_newline_body()
+{
+	local val
+
+	printf '%s\n' 'test_enable="NO"' 'others_enable="YES"' > "${SYSRC_CONF}"
+	val=$(printf 'YES\nNOX')
+	val="${val%X}"
+
+	atf_check -o inline:"test_enable: NO -> YES
+NO
+" sysrc -f "${SYSRC_CONF}" "test_enable=$val"
+
+	printf '%s\n' 'test_enable="YES' 'NO"' 'others_enable="YES"' > expected
+	atf_check -o file:expected cat "${SYSRC_CONF}"
+
+	atf_check -o inline:"YES
+NO
+" sysrc -f "${SYSRC_CONF}" -nr test_enable
+
+	# A new variable is appended. The neighbor stays.
+	printf '%s\n' 'keep=1' > "${SYSRC_CONF}"
+	atf_check -o inline:"fresh:  -> YES
+NO
+" sysrc -f "${SYSRC_CONF}" "fresh=$val"
+	printf '%s\n' 'keep=1' 'fresh="YES' 'NO"' > expected
+	atf_check -o file:expected cat "${SYSRC_CONF}"
+
+	# A quote that would break the string does not replace the file
+	printf '%s\n' 'test_enable="YES' 'NO"' 'others_enable="YES"' \
+	    > "${SYSRC_CONF}"
+	cp "${SYSRC_CONF}" saved
+	val=$(printf 'YE"S\nNOX')
+	val="${val%X}"
+	atf_check -s exit:1 -e match:"syntax errors" \
+	    sysrc -f "${SYSRC_CONF}" "test_enable=$val"
+	atf_check -o file:saved cat "${SYSRC_CONF}"
+}
+
+atf_test_case set_variable_backslash
+set_variable_backslash_head()
+{
+	atf_set "descr" "A value ending in a backslash can be replaced"
+}
+set_variable_backslash_body()
+{
+	# "C:\\" stores the value C:\ and the closer is not escaped
+	printf '%s\n' 'bar="C:\\"' 'keep=1' > "${SYSRC_CONF}"
+	atf_check -o inline:'bar: C:\ -> NEW\n' \
+	    sysrc -f "${SYSRC_CONF}" bar=NEW
+	printf '%s\n' 'bar="NEW"' 'keep=1' > expected
+	atf_check -o file:expected cat "${SYSRC_CONF}"
+
+	# A later value ending in a backslash belongs to that later name
+	printf '%s\n' 'aa="old"' 'bb="C:\\"' > "${SYSRC_CONF}"
+	atf_check -o inline:'aa: old -> NEW\n' \
+	    sysrc -f "${SYSRC_CONF}" aa=NEW
+	printf '%s\n' 'aa="NEW"' 'bb="C:\\"' > expected
+	atf_check -o file:expected cat "${SYSRC_CONF}"
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case check_variable
 	atf_add_test_case set_variable
+	atf_add_test_case set_variable_newline
+	atf_add_test_case set_variable_backslash
 	atf_add_test_case remove_variable_x_flag
 	atf_add_test_case append_list
 	atf_add_test_case strappend
