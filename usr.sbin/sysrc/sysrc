@@ -16,7 +16,7 @@ pgm="${0##*/}" # Program basename
 #
 # Version information
 #
-SYSRC_VERSION="8.8 Nov-18,2026"
+SYSRC_VERSION="8.9 Nov-18,2026"
 
 #
 # Options
@@ -328,9 +328,10 @@ if [ "$LIST_SERVICE_CONFS" ]; then
 			[ -e "$file" -a ! -d "$file" ] || continue
 		fi
 		case "$list" in
-		"$file"|*" $file"|"$file "*|*" $file "*) continue ;;
+		*" $file "*|*" $file") continue ;;
 		esac
 		list="$list $file"
+		[ "$VERBOSE$SHOW_EQUALS" ] || echo "$file"
 	done
 	list="${list# }"
 	if [ $# -eq 0 ]; then
@@ -354,8 +355,7 @@ if [ "$LIST_SERVICE_CONFS" ]; then
 			fi
 			if [ ! "$VERBOSE" -a ! "$SHOW_EQUALS" ]; then
 				case "$list" in
-				"$file"|*" $file"|"$file "*|*" $file "*)
-					continue ;;
+				*" $file "*|*" $file") continue ;;
 				esac
 			fi
 			slist="$slist $file"
@@ -370,15 +370,13 @@ if [ "$LIST_SERVICE_CONFS" ]; then
 		elif [ "$SHOW_EQUALS" ]; then
 			[ "$slist" ] && shell_fmt "$service=%s\n" "$slist"
 			continue
+		elif [ $# -eq 0 -o ! "$QUIET" ]; then
+			for item in $slist; do
+				echo "$item"
+			done
 		fi
 		list="$list${slist:+ }$slist"
 	done
-	if [ ! "$VERBOSE" -a ! "$SHOW_EQUALS" ]; then
-		if [ $# -eq 0 -o ! "$QUIET" ]; then
-			list="${list# }"
-			[ "$list" ] && echo $list
-		fi
-	fi
 
 	exit $retval
 fi
@@ -438,12 +436,15 @@ fi
 if [ "$LIST_CONFS" ]; then
 	[ $# -eq 0 ] || usage "-l does not take names" # NOTREACHED
 	if [ "$DEFAULT" ]; then
-		echo "$RC_DEFAULTS"
+		list="$RC_DEFAULTS"
 	elif [ "${RC_CONFS+set}" ]; then
-		echo "$RC_CONFS"
+		list="$RC_CONFS"
 	else
-		f_sysrc_get rc_conf_files
+		list=$( f_sysrc_get rc_conf_files )
 	fi
+	for item in $list; do
+		echo "$item"
+	done
 	exit $SUCCESS
 fi
 
