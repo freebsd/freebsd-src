@@ -883,7 +883,7 @@ __elfN(load_file)(struct thread *td, const char *file, u_long *addr,
 		goto fail;
 
 	if (imgp->proc->p_sysent->sv_protect != NULL)
-		imgp->proc->p_sysent->sv_protect(imgp, SVP_INTERP);
+		imgp->proc->p_sysent->sv_protect(imgp, rbase, phdr, SVP_INTERP);
 
 	*addr = base_addr;
 	*entry = (unsigned long)hdr->e_entry + rbase;
@@ -1413,7 +1413,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	imgp->entry_addr = entry;
 
 	if (sv->sv_protect != NULL)
-		sv->sv_protect(imgp, SVP_IMAGE);
+		sv->sv_protect(imgp, imgp->et_dyn_addr, phdr, SVP_IMAGE);
 
 	if (interp != NULL) {
 		VOP_UNLOCK(imgp->vp);
