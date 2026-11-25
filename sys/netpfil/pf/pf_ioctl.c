@@ -4410,8 +4410,10 @@ DIOCGETETHRULE_error:
 		rule->timestamp = NULL;
 
 		error = pf_nveth_rule_to_keth_rule(nvl, rule);
-		if (error != 0)
+		if (error != 0) {
+			free(rule, M_PFRULE);
 			ERROUT(error);
+		}
 
 		if (rule->ifname[0])
 			kif = pf_kkif_create(M_WAITOK);
