@@ -16,7 +16,7 @@ pgm="${0##*/}" # Program basename
 #
 # Version information
 #
-SYSRC_VERSION="8.5 Nov-18,2026"
+SYSRC_VERSION="8.6 Nov-18,2026"
 
 #
 # Options
@@ -43,27 +43,35 @@ VERBOSE=		# -v
 
 ############################################################ FUNCTIONS
 
+# warn [$fmt [$opts ...]]
+#
+# Produce an error message on stderr.
+#
+warn()
+{
+	local fmt="$1"
+	[ "$fmt" ] || return
+	shift 1 # fmt
+	f_err "%s: $fmt\n" "$pgm" "$@"
+}
+
 # die [$fmt [$opts ...]]
 #
 # Optionally print a message to stderr before exiting with failure status.
 #
 die()
 {
-	local fmt="$1"
-
-	if [ "$fmt" ]; then
-		shift 1 # fmt
-		f_err "%s: $fmt\n" "$pgm" "$@"
-	fi
+	warn "$@"
 	exit $FAILURE
 }
 
-# usage
+# usage [$fmt [$opts ...]]
 #
-# Prints a short syntax statement and exits.
+# Prints a short syntax statement and exits. Optionally preceded by an error.
 #
 usage()
 {
+	warn "$@"
 	f_err "Usage: %s [OPTIONS] %s\n" "$pgm" \
 		"{name[[+|-|.]=value] ... | -a | -A | -l | -L [name ...]}"
 	f_err "Try \`%s --help' for more information.\n" "$pgm"
@@ -202,7 +210,7 @@ escape()
 #
 # Perform sanity checks
 #
-[ $# -gt 0 ] || usage # NOTREACHED
+[ $# -gt 0 ] || usage "no names provided" # NOTREACHED
 
 #
 # Check for `--help' and `--version' command-line option
@@ -381,7 +389,7 @@ fi
 # Process `-l' option flag
 #
 if [ "$LIST_CONFS" ]; then
-	[ $# -eq 0 ] || usage
+	[ $# -eq 0 ] || usage "-l does not take names" # NOTREACHED
 	if [ "$DEFAULT" ]; then
 		echo "$RC_DEFAULTS"
 	elif [ "${RC_CONFS+set}" ]; then
@@ -395,7 +403,7 @@ fi
 #
 # [More] Sanity checks (e.g., "sysrc --")
 #
-[ $# -eq 0 -a ! "$SHOW_ALL" ] && usage # NOTREACHED
+[ $# -eq 0 -a ! "$SHOW_ALL" ] && usage "no names provided" # NOTREACHED
 
 #
 # Taint-check all rc.conf(5) files
