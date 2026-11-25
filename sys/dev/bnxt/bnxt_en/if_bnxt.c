@@ -5784,6 +5784,7 @@ bnxt_handle_def_cp(void *arg)
 static void
 bnxt_clear_ids(struct bnxt_softc *softc)
 {
+	struct bnxt_vlan_tag *tag;
 	int i;
 
 	softc->def_cp_ring.stats_ctx_id = HWRM_NA_SIGNATURE;
@@ -5811,6 +5812,8 @@ bnxt_clear_ids(struct bnxt_softc *softc)
 	}
 	bnxt_clear_mpc_rings_ids(softc);
 	softc->vnic_info.filter_id = -1;
+	SLIST_FOREACH(tag, &softc->vnic_info.vlan_tags, next)
+		tag->filter_id = -1;
 	softc->vnic_info.id = (uint16_t)HWRM_NA_SIGNATURE;
 	softc->vnic_info.rss_id = (uint16_t)HWRM_NA_SIGNATURE;
 	memset(softc->vnic_info.rss_grp_tbl.idi_vaddr, 0xff,
