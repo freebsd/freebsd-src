@@ -298,6 +298,7 @@ mmel [label="Michal Meloun\nmmel@FreeBSD.org\n2015/11/01"]
 monthadar [label="Monthadar Al Jaberi\nmonthadar@FreeBSD.org\n2012/04/02"]
 mp [label="Mark Peek\nmp@FreeBSD.org\n2001/07/27"]
 mr [label="Michael Reifenberger\nmr@FreeBSD.org\n2001/09/30"]
+msvoelker [label="Timo Voelker\msvoelker@FreeBSD.org\n2026/09/23"]
 mw [label="Marcin Wojtas\nmw@FreeBSD.org\n2017/07/18"]
 neel [label="Neel Natu\nneel@FreeBSD.org\n2009/09/20"]
 netchild [label="Alexander Leidinger\nnetchild@FreeBSD.org\n2005/03/31"]
@@ -798,6 +799,7 @@ kmacy -> lstewart
 
 kp -> donner
 kp -> igoro
+kp -> msvoelker
 kp -> nick
 kp -> rcm
 kp -> zlei
@@ -1013,6 +1015,7 @@ trasz -> jh
 trasz -> mjg
 
 tuexen -> cc
+tuexen -> msvoelker
 tuexen -> rscheff
 
 ume -> jinmei
