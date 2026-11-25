@@ -2457,6 +2457,14 @@ tcp_discardcb(struct tcpcb *tp)
 #ifdef TCP_BLACKBOX
 	tcp_log_tcpcbfini(tp);
 #endif
+	/*
+	 * Alternate stacks such as RACK keep t_srtt, t_rttvar and t_rttlow
+	 * in microseconds and do not convert them back in their fini().
+	 * The host cache stores and hands out these values in the ticks
+	 * based format used by the default stack, so convert them before
+	 * they are saved below. This is a no-op if already in ticks.
+	 */
+	tcp_change_time_units(tp, TCP_TMR_GRANULARITY_TICKS);
 
 	/*
 	 * If we got enough samples through the srtt filter,
@@ -2468,9 +2476,9 @@ tcp_discardcb(struct tcpcb *tp)
 	 * as tcp quickly recovers from everything.
 	 * XXX: Works very well but needs some more statistics!
 	 *
-	 * XXXRRS: Updating must be after the stack fini() since
-	 * that may be converting some internal representation of
-	 * say srtt etc into the general one used by other stacks.
+	 * XXXRRS: Updating must be after the stack fini() and the
+	 * conversion to ticks above, so that the srtt etc are in the
+	 * general representation used by the host cache and other stacks.
 	 */
 	if (tp->t_rttupdated >= 4) {
 		uint32_t ssthresh;
