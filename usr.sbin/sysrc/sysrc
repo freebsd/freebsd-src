@@ -16,7 +16,7 @@ pgm="${0##*/}" # Program basename
 #
 # Version information
 #
-SYSRC_VERSION="9.0 Nov-18,2026"
+SYSRC_VERSION="9.1 Nov-18,2026"
 
 #
 # Options
@@ -876,24 +876,27 @@ while [ $# -gt 0 ]; do
 
 		#
 		# If `-c' is passed, simply compare and move on
+		# NB: `-e' ignored when given `-c'
 		#
 		if [ "$CHECK_ONLY" ]; then
 			if ! IGNORED=$( f_sysrc_get "$NAME?" ); then
 				status=$FAILURE
-				[ "$VERBOSE" ] &&
-					echo "$NAME: not currently set"
-				shift 1
-				continue
+				[ "$QUIET" ] ||
+					warn "%s: not currently set" "$NAME"
 			elif [ "$new" != "$before" ]; then
 				status=$FAILURE
 				if [ "$VERBOSE" ]; then
-					echo -n "$( f_sysrc_find "$NAME" ): "
-					echo -n "$NAME: would change from "
-					echo "\`$before' to \`$new'"
+					warn "%s: %s: would change %s" \
+						"$( f_sysrc_find "$NAME" )" \
+						"$NAME" \
+						"from \`$before' to \`$new'"
+				elif [ ! "$QUIET" ]; then
+					warn "%s: value differs" "$NAME"
 				fi
 			elif [ "$VERBOSE" ]; then
-				echo -n "$( f_sysrc_find "$NAME" ): "
-				echo "$NAME: already set to \`$before'"
+				warn "%s: %s: already set to \`%s'" \
+					"$( f_sysrc_find "$NAME" )" \
+					"$NAME" "$before"
 			fi
 			shift 1
 			continue
@@ -936,8 +939,7 @@ while [ $# -gt 0 ]; do
 	*)
 		if ! IGNORED=$( f_sysrc_get "$NAME?" ); then
 			[ "$IGNORE_UNKNOWNS" -o "$QUIET" ] ||
-				f_err "%s: unknown variable '%s'\n" \
-					"$pgm" "$NAME"
+				warn "unknown variable '%s'" "$NAME"
 			shift 1
 			status=$FAILURE
 			continue

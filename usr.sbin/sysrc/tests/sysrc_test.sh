@@ -234,31 +234,41 @@ c_flag_body()
 
 	# Test rc variable assignment
 	atf_check sysrc -f "${SYSRC_CONF}" -c test_enable=NO
-	atf_check -s exit:1 sysrc -f "${SYSRC_CONF}" -c test_enable=YES
-	atf_check -s exit:1 sysrc -f "${SYSRC_CONF}" -c noexist=YES
+	atf_check -s exit:1 -e inline:"sysrc: test_enable: value differs\n" \
+	    sysrc -f "${SYSRC_CONF}" -c test_enable=YES
+	atf_check -s exit:1 -e inline:"sysrc: noexist: not currently set\n" \
+	    sysrc -f "${SYSRC_CONF}" -c noexist=YES
 
 	# Test appending rc variables
 	atf_check sysrc -f "${SYSRC_CONF}" -c test_list+=item1
-	atf_check -s exit:1 sysrc -f "${SYSRC_CONF}" -c test_list+=item3
-	atf_check -s exit:1 sysrc -f "${SYSRC_CONF}" -c noexist+=item1
+	atf_check -s exit:1 -e inline:"sysrc: test_list: value differs\n" \
+	    sysrc -f "${SYSRC_CONF}" -c test_list+=item3
+	atf_check -s exit:1 -e inline:"sysrc: noexist: not currently set\n" \
+	    sysrc -f "${SYSRC_CONF}" -c noexist+=item1
 	atf_check sysrc -f "${SYSRC_CONF}" -c test_enable=NO test_list+=item1
-	atf_check -s exit:1 \
+	atf_check -s exit:1 -e inline:"sysrc: test_enable: value differs\n" \
 	    sysrc -f "${SYSRC_CONF}" -c test_enable=YES test_list+=item1
-	atf_check -s exit:1 \
+	atf_check -s exit:1 -e inline:"sysrc: test_list: value differs\n" \
 	    sysrc -f "${SYSRC_CONF}" -c test_enable=NO test_list+=item3
-	atf_check -s exit:1 \
+	msg="sysrc: test_enable: value differs"
+	msg="$msg\nsysrc: test_list: value differs\n"
+	atf_check -s exit:1 -e inline:"$msg" \
 	    sysrc -f "${SYSRC_CONF}" -c test_enable=YES test_list+=item3
 
 	# Test subracting rc variables
 	atf_check sysrc -f "${SYSRC_CONF}" -c test_list-=item3
-	atf_check -s exit:1 sysrc -f "${SYSRC_CONF}" -c test_list-=item1
-	atf_check -s exit:1 sysrc -f "${SYSRC_CONF}" -c noexist-=item1
+	atf_check -s exit:1 -e inline:"sysrc: test_list: value differs\n" \
+	    sysrc -f "${SYSRC_CONF}" -c test_list-=item1
+	atf_check -s exit:1 -e inline:"sysrc: noexist: not currently set\n" \
+	    sysrc -f "${SYSRC_CONF}" -c noexist-=item1
 	atf_check sysrc -f "${SYSRC_CONF}" -c test_enable=NO test_list-=item3
-	atf_check -s exit:1 \
+	atf_check -s exit:1 -e inline:"sysrc: test_enable: value differs\n" \
 	    sysrc -f "${SYSRC_CONF}" -c test_enable=YES test_list-=item3
-	atf_check -s exit:1 \
+	atf_check -s exit:1 -e inline:"sysrc: test_list: value differs\n" \
 	    sysrc -f "${SYSRC_CONF}" -c test_enable=NO test_list-=item1
-	atf_check -s exit:1 \
+	msg="sysrc: test_enable: value differs"
+	msg="$msg\nsysrc: test_list: value differs\n"
+	atf_check -s exit:1 -e inline:"$msg" \
 	    sysrc -f "${SYSRC_CONF}" -c test_enable=YES test_list-=item1
 }
 
@@ -273,13 +283,13 @@ c_flag_quoting_body()
 
 	# PR 299413: the expanded value is " -J 15"
 	printf '%s\n' 'cron_flags="$cron_flags -J 15"' > "${SYSRC_CONF}"
-	msg="${SYSRC_CONF}: cron_flags: already set to"
+	msg="sysrc: ${SYSRC_CONF}: cron_flags: already set to"
 	msg="$msg \`\$cron_flags -J 15'"
-	atf_check -o inline:"$msg\n" \
+	atf_check -e inline:"$msg\n" \
 	    sysrc -f "${SYSRC_CONF}" -v -c 'cron_flags=$cron_flags -J 15'
-	msg="${SYSRC_CONF}: cron_flags: would change from"
+	msg="sysrc: ${SYSRC_CONF}: cron_flags: would change from"
 	msg="$msg \`\$cron_flags -J 15' to \`\$cron_flags -J 16'"
-	atf_check -s exit:1 -o inline:"$msg\n" \
+	atf_check -s exit:1 -e inline:"$msg\n" \
 	    sysrc -f "${SYSRC_CONF}" -v -c 'cron_flags=$cron_flags -J 16'
 
 	# Same raw text in the other quote forms
@@ -292,18 +302,18 @@ c_flag_quoting_body()
 
 	# Dollar quotes keep their quote marks
 	printf '%s\n' 'cron_flags=$"%s: file not found"' > "${SYSRC_CONF}"
-	msg="${SYSRC_CONF}: cron_flags: already set to"
+	msg="sysrc: ${SYSRC_CONF}: cron_flags: already set to"
 	msg="$msg \`\$\"%s: file not found\"'"
-	atf_check -o inline:"$msg\n" \
+	atf_check -e inline:"$msg\n" \
 	    sysrc -f "${SYSRC_CONF}" -v -c 'cron_flags=$"%s: file not found"'
-	atf_check -s exit:1 \
+	atf_check -s exit:1 -e inline:"sysrc: cron_flags: value differs\n" \
 	    sysrc -f "${SYSRC_CONF}" -c 'cron_flags=$%s: file not found'
 	printf '%s\n' "cron_flags=\$'a\\tb'" > "${SYSRC_CONF}"
-	msg="${SYSRC_CONF}: cron_flags: already set to"
+	msg="sysrc: ${SYSRC_CONF}: cron_flags: already set to"
 	msg="$msg \`\$'a\\\\tb''"
-	atf_check -o inline:"$msg\n" \
+	atf_check -e inline:"$msg\n" \
 	    sysrc -f "${SYSRC_CONF}" -v -c "cron_flags=\$'a\\tb'"
-	atf_check -s exit:1 \
+	atf_check -s exit:1 -e inline:"sysrc: cron_flags: value differs\n" \
 	    sysrc -f "${SYSRC_CONF}" -c 'cron_flags=$a\tb'
 }
 
@@ -465,9 +475,9 @@ strappend_body()
 
 	# -c reports the result and does not write
 	printf '%s\n' 'cron_flags="$cron_flags"' > "${SYSRC_CONF}"
-	msg="${SYSRC_CONF}: cron_flags: would change from"
+	msg="sysrc: ${SYSRC_CONF}: cron_flags: would change from"
 	msg="$msg \`\$cron_flags' to \`\$cron_flags -J 15'"
-	atf_check -s exit:1 -o inline:"$msg\n" \
+	atf_check -s exit:1 -e inline:"$msg\n" \
 	    sysrc -f "${SYSRC_CONF}" -v -c 'cron_flags.=-J 15'
 	atf_check -o inline:'cron_flags="$cron_flags"\n' \
 	    cat "${SYSRC_CONF}"
