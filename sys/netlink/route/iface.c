@@ -1511,9 +1511,9 @@ in6_flags_to_nl(uint32_t flags)
 	if (flags & IN6_IFF_OPTIMISTIC)
 		nl_flags |= IFA_F_OPTIMISTIC;
 	if ((flags & (IN6_IFF_AUTOCONF|IN6_IFF_TEMPORARY)) == 0)
-		flags |= IFA_F_PERMANENT;
+		nl_flags |= IFA_F_PERMANENT;
 	if (flags & IN6_IFF_DUPLICATED)
-		flags |= IFA_F_DADFAILED;
+		nl_flags |= IFA_F_DADFAILED;
 	return (nl_flags);
 }
 
