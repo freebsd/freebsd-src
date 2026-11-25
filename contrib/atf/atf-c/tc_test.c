@@ -23,14 +23,14 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "atf-c/tc.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
 #include <stdbool.h>
 #include <string.h>
 
-#include <atf-c.h>
-
+#include "atf-c.h"
 #include "atf-c/detail/test_helpers.h"
+#include "atf-c/tc.h"
 
 /* ---------------------------------------------------------------------
  * Auxiliary test cases.
@@ -38,7 +38,8 @@
 
 ATF_TC_HEAD(empty, tc)
 {
-    if (tc != NULL) {}
+    if (tc != NULL) {
+    }
 }
 ATF_TC_BODY(empty, tc)
 {
@@ -110,7 +111,8 @@ ATF_TC_BODY(init_pack, tcin)
 ATF_TC(vars);
 ATF_TC_HEAD(vars, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the atf_tc_get_md_var, "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the atf_tc_get_md_var, "
                       "atf_tc_has_md_var and atf_tc_set_md_var functions");
 }
 ATF_TC_BODY(vars, tcin)
@@ -129,14 +131,15 @@ ATF_TC_BODY(vars, tcin)
 ATF_TC(config);
 ATF_TC_HEAD(config, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the atf_tc_get_config_var, "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the atf_tc_get_config_var, "
                       "atf_tc_get_config_var_wd and atf_tc_has_config_var "
                       "functions");
 }
 ATF_TC_BODY(config, tcin)
 {
     atf_tc_t tc;
-    const char *const config[] = { "test-var", "test-value", NULL };
+    const char* const config[] = { "test-var", "test-value", NULL };
 
     RE(atf_tc_init(&tc, "test1", ATF_TC_HEAD_NAME(empty),
                    ATF_TC_BODY_NAME(empty), NULL, NULL));
@@ -147,12 +150,12 @@ ATF_TC_BODY(config, tcin)
     RE(atf_tc_init(&tc, "test1", ATF_TC_HEAD_NAME(empty),
                    ATF_TC_BODY_NAME(empty), NULL, config));
     ATF_REQUIRE(atf_tc_has_config_var(&tc, "test-var"));
-    ATF_REQUIRE(strcmp(atf_tc_get_config_var(&tc, "test-var"),
-                     "test-value") == 0);
+    ATF_REQUIRE(strcmp(atf_tc_get_config_var(&tc, "test-var"), "test-value") ==
+                0);
     ATF_REQUIRE(!atf_tc_has_md_var(&tc, "test-var"));
     ATF_REQUIRE(!atf_tc_has_config_var(&tc, "test-var2"));
     ATF_REQUIRE(strcmp(atf_tc_get_config_var_wd(&tc, "test-var2", "def-value"),
-                     "def-value") == 0);
+                       "def-value") == 0);
     atf_tc_fini(&tc);
 }
 
@@ -160,7 +163,8 @@ ATF_TC_BODY(config, tcin)
 ATF_TC(require_kmod_basic);
 ATF_TC_HEAD(require_kmod_basic, tc)
 {
-    atf_tc_set_md_var(tc, "descr",
+    atf_tc_set_md_var(
+        tc, "descr",
         "atf_require_kmod: ensures that a test continues if the target kmod "
         "is found.");
 }
@@ -174,7 +178,8 @@ ATF_TC_BODY(require_kmod_basic, tc)
 ATF_TC(require_kmod_negative);
 ATF_TC_HEAD(require_kmod_negative, tc)
 {
-    atf_tc_set_md_var(tc, "descr",
+    atf_tc_set_md_var(
+        tc, "descr",
         "atf_require_kmod: skips test if the target kmod is not found.");
 }
 ATF_TC_BODY(require_kmod_negative, tc)
@@ -187,7 +192,8 @@ ATF_TC_BODY(require_kmod_negative, tc)
 ATF_TC(require_prog_absolute);
 ATF_TC_HEAD(require_prog_absolute, tc)
 {
-    atf_tc_set_md_var(tc, "descr",
+    atf_tc_set_md_var(
+        tc, "descr",
         "atf_require_prog: ensures that a test continues if the target program "
         "is found (absolute).");
 }
@@ -199,7 +205,8 @@ ATF_TC_BODY(require_prog_absolute, tc)
 ATF_TC(require_prog_negative_absolute);
 ATF_TC_HEAD(require_prog_negative_absolute, tc)
 {
-    atf_tc_set_md_var(tc, "descr",
+    atf_tc_set_md_var(
+        tc, "descr",
         "atf_require_prog: skips test if the target program is not found "
         "(absolute).");
 }
@@ -212,7 +219,8 @@ ATF_TC_BODY(require_prog_negative_absolute, tc)
 ATF_TC(require_prog_negative_nonabsolute);
 ATF_TC_HEAD(require_prog_negative_nonabsolute, tc)
 {
-    atf_tc_set_md_var(tc, "descr",
+    atf_tc_set_md_var(
+        tc, "descr",
         "atf_require_prog: skips test if the target program is not found "
         "(non-absolute).");
 }
@@ -225,7 +233,8 @@ ATF_TC_BODY(require_prog_negative_nonabsolute, tc)
 ATF_TC(require_prog_nonabsolute);
 ATF_TC_HEAD(require_prog_nonabsolute, tc)
 {
-    atf_tc_set_md_var(tc, "descr",
+    atf_tc_set_md_var(
+        tc, "descr",
         "atf_require_prog: ensures that a test continues if the target program "
         "is found (non-absolute).");
 }

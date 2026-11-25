@@ -46,12 +46,6 @@ extern "C" {
 
 #include "atf-c++/detail/sanity.hpp"
 
-#if !defined(HAVE_VSNPRINTF_IN_STD)
-namespace std {
-using ::vsnprintf;
-}
-#endif // !defined(HAVE_VSNPRINTF_IN_STD)
-
 namespace impl = atf::application;
 #define IMPL_NAME "atf::application"
 
@@ -59,8 +53,7 @@ namespace impl = atf::application;
 // The "usage_error" class.
 // ------------------------------------------------------------------------
 
-impl::usage_error::usage_error(const char *fmt, ...)
-    throw() :
+impl::usage_error::usage_error(const char* fmt, ...) throw() :
     std::runtime_error("usage_error; message unformatted")
 {
     va_list ap;
@@ -70,14 +63,12 @@ impl::usage_error::usage_error(const char *fmt, ...)
     va_end(ap);
 }
 
-impl::usage_error::~usage_error(void)
-    throw()
+impl::usage_error::~usage_error(void) throw()
 {
 }
 
 const char*
-impl::usage_error::what(void)
-    const throw()
+impl::usage_error::what(void) const throw()
 {
     return m_text;
 }
@@ -86,9 +77,7 @@ impl::usage_error::what(void)
 // The "application" class.
 // ------------------------------------------------------------------------
 
-impl::option::option(char ch,
-                     const std::string& a,
-                     const std::string& desc) :
+impl::option::option(char ch, const std::string& a, const std::string& desc) :
     m_character(ch),
     m_argument(a),
     m_description(desc)
@@ -96,14 +85,12 @@ impl::option::option(char ch,
 }
 
 bool
-impl::option::operator<(const impl::option& o)
-    const
+impl::option::operator<(const impl::option& o) const
 {
     return m_character < o.m_character;
 }
 
-impl::app::app(const std::string& description,
-               const std::string& manpage) :
+impl::app::app(const std::string& description, const std::string& manpage) :
     m_argc(-1),
     m_argv(NULL),
     m_prog_name(NULL),
@@ -129,15 +116,13 @@ impl::app::options(void)
 }
 
 std::string
-impl::app::specific_args(void)
-    const
+impl::app::specific_args(void) const
 {
     return "";
 }
 
 impl::app::options_set
-impl::app::specific_options(void)
-    const
+impl::app::specific_options(void) const
 {
     return options_set();
 }
@@ -175,15 +160,14 @@ impl::app::process_options(void)
     ::opterr = 0;
     while ((ch = ::getopt(m_argc, m_argv, optstr.c_str())) != -1) {
         switch (ch) {
-            case ':':
-                throw usage_error("Option -%c requires an argument.",
-                                  ::optopt);
+        case ':':
+            throw usage_error("Option -%c requires an argument.", ::optopt);
 
-            case '?':
-                throw usage_error("Unknown option -%c.", ::optopt);
+        case '?':
+            throw usage_error("Unknown option -%c.", ::optopt);
 
-            default:
-                process_option(ch, ::optarg);
+        default:
+            process_option(ch, ::optarg);
         }
     }
     m_argc -= ::optind;
@@ -209,11 +193,10 @@ impl::app::run(int argc, char* const* argv)
     auto m_prog_filename = std::filesystem::path(m_argv[0]).filename();
     m_prog_name = m_prog_filename.c_str();
 
-    const std::string bug =
-        std::string("This is probably a bug in ") + m_prog_name +
-        " or one of the libraries it uses.  Please report this problem to "
-        PACKAGE_BUGREPORT " and provide as many details as possible "
-        "describing how you got to this condition.";
+    const std::string bug = std::string("This is probably a bug in ") +
+        m_prog_name + " or one of the libraries it uses.  " +
+        "Please report this problem to " + PACKAGE_BUGREPORT +
+        ", providing as many relevant details as possible.";
 
     int errcode;
     try {
@@ -221,15 +204,15 @@ impl::app::run(int argc, char* const* argv)
         errcode = main();
     } catch (const usage_error& e) {
         std::cerr << m_prog_name << ": ERROR: " << e.what() << "\n";
-        std::cerr << m_prog_name << ": See " << m_manpage << " for usage "
-            "details.\n";
+        std::cerr << m_prog_name << ": See " << m_manpage
+                  << " for usage details.\n";
         errcode = EXIT_FAILURE;
     } catch (const std::runtime_error& e) {
         std::cerr << m_prog_name << ": ERROR: " << e.what() << "\n";
         errcode = EXIT_FAILURE;
     } catch (const std::exception& e) {
-        std::cerr << m_prog_name << ": ERROR: Caught unexpected error: "
-                  << e.what() << "\n";
+        std::cerr << m_prog_name
+                  << ": ERROR: Caught unexpected error: " << e.what() << "\n";
         errcode = EXIT_FAILURE;
     } catch (...) {
         std::cerr << m_prog_name << ": ERROR: Caught unknown error\n";

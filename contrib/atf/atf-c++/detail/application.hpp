@@ -76,7 +76,7 @@ class app {
     bool inited(void);
 
 protected:
-    typedef std::set< option > options_set;
+    typedef std::set<option> options_set;
 
     int m_argc;
     char* const* m_argv;

@@ -23,14 +23,16 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "atf-c/detail/user.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
-#include <sys/param.h>
 #include <sys/types.h>
+#include <sys/param.h>
+
 #include <limits.h>
 #include <unistd.h>
 
 #include "atf-c/detail/sanity.h"
+#include "atf-c/detail/user.h"
 
 /* ---------------------------------------------------------------------
  * Free functions.

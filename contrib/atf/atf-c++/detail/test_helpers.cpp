@@ -23,19 +23,17 @@
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "atf-c++/detail/test_helpers.hpp"
-
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
 
-#include <atf-c++.hpp>
-
+#include "atf-c++.hpp"
 #include "atf-c++/check.hpp"
 #include "atf-c++/detail/env.hpp"
 #include "atf-c++/detail/fs.hpp"
 #include "atf-c++/detail/process.hpp"
+#include "atf-c++/detail/test_helpers.hpp"
 
 // Path to the directory containing the libatf-c tests, used to locate the
 // process_helpers program.  If NULL (the default), the code will use a
@@ -52,7 +50,7 @@ static const char* atf_c_tests_base = NULL;
 bool
 build_check_cxx_o(const char* sfile)
 {
-    std::vector< std::string > optargs;
+    std::vector<std::string> optargs;
     optargs.push_back("-I" + atf::env::get("ATF_INCLUDEDIR", ATF_INCLUDEDIR));
     optargs.push_back("-Wall");
     optargs.push_back("-Werror");
@@ -64,21 +62,21 @@ build_check_cxx_o(const char* sfile)
 bool
 build_check_cxx_o_srcdir(const atf::tests::tc& tc, const char* sfile)
 {
-    const atf::fs::path sfilepath =
-        atf::fs::path(tc.get_config_var("srcdir")) / sfile;
+    const atf::fs::path sfilepath = atf::fs::path(tc.get_config_var("srcdir")) /
+        sfile;
     return build_check_cxx_o(sfilepath.c_str());
 }
 
 void
-header_check(const char *hdrname)
+header_check(const char* hdrname)
 {
     std::ofstream srcfile("test.cpp");
     ATF_REQUIRE(srcfile);
     srcfile << "#include <" << hdrname << ">\n";
     srcfile.close();
 
-    const std::string failmsg = std::string("Header check failed; ") +
-        hdrname + " is not self-contained";
+    const std::string failmsg = std::string("Header check failed; ") + hdrname +
+        " is not self-contained";
     if (!build_check_cxx_o("test.cpp"))
         ATF_FAIL(failmsg);
 }
@@ -89,11 +87,11 @@ get_process_helpers_path(const atf::tests::tc& tc, bool is_detail)
     const char* helper = "detail/process_helpers";
     if (atf_c_tests_base == NULL) {
         if (is_detail)
-            return atf::fs::path(tc.get_config_var("srcdir")) /
-                   ".." / ".." / "atf-c" / helper;
+            return atf::fs::path(tc.get_config_var("srcdir")) / ".." / ".." /
+                "atf-c" / helper;
         else
-            return atf::fs::path(tc.get_config_var("srcdir")) /
-                   ".." / "atf-c" / helper;
+            return atf::fs::path(tc.get_config_var("srcdir")) / ".." / "atf-c" /
+                helper;
     } else {
         return atf::fs::path(atf_c_tests_base) / helper;
     }

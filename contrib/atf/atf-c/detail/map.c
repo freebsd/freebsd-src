@@ -23,12 +23,13 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "atf-c/detail/map.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "atf-c/detail/map.h"
 #include "atf-c/detail/sanity.h"
 #include "atf-c/error.h"
 #include "atf-c/utils.h"
@@ -38,18 +39,17 @@
  * --------------------------------------------------------------------- */
 
 struct map_entry {
-    char *m_key;
-    void *m_value;
+    char* m_key;
+    void* m_value;
     bool m_managed;
 };
 
-static
-struct map_entry *
-new_entry(const char *key, void *value, bool managed)
+static struct map_entry*
+new_entry(const char* key, void* value, bool managed)
 {
-    struct map_entry *me;
+    struct map_entry* me;
 
-    me = (struct map_entry *)malloc(sizeof(*me));
+    me = (struct map_entry*)malloc(sizeof(*me));
     if (me != NULL) {
         me->m_key = strdup(key);
         if (me->m_key == NULL) {
@@ -72,18 +72,18 @@ new_entry(const char *key, void *value, bool managed)
  * Getters.
  */
 
-const char *
+const char*
 atf_map_citer_key(const atf_map_citer_t citer)
 {
-    const struct map_entry *me = citer.m_entry;
+    const struct map_entry* me = citer.m_entry;
     PRE(me != NULL);
     return me->m_key;
 }
 
-const void *
+const void*
 atf_map_citer_data(const atf_map_citer_t citer)
 {
-    const struct map_entry *me = citer.m_entry;
+    const struct map_entry* me = citer.m_entry;
     PRE(me != NULL);
     return me->m_value;
 }
@@ -95,8 +95,8 @@ atf_map_citer_next(const atf_map_citer_t citer)
 
     newciter = citer;
     newciter.m_listiter = atf_list_citer_next(citer.m_listiter);
-    newciter.m_entry = ((const struct map_entry *)
-                        atf_list_citer_data(newciter.m_listiter));
+    newciter.m_entry =
+        ((const struct map_entry*)atf_list_citer_data(newciter.m_listiter));
 
     return newciter;
 }
@@ -116,18 +116,18 @@ atf_equal_map_citer_map_citer(const atf_map_citer_t i1,
  * Getters.
  */
 
-const char *
+const char*
 atf_map_iter_key(const atf_map_iter_t iter)
 {
-    const struct map_entry *me = iter.m_entry;
+    const struct map_entry* me = iter.m_entry;
     PRE(me != NULL);
     return me->m_key;
 }
 
-void *
+void*
 atf_map_iter_data(const atf_map_iter_t iter)
 {
-    const struct map_entry *me = iter.m_entry;
+    const struct map_entry* me = iter.m_entry;
     PRE(me != NULL);
     return me->m_value;
 }
@@ -139,15 +139,14 @@ atf_map_iter_next(const atf_map_iter_t iter)
 
     newiter = iter;
     newiter.m_listiter = atf_list_iter_next(iter.m_listiter);
-    newiter.m_entry = ((struct map_entry *)
-                       atf_list_iter_data(newiter.m_listiter));
+    newiter.m_entry =
+        ((struct map_entry*)atf_list_iter_data(newiter.m_listiter));
 
     return newiter;
 }
 
 bool
-atf_equal_map_iter_map_iter(const atf_map_iter_t i1,
-                            const atf_map_iter_t i2)
+atf_equal_map_iter_map_iter(const atf_map_iter_t i1, const atf_map_iter_t i2)
 {
     return i1.m_map == i2.m_map && i1.m_entry == i2.m_entry;
 }
@@ -161,16 +160,16 @@ atf_equal_map_iter_map_iter(const atf_map_iter_t i1,
  */
 
 atf_error_t
-atf_map_init(atf_map_t *m)
+atf_map_init(atf_map_t* m)
 {
     return atf_list_init(&m->m_list);
 }
 
 atf_error_t
-atf_map_init_charpp(atf_map_t *m, const char *const *array)
+atf_map_init_charpp(atf_map_t* m, const char* const* array)
 {
     atf_error_t err;
-    const char *const *ptr = array;
+    const char* const* ptr = array;
 
     err = atf_map_init(m);
     if (array != NULL) {
@@ -182,13 +181,15 @@ atf_map_init_charpp(atf_map_t *m, const char *const *array)
             ptr++;
 
             if ((value = *ptr) == NULL) {
-                err = atf_libc_error(EINVAL, "List too short; no value for "
-                    "key '%s' provided", key);  /* XXX: Not really libc_error */
+                err = atf_libc_error(EINVAL,
+                                     "List too short; no value for "
+                                     "key '%s' provided",
+                                     key); /* XXX: Not really libc_error */
                 break;
             }
             ptr++;
 
-            char *tmp_value = strdup(value);
+            char* tmp_value = strdup(value);
             if (tmp_value == NULL) {
                 err = atf_no_memory_error();
                 break;
@@ -204,12 +205,13 @@ atf_map_init_charpp(atf_map_t *m, const char *const *array)
 }
 
 void
-atf_map_fini(atf_map_t *m)
+atf_map_fini(atf_map_t* m)
 {
     atf_list_iter_t iter;
 
-    atf_list_for_each(iter, &m->m_list) {
-        struct map_entry *me = atf_list_iter_data(iter);
+    atf_list_for_each(iter, &m->m_list)
+    {
+        struct map_entry* me = atf_list_iter_data(iter);
 
         if (me->m_managed) {
             free(me->m_value);
@@ -227,7 +229,7 @@ atf_map_fini(atf_map_t *m)
  */
 
 atf_map_iter_t
-atf_map_begin(atf_map_t *m)
+atf_map_begin(atf_map_t* m)
 {
     atf_map_iter_t iter;
     iter.m_map = m;
@@ -237,7 +239,7 @@ atf_map_begin(atf_map_t *m)
 }
 
 atf_map_citer_t
-atf_map_begin_c(const atf_map_t *m)
+atf_map_begin_c(const atf_map_t* m)
 {
     atf_map_citer_t citer;
     citer.m_map = m;
@@ -247,7 +249,7 @@ atf_map_begin_c(const atf_map_t *m)
 }
 
 atf_map_iter_t
-atf_map_end(atf_map_t *m)
+atf_map_end(atf_map_t* m)
 {
     atf_map_iter_t iter;
     iter.m_map = m;
@@ -257,7 +259,7 @@ atf_map_end(atf_map_t *m)
 }
 
 atf_map_citer_t
-atf_map_end_c(const atf_map_t *m)
+atf_map_end_c(const atf_map_t* m)
 {
     atf_map_citer_t iter;
     iter.m_map = m;
@@ -267,12 +269,13 @@ atf_map_end_c(const atf_map_t *m)
 }
 
 atf_map_iter_t
-atf_map_find(atf_map_t *m, const char *key)
+atf_map_find(atf_map_t* m, const char* key)
 {
     atf_list_iter_t iter;
 
-    atf_list_for_each(iter, &m->m_list) {
-        struct map_entry *me = atf_list_iter_data(iter);
+    atf_list_for_each(iter, &m->m_list)
+    {
+        struct map_entry* me = atf_list_iter_data(iter);
 
         if (strcmp(me->m_key, key) == 0) {
             atf_map_iter_t i;
@@ -287,12 +290,13 @@ atf_map_find(atf_map_t *m, const char *key)
 }
 
 atf_map_citer_t
-atf_map_find_c(const atf_map_t *m, const char *key)
+atf_map_find_c(const atf_map_t* m, const char* key)
 {
     atf_list_citer_t iter;
 
-    atf_list_for_each_c(iter, &m->m_list) {
-        const struct map_entry *me = atf_list_citer_data(iter);
+    atf_list_for_each_c(iter, &m->m_list)
+    {
+        const struct map_entry* me = atf_list_citer_data(iter);
 
         if (strcmp(me->m_key, key) == 0) {
             atf_map_citer_t i;
@@ -307,24 +311,25 @@ atf_map_find_c(const atf_map_t *m, const char *key)
 }
 
 size_t
-atf_map_size(const atf_map_t *m)
+atf_map_size(const atf_map_t* m)
 {
     return atf_list_size(&m->m_list);
 }
 
-char **
-atf_map_to_charpp(const atf_map_t *l)
+char**
+atf_map_to_charpp(const atf_map_t* l)
 {
-    char **array;
+    char** array;
     atf_map_citer_t iter;
     size_t i;
 
-    array = malloc(sizeof(char *) * (atf_map_size(l) * 2 + 1));
+    array = malloc(sizeof(char*) * (atf_map_size(l) * 2 + 1));
     if (array == NULL)
         goto out;
 
     i = 0;
-    atf_map_for_each_c(iter, l) {
+    atf_map_for_each_c(iter, l)
+    {
         array[i] = strdup(atf_map_citer_key(iter));
         if (array[i] == NULL) {
             atf_utils_free_charpp(array);
@@ -332,7 +337,7 @@ atf_map_to_charpp(const atf_map_t *l)
             goto out;
         }
 
-        array[i + 1] = strdup((const char *)atf_map_citer_data(iter));
+        array[i + 1] = strdup((const char*)atf_map_citer_data(iter));
         if (array[i + 1] == NULL) {
             atf_utils_free_charpp(array);
             array = NULL;
@@ -352,9 +357,9 @@ out:
  */
 
 atf_error_t
-atf_map_insert(atf_map_t *m, const char *key, void *value, bool managed)
+atf_map_insert(atf_map_t* m, const char* key, void* value, bool managed)
 {
-    struct map_entry *me;
+    struct map_entry* me;
     atf_error_t err;
     atf_map_iter_t iter;
 

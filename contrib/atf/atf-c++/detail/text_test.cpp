@@ -23,13 +23,12 @@
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "atf-c++/detail/text.hpp"
-
 #include <cstring>
 #include <set>
 #include <vector>
 
-#include <atf-c++.hpp>
+#include "atf-c++.hpp"
+#include "atf-c++/detail/text.hpp"
 
 // ------------------------------------------------------------------------
 // Test cases for the free functions.
@@ -46,7 +45,7 @@ ATF_TEST_CASE_BODY(join)
 
     // First set of tests using a non-sorted collection, std::vector.
     {
-        std::vector< std::string > words;
+        std::vector<std::string> words;
         std::string str;
 
         words.clear();
@@ -81,7 +80,7 @@ ATF_TEST_CASE_BODY(join)
 
     // Second set of tests using a sorted collection, std::set.
     {
-        std::set< std::string > words;
+        std::set<std::string> words;
         std::string str;
 
         words.clear();
@@ -144,7 +143,7 @@ ATF_TEST_CASE_BODY(split)
 {
     using atf::text::split;
 
-    std::vector< std::string > words;
+    std::vector<std::string> words;
 
     words = split("", " ");
     ATF_REQUIRE_EQ(words.size(), 0);
@@ -209,7 +208,7 @@ ATF_TEST_CASE_BODY(split_delims)
 {
     using atf::text::split;
 
-    std::vector< std::string > words;
+    std::vector<std::string> words;
 
     words = split("", "/");
     ATF_REQUIRE_EQ(words.size(), 0);
@@ -332,18 +331,18 @@ ATF_TEST_CASE_BODY(to_type)
 {
     using atf::text::to_type;
 
-    ATF_REQUIRE_EQ(to_type< int >("0"), 0);
-    ATF_REQUIRE_EQ(to_type< int >("1234"), 1234);
-    ATF_REQUIRE_THROW(std::runtime_error, to_type< int >("   "));
-    ATF_REQUIRE_THROW(std::runtime_error, to_type< int >("0 a"));
-    ATF_REQUIRE_THROW(std::runtime_error, to_type< int >("a"));
+    ATF_REQUIRE_EQ(to_type<int>("0"), 0);
+    ATF_REQUIRE_EQ(to_type<int>("1234"), 1234);
+    ATF_REQUIRE_THROW(std::runtime_error, to_type<int>("   "));
+    ATF_REQUIRE_THROW(std::runtime_error, to_type<int>("0 a"));
+    ATF_REQUIRE_THROW(std::runtime_error, to_type<int>("a"));
 
-    ATF_REQUIRE_EQ(to_type< float >("0.5"), 0.5);
-    ATF_REQUIRE_EQ(to_type< float >("1234.5"), 1234.5);
-    ATF_REQUIRE_THROW(std::runtime_error, to_type< float >("0.5 a"));
-    ATF_REQUIRE_THROW(std::runtime_error, to_type< float >("a"));
+    ATF_REQUIRE_EQ(to_type<float>("0.5"), 0.5);
+    ATF_REQUIRE_EQ(to_type<float>("1234.5"), 1234.5);
+    ATF_REQUIRE_THROW(std::runtime_error, to_type<float>("0.5 a"));
+    ATF_REQUIRE_THROW(std::runtime_error, to_type<float>("a"));
 
-    ATF_REQUIRE_EQ(to_type< std::string >("a"), "a");
+    ATF_REQUIRE_EQ(to_type<std::string>("a"), "a");
 }
 
 // ------------------------------------------------------------------------

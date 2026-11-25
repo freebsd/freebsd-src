@@ -29,11 +29,13 @@ extern "C" {
 #include <unistd.h>
 }
 
-#include <atf-c++.hpp>
+#include "atf-c++.hpp"
 
 class getopt_app : public atf::application::app {
 public:
-    getopt_app(void) : app("description", "manpage") {}
+    getopt_app(void) : app("description", "manpage")
+    {
+    }
 
     int main(void)
     {
@@ -45,7 +47,7 @@ public:
         char arg2[] = "-Z";
         char arg3[] = "-s";
         char arg4[] = "foo";
-        char *const argv[] = { arg1, arg2, arg3, arg4, NULL };
+        char* const argv[] = { arg1, arg2, arg3, arg4, NULL };
 
         int ch;
         bool zflag;
@@ -80,7 +82,7 @@ ATF_TEST_CASE_BODY(getopt)
 {
     int argc = 1;
     char arg1[] = "progname";
-    char *const argv[] = { arg1, NULL };
+    char* const argv[] = { arg1, NULL };
     ATF_REQUIRE_EQ(0, getopt_app().run(argc, argv));
 }
 

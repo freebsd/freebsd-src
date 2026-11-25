@@ -23,6 +23,8 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
+/* SPDX-License-Identifier: BSD-2-Clause */
+
 #if !defined(ATF_C_ERROR_FWD_H)
 #define ATF_C_ERROR_FWD_H
 
@@ -31,6 +33,6 @@
  * --------------------------------------------------------------------- */
 
 struct atf_error;
-typedef struct atf_error *atf_error_t;
+typedef struct atf_error* atf_error_t;
 
 #endif /* !defined(ATF_C_ERROR_FWD_H) */

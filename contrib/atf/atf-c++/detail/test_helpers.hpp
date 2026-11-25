@@ -24,9 +24,9 @@
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #if defined(ATF_CXX_DETAIL_TEST_HELPERS_H)
-#   error "Cannot include test_helpers.hpp more than once."
+#error "Cannot include test_helpers.hpp more than once."
 #else
-#   define ATF_CXX_DETAIL_TEST_HELPERS_H
+#define ATF_CXX_DETAIL_TEST_HELPERS_H
 #endif
 
 #include <cstdlib>
@@ -34,33 +34,33 @@
 #include <sstream>
 #include <utility>
 
-#include <atf-c++.hpp>
+#include "atf-c++.hpp"
+#include "atf-c++/detail/env.hpp"
+#include "atf-c++/detail/process.hpp"
 
-#include <atf-c++/detail/env.hpp>
-#include <atf-c++/detail/process.hpp>
-
-#define HEADER_TC(name, hdrname) \
-    ATF_TEST_CASE(name); \
-    ATF_TEST_CASE_HEAD(name) \
-    { \
-        set_md_var("descr", "Tests that the " hdrname " file can be " \
-            "included on its own, without any prerequisites"); \
-    } \
-    ATF_TEST_CASE_BODY(name) \
-    { \
-        header_check(hdrname); \
+#define HEADER_TC(name, hdrname)                                      \
+    ATF_TEST_CASE(name);                                              \
+    ATF_TEST_CASE_HEAD(name)                                          \
+    {                                                                 \
+        set_md_var("descr",                                           \
+                   "Tests that the " hdrname " file can be "          \
+                   "included on its own, without any prerequisites"); \
+    }                                                                 \
+    ATF_TEST_CASE_BODY(name)                                          \
+    {                                                                 \
+        header_check(hdrname);                                        \
     }
 
-#define BUILD_TC(name, sfile, descr, failmsg) \
-    ATF_TEST_CASE(name); \
-    ATF_TEST_CASE_HEAD(name) \
-    { \
-        set_md_var("descr", descr); \
-    } \
-    ATF_TEST_CASE_BODY(name) \
-    { \
+#define BUILD_TC(name, sfile, descr, failmsg)        \
+    ATF_TEST_CASE(name);                             \
+    ATF_TEST_CASE_HEAD(name)                         \
+    {                                                \
+        set_md_var("descr", descr);                  \
+    }                                                \
+    ATF_TEST_CASE_BODY(name)                         \
+    {                                                \
         if (!build_check_cxx_o_srcdir(*this, sfile)) \
-            ATF_FAIL(failmsg); \
+            ATF_FAIL(failmsg);                       \
     }
 
 namespace atf {
@@ -77,15 +77,16 @@ atf::fs::path get_process_helpers_path(const atf::tests::tc&, bool);
 struct run_h_tc_data {
     const atf::tests::vars_map& m_config;
 
-    run_h_tc_data(const atf::tests::vars_map& config) :
-        m_config(config) {}
+    run_h_tc_data(const atf::tests::vars_map& config) : m_config(config)
+    {
+    }
 };
 
-template< class TestCase >
+template <class TestCase>
 void
 run_h_tc_child(void* v)
 {
-    run_h_tc_data* data = static_cast< run_h_tc_data* >(v);
+    run_h_tc_data* data = static_cast<run_h_tc_data*>(v);
 
     TestCase tc;
     tc.init(data->m_config);
@@ -93,16 +94,15 @@ run_h_tc_child(void* v)
     std::exit(EXIT_SUCCESS);
 }
 
-template< class TestCase >
+template <class TestCase>
 void
 run_h_tc(atf::tests::vars_map config = atf::tests::vars_map())
 {
     run_h_tc_data data(config);
     atf::process::child c = atf::process::fork(
-        run_h_tc_child< TestCase >,
+        run_h_tc_child<TestCase>,
         atf::process::stream_redirect_path(atf::fs::path("stdout")),
-        atf::process::stream_redirect_path(atf::fs::path("stderr")),
-        &data);
+        atf::process::stream_redirect_path(atf::fs::path("stderr")), &data);
     const atf::process::status s = c.wait();
     ATF_REQUIRE(s.exited());
 }

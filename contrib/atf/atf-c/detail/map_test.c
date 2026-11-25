@@ -23,13 +23,13 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "atf-c/detail/map.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
 #include <stdio.h>
 #include <string.h>
 
-#include <atf-c.h>
-
+#include "atf-c.h"
+#include "atf-c/detail/map.h"
 #include "atf-c/detail/test_helpers.h"
 #include "atf-c/utils.h"
 
@@ -68,7 +68,7 @@ ATF_TC_BODY(map_init_charpp_null, tc)
 ATF_TC_WITHOUT_HEAD(map_init_charpp_empty);
 ATF_TC_BODY(map_init_charpp_empty, tc)
 {
-    const char *const array[] = { NULL };
+    const char* const array[] = { NULL };
     atf_map_t map;
 
     RE(atf_map_init_charpp(&map, array));
@@ -79,7 +79,7 @@ ATF_TC_BODY(map_init_charpp_empty, tc)
 ATF_TC_WITHOUT_HEAD(map_init_charpp_some);
 ATF_TC_BODY(map_init_charpp_some, tc)
 {
-    const char *const array[] = { "K1", "V1", "K2", "V2", NULL };
+    const char* const array[] = { "K1", "V1", "K2", "V2", NULL };
     atf_map_t map;
     atf_map_citer_t iter;
 
@@ -102,7 +102,7 @@ ATF_TC_BODY(map_init_charpp_some, tc)
 ATF_TC_WITHOUT_HEAD(map_init_charpp_short);
 ATF_TC_BODY(map_init_charpp_short, tc)
 {
-    const char *const array[] = { "K1", "V1", "K2", NULL };
+    const char* const array[] = { "K1", "V1", "K2", NULL };
     atf_map_t map;
 
     atf_error_t err = atf_map_init_charpp(&map, array);
@@ -189,7 +189,7 @@ ATF_TC_WITHOUT_HEAD(to_charpp_empty);
 ATF_TC_BODY(to_charpp_empty, tc)
 {
     atf_map_t map;
-    char **array;
+    char** array;
 
     RE(atf_map_init(&map));
     ATF_REQUIRE((array = atf_map_to_charpp(&map)) != NULL);
@@ -203,7 +203,7 @@ ATF_TC_WITHOUT_HEAD(to_charpp_some);
 ATF_TC_BODY(to_charpp_some, tc)
 {
     atf_map_t map;
-    char **array;
+    char** array;
 
     char s1[] = "one";
     char s2[] = "two";
@@ -240,7 +240,7 @@ ATF_TC_BODY(map_insert, tc)
     atf_map_t map;
     char buf[] = "1st test string";
     char buf2[] = "2nd test string";
-    const char *ptr;
+    const char* ptr;
     atf_map_citer_t iter;
 
     RE(atf_map_init(&map));
@@ -289,7 +289,8 @@ ATF_TC_BODY(map_for_each, tc)
     printf("Iterating over empty map\n");
     RE(atf_map_init(&map));
     count = 0;
-    atf_map_for_each(iter, &map) {
+    atf_map_for_each(iter, &map)
+    {
         count++;
         printf("Item count is now %zd\n", count);
     }
@@ -305,8 +306,9 @@ ATF_TC_BODY(map_for_each, tc)
             RE(atf_map_insert(&map, keys[i], &nums[i], false));
         }
         count = 0;
-        atf_map_for_each(iter, &map) {
-            printf("Retrieved item: %d\n", *(int *)atf_map_iter_data(iter));
+        atf_map_for_each(iter, &map)
+        {
+            printf("Retrieved item: %d\n", *(int*)atf_map_iter_data(iter));
             count++;
         }
         ATF_REQUIRE_EQ(count, size);
@@ -330,7 +332,8 @@ ATF_TC_BODY(map_for_each_c, tc)
     printf("Iterating over empty map\n");
     RE(atf_map_init(&map));
     count = 0;
-    atf_map_for_each_c(iter, &map) {
+    atf_map_for_each_c(iter, &map)
+    {
         count++;
         printf("Item count is now %zd\n", count);
     }
@@ -346,9 +349,10 @@ ATF_TC_BODY(map_for_each_c, tc)
             RE(atf_map_insert(&map, keys[i], &nums[i], false));
         }
         count = 0;
-        atf_map_for_each_c(iter, &map) {
+        atf_map_for_each_c(iter, &map)
+        {
             printf("Retrieved item: %d\n",
-                   *(const int *)atf_map_citer_data(iter));
+                   *(const int*)atf_map_citer_data(iter));
             count++;
         }
         ATF_REQUIRE_EQ(count, size);
@@ -363,7 +367,8 @@ ATF_TC_BODY(map_for_each_c, tc)
 ATF_TC(stable_keys);
 ATF_TC_HEAD(stable_keys, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks that the keys do not change "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks that the keys do not change "
                       "even if their original values do");
 }
 ATF_TC_BODY(stable_keys, tc)

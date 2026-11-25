@@ -52,9 +52,6 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
-/* Define to 1 if vsnprintf is in std */
-/* #undef HAVE_VSNPRINTF_IN_STD */
-
 /* Define to 1 if you have the <wchar.h> header file. */
 #define HAVE_WCHAR_H 1
 
@@ -74,7 +71,7 @@
 #define PACKAGE_NAME "Automated Testing Framework"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "Automated Testing Framework 0.26"
+#define PACKAGE_STRING "Automated Testing Framework 0.26.1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "atf"
@@ -83,7 +80,7 @@
 #define PACKAGE_URL "https://github.com/freebsd/atf/"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.26"
+#define PACKAGE_VERSION "0.26.1"
 
 /* Define to 1 if all of the C89 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
@@ -187,4 +184,4 @@
 
 
 /* Version number of package */
-#define VERSION "0.26"
+#define VERSION "0.26.1"

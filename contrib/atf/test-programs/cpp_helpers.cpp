@@ -32,8 +32,7 @@ extern "C" {
 #include <fstream>
 #include <iostream>
 
-#include <atf-c++.hpp>
-
+#include "atf-c++.hpp"
 #include "atf-c++/detail/fs.hpp"
 
 // ------------------------------------------------------------------------
@@ -248,8 +247,7 @@ ATF_TEST_CASE_HEAD(srcdir_exists)
 }
 ATF_TEST_CASE_BODY(srcdir_exists)
 {
-    if (!atf::fs::exists(atf::fs::path(get_config_var("srcdir")) /
-        "datafile"))
+    if (!atf::fs::exists(atf::fs::path(get_config_var("srcdir")) / "datafile"))
         ATF_FAIL("Cannot find datafile");
 }
 
@@ -258,14 +256,18 @@ ATF_TEST_CASE_BODY(srcdir_exists)
 // ------------------------------------------------------------------------
 
 ATF_TEST_CASE(result_pass);
-ATF_TEST_CASE_HEAD(result_pass) { }
+ATF_TEST_CASE_HEAD(result_pass)
+{
+}
 ATF_TEST_CASE_BODY(result_pass)
 {
     std::cout << "msg\n";
 }
 
 ATF_TEST_CASE(result_fail);
-ATF_TEST_CASE_HEAD(result_fail) { }
+ATF_TEST_CASE_HEAD(result_fail)
+{
+}
 ATF_TEST_CASE_BODY(result_fail)
 {
     std::cout << "msg\n";
@@ -273,7 +275,9 @@ ATF_TEST_CASE_BODY(result_fail)
 }
 
 ATF_TEST_CASE(result_skip);
-ATF_TEST_CASE_HEAD(result_skip) { }
+ATF_TEST_CASE_HEAD(result_skip)
+{
+}
 ATF_TEST_CASE_BODY(result_skip)
 {
     std::cout << "msg\n";
@@ -301,7 +305,9 @@ ATF_TEST_CASE_BODY(result_newlines_skip)
 }
 
 ATF_TEST_CASE(result_exception);
-ATF_TEST_CASE_HEAD(result_exception) { }
+ATF_TEST_CASE_HEAD(result_exception)
+{
+}
 ATF_TEST_CASE_BODY(result_exception)
 {
     throw std::runtime_error("This is unhandled");

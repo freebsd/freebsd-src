@@ -23,34 +23,33 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "atf-c/detail/text.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <atf-c.h>
-
+#include "atf-c.h"
 #include "atf-c/detail/sanity.h"
 #include "atf-c/detail/test_helpers.h"
+#include "atf-c/detail/text.h"
 
 /* ---------------------------------------------------------------------
  * Auxiliary functions.
  * --------------------------------------------------------------------- */
 
-#define REQUIRE_ERROR(exp) \
-    do { \
-        atf_error_t err = exp; \
+#define REQUIRE_ERROR(exp)              \
+    do {                                \
+        atf_error_t err = exp;          \
         ATF_REQUIRE(atf_is_error(err)); \
-        atf_error_free(err); \
+        atf_error_free(err);            \
     } while (0)
 
-static
-size_t
-array_size(const char *words[])
+static size_t
+array_size(const char* words[])
 {
     size_t count;
-    const char **word;
+    const char** word;
 
     count = 0;
     for (word = words; *word != NULL; word++)
@@ -59,12 +58,11 @@ array_size(const char *words[])
     return count;
 }
 
-static
-void
-check_split(const char *str, const char *delim, const char *words[])
+static void
+check_split(const char* str, const char* delim, const char* words[])
 {
     atf_list_t list;
-    const char **word;
+    const char** word;
     size_t i;
 
     printf("Splitting '%s' with delimiter '%s'\n", str, delim);
@@ -75,28 +73,26 @@ check_split(const char *str, const char *delim, const char *words[])
 
     for (word = words, i = 0; *word != NULL; word++, i++) {
         printf("Word at position %zd should be '%s'\n", i, words[i]);
-        ATF_CHECK_STREQ((const char *)atf_list_index_c(&list, i), words[i]);
+        ATF_CHECK_STREQ((const char*)atf_list_index_c(&list, i), words[i]);
     }
 
     atf_list_fini(&list);
 }
 
-static
-atf_error_t
-word_acum(const char *word, void *data)
+static atf_error_t
+word_acum(const char* word, void* data)
 {
-    char *acum = data;
+    char* acum = data;
 
     strcat(acum, word);
 
     return atf_no_error();
 }
 
-static
-atf_error_t
-word_count(const char *word ATF_DEFS_ATTRIBUTE_UNUSED, void *data)
+static atf_error_t
+word_count(const char* word ATF_DEFS_ATTRIBUTE_UNUSED, void* data)
 {
-    size_t *counter = data;
+    size_t* counter = data;
 
     (*counter)++;
 
@@ -108,11 +104,10 @@ struct fail_at {
     int curpos;
 };
 
-static
-atf_error_t
-word_fail_at(const char *word ATF_DEFS_ATTRIBUTE_UNUSED, void *data)
+static atf_error_t
+word_fail_at(const char* word ATF_DEFS_ATTRIBUTE_UNUSED, void* data)
 {
-    struct fail_at *fa = data;
+    struct fail_at* fa = data;
     atf_error_t err;
 
     if (fa->failpos == fa->curpos)
@@ -132,7 +127,8 @@ word_fail_at(const char *word ATF_DEFS_ATTRIBUTE_UNUSED, void *data)
 ATF_TC(for_each_word);
 ATF_TC_HEAD(for_each_word, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks the atf_text_for_each_word"
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks the atf_text_for_each_word"
                       "function");
 }
 ATF_TC_BODY(for_each_word, tc)
@@ -172,8 +168,8 @@ ATF_TC_BODY(for_each_word, tc)
         struct fail_at fa;
         fa.failpos = 3;
         fa.curpos = 0;
-        atf_error_t err = atf_text_for_each_word("a b c d e", " ",
-                                                 word_fail_at, &fa);
+        atf_error_t err = atf_text_for_each_word("a b c d e", " ", word_fail_at,
+                                                 &fa);
         ATF_REQUIRE(atf_is_error(err));
         ATF_REQUIRE(atf_error_is(err, "no_memory"));
         ATF_REQUIRE(fa.curpos == 3);
@@ -184,12 +180,13 @@ ATF_TC_BODY(for_each_word, tc)
 ATF_TC(format);
 ATF_TC_HEAD(format, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks the construction of free-form "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks the construction of free-form "
                       "strings using a variable parameters list");
 }
 ATF_TC_BODY(format, tc)
 {
-    char *str;
+    char* str;
     atf_error_t err;
 
     err = atf_text_format(&str, "%s %s %d", "Test", "string", 1);
@@ -198,9 +195,8 @@ ATF_TC_BODY(format, tc)
     free(str);
 }
 
-static
-void
-format_ap(char **dest, const char *fmt, ...)
+static void
+format_ap(char** dest, const char* fmt, ...)
 {
     va_list ap;
     atf_error_t err;
@@ -215,12 +211,13 @@ format_ap(char **dest, const char *fmt, ...)
 ATF_TC(format_ap);
 ATF_TC_HEAD(format_ap, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks the construction of free-form "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks the construction of free-form "
                       "strings using a va_list argument");
 }
 ATF_TC_BODY(format_ap, tc)
 {
-    char *str;
+    char* str;
 
     format_ap(&str, "%s %s %d", "Test", "string", 1);
     ATF_REQUIRE(strcmp(str, "Test string 1") == 0);
@@ -235,57 +232,57 @@ ATF_TC_HEAD(split, tc)
 ATF_TC_BODY(split, tc)
 {
     {
-        const char *words[] = { NULL };
+        const char* words[] = { NULL };
         check_split("", " ", words);
     }
 
     {
-        const char *words[] = { NULL };
+        const char* words[] = { NULL };
         check_split(" ", " ", words);
     }
 
     {
-        const char *words[] = { NULL };
+        const char* words[] = { NULL };
         check_split("    ", " ", words);
     }
 
     {
-        const char *words[] = { "a", "b", NULL };
+        const char* words[] = { "a", "b", NULL };
         check_split("a b", " ", words);
     }
 
     {
-        const char *words[] = { "a", "b", "c", "d", NULL };
+        const char* words[] = { "a", "b", "c", "d", NULL };
         check_split("a b c d", " ", words);
     }
 
     {
-        const char *words[] = { "foo", "bar", NULL };
+        const char* words[] = { "foo", "bar", NULL };
         check_split("foo bar", " ", words);
     }
 
     {
-        const char *words[] = { "foo", "bar", "baz", "foobar", NULL };
+        const char* words[] = { "foo", "bar", "baz", "foobar", NULL };
         check_split("foo bar baz foobar", " ", words);
     }
 
     {
-        const char *words[] = { "foo", "bar", NULL };
+        const char* words[] = { "foo", "bar", NULL };
         check_split(" foo bar", " ", words);
     }
 
     {
-        const char *words[] = { "foo", "bar", NULL };
+        const char* words[] = { "foo", "bar", NULL };
         check_split("foo  bar", " ", words);
     }
 
     {
-        const char *words[] = { "foo", "bar", NULL };
+        const char* words[] = { "foo", "bar", NULL };
         check_split("foo bar ", " ", words);
     }
 
     {
-        const char *words[] = { "foo", "bar", NULL };
+        const char* words[] = { "foo", "bar", NULL };
         check_split("  foo  bar  ", " ", words);
     }
 }
@@ -293,34 +290,34 @@ ATF_TC_BODY(split, tc)
 ATF_TC(split_delims);
 ATF_TC_HEAD(split_delims, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks the split function using "
+    atf_tc_set_md_var(tc, "descr",
+                      "Checks the split function using "
                       "different delimiters");
 }
 ATF_TC_BODY(split_delims, tc)
 {
-
     {
-        const char *words[] = { NULL };
+        const char* words[] = { NULL };
         check_split("", "/", words);
     }
 
     {
-        const char *words[] = { " ", NULL };
+        const char* words[] = { " ", NULL };
         check_split(" ", "/", words);
     }
 
     {
-        const char *words[] = { "    ", NULL };
+        const char* words[] = { "    ", NULL };
         check_split("    ", "/", words);
     }
 
     {
-        const char *words[] = { "a", "b", NULL };
+        const char* words[] = { "a", "b", NULL };
         check_split("a/b", "/", words);
     }
 
     {
-        const char *words[] = { "a", "bcd", "ef", NULL };
+        const char* words[] = { "a", "bcd", "ef", NULL };
         check_split("aLONGDELIMbcdLONGDELIMef", "LONGDELIM", words);
     }
 }
@@ -334,15 +331,23 @@ ATF_TC_BODY(to_bool, tc)
 {
     bool b;
 
-    RE(atf_text_to_bool("true", &b)); ATF_REQUIRE(b);
-    RE(atf_text_to_bool("TRUE", &b)); ATF_REQUIRE(b);
-    RE(atf_text_to_bool("yes", &b)); ATF_REQUIRE(b);
-    RE(atf_text_to_bool("YES", &b)); ATF_REQUIRE(b);
+    RE(atf_text_to_bool("true", &b));
+    ATF_REQUIRE(b);
+    RE(atf_text_to_bool("TRUE", &b));
+    ATF_REQUIRE(b);
+    RE(atf_text_to_bool("yes", &b));
+    ATF_REQUIRE(b);
+    RE(atf_text_to_bool("YES", &b));
+    ATF_REQUIRE(b);
 
-    RE(atf_text_to_bool("false", &b)); ATF_REQUIRE(!b);
-    RE(atf_text_to_bool("FALSE", &b)); ATF_REQUIRE(!b);
-    RE(atf_text_to_bool("no", &b)); ATF_REQUIRE(!b);
-    RE(atf_text_to_bool("NO", &b)); ATF_REQUIRE(!b);
+    RE(atf_text_to_bool("false", &b));
+    ATF_REQUIRE(!b);
+    RE(atf_text_to_bool("FALSE", &b));
+    ATF_REQUIRE(!b);
+    RE(atf_text_to_bool("no", &b));
+    ATF_REQUIRE(!b);
+    RE(atf_text_to_bool("NO", &b));
+    ATF_REQUIRE(!b);
 
     b = false;
     REQUIRE_ERROR(atf_text_to_bool("", &b));
@@ -389,10 +394,14 @@ ATF_TC_BODY(to_long, tc)
 {
     long l;
 
-    RE(atf_text_to_long("0", &l)); ATF_REQUIRE_EQ(l, 0);
-    RE(atf_text_to_long("-5", &l)); ATF_REQUIRE_EQ(l, -5);
-    RE(atf_text_to_long("5", &l)); ATF_REQUIRE_EQ(l, 5);
-    RE(atf_text_to_long("123456789", &l)); ATF_REQUIRE_EQ(l, 123456789);
+    RE(atf_text_to_long("0", &l));
+    ATF_REQUIRE_EQ(l, 0);
+    RE(atf_text_to_long("-5", &l));
+    ATF_REQUIRE_EQ(l, -5);
+    RE(atf_text_to_long("5", &l));
+    ATF_REQUIRE_EQ(l, 5);
+    RE(atf_text_to_long("123456789", &l));
+    ATF_REQUIRE_EQ(l, 123456789);
 
     l = 1212;
     REQUIRE_ERROR(atf_text_to_long("", &l));

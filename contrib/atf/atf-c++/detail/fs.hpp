@@ -90,7 +90,7 @@ public:
     //!
     //! \brief Copy constructor.
     //!
-    path(const atf_fs_path_t *);
+    path(const atf_fs_path_t*);
 
     //!
     //! \brief Destructor for the path class.
@@ -329,7 +329,7 @@ public:
 //! The directory class represents a group of files in the file system and
 //! corresponds to exactly one directory.
 //!
-class directory : public std::map< std::string, file_info > {
+class directory : public std::map<std::string, file_info> {
 public:
     //!
     //! \brief Constructs a new directory.
@@ -346,7 +346,7 @@ public:
     //! Returns the leaf names of all files contained in the directory.
     //! I.e. the keys of the directory map.
     //!
-    std::set< std::string > names(void) const;
+    std::set<std::string> names(void) const;
 };
 
 // ------------------------------------------------------------------------

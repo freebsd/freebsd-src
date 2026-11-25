@@ -23,32 +23,33 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "atf-c/detail/test_helpers.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <atf-c.h>
-
+#include "atf-c.h"
 #include "atf-c/build.h"
 #include "atf-c/check.h"
 #include "atf-c/detail/dynstr.h"
 #include "atf-c/detail/env.h"
 #include "atf-c/detail/fs.h"
 #include "atf-c/detail/process.h"
+#include "atf-c/detail/test_helpers.h"
 #include "atf-c/error.h"
 
 bool
-build_check_c_o(const char *path)
+build_check_c_o(const char* path)
 {
     bool success;
     atf_dynstr_t iflag;
-    const char *optargs[4];
+    const char* optargs[4];
 
-    RE(atf_dynstr_init_fmt(&iflag, "-I%s", atf_env_get_with_default(
-        "ATF_INCLUDEDIR", ATF_INCLUDEDIR)));
+    RE(atf_dynstr_init_fmt(&iflag, "-I%s",
+                           atf_env_get_with_default("ATF_INCLUDEDIR",
+                                                    ATF_INCLUDEDIR)));
 
     optargs[0] = atf_dynstr_cstring(&iflag);
     optargs[1] = "-Wall";
@@ -63,21 +64,21 @@ build_check_c_o(const char *path)
 }
 
 bool
-build_check_c_o_srcdir(const atf_tc_t *tc, const char *sfile)
+build_check_c_o_srcdir(const atf_tc_t* tc, const char* sfile)
 {
     atf_fs_path_t path;
 
-    RE(atf_fs_path_init_fmt(&path, "%s/%s",
-                            atf_tc_get_config_var(tc, "srcdir"), sfile));
+    RE(atf_fs_path_init_fmt(&path, "%s/%s", atf_tc_get_config_var(tc, "srcdir"),
+                            sfile));
     const bool result = build_check_c_o(atf_fs_path_cstring(&path));
     atf_fs_path_fini(&path);
     return result;
 }
 
 void
-header_check(const char *hdrname)
+header_check(const char* hdrname)
 {
-    FILE *srcfile;
+    FILE* srcfile;
     char failmsg[128];
 
     srcfile = fopen("test.c", "w");
@@ -93,8 +94,8 @@ header_check(const char *hdrname)
 }
 
 void
-get_process_helpers_path(const atf_tc_t *tc, const bool is_detail,
-                         atf_fs_path_t *path)
+get_process_helpers_path(const atf_tc_t* tc, const bool is_detail,
+                         atf_fs_path_t* path)
 {
     RE(atf_fs_path_init_fmt(path, "%s/%sprocess_helpers",
                             atf_tc_get_config_var(tc, "srcdir"),
@@ -102,15 +103,14 @@ get_process_helpers_path(const atf_tc_t *tc, const bool is_detail,
 }
 
 struct run_h_tc_data {
-    atf_tc_t *m_tc;
-    const char *m_resname;
+    atf_tc_t* m_tc;
+    const char* m_resname;
 };
 
-static
-void
-run_h_tc_child(void *v)
+static void
+run_h_tc_child(void* v)
 {
-    struct run_h_tc_data *data = (struct run_h_tc_data *)v;
+    struct run_h_tc_data* data = (struct run_h_tc_data*)v;
 
     RE(atf_tc_run(data->m_tc, data->m_resname));
 }
@@ -119,8 +119,8 @@ run_h_tc_child(void *v)
  * the public API.  I.e. a function to easily run a test case body in a
  * subprocess. */
 void
-run_h_tc(atf_tc_t *tc, const char *outname, const char *errname,
-         const char *resname)
+run_h_tc(atf_tc_t* tc, const char* outname, const char* errname,
+         const char* resname)
 {
     atf_fs_path_t outpath, errpath;
     atf_process_stream_t outb, errb;

@@ -23,6 +23,8 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
+/* SPDX-License-Identifier: BSD-2-Clause */
+
 #include "atf-c/detail/fs.h"
 
 #if defined(HAVE_CONFIG_H)
@@ -53,27 +55,26 @@
  * Prototypes for auxiliary functions.
  * --------------------------------------------------------------------- */
 
-static atf_error_t copy_contents(const atf_fs_path_t *, char **);
-static atf_error_t do_mkdtemp(char *);
-static atf_error_t normalize(atf_dynstr_t *, char *);
-static atf_error_t normalize_ap(atf_dynstr_t *, const char *, va_list);
-static void replace_contents(atf_fs_path_t *, const char *);
+static atf_error_t copy_contents(const atf_fs_path_t*, char**);
+static atf_error_t do_mkdtemp(char*);
+static atf_error_t normalize(atf_dynstr_t*, char*);
+static atf_error_t normalize_ap(atf_dynstr_t*, const char*, va_list);
+static void replace_contents(atf_fs_path_t*, const char*);
 
 /* ---------------------------------------------------------------------
  * The "unknown_file_type" error type.
  * --------------------------------------------------------------------- */
 
 struct unknown_type_error_data {
-    const char *m_path;
+    const char* m_path;
     int m_type;
 };
 typedef struct unknown_type_error_data unknown_type_error_data_t;
 
-static
-void
-unknown_type_format(const atf_error_t err, char *buf, size_t buflen)
+static void
+unknown_type_format(const atf_error_t err, char* buf, size_t buflen)
 {
-    const unknown_type_error_data_t *data;
+    const unknown_type_error_data_t* data;
 
     PRE(atf_error_is(err, "unknown_type"));
 
@@ -82,9 +83,8 @@ unknown_type_format(const atf_error_t err, char *buf, size_t buflen)
              data->m_path);
 }
 
-static
-atf_error_t
-unknown_type_error(const char *path, int type)
+static atf_error_t
+unknown_type_error(const char* path, int type)
 {
     atf_error_t err;
     unknown_type_error_data_t data;
@@ -102,9 +102,8 @@ unknown_type_error(const char *path, int type)
  * Auxiliary functions.
  * --------------------------------------------------------------------- */
 
-static
-atf_error_t
-copy_contents(const atf_fs_path_t *p, char **buf)
+static atf_error_t
+copy_contents(const atf_fs_path_t* p, char** buf)
 {
     atf_error_t err;
 
@@ -117,26 +116,26 @@ copy_contents(const atf_fs_path_t *p, char **buf)
     return err;
 }
 
-static
-atf_error_t
-do_mkdtemp(char *tmpl)
+static atf_error_t
+do_mkdtemp(char* tmpl)
 {
     atf_error_t err;
 
     PRE(strstr(tmpl, "XXXXXX") != NULL);
 
     if (mkdtemp(tmpl) == NULL)
-        err = atf_libc_error(errno, "Cannot create temporary directory "
-                             "with template '%s'", tmpl);
+        err = atf_libc_error(errno,
+                             "Cannot create temporary directory "
+                             "with template '%s'",
+                             tmpl);
     else
         err = atf_no_error();
 
     return err;
 }
 
-static
-atf_error_t
-do_mkstemp(char *tmpl, int *fdout)
+static atf_error_t
+do_mkstemp(char* tmpl, int* fdout)
 {
     atf_error_t err;
 
@@ -144,8 +143,10 @@ do_mkstemp(char *tmpl, int *fdout)
 
     *fdout = mkstemp(tmpl);
     if (*fdout == -1)
-        err = atf_libc_error(errno, "Cannot create temporary file "
-                             "with template '%s'", tmpl);
+        err = atf_libc_error(errno,
+                             "Cannot create temporary file "
+                             "with template '%s'",
+                             tmpl);
 
     else
         err = atf_no_error();
@@ -153,12 +154,11 @@ do_mkstemp(char *tmpl, int *fdout)
     return err;
 }
 
-static
-atf_error_t
-normalize(atf_dynstr_t *d, char *p)
+static atf_error_t
+normalize(atf_dynstr_t* d, char* p)
 {
-    const char *ptr;
-    char *last;
+    const char* ptr;
+    char* last;
     atf_error_t err;
     bool first;
 
@@ -185,11 +185,10 @@ normalize(atf_dynstr_t *d, char *p)
     return err;
 }
 
-static
-atf_error_t
-normalize_ap(atf_dynstr_t *d, const char *p, va_list ap)
+static atf_error_t
+normalize_ap(atf_dynstr_t* d, const char* p, va_list ap)
 {
-    char *str;
+    char* str;
     atf_error_t err;
     va_list ap2;
 
@@ -212,9 +211,8 @@ out:
     return err;
 }
 
-static
-void
-replace_contents(atf_fs_path_t *p, const char *buf)
+static void
+replace_contents(atf_fs_path_t* p, const char* buf)
 {
     atf_error_t err;
 
@@ -235,7 +233,7 @@ replace_contents(atf_fs_path_t *p, const char *buf)
  */
 
 atf_error_t
-atf_fs_path_init_ap(atf_fs_path_t *p, const char *fmt, va_list ap)
+atf_fs_path_init_ap(atf_fs_path_t* p, const char* fmt, va_list ap)
 {
     atf_error_t err;
     va_list ap2;
@@ -248,7 +246,7 @@ atf_fs_path_init_ap(atf_fs_path_t *p, const char *fmt, va_list ap)
 }
 
 atf_error_t
-atf_fs_path_init_fmt(atf_fs_path_t *p, const char *fmt, ...)
+atf_fs_path_init_fmt(atf_fs_path_t* p, const char* fmt, ...)
 {
     va_list ap;
     atf_error_t err;
@@ -261,13 +259,13 @@ atf_fs_path_init_fmt(atf_fs_path_t *p, const char *fmt, ...)
 }
 
 atf_error_t
-atf_fs_path_copy(atf_fs_path_t *dest, const atf_fs_path_t *src)
+atf_fs_path_copy(atf_fs_path_t* dest, const atf_fs_path_t* src)
 {
     return atf_dynstr_copy(&dest->m_data, &src->m_data);
 }
 
 void
-atf_fs_path_fini(atf_fs_path_t *p)
+atf_fs_path_fini(atf_fs_path_t* p)
 {
     atf_dynstr_fini(&p->m_data);
 }
@@ -277,7 +275,7 @@ atf_fs_path_fini(atf_fs_path_t *p)
  */
 
 atf_error_t
-atf_fs_path_branch_path(const atf_fs_path_t *p, atf_fs_path_t *bp)
+atf_fs_path_branch_path(const atf_fs_path_t* p, atf_fs_path_t* bp)
 {
     const size_t endpos = atf_dynstr_rfind_ch(&p->m_data, '/');
     atf_error_t err;
@@ -297,14 +295,14 @@ atf_fs_path_branch_path(const atf_fs_path_t *p, atf_fs_path_t *bp)
     return err;
 }
 
-const char *
-atf_fs_path_cstring(const atf_fs_path_t *p)
+const char*
+atf_fs_path_cstring(const atf_fs_path_t* p)
 {
     return atf_dynstr_cstring(&p->m_data);
 }
 
 atf_error_t
-atf_fs_path_leaf_name(const atf_fs_path_t *p, atf_dynstr_t *ln)
+atf_fs_path_leaf_name(const atf_fs_path_t* p, atf_dynstr_t* ln)
 {
     size_t begpos = atf_dynstr_rfind_ch(&p->m_data, '/');
     atf_error_t err;
@@ -317,21 +315,20 @@ atf_fs_path_leaf_name(const atf_fs_path_t *p, atf_dynstr_t *ln)
     err = atf_dynstr_init_substr(ln, &p->m_data, begpos, atf_dynstr_npos);
 
 #if defined(HAVE_CONST_BASENAME)
-    INV(atf_equal_dynstr_cstring(ln,
-                                 basename(atf_dynstr_cstring(&p->m_data))));
+    INV(atf_equal_dynstr_cstring(ln, basename(atf_dynstr_cstring(&p->m_data))));
 #endif /* defined(HAVE_CONST_BASENAME) */
 
     return err;
 }
 
 bool
-atf_fs_path_is_absolute(const atf_fs_path_t *p)
+atf_fs_path_is_absolute(const atf_fs_path_t* p)
 {
     return atf_dynstr_cstring(&p->m_data)[0] == '/';
 }
 
 bool
-atf_fs_path_is_root(const atf_fs_path_t *p)
+atf_fs_path_is_root(const atf_fs_path_t* p)
 {
     return atf_equal_dynstr_cstring(&p->m_data, "/");
 }
@@ -341,7 +338,7 @@ atf_fs_path_is_root(const atf_fs_path_t *p)
  */
 
 atf_error_t
-atf_fs_path_append_ap(atf_fs_path_t *p, const char *fmt, va_list ap)
+atf_fs_path_append_ap(atf_fs_path_t* p, const char* fmt, va_list ap)
 {
     atf_dynstr_t aux;
     atf_error_t err;
@@ -351,11 +348,11 @@ atf_fs_path_append_ap(atf_fs_path_t *p, const char *fmt, va_list ap)
     err = normalize_ap(&aux, fmt, ap2);
     va_end(ap2);
     if (!atf_is_error(err)) {
-        const char *auxstr = atf_dynstr_cstring(&aux);
+        const char* auxstr = atf_dynstr_cstring(&aux);
         const bool needslash = auxstr[0] != '/';
 
-        err = atf_dynstr_append_fmt(&p->m_data, "%s%s",
-                                    needslash ? "/" : "", auxstr);
+        err = atf_dynstr_append_fmt(&p->m_data, "%s%s", needslash ? "/" : "",
+                                    auxstr);
 
         atf_dynstr_fini(&aux);
     }
@@ -364,7 +361,7 @@ atf_fs_path_append_ap(atf_fs_path_t *p, const char *fmt, va_list ap)
 }
 
 atf_error_t
-atf_fs_path_append_fmt(atf_fs_path_t *p, const char *fmt, ...)
+atf_fs_path_append_fmt(atf_fs_path_t* p, const char* fmt, ...)
 {
     va_list ap;
     atf_error_t err;
@@ -377,13 +374,13 @@ atf_fs_path_append_fmt(atf_fs_path_t *p, const char *fmt, ...)
 }
 
 atf_error_t
-atf_fs_path_append_path(atf_fs_path_t *p, const atf_fs_path_t *p2)
+atf_fs_path_append_path(atf_fs_path_t* p, const atf_fs_path_t* p2)
 {
     return atf_fs_path_append_fmt(p, "%s", atf_dynstr_cstring(&p2->m_data));
 }
 
 atf_error_t
-atf_fs_path_to_absolute(const atf_fs_path_t *p, atf_fs_path_t *pa)
+atf_fs_path_to_absolute(const atf_fs_path_t* p, atf_fs_path_t* pa)
 {
     atf_error_t err;
 
@@ -405,8 +402,8 @@ out:
  * Operators.
  */
 
-bool atf_equal_fs_path_fs_path(const atf_fs_path_t *p1,
-                               const atf_fs_path_t *p2)
+bool
+atf_equal_fs_path_fs_path(const atf_fs_path_t* p1, const atf_fs_path_t* p2)
 {
     return atf_equal_dynstr_dynstr(&p1->m_data, &p2->m_data);
 }
@@ -419,44 +416,62 @@ bool atf_equal_fs_path_fs_path(const atf_fs_path_t *p1,
  * Constants.
  */
 
-const int atf_fs_stat_blk_type  = 1;
-const int atf_fs_stat_chr_type  = 2;
-const int atf_fs_stat_dir_type  = 3;
+const int atf_fs_stat_blk_type = 1;
+const int atf_fs_stat_chr_type = 2;
+const int atf_fs_stat_dir_type = 3;
 const int atf_fs_stat_fifo_type = 4;
-const int atf_fs_stat_lnk_type  = 5;
-const int atf_fs_stat_reg_type  = 6;
+const int atf_fs_stat_lnk_type = 5;
+const int atf_fs_stat_reg_type = 6;
 const int atf_fs_stat_sock_type = 7;
-const int atf_fs_stat_wht_type  = 8;
+const int atf_fs_stat_wht_type = 8;
 
 /*
  * Constructors/destructors.
  */
 
 atf_error_t
-atf_fs_stat_init(atf_fs_stat_t *st, const atf_fs_path_t *p)
+atf_fs_stat_init(atf_fs_stat_t* st, const atf_fs_path_t* p)
 {
     atf_error_t err;
-    const char *pstr = atf_fs_path_cstring(p);
+    const char* pstr = atf_fs_path_cstring(p);
 
     if (lstat(pstr, &st->m_sb) == -1) {
-        err = atf_libc_error(errno, "Cannot get information of %s; "
-                             "lstat(2) failed", pstr);
+        err = atf_libc_error(errno,
+                             "Cannot get information of %s; "
+                             "lstat(2) failed",
+                             pstr);
     } else {
         int type = st->m_sb.st_mode & S_IFMT;
         err = atf_no_error();
         switch (type) {
-            case S_IFBLK:  st->m_type = atf_fs_stat_blk_type;  break;
-            case S_IFCHR:  st->m_type = atf_fs_stat_chr_type;  break;
-            case S_IFDIR:  st->m_type = atf_fs_stat_dir_type;  break;
-            case S_IFIFO:  st->m_type = atf_fs_stat_fifo_type; break;
-            case S_IFLNK:  st->m_type = atf_fs_stat_lnk_type;  break;
-            case S_IFREG:  st->m_type = atf_fs_stat_reg_type;  break;
-            case S_IFSOCK: st->m_type = atf_fs_stat_sock_type; break;
+        case S_IFBLK:
+            st->m_type = atf_fs_stat_blk_type;
+            break;
+        case S_IFCHR:
+            st->m_type = atf_fs_stat_chr_type;
+            break;
+        case S_IFDIR:
+            st->m_type = atf_fs_stat_dir_type;
+            break;
+        case S_IFIFO:
+            st->m_type = atf_fs_stat_fifo_type;
+            break;
+        case S_IFLNK:
+            st->m_type = atf_fs_stat_lnk_type;
+            break;
+        case S_IFREG:
+            st->m_type = atf_fs_stat_reg_type;
+            break;
+        case S_IFSOCK:
+            st->m_type = atf_fs_stat_sock_type;
+            break;
 #if defined(S_IFWHT)
-            case S_IFWHT:  st->m_type = atf_fs_stat_wht_type;  break;
+        case S_IFWHT:
+            st->m_type = atf_fs_stat_wht_type;
+            break;
 #endif
-            default:
-                err = unknown_type_error(pstr, type);
+        default:
+            err = unknown_type_error(pstr, type);
         }
     }
 
@@ -464,14 +479,14 @@ atf_fs_stat_init(atf_fs_stat_t *st, const atf_fs_path_t *p)
 }
 
 void
-atf_fs_stat_copy(atf_fs_stat_t *dest, const atf_fs_stat_t *src)
+atf_fs_stat_copy(atf_fs_stat_t* dest, const atf_fs_stat_t* src)
 {
     dest->m_type = src->m_type;
     dest->m_sb = src->m_sb;
 }
 
 void
-atf_fs_stat_fini(atf_fs_stat_t *st ATF_DEFS_ATTRIBUTE_UNUSED)
+atf_fs_stat_fini(atf_fs_stat_t* st ATF_DEFS_ATTRIBUTE_UNUSED)
 {
 }
 
@@ -480,85 +495,85 @@ atf_fs_stat_fini(atf_fs_stat_t *st ATF_DEFS_ATTRIBUTE_UNUSED)
  */
 
 dev_t
-atf_fs_stat_get_device(const atf_fs_stat_t *st)
+atf_fs_stat_get_device(const atf_fs_stat_t* st)
 {
     return st->m_sb.st_dev;
 }
 
 ino_t
-atf_fs_stat_get_inode(const atf_fs_stat_t *st)
+atf_fs_stat_get_inode(const atf_fs_stat_t* st)
 {
     return st->m_sb.st_ino;
 }
 
 mode_t
-atf_fs_stat_get_mode(const atf_fs_stat_t *st)
+atf_fs_stat_get_mode(const atf_fs_stat_t* st)
 {
     return st->m_sb.st_mode & ~S_IFMT;
 }
 
 off_t
-atf_fs_stat_get_size(const atf_fs_stat_t *st)
+atf_fs_stat_get_size(const atf_fs_stat_t* st)
 {
     return st->m_sb.st_size;
 }
 
 int
-atf_fs_stat_get_type(const atf_fs_stat_t *st)
+atf_fs_stat_get_type(const atf_fs_stat_t* st)
 {
     return st->m_type;
 }
 
 bool
-atf_fs_stat_is_owner_readable(const atf_fs_stat_t *st)
+atf_fs_stat_is_owner_readable(const atf_fs_stat_t* st)
 {
     return st->m_sb.st_mode & S_IRUSR;
 }
 
 bool
-atf_fs_stat_is_owner_writable(const atf_fs_stat_t *st)
+atf_fs_stat_is_owner_writable(const atf_fs_stat_t* st)
 {
     return st->m_sb.st_mode & S_IWUSR;
 }
 
 bool
-atf_fs_stat_is_owner_executable(const atf_fs_stat_t *st)
+atf_fs_stat_is_owner_executable(const atf_fs_stat_t* st)
 {
     return st->m_sb.st_mode & S_IXUSR;
 }
 
 bool
-atf_fs_stat_is_group_readable(const atf_fs_stat_t *st)
+atf_fs_stat_is_group_readable(const atf_fs_stat_t* st)
 {
     return st->m_sb.st_mode & S_IRGRP;
 }
 
 bool
-atf_fs_stat_is_group_writable(const atf_fs_stat_t *st)
+atf_fs_stat_is_group_writable(const atf_fs_stat_t* st)
 {
     return st->m_sb.st_mode & S_IWGRP;
 }
 
 bool
-atf_fs_stat_is_group_executable(const atf_fs_stat_t *st)
+atf_fs_stat_is_group_executable(const atf_fs_stat_t* st)
 {
     return st->m_sb.st_mode & S_IXGRP;
 }
 
 bool
-atf_fs_stat_is_other_readable(const atf_fs_stat_t *st)
+atf_fs_stat_is_other_readable(const atf_fs_stat_t* st)
 {
     return st->m_sb.st_mode & S_IROTH;
 }
 
 bool
-atf_fs_stat_is_other_writable(const atf_fs_stat_t *st)
+atf_fs_stat_is_other_writable(const atf_fs_stat_t* st)
 {
     return st->m_sb.st_mode & S_IWOTH;
 }
 
 bool
-atf_fs_stat_is_other_executable(const atf_fs_stat_t *st)
+atf_fs_stat_is_other_executable(const atf_fs_stat_t* st)
 {
     return st->m_sb.st_mode & S_IXOTH;
 }
@@ -578,7 +593,7 @@ const int atf_fs_access_x = 1 << 3;
  * asking for execute permissions, which appear in SunOS.
  */
 atf_error_t
-atf_fs_eaccess(const atf_fs_path_t *p, int mode)
+atf_fs_eaccess(const atf_fs_path_t* p, int mode)
 {
     atf_error_t err;
     struct stat st;
@@ -615,19 +630,20 @@ atf_fs_eaccess(const atf_fs_path_t *p, int mode)
     } else {
         if (!ok && (atf_user_euid() == st.st_uid)) {
             ok = ((mode & atf_fs_access_r) && (st.st_mode & S_IRUSR)) ||
-                 ((mode & atf_fs_access_w) && (st.st_mode & S_IWUSR)) ||
-                 ((mode & atf_fs_access_x) && (st.st_mode & S_IXUSR));
+                ((mode & atf_fs_access_w) && (st.st_mode & S_IWUSR)) ||
+                ((mode & atf_fs_access_x) && (st.st_mode & S_IXUSR));
         }
         if (!ok && atf_user_is_member_of_group(st.st_gid)) {
             ok = ((mode & atf_fs_access_r) && (st.st_mode & S_IRGRP)) ||
-                 ((mode & atf_fs_access_w) && (st.st_mode & S_IWGRP)) ||
-                 ((mode & atf_fs_access_x) && (st.st_mode & S_IXGRP));
+                ((mode & atf_fs_access_w) && (st.st_mode & S_IWGRP)) ||
+                ((mode & atf_fs_access_x) && (st.st_mode & S_IXGRP));
         }
-        if (!ok && ((atf_user_euid() != st.st_uid) &&
-                    !atf_user_is_member_of_group(st.st_gid))) {
+        if (!ok &&
+            ((atf_user_euid() != st.st_uid) &&
+             !atf_user_is_member_of_group(st.st_gid))) {
             ok = ((mode & atf_fs_access_r) && (st.st_mode & S_IROTH)) ||
-                 ((mode & atf_fs_access_w) && (st.st_mode & S_IWOTH)) ||
-                 ((mode & atf_fs_access_x) && (st.st_mode & S_IXOTH));
+                ((mode & atf_fs_access_w) && (st.st_mode & S_IWOTH)) ||
+                ((mode & atf_fs_access_x) && (st.st_mode & S_IXOTH));
         }
     }
 
@@ -639,7 +655,7 @@ out:
 }
 
 atf_error_t
-atf_fs_exists(const atf_fs_path_t *p, bool *b)
+atf_fs_exists(const atf_fs_path_t* p, bool* b)
 {
     atf_error_t err;
 
@@ -657,10 +673,10 @@ atf_fs_exists(const atf_fs_path_t *p, bool *b)
 }
 
 atf_error_t
-atf_fs_getcwd(atf_fs_path_t *p)
+atf_fs_getcwd(atf_fs_path_t* p)
 {
     atf_error_t err;
-    char *cwd;
+    char* cwd;
 
 #if defined(HAVE_GETCWD_DYN)
     cwd = getcwd(NULL, 0);
@@ -680,10 +696,10 @@ out:
 }
 
 atf_error_t
-atf_fs_mkdtemp(atf_fs_path_t *p)
+atf_fs_mkdtemp(atf_fs_path_t* p)
 {
     atf_error_t err;
-    char *buf;
+    char* buf;
     mode_t mask;
 
     mask = umask(0);
@@ -707,10 +723,10 @@ out:
 }
 
 atf_error_t
-atf_fs_mkstemp(atf_fs_path_t *p, int *fdout)
+atf_fs_mkstemp(atf_fs_path_t* p, int* fdout)
 {
     atf_error_t err;
-    char *buf;
+    char* buf;
     int fd;
     mode_t mask;
 
@@ -736,7 +752,7 @@ out:
 }
 
 atf_error_t
-atf_fs_rmdir(const atf_fs_path_t *p)
+atf_fs_rmdir(const atf_fs_path_t* p)
 {
     atf_error_t err;
 
@@ -756,10 +772,10 @@ atf_fs_rmdir(const atf_fs_path_t *p)
 }
 
 atf_error_t
-atf_fs_unlink(const atf_fs_path_t *p)
+atf_fs_unlink(const atf_fs_path_t* p)
 {
     atf_error_t err;
-    const char *path;
+    const char* path;
 
     path = atf_fs_path_cstring(p);
 

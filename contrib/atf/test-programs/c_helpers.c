@@ -25,16 +25,15 @@
 
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <fcntl.h>
-#include <unistd.h>
 
+#include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
-#include <atf-c.h>
-
+#include "atf-c.h"
 #include "atf-c/detail/env.h"
 #include "atf-c/detail/fs.h"
 #include "atf-c/detail/test_helpers.h"
@@ -45,17 +44,15 @@
  * Auxiliary functions.
  * --------------------------------------------------------------------- */
 
-static
-void
+static void
 safe_remove(const char* path)
 {
     if (unlink(path) == -1)
         atf_tc_fail("unlink(2) of %s failed", path);
 }
 
-static
-void
-touch(const char *path)
+static void
+touch(const char* path)
 {
     int fd;
     fd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0644);
@@ -71,8 +68,9 @@ touch(const char *path)
 ATF_TC_WITH_CLEANUP(cleanup_pass);
 ATF_TC_HEAD(cleanup_pass, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Helper test case for the t_cleanup test "
-               "program");
+    atf_tc_set_md_var(tc, "descr",
+                      "Helper test case for the t_cleanup test "
+                      "program");
 }
 ATF_TC_BODY(cleanup_pass, tc)
 {
@@ -87,7 +85,8 @@ ATF_TC_CLEANUP(cleanup_pass, tc)
 ATF_TC_WITH_CLEANUP(cleanup_fail);
 ATF_TC_HEAD(cleanup_fail, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Helper test case for the t_cleanup test "
+    atf_tc_set_md_var(tc, "descr",
+                      "Helper test case for the t_cleanup test "
                       "program");
 }
 ATF_TC_BODY(cleanup_fail, tc)
@@ -104,7 +103,8 @@ ATF_TC_CLEANUP(cleanup_fail, tc)
 ATF_TC_WITH_CLEANUP(cleanup_skip);
 ATF_TC_HEAD(cleanup_skip, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Helper test case for the t_cleanup test "
+    atf_tc_set_md_var(tc, "descr",
+                      "Helper test case for the t_cleanup test "
                       "program");
 }
 ATF_TC_BODY(cleanup_skip, tc)
@@ -121,12 +121,13 @@ ATF_TC_CLEANUP(cleanup_skip, tc)
 ATF_TC_WITH_CLEANUP(cleanup_curdir);
 ATF_TC_HEAD(cleanup_curdir, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Helper test case for the t_cleanup test "
+    atf_tc_set_md_var(tc, "descr",
+                      "Helper test case for the t_cleanup test "
                       "program");
 }
 ATF_TC_BODY(cleanup_curdir, tc)
 {
-    FILE *f;
+    FILE* f;
 
     f = fopen("oldvalue", "w");
     if (f == NULL)
@@ -136,7 +137,7 @@ ATF_TC_BODY(cleanup_curdir, tc)
 }
 ATF_TC_CLEANUP(cleanup_curdir, tc)
 {
-    FILE *f;
+    FILE* f;
 
     f = fopen("oldvalue", "r");
     if (f != NULL) {
@@ -152,18 +153,18 @@ ATF_TC_CLEANUP(cleanup_curdir, tc)
 ATF_TC_WITH_CLEANUP(cleanup_sigterm);
 ATF_TC_HEAD(cleanup_sigterm, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Helper test case for the t_cleanup test "
+    atf_tc_set_md_var(tc, "descr",
+                      "Helper test case for the t_cleanup test "
                       "program");
 }
 ATF_TC_BODY(cleanup_sigterm, tc)
 {
-    char *nofile;
+    char* nofile;
 
     touch(atf_tc_get_config_var(tc, "tmpfile"));
     kill(getpid(), SIGTERM);
 
-    RE(atf_text_format(&nofile, "%s.no",
-                       atf_tc_get_config_var(tc, "tmpfile")));
+    RE(atf_text_format(&nofile, "%s.no", atf_tc_get_config_var(tc, "tmpfile")));
     touch(nofile);
     free(nofile);
 }
@@ -179,7 +180,8 @@ ATF_TC_CLEANUP(cleanup_sigterm, tc)
 ATF_TC(config_unset);
 ATF_TC_HEAD(config_unset, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Helper test case for the t_config test "
+    atf_tc_set_md_var(tc, "descr",
+                      "Helper test case for the t_config test "
                       "program");
 }
 ATF_TC_BODY(config_unset, tc)
@@ -190,7 +192,8 @@ ATF_TC_BODY(config_unset, tc)
 ATF_TC(config_empty);
 ATF_TC_HEAD(config_empty, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Helper test case for the t_config test "
+    atf_tc_set_md_var(tc, "descr",
+                      "Helper test case for the t_config test "
                       "program");
 }
 ATF_TC_BODY(config_empty, tc)
@@ -202,7 +205,8 @@ ATF_TC_BODY(config_empty, tc)
 ATF_TC(config_value);
 ATF_TC_HEAD(config_value, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Helper test case for the t_config test "
+    atf_tc_set_md_var(tc, "descr",
+                      "Helper test case for the t_config test "
                       "program");
 }
 ATF_TC_BODY(config_value, tc)
@@ -214,7 +218,8 @@ ATF_TC_BODY(config_value, tc)
 ATF_TC(config_multi_value);
 ATF_TC_HEAD(config_multi_value, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Helper test case for the t_config test "
+    atf_tc_set_md_var(tc, "descr",
+                      "Helper test case for the t_config test "
                       "program");
 }
 ATF_TC_BODY(config_multi_value, tc)
@@ -231,7 +236,6 @@ ATF_TC_WITHOUT_HEAD(expect_pass_and_pass);
 ATF_TC_BODY(expect_pass_and_pass, tc)
 {
     atf_tc_expect_pass();
-
 }
 
 ATF_TC_WITHOUT_HEAD(expect_pass_but_fail_requirement);
@@ -385,7 +389,8 @@ ATF_TC_BODY(metadata_no_head, tc)
 ATF_TC(srcdir_exists);
 ATF_TC_HEAD(srcdir_exists, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Helper test case for the t_srcdir test "
+    atf_tc_set_md_var(tc, "descr",
+                      "Helper test case for the t_srcdir test "
                       "program");
 }
 ATF_TC_BODY(srcdir_exists, tc)
@@ -428,7 +433,8 @@ ATF_TC_BODY(result_skip, tc)
 ATF_TC(result_newlines_fail);
 ATF_TC_HEAD(result_newlines_fail, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Helper test case for the t_result test "
+    atf_tc_set_md_var(tc, "descr",
+                      "Helper test case for the t_result test "
                       "program");
 }
 ATF_TC_BODY(result_newlines_fail, tc)
@@ -439,7 +445,8 @@ ATF_TC_BODY(result_newlines_fail, tc)
 ATF_TC(result_newlines_skip);
 ATF_TC_HEAD(result_newlines_skip, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Helper test case for the t_result test "
+    atf_tc_set_md_var(tc, "descr",
+                      "Helper test case for the t_result test "
                       "program");
 }
 ATF_TC_BODY(result_newlines_skip, tc)

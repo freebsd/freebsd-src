@@ -23,9 +23,11 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#if defined(HAVE_CONFIG_H)
+/* SPDX-License-Identifier: BSD-2-Clause */
+
+/* clang-format off */
 #include "config.h"
-#endif
+/* clang-format on */
 
 #include <ctype.h>
 #include <stdarg.h>
@@ -45,17 +47,17 @@
 #include "atf-c/utils.h"
 
 #if defined(HAVE_GNU_GETOPT)
-#   define GETOPT_POSIX "+"
+#define GETOPT_POSIX "+"
 #else
-#   define GETOPT_POSIX ""
+#define GETOPT_POSIX ""
 #endif
 
-static const char *progname = NULL;
+static const char* progname = NULL;
 
 /* This prototype is provided by macros.h during instantiation of the test
  * program, so it can be kept private.  Don't know if that's the best idea
  * though. */
-int atf_tp_main(int, char **, atf_error_t (*)(atf_tp_t *));
+int atf_tp_main(int, char**, atf_error_t (*)(atf_tp_t*));
 
 enum tc_part {
     BODY,
@@ -66,38 +68,34 @@ enum tc_part {
  * The "usage" and "user" error types.
  * --------------------------------------------------------------------- */
 
-#define FREE_FORM_ERROR(name) \
-    struct name ## _error_data { \
-        char m_what[2048]; \
-    }; \
-    \
-    static \
-    void \
-    name ## _format(const atf_error_t err, char *buf, size_t buflen) \
-    { \
-        const struct name ## _error_data *data; \
-        \
-        PRE(atf_error_is(err, #name)); \
-        \
-        data = atf_error_data(err); \
-        snprintf(buf, buflen, "%s", data->m_what); \
-    } \
-    \
-    static \
-    atf_error_t \
-    name ## _error(const char *fmt, ...) \
-    { \
-        atf_error_t err; \
-        struct name ## _error_data data; \
-        va_list ap; \
-        \
-        va_start(ap, fmt); \
-        vsnprintf(data.m_what, sizeof(data.m_what), fmt, ap); \
-        va_end(ap); \
-        \
-        err = atf_error_new(#name, &data, sizeof(data), name ## _format); \
-        \
-        return err; \
+#define FREE_FORM_ERROR(name)                                                  \
+    struct name##_error_data {                                                 \
+        char m_what[2048];                                                     \
+    };                                                                         \
+                                                                               \
+    static void name##_format(const atf_error_t err, char* buf, size_t buflen) \
+    {                                                                          \
+        const struct name##_error_data* data;                                  \
+                                                                               \
+        PRE(atf_error_is(err, #name));                                         \
+                                                                               \
+        data = atf_error_data(err);                                            \
+        snprintf(buf, buflen, "%s", data->m_what);                             \
+    }                                                                          \
+                                                                               \
+    static atf_error_t name##_error(const char* fmt, ...)                      \
+    {                                                                          \
+        atf_error_t err;                                                       \
+        struct name##_error_data data;                                         \
+        va_list ap;                                                            \
+                                                                               \
+        va_start(ap, fmt);                                                     \
+        vsnprintf(data.m_what, sizeof(data.m_what), fmt, ap);                  \
+        va_end(ap);                                                            \
+                                                                               \
+        err = atf_error_new(#name, &data, sizeof(data), name##_format);        \
+                                                                               \
+        return err;                                                            \
     }
 
 FREE_FORM_ERROR(usage);
@@ -107,8 +105,7 @@ FREE_FORM_ERROR(user);
  * Printing functions.
  * --------------------------------------------------------------------- */
 
-static
-void
+static void
 print_error(const atf_error_t err)
 {
     char buf[4096];
@@ -123,9 +120,8 @@ print_error(const atf_error_t err)
                 progname);
 }
 
-static
-void
-print_warning(const char *message)
+static void
+print_warning(const char* message)
 {
     fprintf(stderr, "%s: WARNING: %s\n", progname, message);
 }
@@ -137,15 +133,14 @@ print_warning(const char *message)
 struct params {
     bool m_do_list;
     atf_fs_path_t m_srcdir;
-    char *m_tcname;
+    char* m_tcname;
     enum tc_part m_tcpart;
     atf_fs_path_t m_resfile;
     atf_map_t m_config;
 };
 
-static
-atf_error_t
-argv0_to_dir(const char *argv0, atf_fs_path_t *dir)
+static atf_error_t
+argv0_to_dir(const char* argv0, atf_fs_path_t* dir)
 {
     atf_error_t err;
     atf_fs_path_t temp;
@@ -161,9 +156,8 @@ out:
     return err;
 }
 
-static
-atf_error_t
-params_init(struct params *p, const char *argv0)
+static atf_error_t
+params_init(struct params* p, const char* argv0)
 {
     atf_error_t err;
 
@@ -191,9 +185,8 @@ params_init(struct params *p, const char *argv0)
     return err;
 }
 
-static
-void
-params_fini(struct params *p)
+static void
+params_fini(struct params* p)
 {
     atf_map_fini(&p->m_config);
     atf_fs_path_fini(&p->m_resfile);
@@ -202,12 +195,11 @@ params_fini(struct params *p)
     p->m_tcname = NULL;
 }
 
-static
-atf_error_t
-parse_vflag(char *arg, atf_map_t *config)
+static atf_error_t
+parse_vflag(char* arg, atf_map_t* config)
 {
     atf_error_t err;
-    char *split;
+    char* split;
 
     split = strchr(arg, '=');
     if (split == NULL) {
@@ -224,9 +216,8 @@ out:
     return err;
 }
 
-static
-atf_error_t
-replace_path_param(atf_fs_path_t *param, const char *value)
+static atf_error_t
+replace_path_param(atf_fs_path_t* param, const char* value)
 {
     atf_error_t err;
     atf_fs_path_t temp;
@@ -244,25 +235,24 @@ replace_path_param(atf_fs_path_t *param, const char *value)
  * Test case listing.
  * --------------------------------------------------------------------- */
 
-static
-void
-list_tcs(const atf_tp_t *tp)
+static void
+list_tcs(const atf_tp_t* tp)
 {
-    const atf_tc_t **tcs;
-    const atf_tc_t *const *tcsptr;
+    const atf_tc_t** tcs;
+    const atf_tc_t* const* tcsptr;
 
     printf("Content-Type: application/X-atf-tp; version=\"1\"\n\n");
 
     tcs = atf_tp_get_tcs(tp);
-    INV(tcs != NULL);  /* Should be checked. */
+    INV(tcs != NULL); /* Should be checked. */
     for (tcsptr = tcs; *tcsptr != NULL; tcsptr++) {
-        const atf_tc_t *tc = *tcsptr;
-        char **vars = atf_tc_get_md_vars(tc);
-        char **ptr;
+        const atf_tc_t* tc = *tcsptr;
+        char** vars = atf_tc_get_md_vars(tc);
+        char** ptr;
 
-        INV(vars != NULL);  /* Should be checked. */
+        INV(vars != NULL); /* Should be checked. */
 
-        if (tcsptr != tcs)  /* Not first. */
+        if (tcsptr != tcs) /* Not first. */
             printf("\n");
 
         for (ptr = vars; *ptr != NULL; ptr += 2) {
@@ -288,9 +278,8 @@ list_tcs(const atf_tp_t *tp)
  * Main.
  * --------------------------------------------------------------------- */
 
-static
-atf_error_t
-handle_tcarg(const char *tcarg, char **tcname_out, enum tc_part *tcpart)
+static atf_error_t
+handle_tcarg(const char* tcarg, char** tcname_out, enum tc_part* tcpart)
 {
     char *delim, *tcname;
     atf_error_t err;
@@ -323,9 +312,8 @@ handle_tcarg(const char *tcarg, char **tcname_out, enum tc_part *tcpart)
     return err;
 }
 
-static
-atf_error_t
-process_params(int argc, char **argv, struct params *p)
+static atf_error_t
+process_params(int argc, char** argv, struct params* p)
 {
     atf_error_t err;
     int ch;
@@ -392,9 +380,8 @@ process_params(int argc, char **argv, struct params *p)
     return err;
 }
 
-static
-atf_error_t
-srcdir_strip_libtool(atf_fs_path_t *srcdir)
+static atf_error_t
+srcdir_strip_libtool(atf_fs_path_t* srcdir)
 {
     atf_error_t err;
     atf_fs_path_t parent;
@@ -411,9 +398,8 @@ out:
     return err;
 }
 
-static
-atf_error_t
-handle_srcdir(struct params *p)
+static atf_error_t
+handle_srcdir(struct params* p)
 {
     atf_error_t err;
     atf_dynstr_t leafname;
@@ -464,7 +450,8 @@ handle_srcdir(struct params *p)
                                  strdup(atf_fs_path_cstring(&srcdir)), true);
         } else {
             err = user_error("Cannot find the test program in the source "
-                             "directory `%s'", atf_fs_path_cstring(&srcdir));
+                             "directory `%s'",
+                             atf_fs_path_cstring(&srcdir));
         }
     }
 
@@ -476,9 +463,8 @@ out:
     return err;
 }
 
-static
-atf_error_t
-run_tc(const atf_tp_t *tp, struct params *p, int *exitcode)
+static atf_error_t
+run_tc(const atf_tp_t* tp, struct params* p, int* exitcode)
 {
     atf_error_t err;
 
@@ -487,9 +473,9 @@ run_tc(const atf_tp_t *tp, struct params *p, int *exitcode)
 
     err = atf_no_error();
 
-    if (!atf_env_has("__RUNNING_INSIDE_ATF_RUN") || strcmp(atf_env_get(
-        "__RUNNING_INSIDE_ATF_RUN"), "internal-yes-value") != 0)
-    {
+    if (!atf_env_has("__RUNNING_INSIDE_ATF_RUN") ||
+        strcmp(atf_env_get("__RUNNING_INSIDE_ATF_RUN"), "internal-yes-value") !=
+            0) {
         print_warning("Running test cases outside of kyua(1) is unsupported");
         print_warning("No isolation nor timeout control is being applied; you "
                       "may get unexpected failures; see atf-test-case(4)");
@@ -528,16 +514,14 @@ run_tc(const atf_tp_t *tp, struct params *p, int *exitcode)
     return err;
 }
 
-static
-atf_error_t
-controlled_main(int argc, char **argv,
-                atf_error_t (*add_tcs_hook)(atf_tp_t *),
-                int *exitcode)
+static atf_error_t
+controlled_main(int argc, char** argv, atf_error_t (*add_tcs_hook)(atf_tp_t*),
+                int* exitcode)
 {
     atf_error_t err;
     struct params p;
     atf_tp_t tp;
-    char **raw_config;
+    char** raw_config;
 
     err = params_init(&p, argv[0]);
     if (atf_is_error(err))
@@ -582,7 +566,7 @@ out:
 }
 
 int
-atf_tp_main(int argc, char **argv, atf_error_t (*add_tcs_hook)(atf_tp_t *))
+atf_tp_main(int argc, char** argv, atf_error_t (*add_tcs_hook)(atf_tp_t*))
 {
     atf_error_t err;
     int exitcode;

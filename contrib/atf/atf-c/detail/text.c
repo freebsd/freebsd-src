@@ -23,21 +23,21 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "atf-c/detail/text.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
 #include <errno.h>
 #include <limits.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "atf-c/detail/dynstr.h"
 #include "atf-c/detail/sanity.h"
+#include "atf-c/detail/text.h"
 #include "atf-c/error.h"
 
 atf_error_t
-atf_text_for_each_word(const char *instr, const char *sep,
-                       atf_error_t (*func)(const char *, void *),
-                       void *data)
+atf_text_for_each_word(const char* instr, const char* sep,
+                       atf_error_t (*func)(const char*, void*), void* data)
 {
     atf_error_t err;
     char *str, *str2, *last;
@@ -62,7 +62,7 @@ out:
 }
 
 atf_error_t
-atf_text_format(char **dest, const char *fmt, ...)
+atf_text_format(char** dest, const char* fmt, ...)
 {
     atf_error_t err;
     va_list ap;
@@ -75,7 +75,7 @@ atf_text_format(char **dest, const char *fmt, ...)
 }
 
 atf_error_t
-atf_text_format_ap(char **dest, const char *fmt, va_list ap)
+atf_text_format_ap(char** dest, const char* fmt, va_list ap)
 {
     atf_error_t err;
     atf_dynstr_t tmp;
@@ -91,11 +91,11 @@ atf_text_format_ap(char **dest, const char *fmt, va_list ap)
 }
 
 atf_error_t
-atf_text_split(const char *str, const char *delim, atf_list_t *words)
+atf_text_split(const char* str, const char* delim, atf_list_t* words)
 {
     atf_error_t err;
-    const char *end;
-    const char *iter;
+    const char* end;
+    const char* iter;
 
     err = atf_list_init(words);
     if (atf_is_error(err))
@@ -105,7 +105,7 @@ atf_text_split(const char *str, const char *delim, atf_list_t *words)
     INV(*end == '\0');
     iter = str;
     while (iter < end) {
-        const char *ptr;
+        const char* ptr;
 
         INV(iter != NULL);
         ptr = strstr(iter, delim);
@@ -138,32 +138,32 @@ err:
 }
 
 atf_error_t
-atf_text_to_bool(const char *str, bool *b)
+atf_text_to_bool(const char* str, bool* b)
 {
     atf_error_t err;
 
-    if (strcasecmp(str, "yes") == 0 ||
-        strcasecmp(str, "true") == 0) {
+    if (strcasecmp(str, "yes") == 0 || strcasecmp(str, "true") == 0) {
         *b = true;
         err = atf_no_error();
-    } else if (strcasecmp(str, "no") == 0 ||
-               strcasecmp(str, "false") == 0) {
+    } else if (strcasecmp(str, "no") == 0 || strcasecmp(str, "false") == 0) {
         *b = false;
         err = atf_no_error();
     } else {
         /* XXX Not really a libc error. */
-        err = atf_libc_error(EINVAL, "Cannot convert string '%s' "
-                             "to boolean", str);
+        err = atf_libc_error(EINVAL,
+                             "Cannot convert string '%s' "
+                             "to boolean",
+                             str);
     }
 
     return err;
 }
 
 atf_error_t
-atf_text_to_long(const char *str, long *l)
+atf_text_to_long(const char* str, long* l)
 {
     atf_error_t err;
-    char *endptr;
+    char* endptr;
     long tmp;
 
     errno = 0;

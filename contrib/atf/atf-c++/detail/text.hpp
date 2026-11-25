@@ -44,7 +44,7 @@ namespace text {
 //! Joins a list of words into a string, separating them using the provided
 //! separator.  Empty words are not omitted.
 //!
-template< class T >
+template <class T>
 std::string
 join(const T& words, const std::string& separator)
 {
@@ -77,7 +77,7 @@ bool match(const std::string&, const std::string&);
 //! not condensed so that rejoining the words later on using the same
 //! delimiter results in the original string.
 //!
-std::vector< std::string > split(const std::string&, const std::string&);
+std::vector<std::string> split(const std::string&, const std::string&);
 
 //!
 //! \brief Removes whitespace from the beginning and end of a string.
@@ -108,7 +108,7 @@ std::string to_lower(const std::string&);
 //! Returns a string with the representation of the given object.  There
 //! must exist an operator<< method for that object.
 //!
-template< class T >
+template <class T>
 std::string
 to_string(const T& ob)
 {
@@ -123,7 +123,7 @@ to_string(const T& ob)
 //! Attempts to convert the given string to the requested type.  Throws
 //! an exception if the conversion failed.
 //!
-template< class T >
+template <class T>
 T
 to_type(const std::string& str)
 {

@@ -110,32 +110,23 @@ struct output_check {
 };
 
 class temp_file : public std::ostream {
-    std::unique_ptr< atf::fs::path > m_path;
+    std::unique_ptr<atf::fs::path> m_path;
     int m_fd;
 
 public:
-    temp_file(const char* pattern) :
-        std::ostream(NULL),
-        m_fd(-1)
+    temp_file(const char* pattern) : std::ostream(NULL), m_fd(-1)
     {
-        const atf::fs::path file = atf::fs::path(
-            atf::env::get("TMPDIR", "/tmp")) / pattern;
+        auto tmpdir = atf::env::get("TMPDIR", "/tmp");
+        const atf::fs::path file = atf::fs::path(tmpdir) / pattern;
 
         std::string file_s = file.str();
-        // C++14 returns const char* with `std::string::data()`.
-        //
-        // TODO(ngie): remove the else block and simplify once we are on C++17
-        // or later.
-#if __cplusplus >= 201703L
-        char *file_ch_arr = file_s.data();
-#else
-        char *file_ch_arr = &file_s[0];
-#endif
+        char* file_ch_arr = file_s.data();
         m_fd = ::mkstemp(file_ch_arr);
-        if (m_fd == -1)
-            throw atf::system_error("atf_check::temp_file::temp_file(" +
-                                    file_s + ")", "mkstemp(3) failed",
-                                    errno);
+        if (m_fd == -1) {
+            auto message = "atf_check::temp_file::temp_file(" + file_s + ")";
+
+            throw atf::system_error(message, "mkstemp(3) failed", errno);
+        }
 
         m_path.reset(new atf::fs::path(file_ch_arr));
     }
@@ -150,21 +141,18 @@ public:
         }
     }
 
-    const atf::fs::path&
-    get_path(void) const
+    const atf::fs::path& get_path(void) const
     {
         return *m_path;
     }
 
-    void
-    write(const std::string& text)
+    void write(const std::string& text)
     {
         if (::write(m_fd, text.c_str(), text.size()) == -1)
             throw atf::system_error("atf_check", "write(2) failed", errno);
     }
 
-    void
-    close(void)
+    void close(void)
     {
         if (m_fd != -1) {
             flush();
@@ -186,7 +174,7 @@ get_monotonic_useconds(void)
     rc = clock_gettime(CLOCK_MONOTONIC, &ts);
     if (rc != 0)
         throw std::runtime_error("clock_gettime: " +
-            std::string(strerror(errno)));
+                                 std::string(strerror(errno)));
 
     res = ts.tv_sec * seconds_in_useconds;
     res += ts.tv_nsec / useconds_in_nseconds;
@@ -196,43 +184,34 @@ get_monotonic_useconds(void)
 static bool
 timo_expired(useconds_t timeout)
 {
-
     if (get_monotonic_useconds() >= timeout)
         return true;
     return false;
 }
 
-
 static int
 parse_exit_code(const std::string& str)
 {
     try {
-        const int value = atf::text::to_type< int >(str);
+        const int value = atf::text::to_type<int>(str);
         if (value < 0 || value > 255)
             throw std::range_error("Unused reason");
         return value;
     } catch (const std::range_error&) {
-        throw atf::application::usage_error("Invalid exit code for -s option; "
+        throw atf::application::usage_error(
+            "Invalid exit code for -s option; "
             "must be an integer in the range [0, 255]");
     }
 }
 
 static struct name_number {
-    const char *name;
+    const char* name;
     int signo;
 } signal_names_to_numbers[] = {
-    { "hup", SIGHUP },
-    { "int", SIGINT },
-    { "quit", SIGQUIT },
-    { "trap", SIGTRAP },
-    { "abrt", SIGABRT },
-    { "kill", SIGKILL },
-    { "segv", SIGSEGV },
-    { "pipe", SIGPIPE },
-    { "alrm", SIGALRM },
-    { "term", SIGTERM },
-    { "usr1", SIGUSR1 },
-    { "usr2", SIGUSR2 },
+    { "hup", SIGHUP },   { "int", SIGINT },   { "quit", SIGQUIT },
+    { "trap", SIGTRAP }, { "abrt", SIGABRT }, { "kill", SIGKILL },
+    { "segv", SIGSEGV }, { "pipe", SIGPIPE }, { "alrm", SIGALRM },
+    { "term", SIGTERM }, { "usr1", SIGUSR1 }, { "usr2", SIGUSR2 },
     { NULL, INT_MIN },
 };
 
@@ -256,10 +235,10 @@ parse_signal(const std::string& str)
     const int signo = signal_name_to_number(str);
     if (signo == INT_MIN) {
         try {
-            return atf::text::to_type< int >(str);
+            return atf::text::to_type<int>(str);
         } catch (const std::runtime_error&) {
             throw atf::application::usage_error("Invalid signal name or number "
-                "in -s option");
+                                                "in -s option");
         }
     }
     INV(signo != INT_MIN);
@@ -273,8 +252,9 @@ parse_status_check_arg(const std::string& arg)
     bool negated = (arg.compare(0, 4, "not-") == 0);
     const std::string action_str = arg.substr(0, delimiter);
     const std::string action = negated ? action_str.substr(4) : action_str;
-    const std::string value_str = (
-        delimiter == std::string::npos ? "" : arg.substr(delimiter + 1));
+    const std::string value_str = (delimiter == std::string::npos ?
+                                       "" :
+                                       arg.substr(delimiter + 1));
     int value;
     bool empty = false;
 
@@ -318,8 +298,7 @@ parse_status_check_arg(const std::string& arg)
     return status_check(type, negated, value, empty);
 }
 
-static
-output_check
+static output_check
 parse_output_check_arg(const std::string& arg)
 {
     const std::string::size_type delimiter = arg.find(':');
@@ -351,15 +330,15 @@ parse_output_check_arg(const std::string& arg)
 }
 
 static void
-parse_repeat_check_arg(const std::string& arg, useconds_t *m_timo,
-    useconds_t *m_interval)
+parse_repeat_check_arg(const std::string& arg, useconds_t* m_timo,
+                       useconds_t* m_interval)
 {
     const std::string::size_type delimiter = arg.find(':');
     const bool has_interval = (delimiter != std::string::npos);
     const std::string timo_str = arg.substr(0, delimiter);
 
     long l;
-    char *end;
+    char* end;
 
     // There is no reason this couldn't be a non-integer number of seconds,
     // this was just easy to do for now.
@@ -396,18 +375,15 @@ parse_repeat_check_arg(const std::string& arg, useconds_t *m_timo,
         throw atf::application::usage_error(
             "Bogus repeat interval in milliseconds");
     else if (errno != 0)
-        throw atf::application::usage_error(
-            "Repeat interval must be a number");
+        throw atf::application::usage_error("Repeat interval must be a number");
 
     if (*end != 0)
-        throw atf::application::usage_error(
-            "Repeat interval must be a number");
+        throw atf::application::usage_error("Repeat interval must be a number");
 
     *m_interval = l * mseconds_in_useconds;
 }
 
-static
-std::string
+static std::string
 flatten_argv(char* const* argv)
 {
     std::string cmdline;
@@ -425,8 +401,7 @@ flatten_argv(char* const* argv)
     return cmdline;
 }
 
-static
-std::unique_ptr< atf::check::check_result >
+static std::unique_ptr<atf::check::check_result>
 execute(const char* const* argv)
 {
     // TODO: This should go to stderr... but fixing it now may be hard as test
@@ -441,8 +416,7 @@ execute(const char* const* argv)
     return atf::check::exec(argva);
 }
 
-static
-std::unique_ptr< atf::check::check_result >
+static std::unique_ptr<atf::check::check_result>
 execute_with_shell(char* const* argv)
 {
     const std::string cmd = flatten_argv(argv);
@@ -456,8 +430,7 @@ execute_with_shell(char* const* argv)
     return execute(sh_argv);
 }
 
-static
-void
+static void
 cat_file(const atf::fs::path& path)
 {
     std::ifstream stream(path.c_str());
@@ -465,15 +438,14 @@ cat_file(const atf::fs::path& path)
         throw std::runtime_error("Failed to open " + path.str());
 
     stream >> std::noskipws;
-    std::istream_iterator< char > begin(stream), end;
-    std::ostream_iterator< char > out(std::cerr);
+    std::istream_iterator<char> begin(stream), end;
+    std::ostream_iterator<char> out(std::cerr);
     std::copy(begin, end, out);
 
     stream.close();
 }
 
-static
-bool
+static bool
 grep_file(const atf::fs::path& path, const std::string& regexp)
 {
     std::ifstream stream(path.c_str());
@@ -493,8 +465,7 @@ grep_file(const atf::fs::path& path, const std::string& regexp)
     return found;
 }
 
-static
-bool
+static bool
 file_empty(const atf::fs::path& p)
 {
     atf::fs::file_info f(p);
@@ -540,17 +511,14 @@ compare_files(const atf::fs::path& p1, const atf::fs::path& p2)
     return equal;
 }
 
-static
-void
+static void
 print_diff(const atf::fs::path& p1, const atf::fs::path& p2)
 {
-    const atf::process::status s =
-        atf::process::exec(atf::fs::path("diff"),
-                           atf::process::argv_array("diff", "-u", p1.c_str(),
-                                                    p2.c_str(), NULL),
-                           atf::process::stream_connect(STDOUT_FILENO,
-                                                        STDERR_FILENO),
-                           atf::process::stream_inherit());
+    const atf::process::status s = atf::process::exec(
+        atf::fs::path("diff"),
+        atf::process::argv_array("diff", "-u", p1.c_str(), p2.c_str(), NULL),
+        atf::process::stream_connect(STDOUT_FILENO, STDERR_FILENO),
+        atf::process::stream_inherit());
 
     if (!s.exited())
         std::cerr << "Failed to run diff(3)\n";
@@ -559,8 +527,7 @@ print_diff(const atf::fs::path& p1, const atf::fs::path& p2)
         std::cerr << "Error while running diff(3)\n";
 }
 
-static
-std::string
+static std::string
 decode(const std::string& s)
 {
     size_t i;
@@ -574,24 +541,41 @@ decode(const std::string& s)
 
         if (c == '\\') {
             switch (s[i++]) {
-            case 'a': c = '\a'; break;
-            case 'b': c = '\b'; break;
-            case 'c': break;
-            case 'e': c = 033; break;
-            case 'f': c = '\f'; break;
-            case 'n': c = '\n'; break;
-            case 'r': c = '\r'; break;
-            case 't': c = '\t'; break;
-            case 'v': c = '\v'; break;
-            case '\\': break;
-            case '0':
-                {
-                    int count = 3;
-                    c = 0;
-                    while (--count >= 0 && (unsigned)(s[i] - '0') < 8)
-                        c = (c << 3) + (s[i++] - '0');
-                    break;
-                }
+            case 'a':
+                c = '\a';
+                break;
+            case 'b':
+                c = '\b';
+                break;
+            case 'c':
+                break;
+            case 'e':
+                c = 033;
+                break;
+            case 'f':
+                c = '\f';
+                break;
+            case 'n':
+                c = '\n';
+                break;
+            case 'r':
+                c = '\r';
+                break;
+            case 't':
+                c = '\t';
+                break;
+            case 'v':
+                c = '\v';
+                break;
+            case '\\':
+                break;
+            case '0': {
+                int count = 3;
+                c = 0;
+                while (--count >= 0 && (unsigned)(s[i] - '0') < 8)
+                    c = (c << 3) + (s[i++] - '0');
+                break;
+            }
             default:
                 --i;
                 break;
@@ -604,9 +588,9 @@ decode(const std::string& s)
     return res;
 }
 
-static
-bool
-run_status_check(const status_check& sc, const atf::check::check_result& cr)
+static bool
+run_status_check(const status_check& sc, const atf::check::check_result& cr,
+                 const bool verbose)
 {
     bool result;
 
@@ -615,13 +599,12 @@ run_status_check(const status_check& sc, const atf::check::check_result& cr)
             const int status = cr.exitcode();
 
             if (!sc.negated && sc.value != status) {
-                std::cerr << "Fail: incorrect exit status: "
-                          << status << ", expected: "
-                          << sc.value << "\n";
+                std::cerr << "Fail: incorrect exit status: " << status
+                          << ", expected: " << sc.value << "\n";
                 result = false;
             } else if (sc.negated && sc.value == status) {
-                std::cerr << "Fail: incorrect exit status: "
-                          << status << ", expected: "
+                std::cerr << "Fail: incorrect exit status: " << status
+                          << ", expected: "
                           << "anything else\n";
                 result = false;
             } else
@@ -639,12 +622,12 @@ run_status_check(const status_check& sc, const atf::check::check_result& cr)
             const int status = cr.termsig();
 
             if (!sc.negated && sc.value != status) {
-                std::cerr << "Fail: incorrect signal received: "
-                          << status << ", expected: " << sc.value << "\n";
+                std::cerr << "Fail: incorrect signal received: " << status
+                          << ", expected: " << sc.value << "\n";
                 result = false;
             } else if (sc.negated && sc.value == status) {
-                std::cerr << "Fail: incorrect signal received: "
-                          << status << ", expected: "
+                std::cerr << "Fail: incorrect signal received: " << status
+                          << ", expected: "
                           << "anything else\n";
                 result = false;
             } else
@@ -660,7 +643,7 @@ run_status_check(const status_check& sc, const atf::check::check_result& cr)
         result = false;
     }
 
-    if (result == false) {
+    if (verbose || result == false) {
         std::cerr << "stdout:\n";
         cat_file(atf::fs::path(cr.stdout_path()));
         std::cerr << "\n";
@@ -673,23 +656,21 @@ run_status_check(const status_check& sc, const atf::check::check_result& cr)
     return result;
 }
 
-static
-bool
-run_status_checks(const std::vector< status_check >& checks,
-                  const atf::check::check_result& result)
+static bool
+run_status_checks(const std::vector<status_check>& checks,
+                  const atf::check::check_result& result, const bool verbose)
 {
     bool ok = false;
 
-    for (std::vector< status_check >::const_iterator iter = checks.begin();
+    for (std::vector<status_check>::const_iterator iter = checks.begin();
          !ok && iter != checks.end(); iter++) {
-         ok |= run_status_check(*iter, result);
+        ok |= run_status_check(*iter, result, verbose);
     }
 
     return ok;
 }
 
-static
-bool
+static bool
 run_output_check(const output_check& oc, const atf::fs::path& path,
                  const std::string& stdxxx)
 {
@@ -709,8 +690,8 @@ run_output_check(const output_check& oc, const atf::fs::path& path,
     } else if (oc.type == oc_file) {
         const bool equals = compare_files(path, atf::fs::path(oc.value));
         if (!oc.negated && !equals) {
-            std::cerr << "Fail: " << stdxxx << " does not match golden "
-                "output\n";
+            std::cerr << "Fail: " << stdxxx
+                      << " does not match golden output\n";
             print_diff(atf::fs::path(oc.value), path);
             result = false;
         } else if (oc.negated && equals) {
@@ -728,8 +709,9 @@ run_output_check(const output_check& oc, const atf::fs::path& path,
 
         const bool equals = compare_files(path, temp.get_path());
         if (!oc.negated && !equals) {
-            std::cerr << "Fail: " << stdxxx << " does not match expected "
-                "value\n";
+            std::cerr << "Fail: " << stdxxx
+                      << " does not match expected "
+                         "value\n";
             print_diff(temp.get_path(), path);
             result = false;
         } else if (oc.negated && equals) {
@@ -756,11 +738,11 @@ run_output_check(const output_check& oc, const atf::fs::path& path,
         INV(!oc.negated);
         std::ifstream ifs(path.c_str(), std::fstream::binary);
         ifs >> std::noskipws;
-        std::istream_iterator< char > begin(ifs), end;
+        std::istream_iterator<char> begin(ifs), end;
 
-        std::ofstream ofs(oc.value.c_str(), std::fstream::binary
-                                     | std::fstream::trunc);
-        std::ostream_iterator <char> obegin(ofs);
+        std::ofstream ofs(oc.value.c_str(),
+                          std::fstream::binary | std::fstream::trunc);
+        std::ostream_iterator<char> obegin(ofs);
 
         std::copy(begin, end, obegin);
         result = true;
@@ -772,16 +754,15 @@ run_output_check(const output_check& oc, const atf::fs::path& path,
     return result;
 }
 
-static
-bool
-run_output_checks(const std::vector< output_check >& checks,
+static bool
+run_output_checks(const std::vector<output_check>& checks,
                   const atf::fs::path& path, const std::string& stdxxx)
 {
     bool ok = true;
 
-    for (std::vector< output_check >::const_iterator iter = checks.begin();
+    for (std::vector<output_check>::const_iterator iter = checks.begin();
          iter != checks.end(); iter++) {
-         ok &= run_output_check(*iter, path, stdxxx);
+        ok &= run_output_check(*iter, path, stdxxx);
     }
 
     return ok;
@@ -795,14 +776,15 @@ namespace {
 
 class atf_check : public atf::application::app {
     bool m_rflag;
+    bool m_vflag;
     bool m_xflag;
 
     useconds_t m_timo;
     useconds_t m_interval;
 
-    std::vector< status_check > m_status_checks;
-    std::vector< output_check > m_stdout_checks;
-    std::vector< output_check > m_stderr_checks;
+    std::vector<status_check> m_status_checks;
+    std::vector<output_check> m_stdout_checks;
+    std::vector<output_check> m_stderr_checks;
 
     static const char* m_description;
 
@@ -827,21 +809,21 @@ const char* atf_check::m_description =
 atf_check::atf_check(void) :
     app(m_description, "atf-check(1)"),
     m_rflag(false),
+    m_vflag(false),
     m_xflag(false)
 {
 }
 
 bool
 atf_check::run_output_checks(const atf::check::check_result& r,
-                             const std::string& stdxxx)
-    const
+                             const std::string& stdxxx) const
 {
     if (stdxxx == "stdout") {
         return ::run_output_checks(m_stdout_checks,
-            atf::fs::path(r.stdout_path()), "stdout");
+                                   atf::fs::path(r.stdout_path()), "stdout");
     } else if (stdxxx == "stderr") {
         return ::run_output_checks(m_stderr_checks,
-            atf::fs::path(r.stderr_path()), "stderr");
+                                   atf::fs::path(r.stderr_path()), "stderr");
     } else {
         UNREACHABLE;
         return false;
@@ -849,30 +831,33 @@ atf_check::run_output_checks(const atf::check::check_result& r,
 }
 
 std::string
-atf_check::specific_args(void)
-    const
+atf_check::specific_args(void) const
 {
     return "<command>";
 }
 
 atf_check::options_set
-atf_check::specific_options(void)
-    const
+atf_check::specific_options(void) const
 {
     using atf::application::option;
     options_set opts;
 
-    opts.insert(option('s', "qual:value", "Handle status. Qualifier "
-                "must be one of: ignore exit:<num> signal:<name|num>"));
-    opts.insert(option('o', "action:arg", "Handle stdout. Action must be "
-                "one of: empty ignore file:<path> inline:<val> match:regexp "
-                "save:<path>"));
-    opts.insert(option('e', "action:arg", "Handle stderr. Action must be "
-                "one of: empty ignore file:<path> inline:<val> match:regexp "
-                "save:<path>"));
-    opts.insert(option('r', "timeout[:interval]", "Repeat failed check until "
-                "the timeout expires."));
+    opts.insert(option('s', "qual:value",
+                       "Handle status. Qualifier must be one of: "
+                       "ignore exit:<num> signal:<name|num>"));
+    opts.insert(option(
+        'o', "action:arg",
+        "Handle stdout. Action must be one of: "
+        "empty ignore file:<path> inline:<val> match:regexp save:<path>"));
+    opts.insert(option(
+        'e', "action:arg",
+        "Handle stderr. Action must be one of: "
+        "empty ignore file:<path> inline:<val> match:regexp save:<path>"));
+    opts.insert(option('r', "timeout[:interval]",
+                       "Repeat failed check until "
+                       "the timeout expires."));
     opts.insert(option('x', "", "Execute command as a shell command"));
+    opts.insert(option('v', "", "Show stdout and stderr even on success"));
 
     return opts;
 }
@@ -896,6 +881,10 @@ atf_check::process_option(int ch, const char* arg)
     case 'r':
         m_rflag = true;
         parse_repeat_check_arg(arg, &m_timo, &m_interval);
+        break;
+
+    case 'v':
+        m_vflag = true;
         break;
 
     case 'x':
@@ -937,10 +926,11 @@ atf_check::main(void)
         m_stderr_checks.push_back(output_check(oc_empty, false, ""));
 
     do {
-        std::unique_ptr< atf::check::check_result > r =
-            m_xflag ? execute_with_shell(m_argv) : execute(m_argv);
+        std::unique_ptr<atf::check::check_result> r = m_xflag ?
+            execute_with_shell(m_argv) :
+            execute(m_argv);
 
-        if ((run_status_checks(m_status_checks, *r) == false) ||
+        if ((run_status_checks(m_status_checks, *r, m_vflag) == false) ||
             (run_output_checks(*r, "stderr") == false) ||
             (run_output_checks(*r, "stdout") == false))
             status = EXIT_FAILURE;

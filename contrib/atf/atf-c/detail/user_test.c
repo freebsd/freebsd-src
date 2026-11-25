@@ -23,18 +23,18 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "atf-c/detail/user.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
-#include <sys/param.h>
 #include <sys/types.h>
+#include <sys/param.h>
 
 #include <limits.h>
 #include <stdio.h>
 #include <unistd.h>
 
-#include <atf-c.h>
-
+#include "atf-c.h"
 #include "atf-c/detail/test_helpers.h"
+#include "atf-c/detail/user.h"
 
 /* ---------------------------------------------------------------------
  * Test cases for the free functions.
@@ -53,7 +53,8 @@ ATF_TC_BODY(euid, tc)
 ATF_TC(is_member_of_group);
 ATF_TC_HEAD(is_member_of_group, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the atf_user_is_member_of_group "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the atf_user_is_member_of_group "
                       "function");
 }
 ATF_TC_BODY(is_member_of_group, tc)
@@ -81,7 +82,8 @@ ATF_TC_BODY(is_member_of_group, tc)
 
     if (maxgid > maxgid_limit) {
         printf("Test truncated from %u groups to %u to keep the run time "
-               "reasonable enough\n", maxgid, maxgid_limit);
+               "reasonable enough\n",
+               maxgid, maxgid_limit);
         maxgid = maxgid_limit;
     }
 
@@ -120,7 +122,8 @@ ATF_TC_BODY(is_root, tc)
 ATF_TC(is_unprivileged);
 ATF_TC_HEAD(is_unprivileged, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Tests the atf_user_is_unprivileged "
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests the atf_user_is_unprivileged "
                       "function");
 }
 ATF_TC_BODY(is_unprivileged, tc)

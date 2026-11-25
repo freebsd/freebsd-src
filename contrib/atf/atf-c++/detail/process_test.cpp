@@ -23,13 +23,11 @@
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "atf-c++/detail/process.hpp"
-
 #include <cstdlib>
 #include <cstring>
 
-#include <atf-c++.hpp>
-
+#include "atf-c++.hpp"
+#include "atf-c++/detail/process.hpp"
 #include "atf-c++/detail/test_helpers.hpp"
 
 // TODO: Testing the fork function is a huge task and I'm afraid of
@@ -42,8 +40,7 @@
 // Auxiliary functions.
 // ------------------------------------------------------------------------
 
-static
-std::size_t
+static std::size_t
 array_size(const char* const* array)
 {
     std::size_t size = 0;
@@ -54,19 +51,17 @@ array_size(const char* const* array)
     return size;
 }
 
-static
-atf::process::status
+static atf::process::status
 exec_process_helpers(const atf::tests::tc& tc, const char* helper_name)
 {
     using atf::process::exec;
 
-    std::vector< std::string > argv;
+    std::vector<std::string> argv;
     argv.push_back(get_process_helpers_path(tc, true).leaf_name());
     argv.push_back(helper_name);
 
     return exec(get_process_helpers_path(tc, true),
-                atf::process::argv_array(argv),
-                atf::process::stream_inherit(),
+                atf::process::argv_array(argv), atf::process::stream_inherit(),
                 atf::process::stream_inherit());
 }
 
@@ -77,8 +72,9 @@ exec_process_helpers(const atf::tests::tc& tc, const char* helper_name)
 ATF_TEST_CASE(argv_array_init_carray);
 ATF_TEST_CASE_HEAD(argv_array_init_carray)
 {
-    set_md_var("descr", "Tests that argv_array is correctly constructed "
-               "from a C-style array of strings");
+    set_md_var("descr",
+               "Tests that argv_array is correctly constructed from a C-style "
+               "array of strings");
 }
 ATF_TEST_CASE_BODY(argv_array_init_carray)
 {
@@ -111,20 +107,21 @@ ATF_TEST_CASE_BODY(argv_array_init_carray)
 ATF_TEST_CASE(argv_array_init_col);
 ATF_TEST_CASE_HEAD(argv_array_init_col)
 {
-    set_md_var("descr", "Tests that argv_array is correctly constructed "
-               "from a string collection");
+    set_md_var("descr",
+               "Tests that argv_array is correctly constructed from a "
+               "string collection");
 }
 ATF_TEST_CASE_BODY(argv_array_init_col)
 {
     {
-        std::vector< std::string > col;
+        std::vector<std::string> col;
         atf::process::argv_array argv(col);
 
         ATF_REQUIRE_EQ(argv.size(), 0);
     }
 
     {
-        std::vector< std::string > col;
+        std::vector<std::string> col;
         col.push_back("arg0");
         atf::process::argv_array argv(col);
 
@@ -133,7 +130,7 @@ ATF_TEST_CASE_BODY(argv_array_init_col)
     }
 
     {
-        std::vector< std::string > col;
+        std::vector<std::string> col;
         col.push_back("arg0");
         col.push_back("arg1");
         col.push_back("arg2");
@@ -149,8 +146,9 @@ ATF_TEST_CASE_BODY(argv_array_init_col)
 ATF_TEST_CASE(argv_array_init_empty);
 ATF_TEST_CASE_HEAD(argv_array_init_empty)
 {
-    set_md_var("descr", "Tests that argv_array is correctly constructed "
-               "by the default constructor");
+    set_md_var("descr",
+               "Tests that argv_array is correctly constructed by the default "
+               "constructor");
 }
 ATF_TEST_CASE_BODY(argv_array_init_empty)
 {
@@ -162,8 +160,9 @@ ATF_TEST_CASE_BODY(argv_array_init_empty)
 ATF_TEST_CASE(argv_array_init_varargs);
 ATF_TEST_CASE_HEAD(argv_array_init_varargs)
 {
-    set_md_var("descr", "Tests that argv_array is correctly constructed "
-               "from a variable list of arguments");
+    set_md_var("descr",
+               "Tests that argv_array is correctly constructed from a "
+               "variable list of arguments");
 }
 ATF_TEST_CASE_BODY(argv_array_init_varargs)
 {
@@ -207,15 +206,17 @@ ATF_TEST_CASE_BODY(argv_array_assign)
     {
         const char* const* eargv2 = argv2.exec_argv();
         ATF_REQUIRE(std::strcmp(eargv2[0], carray1[0]) == 0);
-        ATF_REQUIRE_EQ(eargv2[1], static_cast< const char* >(NULL));
+        ATF_REQUIRE_EQ(eargv2[1], static_cast<const char*>(NULL));
     }
 }
 
 ATF_TEST_CASE(argv_array_copy);
 ATF_TEST_CASE_HEAD(argv_array_copy)
 {
-    set_md_var("descr", "Tests that copying an argv_array constructed from "
-               "a C-style array of strings works");
+    set_md_var(
+        "descr",
+        "Tests that copying an argv_array constructed from a C-style array "
+        "of strings works");
 }
 ATF_TEST_CASE_BODY(argv_array_copy)
 {
@@ -233,15 +234,15 @@ ATF_TEST_CASE_BODY(argv_array_copy)
     {
         const char* const* eargv2 = argv2.exec_argv();
         ATF_REQUIRE(std::strcmp(eargv2[0], carray[0]) == 0);
-        ATF_REQUIRE_EQ(eargv2[1], static_cast< const char* >(NULL));
+        ATF_REQUIRE_EQ(eargv2[1], static_cast<const char*>(NULL));
     }
 }
 
 ATF_TEST_CASE(argv_array_exec_argv);
 ATF_TEST_CASE_HEAD(argv_array_exec_argv)
 {
-    set_md_var("descr", "Tests that the exec argv provided by an argv_array "
-               "is correct");
+    set_md_var("descr",
+               "Tests that the exec argv provided by an argv_array is correct");
 }
 ATF_TEST_CASE_BODY(argv_array_exec_argv)
 {
@@ -251,7 +252,7 @@ ATF_TEST_CASE_BODY(argv_array_exec_argv)
         argv_array argv;
         const char* const* eargv = argv.exec_argv();
         ATF_REQUIRE_EQ(array_size(eargv), 0);
-        ATF_REQUIRE_EQ(eargv[0], static_cast< const char* >(NULL));
+        ATF_REQUIRE_EQ(eargv[0], static_cast<const char*>(NULL));
     }
 
     {
@@ -260,17 +261,17 @@ ATF_TEST_CASE_BODY(argv_array_exec_argv)
         const char* const* eargv = argv.exec_argv();
         ATF_REQUIRE_EQ(array_size(eargv), 1);
         ATF_REQUIRE(std::strcmp(eargv[0], "arg0") == 0);
-        ATF_REQUIRE_EQ(eargv[1], static_cast< const char* >(NULL));
+        ATF_REQUIRE_EQ(eargv[1], static_cast<const char*>(NULL));
     }
 
     {
-        std::vector< std::string > col;
+        std::vector<std::string> col;
         col.push_back("arg0");
         argv_array argv(col);
         const char* const* eargv = argv.exec_argv();
         ATF_REQUIRE_EQ(array_size(eargv), 1);
         ATF_REQUIRE(std::strcmp(eargv[0], "arg0") == 0);
-        ATF_REQUIRE_EQ(eargv[1], static_cast< const char* >(NULL));
+        ATF_REQUIRE_EQ(eargv[1], static_cast<const char*>(NULL));
     }
 }
 
@@ -283,14 +284,14 @@ ATF_TEST_CASE_BODY(argv_array_iter)
 {
     using atf::process::argv_array;
 
-    std::vector< std::string > vector;
+    std::vector<std::string> vector;
     vector.push_back("arg0");
     vector.push_back("arg1");
     vector.push_back("arg2");
 
     argv_array argv(vector);
     ATF_REQUIRE_EQ(argv.size(), 3);
-    std::vector< std::string >::size_type pos = 0;
+    std::vector<std::string>::size_type pos = 0;
     for (argv_array::const_iterator iter = argv.begin(); iter != argv.end();
          iter++) {
         ATF_REQUIRE_EQ(*iter, vector[pos]);

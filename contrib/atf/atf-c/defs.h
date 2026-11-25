@@ -1,7 +1,4 @@
-/*
- * Automated Testing Framework (atf)
- *
- * Copyright (c) 2008 The NetBSD Foundation, Inc.
+/* Copyright (c) 2008 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,13 +21,13 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
 #if !defined(ATF_C_DEFS_H)
 #define ATF_C_DEFS_H
 
 #define ATF_DEFS_ATTRIBUTE_FORMAT_PRINTF(a, b) __attribute__((__format__(__printf__, a, b)))
+#define ATF_DEFS_ATTRIBUTE_NONNULL __attribute__((nonnull))
 #define ATF_DEFS_ATTRIBUTE_NORETURN __attribute__((__noreturn__))
 #define ATF_DEFS_ATTRIBUTE_UNUSED __attribute__((__unused__))
 

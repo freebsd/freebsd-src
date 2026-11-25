@@ -23,18 +23,23 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "config.h"
-#include "atf-c/tp.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
+/* clang-format off */
+#include "config.h"
+/* clang-format on */
 #include <string.h>
 #include <unistd.h>
 
-#include <atf-c.h>
+#include "atf-c.h"
+#include "atf-c/tp.h"
 
 ATF_TC(getopt);
 ATF_TC_HEAD(getopt, tc)
 {
-    atf_tc_set_md_var(tc, "descr", "Checks if getopt(3) global state is "
+    atf_tc_set_md_var(
+        tc, "descr",
+        "Checks if getopt(3) global state is "
         "reset by the test program driver so that test cases can use "
         "getopt(3) again");
 }
@@ -48,7 +53,7 @@ ATF_TC_BODY(getopt, tc)
     char arg2[] = "-Z";
     char arg3[] = "-s";
     char arg4[] = "foo";
-    char *const argv[] = { arg1, arg2, arg3, arg4, NULL };
+    char* const argv[] = { arg1, arg2, arg3, arg4, NULL };
 
     int ch;
     bool zflag;
@@ -71,10 +76,12 @@ ATF_TC_BODY(getopt, tc)
     }
 
     ATF_REQUIRE(zflag);
-    ATF_REQUIRE_EQ_MSG(1, argc - optind, "Invalid number of arguments left "
-        "after the call to getopt(3)");
-    ATF_CHECK_STREQ_MSG("foo", argv[optind], "The non-option argument is "
-        "invalid");
+    ATF_REQUIRE_EQ_MSG(1, argc - optind,
+                       "Invalid number of arguments left "
+                       "after the call to getopt(3)");
+    ATF_CHECK_STREQ_MSG("foo", argv[optind],
+                        "The non-option argument is "
+                        "invalid");
 }
 
 /* ---------------------------------------------------------------------

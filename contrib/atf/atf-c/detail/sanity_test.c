@@ -23,11 +23,11 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "atf-c/detail/sanity.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
-#if defined(HAVE_CONFIG_H)
+/* clang-format off */
 #include "config.h"
-#endif
+/* clang-format on */
 
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -38,10 +38,10 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <atf-c.h>
-
+#include "atf-c.h"
 #include "atf-c/detail/dynstr.h"
 #include "atf-c/detail/process.h"
+#include "atf-c/detail/sanity.h"
 #include "atf-c/detail/test_helpers.h"
 
 /* ---------------------------------------------------------------------
@@ -55,13 +55,12 @@ struct test_data {
     bool m_cond;
 };
 
-static void do_test_child(void *) ATF_DEFS_ATTRIBUTE_NORETURN;
+static void do_test_child(void*) ATF_DEFS_ATTRIBUTE_NORETURN;
 
-static
-void
-do_test_child(void *v)
+static void
+do_test_child(void* v)
 {
-    struct test_data *td = v;
+    struct test_data* td = v;
 
     switch (td->m_type) {
     case inv:
@@ -85,16 +84,15 @@ do_test_child(void *v)
     exit(EXIT_SUCCESS);
 }
 
-#define	MAX_LINES	3
+#define MAX_LINES 3
 
-static
-void
+static void
 do_test(enum type t, bool cond)
 {
     atf_process_child_t child;
     atf_process_status_t status;
     int nlines;
-    char *lines[MAX_LINES] = { 0 };
+    char* lines[MAX_LINES] = { 0 };
 
     {
         atf_process_stream_t outsb, errsb;
@@ -108,8 +106,9 @@ do_test(enum type t, bool cond)
     }
 
     nlines = 0;
-    while (nlines < MAX_LINES && (lines[nlines] =
-           atf_utils_readline(atf_process_child_stderr(&child))) != NULL)
+    while (nlines < MAX_LINES &&
+           (lines[nlines] =
+                atf_utils_readline(atf_process_child_stderr(&child))) != NULL)
         nlines++;
 
     RE(atf_process_child_wait(&child, &status));
@@ -153,8 +152,7 @@ do_test(enum type t, bool cond)
     }
 }
 
-static
-void
+static void
 require_ndebug(void)
 {
 #if defined(NDEBUG)

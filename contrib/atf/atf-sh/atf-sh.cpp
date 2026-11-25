@@ -45,9 +45,8 @@ extern "C" {
 
 namespace {
 
-static
-std::string
-fix_plain_name(const char *filename)
+static std::string
+fix_plain_name(const char* filename)
 {
     const atf::fs::path filepath(filename);
     if (filepath.branch_path().str() == ".")
@@ -56,28 +55,24 @@ fix_plain_name(const char *filename)
         return std::string(filename);
 }
 
-static
-std::string
+static std::string
 construct_script(const char* filename)
 {
-    const std::string libexecdir = atf::env::get(
-        "ATF_LIBEXECDIR", ATF_LIBEXECDIR);
-    const std::string pkgdatadir = atf::env::get(
-        "ATF_PKGDATADIR", ATF_PKGDATADIR);
+    const std::string libexecdir = atf::env::get("ATF_LIBEXECDIR",
+                                                 ATF_LIBEXECDIR);
+    const std::string pkgdatadir = atf::env::get("ATF_PKGDATADIR",
+                                                 ATF_PKGDATADIR);
     const std::string shell = atf::env::get("ATF_SHELL", ATF_SHELL);
 
     std::string command;
 
-    command += ("Atf_Check='" + libexecdir + "/atf-check' ; " +
-                "Atf_Shell='" + shell + "' ; " +
-                ". " + pkgdatadir + "/libatf-sh.subr ; " +
-                ". " + fix_plain_name(filename) + " ; " +
-                "main \"${@}\"");
+    command += ("Atf_Check='" + libexecdir + "/atf-check' ; " + "Atf_Shell='" +
+                shell + "' ; " + ". " + pkgdatadir + "/libatf-sh.subr ; " +
+                ". " + fix_plain_name(filename) + " ; " + "main \"${@}\"");
     return command;
 }
 
-static
-std::vector<std::string>
+static std::vector<std::string>
 construct_argv(const std::string& shell, const int interpreter_argc,
                const char* const* interpreter_argv)
 {
@@ -130,15 +125,16 @@ atf_sh::atf_sh(void) :
 }
 
 atf_sh::options_set
-atf_sh::specific_options(void)
-    const
+atf_sh::specific_options(void) const
 {
     using atf::application::option;
     options_set opts;
 
     INV(m_shell == atf::fs::path(atf::env::get("ATF_SHELL", ATF_SHELL)));
-    opts.insert(option('s', "shell", "Path to the shell interpreter to use; "
-                       "default: " + m_shell.str()));
+    opts.insert(option('s', "shell",
+                       "Path to the shell interpreter to use; "
+                       "default: " +
+                           m_shell.str()));
 
     return opts;
 }
@@ -164,19 +160,20 @@ atf_sh::main(void)
 
     const atf::fs::path script(m_argv[0]);
     if (!atf::fs::exists(script))
-        throw std::runtime_error("The test program '" + script.str() + "' "
+        throw std::runtime_error("The test program '" + script.str() +
+                                 "' "
                                  "does not exist");
 
     std::vector<std::string> argvv = construct_argv(m_shell.str(), m_argc,
-        m_argv);
-    std::vector<const char *> argv;
+                                                    m_argv);
+    std::vector<const char*> argv;
 
     for (std::size_t i = 0; i < argvv.size(); i++)
         argv.push_back(argvv[i].c_str());
     argv.push_back(NULL);
 
     const int ret = execv(m_shell.c_str(),
-        const_cast<char* const *>(argv.data()));
+                          const_cast<char* const*>(argv.data()));
     INV(ret == -1);
 
     std::cerr << "Failed to execute " << m_shell.str() << ": "

@@ -47,7 +47,7 @@ bool grep_string(const std::string&, const std::string&);
 void redirect(const int, const std::string&);
 void wait(const pid_t, const int, const std::string&, const std::string&);
 
-template< typename Collection >
+template <typename Collection>
 bool
 grep_collection(const std::string& regexp, const Collection& collection)
 {

@@ -23,9 +23,11 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#include "config.h"
+/* SPDX-License-Identifier: BSD-2-Clause */
 
-#include "atf-c/detail/process.h"
+/* clang-format off */
+#include "config.h"
+/* clang-format on */
 
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -39,28 +41,28 @@
 #include <unistd.h>
 
 #include "atf-c/defs.h"
+#include "atf-c/detail/process.h"
 #include "atf-c/detail/sanity.h"
 #include "atf-c/error.h"
 
 /* This prototype is not in the header file because this is a private
  * function; however, we need to access it during testing. */
-atf_error_t atf_process_status_init(atf_process_status_t *, siginfo_t *);
+atf_error_t atf_process_status_init(atf_process_status_t*, siginfo_t*);
 
 /* ---------------------------------------------------------------------
  * The "stream_prepare" auxiliary type.
  * --------------------------------------------------------------------- */
 
 struct stream_prepare {
-    const atf_process_stream_t *m_sb;
+    const atf_process_stream_t* m_sb;
 
     bool m_pipefds_ok;
     int m_pipefds[2];
 };
 typedef struct stream_prepare stream_prepare_t;
 
-static
-atf_error_t
-stream_prepare_init(stream_prepare_t *sp, const atf_process_stream_t *sb)
+static atf_error_t
+stream_prepare_init(stream_prepare_t* sp, const atf_process_stream_t* sb)
 {
     atf_error_t err;
 
@@ -84,9 +86,8 @@ stream_prepare_init(stream_prepare_t *sp, const atf_process_stream_t *sb)
     return err;
 }
 
-static
-void
-stream_prepare_fini(stream_prepare_t *sp)
+static void
+stream_prepare_fini(stream_prepare_t* sp)
 {
     if (sp->m_pipefds_ok) {
         close(sp->m_pipefds[0]);
@@ -104,19 +105,18 @@ const int atf_process_stream_type_inherit = 3;
 const int atf_process_stream_type_redirect_fd = 4;
 const int atf_process_stream_type_redirect_path = 5;
 
-static
-bool
-stream_is_valid(const atf_process_stream_t *sb)
+static bool
+stream_is_valid(const atf_process_stream_t* sb)
 {
     return (sb->m_type == atf_process_stream_type_capture) ||
-           (sb->m_type == atf_process_stream_type_connect) ||
-           (sb->m_type == atf_process_stream_type_inherit) ||
-           (sb->m_type == atf_process_stream_type_redirect_fd) ||
-           (sb->m_type == atf_process_stream_type_redirect_path);
+        (sb->m_type == atf_process_stream_type_connect) ||
+        (sb->m_type == atf_process_stream_type_inherit) ||
+        (sb->m_type == atf_process_stream_type_redirect_fd) ||
+        (sb->m_type == atf_process_stream_type_redirect_path);
 }
 
 atf_error_t
-atf_process_stream_init_capture(atf_process_stream_t *sb)
+atf_process_stream_init_capture(atf_process_stream_t* sb)
 {
     sb->m_type = atf_process_stream_type_capture;
 
@@ -125,8 +125,8 @@ atf_process_stream_init_capture(atf_process_stream_t *sb)
 }
 
 atf_error_t
-atf_process_stream_init_connect(atf_process_stream_t *sb,
-                                const int src_fd, const int tgt_fd)
+atf_process_stream_init_connect(atf_process_stream_t* sb, const int src_fd,
+                                const int tgt_fd)
 {
     PRE(src_fd >= 0);
     PRE(tgt_fd >= 0);
@@ -141,7 +141,7 @@ atf_process_stream_init_connect(atf_process_stream_t *sb,
 }
 
 atf_error_t
-atf_process_stream_init_inherit(atf_process_stream_t *sb)
+atf_process_stream_init_inherit(atf_process_stream_t* sb)
 {
     sb->m_type = atf_process_stream_type_inherit;
 
@@ -150,8 +150,7 @@ atf_process_stream_init_inherit(atf_process_stream_t *sb)
 }
 
 atf_error_t
-atf_process_stream_init_redirect_fd(atf_process_stream_t *sb,
-                                    const int fd)
+atf_process_stream_init_redirect_fd(atf_process_stream_t* sb, const int fd)
 {
     sb->m_type = atf_process_stream_type_redirect_fd;
     sb->m_fd = fd;
@@ -161,8 +160,8 @@ atf_process_stream_init_redirect_fd(atf_process_stream_t *sb,
 }
 
 atf_error_t
-atf_process_stream_init_redirect_path(atf_process_stream_t *sb,
-                                      const atf_fs_path_t *path)
+atf_process_stream_init_redirect_path(atf_process_stream_t* sb,
+                                      const atf_fs_path_t* path)
 {
     sb->m_type = atf_process_stream_type_redirect_path;
     sb->m_path = path;
@@ -172,13 +171,13 @@ atf_process_stream_init_redirect_path(atf_process_stream_t *sb,
 }
 
 void
-atf_process_stream_fini(atf_process_stream_t *sb)
+atf_process_stream_fini(atf_process_stream_t* sb)
 {
     PRE(stream_is_valid(sb));
 }
 
 int
-atf_process_stream_type(const atf_process_stream_t *sb)
+atf_process_stream_type(const atf_process_stream_t* sb)
 {
     PRE(stream_is_valid(sb));
 
@@ -190,33 +189,32 @@ atf_process_stream_type(const atf_process_stream_t *sb)
  * --------------------------------------------------------------------- */
 
 atf_error_t
-atf_process_status_init(atf_process_status_t *s, siginfo_t *info)
+atf_process_status_init(atf_process_status_t* s, siginfo_t* info)
 {
-
     s->m_info = *info;
     return atf_no_error();
 }
 
 void
-atf_process_status_fini(atf_process_status_t *s ATF_DEFS_ATTRIBUTE_UNUSED)
+atf_process_status_fini(atf_process_status_t* s ATF_DEFS_ATTRIBUTE_UNUSED)
 {
 }
 
 bool
-atf_process_status_exited(const atf_process_status_t *s)
+atf_process_status_exited(const atf_process_status_t* s)
 {
     return s->m_info.si_code == CLD_EXITED;
 }
 
 int
-atf_process_status_exitstatus(const atf_process_status_t *s)
+atf_process_status_exitstatus(const atf_process_status_t* s)
 {
     PRE(atf_process_status_exited(s));
     return s->m_info.si_status;
 }
 
 bool
-atf_process_status_signaled(const atf_process_status_t *s)
+atf_process_status_signaled(const atf_process_status_t* s)
 {
     /* Issue #187: `si_code` is a macro on NetBSD. */
     int code = s->m_info.si_code;
@@ -224,14 +222,14 @@ atf_process_status_signaled(const atf_process_status_t *s)
 }
 
 int
-atf_process_status_termsig(const atf_process_status_t *s)
+atf_process_status_termsig(const atf_process_status_t* s)
 {
     PRE(atf_process_status_signaled(s));
     return s->m_info.si_status;
 }
 
 bool
-atf_process_status_coredump(const atf_process_status_t *s)
+atf_process_status_coredump(const atf_process_status_t* s)
 {
     PRE(atf_process_status_signaled(s));
     return s->m_info.si_code == CLD_DUMPED;
@@ -241,18 +239,16 @@ atf_process_status_coredump(const atf_process_status_t *s)
  * The "atf_process_child" type.
  * --------------------------------------------------------------------- */
 
-static
-void
-atf_process_child_init(atf_process_child_t *c)
+static void
+atf_process_child_init(atf_process_child_t* c)
 {
     c->m_pid = 0;
     c->m_stdout = -1;
     c->m_stderr = -1;
 }
 
-static
-void
-atf_process_child_fini(atf_process_child_t *c)
+static void
+atf_process_child_fini(atf_process_child_t* c)
 {
     if (c->m_stdout != -1)
         close(c->m_stdout);
@@ -261,14 +257,13 @@ atf_process_child_fini(atf_process_child_t *c)
 }
 
 atf_error_t
-atf_process_child_wait(atf_process_child_t *c, atf_process_status_t *s)
+atf_process_child_wait(atf_process_child_t* c, atf_process_status_t* s)
 {
     atf_error_t err;
     siginfo_t info;
 
     if (waitid(P_PID, c->m_pid, &info, WEXITED) == -1)
-        err = atf_libc_error(errno, "Failed waiting for process %d",
-                             c->m_pid);
+        err = atf_libc_error(errno, "Failed waiting for process %d", c->m_pid);
     else {
         atf_process_child_fini(c);
         err = atf_process_status_init(s, &info);
@@ -278,20 +273,20 @@ atf_process_child_wait(atf_process_child_t *c, atf_process_status_t *s)
 }
 
 pid_t
-atf_process_child_pid(const atf_process_child_t *c)
+atf_process_child_pid(const atf_process_child_t* c)
 {
     return c->m_pid;
 }
 
 int
-atf_process_child_stdout(atf_process_child_t *c)
+atf_process_child_stdout(atf_process_child_t* c)
 {
     PRE(c->m_stdout != -1);
     return c->m_stdout;
 }
 
 int
-atf_process_child_stderr(atf_process_child_t *c)
+atf_process_child_stderr(atf_process_child_t* c)
 {
     PRE(c->m_stderr != -1);
     return c->m_stderr;
@@ -301,8 +296,7 @@ atf_process_child_stderr(atf_process_child_t *c)
  * Free functions.
  * --------------------------------------------------------------------- */
 
-static
-atf_error_t
+static atf_error_t
 safe_dup(const int oldfd, const int newfd)
 {
     atf_error_t err;
@@ -320,9 +314,8 @@ safe_dup(const int oldfd, const int newfd)
     return err;
 }
 
-static
-atf_error_t
-child_connect(const stream_prepare_t *sp, int procfd)
+static atf_error_t
+child_connect(const stream_prepare_t* sp, int procfd)
 {
     atf_error_t err;
     const int type = atf_process_stream_type(sp->m_sb);
@@ -359,9 +352,8 @@ child_connect(const stream_prepare_t *sp, int procfd)
     return err;
 }
 
-static
-void
-parent_connect(const stream_prepare_t *sp, int *fd)
+static void
+parent_connect(const stream_prepare_t* sp, int* fd)
 {
     const int type = atf_process_stream_type(sp->m_sb);
 
@@ -381,33 +373,22 @@ parent_connect(const stream_prepare_t *sp, int *fd)
     }
 }
 
-static
-void
-do_parent(atf_process_child_t *c,
-          const pid_t pid,
-          const stream_prepare_t *outsp,
-          const stream_prepare_t *errsp)
+static void
+do_parent(atf_process_child_t* c, const pid_t pid,
+          const stream_prepare_t* outsp, const stream_prepare_t* errsp)
 {
-
     c->m_pid = pid;
 
     parent_connect(outsp, &c->m_stdout);
     parent_connect(errsp, &c->m_stderr);
 }
 
-static
-void
-do_child(void (*)(void *),
-         void *,
-         const stream_prepare_t *,
-         const stream_prepare_t *) ATF_DEFS_ATTRIBUTE_NORETURN;
+static void do_child(void (*)(void*), void*, const stream_prepare_t*,
+                     const stream_prepare_t*) ATF_DEFS_ATTRIBUTE_NORETURN;
 
-static
-void
-do_child(void (*start)(void *),
-         void *v,
-         const stream_prepare_t *outsp,
-         const stream_prepare_t *errsp)
+static void
+do_child(void (*start)(void*), void* v, const stream_prepare_t* outsp,
+         const stream_prepare_t* errsp)
 {
     atf_error_t err;
 
@@ -435,13 +416,10 @@ out:
         exit(EXIT_SUCCESS);
 }
 
-static
-atf_error_t
-fork_with_streams(atf_process_child_t *c,
-                  void (*start)(void *),
-                  const atf_process_stream_t *outsb,
-                  const atf_process_stream_t *errsb,
-                  void *v)
+static atf_error_t
+fork_with_streams(atf_process_child_t* c, void (*start)(void*),
+                  const atf_process_stream_t* outsb,
+                  const atf_process_stream_t* errsb, void* v)
 {
     atf_error_t err;
     stream_prepare_t outsp;
@@ -484,11 +462,10 @@ out:
     return err;
 }
 
-static
-atf_error_t
-init_stream_w_default(const atf_process_stream_t *usersb,
-                      atf_process_stream_t *inheritsb,
-                      const atf_process_stream_t **realsb)
+static atf_error_t
+init_stream_w_default(const atf_process_stream_t* usersb,
+                      atf_process_stream_t* inheritsb,
+                      const atf_process_stream_t** realsb)
 {
     atf_error_t err;
 
@@ -505,11 +482,9 @@ init_stream_w_default(const atf_process_stream_t *usersb,
 }
 
 atf_error_t
-atf_process_fork(atf_process_child_t *c,
-                 void (*start)(void *),
-                 const atf_process_stream_t *outsb,
-                 const atf_process_stream_t *errsb,
-                 void *v)
+atf_process_fork(atf_process_child_t* c, void (*start)(void*),
+                 const atf_process_stream_t* outsb,
+                 const atf_process_stream_t* errsb, void* v)
 {
     atf_error_t err;
     atf_process_stream_t inherit_outsb, inherit_errsb;
@@ -517,12 +492,12 @@ atf_process_fork(atf_process_child_t *c,
 
     atf_process_child_init(c);
 
-    real_outsb = NULL;  /* Shut up GCC warning. */
+    real_outsb = NULL; /* Shut up GCC warning. */
     err = init_stream_w_default(outsb, &inherit_outsb, &real_outsb);
     if (atf_is_error(err))
         goto out;
 
-    real_errsb = NULL;  /* Shut up GCC warning. */
+    real_errsb = NULL; /* Shut up GCC warning. */
     err = init_stream_w_default(errsb, &inherit_errsb, &real_errsb);
     if (atf_is_error(err))
         goto out_out;
@@ -538,32 +513,31 @@ out:
     return err;
 }
 
-static
-int
-const_execvp(const char *file, const char *const *argv)
+static int
+const_execvp(const char* file, const char* const* argv)
 {
-#define UNCONST(a) ((void *)(uintptr_t)(const void *)(a))
+#define UNCONST(a) ((void*)(uintptr_t)(const void*)(a))
     return execvp(file, UNCONST(argv));
 #undef UNCONST
 }
 
-static
-atf_error_t
-list_to_array(const atf_list_t *l, const char ***ap)
+static atf_error_t
+list_to_array(const atf_list_t* l, const char*** ap)
 {
     atf_error_t err;
-    const char **a;
+    const char** a;
 
-    a = (const char **)malloc((atf_list_size(l) + 1) * sizeof(const char *));
+    a = (const char**)malloc((atf_list_size(l) + 1) * sizeof(const char*));
     if (a == NULL)
         err = atf_no_memory_error();
     else {
-        const char **aiter;
+        const char** aiter;
         atf_list_citer_t liter;
 
         aiter = a;
-        atf_list_for_each_c(liter, l) {
-            *aiter = (const char *)atf_list_citer_data(liter);
+        atf_list_for_each_c(liter, l)
+        {
+            *aiter = (const char*)atf_list_citer_data(liter);
             aiter++;
         }
         *aiter = NULL;
@@ -576,16 +550,15 @@ list_to_array(const atf_list_t *l, const char ***ap)
 }
 
 struct exec_args {
-    const atf_fs_path_t *m_prog;
-    const char *const *m_argv;
+    const atf_fs_path_t* m_prog;
+    const char* const* m_argv;
     void (*m_prehook)(void);
 };
 
-static
-void
-do_exec(void *v)
+static void
+do_exec(void* v)
 {
-    struct exec_args *ea = v;
+    struct exec_args* ea = v;
 
     if (ea->m_prehook != NULL)
         ea->m_prehook();
@@ -593,18 +566,16 @@ do_exec(void *v)
     const int ret = const_execvp(atf_fs_path_cstring(ea->m_prog), ea->m_argv);
     const int errnocopy = errno;
     INV(ret == -1);
-    fprintf(stderr, "exec(%s) failed: %s\n",
-            atf_fs_path_cstring(ea->m_prog), strerror(errnocopy));
+    fprintf(stderr, "exec(%s) failed: %s\n", atf_fs_path_cstring(ea->m_prog),
+            strerror(errnocopy));
     exit(EXIT_FAILURE);
 }
 
 atf_error_t
-atf_process_exec_array(atf_process_status_t *s,
-                       const atf_fs_path_t *prog,
-                       const char *const *argv,
-                       const atf_process_stream_t *outsb,
-                       const atf_process_stream_t *errsb,
-                       void (*prehook)(void))
+atf_process_exec_array(atf_process_status_t* s, const atf_fs_path_t* prog,
+                       const char* const* argv,
+                       const atf_process_stream_t* outsb,
+                       const atf_process_stream_t* errsb, void (*prehook)(void))
 {
     atf_error_t err;
     atf_process_child_t c;
@@ -632,15 +603,12 @@ out:
 }
 
 atf_error_t
-atf_process_exec_list(atf_process_status_t *s,
-                      const atf_fs_path_t *prog,
-                      const atf_list_t *argv,
-                      const atf_process_stream_t *outsb,
-                      const atf_process_stream_t *errsb,
-                      void (*prehook)(void))
+atf_process_exec_list(atf_process_status_t* s, const atf_fs_path_t* prog,
+                      const atf_list_t* argv, const atf_process_stream_t* outsb,
+                      const atf_process_stream_t* errsb, void (*prehook)(void))
 {
     atf_error_t err;
-    const char **argv2;
+    const char** argv2;
 
     PRE(outsb == NULL ||
         atf_process_stream_type(outsb) != atf_process_stream_type_capture);

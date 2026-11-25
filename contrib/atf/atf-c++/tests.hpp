@@ -31,7 +31,7 @@
 #include <string>
 
 extern "C" {
-#include <atf-c/defs.h>
+#include "atf-c/defs.h"
 }
 
 namespace atf {
@@ -60,7 +60,7 @@ bool match(const std::string&, const std::string&);
 // The "vars_map" class.
 // ------------------------------------------------------------------------
 
-typedef std::map< std::string, std::string > vars_map;
+typedef std::map<std::string, std::string> vars_map;
 
 // ------------------------------------------------------------------------
 // The "tc" class.
@@ -73,7 +73,7 @@ class tc {
     tc(const tc&);
     tc& operator=(const tc&);
 
-    std::unique_ptr< tc_impl > pimpl;
+    std::unique_ptr<tc_impl> pimpl;
 
 protected:
     virtual void head(void);
@@ -92,8 +92,8 @@ public:
     void init(const vars_map&);
 
     const std::string get_config_var(const std::string&) const;
-    const std::string get_config_var(const std::string&, const std::string&)
-        const;
+    const std::string get_config_var(const std::string&,
+                                     const std::string&) const;
     const std::string get_md_var(const std::string&) const;
     const vars_map get_md_vars(void) const;
     bool has_config_var(const std::string&) const;

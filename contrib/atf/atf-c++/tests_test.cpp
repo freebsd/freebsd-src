@@ -37,20 +37,18 @@ extern "C" {
 #include <iostream>
 #include <sstream>
 
-#include <atf-c++.hpp>
-
+#include "atf-c++.hpp"
 #include "atf-c++/detail/text.hpp"
 
 // ------------------------------------------------------------------------
 // Tests for the "atf_tp_writer" class.
 // ------------------------------------------------------------------------
 
-static
-void
+static void
 print_indented(const std::string& str)
 {
-    std::vector< std::string > ws = atf::text::split(str, "\n");
-    for (std::vector< std::string >::const_iterator iter = ws.begin();
+    std::vector<std::string> ws = atf::text::split(str, "\n");
+    for (std::vector<std::string>::const_iterator iter = ws.begin();
          iter != ws.end(); iter++)
         std::cout << ">>" << *iter << "<<\n";
 }
@@ -59,14 +57,14 @@ print_indented(const std::string& str)
 // ATF_REQUIRE_EQ macro?  It may be hard to predict sometimes that a
 // string can have newlines in it, and so the error message generated
 // at the moment will be bogus if there are some.
-static
-void
+static void
 check_equal(const atf::tests::tc& tc, const std::string& str,
             const std::string& exp)
 {
     if (str != exp) {
-        std::cout << "String equality check failed.\n"
-            "Adding >> and << to delimit the string boundaries below.\n";
+        std::cout
+            << "String equality check failed.\n"
+               "Adding >> and << to delimit the string boundaries below.\n";
         std::cout << "GOT:\n";
         print_indented(str);
         std::cout << "EXPECTED:\n";
@@ -85,12 +83,11 @@ ATF_TEST_CASE_BODY(atf_tp_writer)
     std::ostringstream expss;
     std::ostringstream ss;
 
-#define RESET \
+#define RESET      \
     expss.str(""); \
     ss.str("")
 
-#define CHECK \
-    check_equal(*this, ss.str(), expss.str())
+#define CHECK check_equal(*this, ss.str(), expss.str())
 
     {
         RESET;
