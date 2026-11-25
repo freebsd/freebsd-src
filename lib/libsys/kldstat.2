@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 28, 2012
+.Dd November 24, 2026
 .Dt KLDSTAT 2
 .Os
 .Sh NAME
@@ -55,12 +55,8 @@ struct kld_file_stat {
 .Ed
 .Bl -tag -width XXXaddress
 .It version
-This field is set to the size of the structure mentioned above by the code
-calling
-.Fn kldstat ,
-and not
-.Fn kldstat
-itself.
+This field must be set to the size of the structure mentioned above by
+the caller and is left unmodified on return.
 .It name
 The name of the file referred to by
 .Fa fileid .
@@ -94,11 +90,6 @@ The file was not found (probably not loaded).
 The version specified in the
 .Fa version
 field of stat is not the proper version.
-You would need to rebuild world, the
-kernel, or your application, if this error occurs, given that you did properly
-fill in the
-.Fa version
-field.
 .It Bq Er EFAULT
 There was a problem copying one, some, or all of the fields into
 .Fa stat

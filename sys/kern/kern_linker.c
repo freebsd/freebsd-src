@@ -1464,8 +1464,10 @@ sys_kldstat(struct thread *td, struct kldstat_args *uap)
 
 	stat = malloc(sizeof(*stat), M_TEMP, M_WAITOK | M_ZERO);
 	error = kern_kldstat(td, uap->fileid, stat);
-	if (error == 0)
+	if (error == 0) {
+		stat->version = version;
 		error = copyout(stat, uap->stat, version);
+	}
 	free(stat, M_TEMP);
 	return (error);
 }

@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 15, 2008
+.Dd November 24, 2026
 .Dt MODSTAT 2
 .Os
 .Sh NAME
@@ -60,12 +60,8 @@ typedef union modspecific {
 .Ed
 .Bl -tag -width XXXaddress
 .It version
-This field is set to the size of the structure mentioned above by the code
-calling
-.Fn modstat ,
-and not
-.Fn modstat
-itself.
+This field must be set to the size of the structure mentioned above by
+the caller and is left unmodified on return.
 .It name
 The name of the module referred to by
 .Fa modid .
@@ -93,11 +89,6 @@ The module was not found (probably not loaded).
 The version specified in the
 .Fa version
 field of stat is not the proper version.
-You would need to rebuild world, the
-kernel, or your application, if this error occurs, given that you did properly
-fill in the
-.Fa version
-field.
 .It Bq Er EFAULT
 There was a problem copying one, some, or all of the fields into
 .Fa stat
