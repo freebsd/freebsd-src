@@ -4749,13 +4749,21 @@ bnxt_vlan_register(if_ctx_t ctx, uint16_t vtag)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 	struct bnxt_vlan_tag *new_tag;
+	struct vlan_head tail;
 
 	new_tag = malloc(sizeof(struct bnxt_vlan_tag), M_DEVBUF, M_NOWAIT);
 	if (new_tag == NULL)
 		return;
 	new_tag->tag = vtag;
 	new_tag->filter_id = -1;
-	SLIST_INSERT_HEAD(&softc->vnic_info.vlan_tags, new_tag, next);
+
+	/*
+	 * Append new tags to the list so that the oldest VLANs (re)acquire
+	 * L2 filters if bnxt_hwrm_set_filter() runs out.
+	 */
+	SLIST_INIT(&tail);
+	SLIST_INSERT_HEAD(&tail, new_tag, next);
+	SLIST_CONCAT(&softc->vnic_info.vlan_tags, &tail, bnxt_vlan_tag, next);
 };
 
 static void

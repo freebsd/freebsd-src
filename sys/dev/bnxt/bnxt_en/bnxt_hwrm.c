@@ -2531,17 +2531,41 @@ bnxt_hwrm_set_filter(struct bnxt_softc *softc)
 {
 	struct bnxt_vnic_info *vnic = &softc->vnic_info;
 	struct bnxt_vlan_tag *tag;
+	int nfilters = 0;
 	int rc = 0;
 
 	rc = bnxt_hwrm_l2_filter_alloc(softc, 0xffff, &vnic->filter_id);
 	if (rc)
 		goto end;
 
+	/*
+	 * The filter above matches our MAC on any VLAN, so per-VLAN
+	 * filters are not needed to receive tagged traffic.  Running out
+	 * of VLAN filters (ENOMEM) must not fail the init and take the
+	 * port down.  The VLAN tag list is ordered from oldest to newest
+	 * by bnxt_vlan_register(), so the VLANs that do not get a filter
+	 * are the ones most recently added.  Any other error is fatal.
+	 */
 	SLIST_FOREACH(tag, &vnic->vlan_tags, next) {
 		rc = bnxt_hwrm_l2_filter_alloc(softc, tag->tag,
 				&tag->filter_id);
+		if (rc == ENOMEM)
+			break;
 		if (rc)
 			goto end;
+		nfilters++;
+	}
+
+	if (tag != NULL) {
+		struct bnxt_vlan_tag *full = tag;
+		int ntags = nfilters;
+
+		SLIST_FOREACH_FROM(tag, &vnic->vlan_tags, next)
+			ntags++;
+		device_printf(softc->dev, "out of L2 filters: %d of %d VLANs "
+		    "have none (VLAN %d and newer)\n", ntags - nfilters,
+		    ntags, full->tag);
+		rc = 0;
 	}
 
 end:
