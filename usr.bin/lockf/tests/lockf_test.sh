@@ -181,6 +181,7 @@ atf_test_case fdlockspin
 fdlockspin_head()
 {
 	atf_set "descr" "Don't spin when locking a file descriptor"
+	atf_set "require.progs" "kdump"
 }
 fdlockspin_body()
 {
