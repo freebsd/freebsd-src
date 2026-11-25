@@ -780,14 +780,15 @@ gve_xmit_mbuf(struct gve_tx_ring *tx,
 	if (gve_is_gqi(tx->com.priv))
 		return (gve_xmit(tx, *mbuf));
 
-	if (gve_is_qpl(tx->com.priv))
-		return (gve_xmit_dqo_qpl(tx, *mbuf));
-
 	/*
-	 * gve_xmit_dqo might attempt to defrag the mbuf chain.
-	 * The reference is passed in so that in the case of
-	 * errors, the new mbuf chain is what's put back on the br.
+	 * Both DQO transmit paths may replace or free the mbuf chain
+	 * (via m_pullup in gve_prep_tso, or m_defrag in gve_map_mbuf_dqo).
+	 * Pass the mbuf pointer by reference so callers observe the new
+	 * head (or NULL if freed on error).
 	 */
+	if (gve_is_qpl(tx->com.priv))
+		return (gve_xmit_dqo_qpl(tx, mbuf));
+
 	return (gve_xmit_dqo(tx, mbuf));
 }
 
@@ -847,12 +848,15 @@ gve_xmit_br(struct gve_tx_ring *tx)
 		if (__predict_false(mbuf != NULL && err == ENOBUFS))
 			err = gve_xmit_retry_enobuf_mbuf(tx, &mbuf);
 
-		if (__predict_false(err != 0 && mbuf != NULL)) {
-			if (err == EINVAL) {
+		if (__predict_false(err != 0)) {
+			if (mbuf == NULL || err == EINVAL) {
 				drbr_advance(ifp, tx->br);
-				m_freem(mbuf);
-			} else
-				drbr_putback(ifp, tx->br, mbuf);
+				if (mbuf != NULL)
+					m_freem(mbuf);
+				counter_u64_add(tx->stats.tx_dropped_pkt, 1);
+				continue;
+			}
+			drbr_putback(ifp, tx->br, mbuf);
 			break;
 		}
 

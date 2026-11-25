@@ -724,7 +724,7 @@ void gve_clear_tx_ring_dqo(struct gve_priv *priv, int i);
 int gve_check_tx_timeout_dqo(struct gve_priv *priv, struct gve_tx_ring *tx);
 int gve_tx_intr_dqo(void *arg);
 int gve_xmit_dqo(struct gve_tx_ring *tx, struct mbuf **mbuf_ptr);
-int gve_xmit_dqo_qpl(struct gve_tx_ring *tx, struct mbuf *mbuf);
+int gve_xmit_dqo_qpl(struct gve_tx_ring *tx, struct mbuf **mbuf_ptr);
 void gve_tx_cleanup_tq_dqo(void *arg, int pending);
 
 /* RX functions defined in gve_rx.c */

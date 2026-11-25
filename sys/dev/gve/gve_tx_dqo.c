@@ -330,25 +330,25 @@ gve_tx_fill_general_ctx_desc(struct gve_tx_general_context_desc_dqo *desc,
 	};
 }
 
-#define PULLUP_HDR(m, len)				\
+#define PULLUP_HDR(mp, len)				\
 do {							\
-	if (__predict_false((m)->m_len < (len))) {	\
-		(m) = m_pullup((m), (len));		\
-		if ((m) == NULL)			\
+	if (__predict_false((*(mp))->m_len < (len))) {	\
+		*(mp) = m_pullup(*(mp), (len));		\
+		if (*(mp) == NULL)			\
 			return (EINVAL);		\
 	}						\
 } while (0)
 
 static int
-gve_prep_tso(struct mbuf *mbuf, int *header_len)
+gve_prep_tso(struct mbuf **mbuf_ptr, int *header_len)
 {
 	uint8_t l3_off, l4_off = 0;
 	struct ether_header *eh;
 	struct tcphdr *th;
 	u_short csum;
 
-	PULLUP_HDR(mbuf, sizeof(*eh));
-	eh = mtod(mbuf, struct ether_header *);
+	PULLUP_HDR(mbuf_ptr, sizeof(*eh));
+	eh = mtod(*mbuf_ptr, struct ether_header *);
 	KASSERT(eh->ether_type != ETHERTYPE_VLAN,
 	    ("VLAN-tagged packets not supported"));
 	l3_off = ETHER_HDR_LEN;
@@ -357,8 +357,8 @@ gve_prep_tso(struct mbuf *mbuf, int *header_len)
 	if (ntohs(eh->ether_type) == ETHERTYPE_IPV6) {
 		struct ip6_hdr *ip6;
 
-		PULLUP_HDR(mbuf, l3_off + sizeof(*ip6));
-		ip6 = (struct ip6_hdr *)(mtodo(mbuf, l3_off));
+		PULLUP_HDR(mbuf_ptr, l3_off + sizeof(*ip6));
+		ip6 = (struct ip6_hdr *)(mtodo(*mbuf_ptr, l3_off));
 		l4_off = l3_off + sizeof(struct ip6_hdr);
 		csum = in6_cksum_pseudo(ip6, /*len=*/0, IPPROTO_TCP,
 		    /*csum=*/0);
@@ -367,16 +367,20 @@ gve_prep_tso(struct mbuf *mbuf, int *header_len)
 	if (ntohs(eh->ether_type) == ETHERTYPE_IP) {
 		struct ip *ip;
 
-		PULLUP_HDR(mbuf, l3_off + sizeof(*ip));
-		ip = (struct ip *)(mtodo(mbuf, l3_off));
+		PULLUP_HDR(mbuf_ptr, l3_off + sizeof(*ip));
+		ip = (struct ip *)(mtodo(*mbuf_ptr, l3_off));
 		l4_off = l3_off + (ip->ip_hl << 2);
 		csum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
 		    htons(IPPROTO_TCP));
+	} else {
+		return (EINVAL);
 	}
 
-	PULLUP_HDR(mbuf, l4_off + sizeof(struct tcphdr *));
-	th = (struct tcphdr *)(mtodo(mbuf, l4_off));
+	PULLUP_HDR(mbuf_ptr, l4_off + sizeof(*th));
+	th = (struct tcphdr *)(mtodo(*mbuf_ptr, l4_off));
 	*header_len = l4_off + (th->th_off << 2);
+	PULLUP_HDR(mbuf_ptr, *header_len);
+	th = (struct tcphdr *)(mtodo(*mbuf_ptr, l4_off));
 
 	/*
 	 * Hardware requires the th->th_sum to not include the TCP payload,
@@ -387,29 +391,18 @@ gve_prep_tso(struct mbuf *mbuf, int *header_len)
 	return (0);
 }
 
-static int
-gve_tx_fill_ctx_descs(struct gve_tx_ring *tx, struct mbuf *mbuf,
-    bool is_tso, uint32_t *desc_idx)
+static void
+gve_tx_fill_ctx_descs(struct gve_tx_ring *tx, const struct mbuf *mbuf,
+    bool is_tso, int header_len, uint32_t *desc_idx)
 {
 	struct gve_tx_general_context_desc_dqo *gen_desc;
 	struct gve_tx_tso_context_desc_dqo *tso_desc;
 	struct gve_tx_metadata_dqo metadata;
-	int header_len;
-	int err;
 
 	metadata = (struct gve_tx_metadata_dqo){0};
 	gve_extract_tx_metadata_dqo(mbuf, &metadata);
 
 	if (is_tso) {
-		err = gve_prep_tso(mbuf, &header_len);
-		if (__predict_false(err)) {
-			counter_enter();
-			counter_u64_add_protected(
-			    tx->stats.tx_delayed_pkt_tsoerr, 1);
-			counter_exit();
-			return (err);
-		}
-
 		tso_desc = &tx->dqo.desc_ring[*desc_idx].tso_ctx;
 		gve_tx_fill_tso_ctx_desc(tso_desc, mbuf, &metadata, header_len);
 
@@ -422,7 +415,6 @@ gve_tx_fill_ctx_descs(struct gve_tx_ring *tx, struct mbuf *mbuf,
 	gen_desc = &tx->dqo.desc_ring[*desc_idx].general_ctx;
 	gve_tx_fill_general_ctx_desc(gen_desc, &metadata);
 	*desc_idx = (*desc_idx + 1) & tx->dqo.desc_mask;
-	return (0);
 }
 
 static int
@@ -725,12 +717,14 @@ gve_tx_copy_mbuf_and_write_pkt_descs(struct gve_tx_ring *tx,
 }
 
 int
-gve_xmit_dqo_qpl(struct gve_tx_ring *tx, struct mbuf *mbuf)
+gve_xmit_dqo_qpl(struct gve_tx_ring *tx, struct mbuf **mbuf_ptr)
 {
 	uint32_t desc_idx = tx->dqo.desc_tail;
 	struct gve_tx_pending_pkt_dqo *pkt;
+	struct mbuf *mbuf = *mbuf_ptr;
 	int total_descs_needed;
 	int16_t completion_tag;
+	int header_len = 0;
 	bool has_csum_flag;
 	int csum_flags;
 	bool is_tso;
@@ -758,6 +752,15 @@ gve_xmit_dqo_qpl(struct gve_tx_ring *tx, struct mbuf *mbuf)
 		return (ENOBUFS);
 	}
 
+	if (is_tso) {
+		err = gve_prep_tso(mbuf_ptr, &header_len);
+		if (__predict_false(err != 0)) {
+			counter_u64_add(tx->stats.tx_delayed_pkt_tsoerr, 1);
+			return (err);
+		}
+		mbuf = *mbuf_ptr;
+	}
+
 	pkt = gve_alloc_pending_packet(tx);
 	if (pkt == NULL) {
 		counter_enter();
@@ -768,9 +771,7 @@ gve_xmit_dqo_qpl(struct gve_tx_ring *tx, struct mbuf *mbuf)
 	}
 	completion_tag = pkt - tx->dqo.pending_pkts;
 
-	err = gve_tx_fill_ctx_descs(tx, mbuf, is_tso, &desc_idx);
-	if (err)
-		goto abort;
+	gve_tx_fill_ctx_descs(tx, mbuf, is_tso, header_len, &desc_idx);
 
 	pkt->mbuf = mbuf;
 	pkt->state = GVE_PACKET_STATE_PENDING_DATA_COMPL;
@@ -790,10 +791,6 @@ gve_xmit_dqo_qpl(struct gve_tx_ring *tx, struct mbuf *mbuf)
 
 	tx->req += total_descs_needed; /* tx->req is just a sysctl counter */
 	return (0);
-
-abort:
-	gve_free_pending_packet(tx, pkt);
-	return (err);
 }
 
 int
@@ -805,6 +802,7 @@ gve_xmit_dqo(struct gve_tx_ring *tx, struct mbuf **mbuf_ptr)
 	struct mbuf *mbuf = *mbuf_ptr;
 	int total_descs_needed;
 	int16_t completion_tag;
+	int header_len = 0;
 	bool has_csum_flag;
 	int csum_flags;
 	bool is_tso;
@@ -828,6 +826,15 @@ gve_xmit_dqo(struct gve_tx_ring *tx, struct mbuf **mbuf_ptr)
 	    (is_tso ? 1 : 0);        /* tso_ctx_desc */
 	if (__predict_false(!gve_tx_has_desc_room_dqo(tx, total_descs_needed)))
 		return (ENOBUFS);
+
+	if (is_tso) {
+		err = gve_prep_tso(mbuf_ptr, &header_len);
+		if (__predict_false(err != 0)) {
+			counter_u64_add(tx->stats.tx_delayed_pkt_tsoerr, 1);
+			return (err);
+		}
+		mbuf = *mbuf_ptr;
+	}
 
 	pkt = gve_alloc_pending_packet(tx);
 	if (pkt == NULL) {
@@ -854,9 +861,7 @@ gve_xmit_dqo(struct gve_tx_ring *tx, struct mbuf **mbuf_ptr)
 		goto abort_with_dma;
 	}
 
-	err = gve_tx_fill_ctx_descs(tx, mbuf, is_tso, &desc_idx);
-	if (err)
-		goto abort_with_dma;
+	gve_tx_fill_ctx_descs(tx, mbuf, is_tso, header_len, &desc_idx);
 
 	pkt->mbuf = mbuf;
 	pkt->state = GVE_PACKET_STATE_PENDING_DATA_COMPL;
