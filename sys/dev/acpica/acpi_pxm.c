@@ -370,6 +370,7 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 				return;
 			}
 			slot = i;
+			break;
 		}
 		for (i = num_mem; i > slot; i--)
 			mem_info[i] = mem_info[i - 1];
