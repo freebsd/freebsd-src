@@ -464,6 +464,48 @@ F_flag_assign_body()
 	atf_check -o inline:"p=\"${SYSRC_CONF}\"\n" cat "${SYSRC_CONF}"
 }
 
+atf_test_case rc_conf_files_glob cleanup
+rc_conf_files_glob_head()
+{
+	atf_set "descr" "rc_conf_files globs expand for boot, -f, and RC_CONFS"
+}
+rc_conf_files_glob_body()
+{
+	local extra files
+
+	mkdir rc.conf.d
+	extra="${PWD}/rc.conf.d/extra.conf"
+	printf '%s\n' 'base="from-rc"' > "${PWD}/rc.conf"
+	printf '%s\n' 'gvar="from-glob"' > "$extra"
+
+	RC_DEFAULTS="${PWD}/rc_defaults.conf"
+	cat > "${RC_DEFAULTS}" << EOF
+source_rc_confs() {
+	local i
+	for i in \${rc_conf_files}; do
+		[ -r "\$i" ] && . "\$i"
+	done
+}
+rc_conf_files="${PWD}/rc.conf ${PWD}/rc.conf.d/*.conf"
+EOF
+	export RC_DEFAULTS
+
+	atf_check -o inline:"${PWD}/rc.conf\n${extra}\n" sysrc -l
+	atf_check -o inline:'gvar: from-glob\n' sysrc gvar
+	# -f and RC_CONFS carry the rc_conf_files value, glob included
+	files=$( sysrc -nD rc_conf_files )
+	atf_check -o inline:'gvar: from-glob\n' sysrc -f "$files" gvar
+	atf_check -o inline:'gvar: from-glob\n' \
+	    env RC_CONFS="$files" sysrc gvar
+	atf_check -o inline:'gvar: from-glob -> NEW\n' sysrc gvar=NEW
+	atf_check -o inline:'gvar="NEW"\n' cat "$extra"
+	atf_check -o inline:'base="from-rc"\n' cat "${PWD}/rc.conf"
+}
+rc_conf_files_glob_cleanup()
+{
+	unset RC_DEFAULTS
+}
+
 atf_test_case r_flag
 r_flag_head()
 {
@@ -653,5 +695,6 @@ atf_init_test_cases()
 	atf_add_test_case f_flag
 	atf_add_test_case F_flag
 	atf_add_test_case F_flag_assign
+	atf_add_test_case rc_conf_files_glob
 	atf_add_test_case r_flag
 }

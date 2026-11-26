@@ -291,8 +291,12 @@ f_sysrc_get()
 			_rc_confs_set=1
 		fi
 
-		set -f # noglob
+		# Walk the list the way source_rc_confs does, -f included
+		case "$-" in *f*) _noglob=1 ;; esac
+		set +f # glob
 		source_rc_confs > /dev/null 2>&1
+		[ "$_noglob" ] && set -f # noglob
+		unset _noglob
 
 		#
 		# If the query was for `rc_conf_files' AND after calling
@@ -988,19 +992,21 @@ f_sysrc_find()
 	[ "${RC_CONFS+set}" ] && rc_conf_files="$RC_CONFS"
 
 	#
-	# Determine if caller has set noglob before we disable filename
+	# Determine if caller has set noglob before we modify filename
 	# globbing, so we can later return to the inherited state.
 	#
 	case "$-" in
 	*f*) noglob=1 ;;
 	esac
-	set -f # noglob
 
 	#
 	# Reverse the order of files in rc_conf_files (the boot process sources
 	# these in order, so we will search them in reverse-order to find the
 	# last-assignment -- the one that ultimately effects the environment).
 	#
+	# NB: Expand rc_conf_files and `-f files` the way source_rc_confs does.
+	#
+	set +f # glob
 	for file in $rc_conf_files; do
 		conf_files="$file${conf_files:+ }$conf_files"
 	done
@@ -1015,6 +1021,9 @@ f_sysrc_find()
 	#
 	# Find which file matches assignment to the given variable name.
 	#
+	# NB: Do not re-expand globs in conf_files (already expanded above)
+	#
+	set -f # noglob
 	for file in $conf_files; do
 		[ -f "$file" -a -r "$file" ] || continue
 		if grep -Eq "$regex" $file; then
@@ -1348,7 +1357,8 @@ f_sysrc_delete()
 	case "$-" in
 	*f*) noglob=1 ;;
 	esac
-	set -f # noglob
+	# NB: Expand rc_conf_files and -f the way source_rc_confs does
+	set +f # glob
 	for file in ${RC_CONFS-$( f_sysrc_get rc_conf_files )}; do
 		[ -e "$file" ] || continue
 		f_shell_escape "$file" _file
@@ -1360,7 +1370,7 @@ f_sysrc_delete()
 			'mktemp -t "%s"' "$pgm"
 		then
 			echo "$tmpfile" >&2
-			[ "$noglob" ] || set +f # glob
+			[ "$noglob" ] && set -f # noglob
 			return $FAILURE
 		fi
 
@@ -1398,7 +1408,7 @@ f_sysrc_delete()
 			f_err "$msg_previous_syntax_errors\n" \
 			      "$pgm" "$file"
 			rm -f "$tmpfile"
-			[ "$noglob" ] || set +f # glob
+			[ "$noglob" ] && set -f # noglob
 			return $FAILURE
 		fi
 
@@ -1408,7 +1418,7 @@ f_sysrc_delete()
 		if [ ! -w "$file" ]; then
 			f_err "$msg_permission_denied\n" "$pgm" "$file"
 			rm -f "$tmpfile"
-			[ "$noglob" ] || set +f # glob
+			[ "$noglob" ] && set -f # noglob
 			return $FAILURE
 		fi
 
@@ -1418,12 +1428,12 @@ f_sysrc_delete()
 		if ! f_eval_catch -de $funcname mv \
 			"mv '%s' '%s'" "$tmpfile" "$_file"
 		then
-			[ "$noglob" ] || set +f
+			[ "$noglob" ] && set -f # noglob
 			return $FAILURE
 		fi
 	done
 
-	[ "$noglob" ] || set +f # glob
+	[ "$noglob" ] && set -f # noglob
 	return $SUCCESS
 }
 
