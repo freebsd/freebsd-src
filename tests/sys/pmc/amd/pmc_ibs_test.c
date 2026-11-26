@@ -39,16 +39,6 @@
 				    PMC_CAP_PRECISE)
 #define	LOG_WAIT_SECONDS	5
 
-static const struct pmc_classinfo *
-ibs_classinfo(void)
-{
-	const struct pmc_cpuinfo *cpuinfo;
-
-	ATF_REQUIRE_MSG(pmc_cpuinfo(&cpuinfo) == 0,
-	    "pmc_cpuinfo() failed: %s", strerror(errno));
-	return (amd_test_find_classinfo(cpuinfo, PMC_CLASS_IBS));
-}
-
 static void
 skip_unless_ibs(void)
 {
@@ -64,7 +54,7 @@ skip_unless_ibs(void)
 	    CPUID_IBSID_FETCHSAM | CPUID_IBSID_OPSAM))
 		atf_tc_skip("CPU lacks IBS Fetch or Op sampling");
 	amd_test_skip_unless_hwpmc();
-	if (ibs_classinfo() == NULL)
+	if (amd_test_find_classinfo(PMC_CLASS_IBS) == NULL)
 		atf_tc_skip("hwpmc does not expose PMC_CLASS_IBS");
 }
 
@@ -133,7 +123,7 @@ ATF_TC_BODY(class_info, tc)
 	const struct pmc_classinfo *ci;
 
 	skip_unless_ibs();
-	ci = ibs_classinfo();
+	ci = amd_test_find_classinfo(PMC_CLASS_IBS);
 	ATF_CHECK_EQ_MSG(ci->pm_num, 2, "IBS class has %u PMCs", ci->pm_num);
 	ATF_CHECK_EQ_MSG(ci->pm_width, 0, "IBS class width is %u",
 	    ci->pm_width);

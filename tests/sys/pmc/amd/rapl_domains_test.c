@@ -28,18 +28,6 @@
 /* CPU the SC-mode RAPL PMCs are allocated on. */
 #define	RAPL_CPU	0
 
-/* Return the PMC_CLASS_RAPL classinfo, or NULL if it is not registered. */
-static const struct pmc_classinfo *
-rapl_classinfo(void)
-{
-	const struct pmc_cpuinfo *cpuinfo;
-
-	if (pmc_cpuinfo(&cpuinfo) != 0)
-		return (NULL);
-
-	return (amd_test_find_classinfo(cpuinfo, PMC_CLASS_RAPL));
-}
-
 /* Skip unless this is AMD with hwpmc and a registered RAPL class. */
 static void
 skip_unless_rapl(void)
@@ -47,7 +35,7 @@ skip_unless_rapl(void)
 	amd_test_skip_unless_amd();
 	amd_test_skip_unless_hwpmc();
 
-	if (rapl_classinfo() == NULL)
+	if (amd_test_find_classinfo(PMC_CLASS_RAPL) == NULL)
 		atf_tc_skip("PMC_CLASS_RAPL not registered: the RAPL energy "
 		    "MSRs did not respond (VM or unsupported CPU)");
 }
@@ -68,7 +56,7 @@ ATF_TC_BODY(rapl_metadata_names, tc)
 
 	skip_unless_rapl();
 
-	ci = rapl_classinfo();
+	ci = amd_test_find_classinfo(PMC_CLASS_RAPL);
 	ATF_REQUIRE(ci != NULL);
 	/* The driver registers only the rows whose MSR responds. */
 	ATF_CHECK_MSG(ci->pm_num >= 1 && ci->pm_num <= 2,
