@@ -2125,6 +2125,7 @@ in6_if_up(struct ifnet *ifp)
 			 * We may be able to skip the random delay in this
 			 * case, but we impose delays just in case.
 			 */
+			in6_ifa_need_dad(ia);
 			nd6_dad_start(ifa,
 			    arc4random() % (MAX_RTR_SOLICITATION_DELAY * hz));
 		}
@@ -2154,6 +2155,16 @@ SYSINIT(in6_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, in6_init, NULL);
 void
 in6_ifa_need_dad(struct in6_ifaddr *ia)
 {
+	struct ifnet *ifp;
+
+	ifp = ia->ia_ifp;
+	/* Keep it tentative until the interface is ready. */
+	if ((ifp->if_flags & IFF_UP) == 0 ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
+	    (ifp->if_inet6->nd_flags & ND6_IFF_IFDISABLED) != 0) {
+		ia->ia6_flags |= IN6_IFF_TENTATIVE;
+		return;
+	}
 
 	if ((ia->ia6_flags & IN6_IFF_OPTIMISTIC) != 0 ||
 	    (V_ip6_use_optimistic && !V_ip6_forwarding &&

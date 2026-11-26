@@ -518,7 +518,7 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 		if (saddr6 != NULL)
 			ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, saddr6);
 		if (ifa != NULL && (((struct in6_ifaddr *)ifa)->ia6_flags &
-		    IN6_IFF_OPTIMISTIC) != 0) {
+		    (IN6_IFF_NOTREADY | IN6_IFF_OPTIMISTIC)) != 0) {
 			ifa_free(ifa);
 			ifa = NULL;
 		}
@@ -536,7 +536,7 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 			}
 			ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, &ip6->ip6_src);
 			if (ifa != NULL && (((struct in6_ifaddr *)ifa)->ia6_flags &
-			    IN6_IFF_OPTIMISTIC) != 0) {
+			    (IN6_IFF_NOTREADY | IN6_IFF_OPTIMISTIC)) != 0) {
 				ifa_free(ifa);
 				ifa = (struct ifaddr *)in6ifa_ifpforlinklocal(ifp,
 				    IN6_IFF_NOTREADY | IN6_IFF_ANYCAST | IN6_IFF_OPTIMISTIC);
@@ -1737,6 +1737,18 @@ nd6_queue_timer(void *arg)
 	CURVNET_SET(ifp->if_vnet);
 	NET_EPOCH_ENTER(et);
 
+	/*
+	 * An address may have become tentative or duplicated after
+	 * its GRAND advertisement was queued.
+	 */
+	if ((ndq->ndq_flags & ND6_QUEUE_GRAND_MASK) != 0 &&
+	    (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_NOTREADY) != 0) {
+		nd6_queue_rel(ndq);
+		NET_EPOCH_EXIT(et);
+		CURVNET_RESTORE();
+		return;
+	}
+
 	daddr = ndq->ndq_daddr;
 	taddr = ndq->ndq_taddr;
 	tlladdr = ND6_NA_OPT_LLA;
@@ -1760,9 +1772,10 @@ nd6_queue_timer(void *arg)
 		flags |= ND_NA_FLAG_OVERRIDE;
 	/*
 	 * RFC 9131 Section 6.1.2 and RFC 4429 Section 2.2: If the address
-	 * is in the Optimistic state, then the Override flag MUST NOT be set.
+	 * is Optimistic or anycast, the Override flag MUST NOT be set.
 	 */
-	if ((((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_OPTIMISTIC) != 0)
+	if ((((struct in6_ifaddr *)ifa)->ia6_flags &
+	   (IN6_IFF_OPTIMISTIC | IN6_IFF_ANYCAST)) != 0)
 		flags &= ~ND_NA_FLAG_OVERRIDE;
 	/* anycast advertisement delay rule (RFC 4861 7.2.7, SHOULD) */
 	if ((ndq->ndq_flags & ND6_QUEUE_FLAG_ANYCAST) != 0)
@@ -1879,7 +1892,8 @@ nd6_grand_start(struct ifaddr *ifa, uint32_t flags)
 	NET_EPOCH_ASSERT();
 	/* If we don't need GRAND, don't do it. */
 	if (V_ip6_grand_count == 0 ||
-	    ifa->ifa_carp != NULL)
+	    ifa->ifa_carp != NULL ||
+	    (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_NOTREADY) != 0)
 		return;
 
 	/* Check if new address is global */

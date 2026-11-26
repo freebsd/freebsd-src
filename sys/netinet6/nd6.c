@@ -1034,6 +1034,7 @@ nd6_timer(void *arg)
 			 */
 			int delay;
 
+			in6_ifa_need_dad(ia6);
 			delay = arc4random() %
 			    (MAX_RTR_SOLICITATION_DELAY * hz);
 			nd6_dad_start((struct ifaddr *)ia6, delay);

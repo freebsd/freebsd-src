@@ -996,7 +996,6 @@ ndp_slaac_ifid_lladdr_plen128_body() {
 	vnet_init
 
 	jname="v6t-ndp_slaac_ifid_lladdr_plen128"
-
 	epair=$(vnet_mkepair)
 
 	vnet_mkjail ${jname} ${epair}a
@@ -1018,6 +1017,408 @@ ndp_slaac_ifid_lladdr_plen128_cleanup() {
 	vnet_cleanup
 }
 
+check_ifaddr_flag()
+{
+	local jname=$1 ifname=$2 addr=$3 flag=$4
+	local timeout=${5:-50} i
+
+	i=0
+	while [ "$(ifconfig -j ${jname} ${ifname} inet6 | \
+	    grep -c "${addr}.*${flag}")" -eq 0 ]; do
+		if [ ${i} -ge ${timeout} ]; then
+			if [ ${timeout} -ge 50 ]; then
+				# Anything more than 5 seconds means unreliable test
+				atf_expect_fail "Address ${addr} did not become ${flag}"
+			else
+				atf_fail "Address ${addr} did not become ${flag}"
+			fi
+		fi
+		i=$((${i} + 1))
+		sleep 0.1
+	done
+}
+
+get_iface_addr()
+{
+	local jname=$1 ifname=$2 prefix=$3
+
+	ifconfig -j ${jname} ${ifname} inet6 | \
+	    awk -v prefix="${prefix}" \
+	    '$1 == "inet6" && index($2, prefix) == 1 { print $2; exit }'
+}
+
+atf_test_case "ndp_optimistic_slaac" "cleanup"
+ndp_optimistic_slaac_head() {
+	atf_set descr 'SLAAC address is optimistic (usable) while DAD runs'
+	atf_set require.user root
+	atf_set require.progs python3 scapy
+}
+
+ndp_optimistic_slaac_body() {
+	local epair0 jname
+
+	vnet_init
+
+	jname="v6t-ndp_optimistic_slaac"
+	epair0=$(vnet_mkepair)
+
+	vnet_mkjail ${jname} ${epair0}a
+	ndp_if_up ${epair0}a ${jname}
+	ndp_if_up ${epair0}b
+	atf_check ifconfig -j ${jname} ${epair0}a inet6 accept_rtadv
+
+	atf_check -o ignore sysctl net.inet6.ip6.forwarding=1
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.forwarding=0
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.use_optimistic=1
+	# Increase dad window to make optimistic state observable.
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.dad_count=5
+
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair0}b \
+	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
+	    --src $(ndp_if_lladdr ${epair0}b) \
+	    --prefix "2001:db8::" --prefixlen 64
+
+	check_ifaddr_flag ${jname} ${epair0}a "2001:db8::" autoconf
+	check_ifaddr_flag ${jname} ${epair0}a "2001:db8::" optimistic
+
+	atf_check -o match:"2001:db8::.*optimistic" \
+	    -o not-match:"2001:db8::.*tentative" \
+	    ifconfig -j ${jname} ${epair0}a inet6
+}
+
+ndp_optimistic_slaac_cleanup() {
+	vnet_cleanup
+}
+
+atf_test_case "ndp_optimistic_ifdisabled" "cleanup"
+ndp_optimistic_ifdisabled_head() {
+	atf_set descr 'ifdisabled keeps addresses tentative, re-enable restores them'
+	atf_set require.user root
+	atf_set require.progs python3 scapy
+}
+
+ndp_optimistic_ifdisabled_body() {
+	local epair0 jname addr
+
+	vnet_init
+
+	jname="v6t-ndp_optimistic_ifdisabled"
+	epair0=$(vnet_mkepair)
+
+	vnet_mkjail ${jname} ${epair0}a
+	ndp_if_up ${epair0}a ${jname}
+	ndp_if_up ${epair0}b
+	atf_check ifconfig ${epair0}b inet6 2001:db8::1/64 no_dad
+	atf_check ifconfig -j ${jname} ${epair0}a inet6 accept_rtadv
+
+	atf_check -o ignore sysctl net.inet6.ip6.forwarding=1
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.forwarding=0
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.use_optimistic=1
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.dad_count=10
+
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair0}b \
+	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
+	    --src $(ndp_if_lladdr ${epair0}b) \
+	    --prefix "2001:db8::" --prefixlen 64
+
+	while [ `ifconfig -j ${jname} ${epair0}a inet6 | \
+	    grep -c "2001:db8::.*autoconf"` == "0" ]; do
+		sleep 0.1
+	done
+
+	addr=$(ifconfig -j ${jname} ${epair0}a inet6 | \
+	    awk '$2 ~ /^2001:db8::/ { print $2; exit }')
+
+	# The address should initially be optimistic.
+	atf_check -o ignore jexec ${jname} ping -c1 -t1 -S ${addr} 2001:db8::1
+	atf_check -o match:"${addr}.*optimistic" \
+	    -o not-match:"${addr}.*tentative" \
+	    ifconfig -j ${jname} ${epair0}a inet6
+
+	# Optimistic address must become tentative when IPv6 is disabled.
+	atf_check ifconfig -j ${jname} ${epair0}a inet6 ifdisabled
+	atf_check -o match:"${addr}.*tentative" \
+	    ifconfig -j ${jname} ${epair0}a inet6
+	atf_check -s exit:1 -e ignore -o ignore \
+		jexec ${jname} ping -c1 -t1 -S ${addr} 2001:db8::1
+
+	# The ND timer must not make these addresses usable again.
+	sleep 1.1
+	atf_check -o match:"${addr}.*tentative" \
+	    ifconfig -j ${jname} ${epair0}a inet6
+
+	# Interface down/up must not make addresses optimistic with IPv6 disabled.
+	atf_check ifconfig -j ${jname} ${epair0}a down
+	atf_check ifconfig -j ${jname} ${epair0}a up
+
+	atf_check -o match:"${addr}.*tentative" \
+	    ifconfig -j ${jname} ${epair0}a inet6
+
+	# Re-enabling IPv6 should restore Optimistic DAD.
+	atf_check ifconfig -j ${jname} ${epair0}a inet6 -ifdisabled
+
+	while [ `ifconfig -j ${jname} ${epair0}a inet6 | \
+	    grep -c "${addr}.*optimistic"` == "0" ]; do
+		sleep 0.1
+	done
+
+	atf_check -o ignore jexec ${jname} ping -c1 -t1 -S ${addr} 2001:db8::1
+	atf_check -o match:"${addr}.*optimistic" \
+	    -o not-match:"${addr}.*tentative" \
+	    ifconfig -j ${jname} ${epair0}a inet6
+}
+
+ndp_optimistic_ifdisabled_cleanup() {
+	vnet_cleanup
+}
+
+atf_test_case "ndp_optimistic_manual" "cleanup"
+ndp_optimistic_manual_head() {
+	atf_set descr 'Explicit optimistic flag is honoured with use_optimistic=0'
+	atf_set require.user root
+}
+
+ndp_optimistic_manual_body() {
+	local epair0 jname
+
+	vnet_init
+
+	jname="v6t-ndp_optimistic_manual"
+	epair0=$(vnet_mkepair)
+
+	vnet_mkjail ${jname} ${epair0}a
+	ndp_if_up ${epair0}a ${jname}
+	ndp_if_up ${epair0}b
+
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.forwarding=0
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.use_optimistic=0
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.dad_count=5
+
+	atf_check ifconfig -j ${jname} ${epair0}a inet6 \
+	    2001:db8::1/64 optimistic
+
+	atf_check -o match:"2001:db8::1.*optimistic" \
+	    -o not-match:"2001:db8::1.*tentative" \
+	    ifconfig -j ${jname} ${epair0}a inet6
+}
+
+ndp_optimistic_manual_cleanup() {
+	vnet_cleanup
+}
+
+atf_test_case "ndp_optimistic_policy" "cleanup"
+ndp_optimistic_policy_head() {
+	atf_set descr 'Optimistic DAD is disabled by sysctl or forwarding'
+	atf_set require.user root
+}
+
+ndp_optimistic_policy_body() {
+	local epair0 jname
+
+	vnet_init
+
+	jname="v6t-ndp_optimistic_policy"
+	epair0=$(vnet_mkepair)
+
+	vnet_mkjail ${jname} ${epair0}a
+	ndp_if_up ${epair0}a ${jname}
+	ndp_if_up ${epair0}b
+
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.dad_count=5
+
+	# autoconf addresses must remain tentative when use_optimistic=0.
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.forwarding=0
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.use_optimistic=0
+	atf_check ifconfig -j ${jname} ${epair0}a inet6 \
+	    2001:db8::1/64 autoconf
+
+	atf_check -o match:"2001:db8::1.*tentative" \
+	    -o not-match:"2001:db8::1.*optimistic" \
+	    ifconfig -j ${jname} ${epair0}a inet6
+
+	# Routers must not use Optimistic DAD, even when it is enabled.
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.use_optimistic=1
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.forwarding=1
+	atf_check ifconfig -j ${jname} ${epair0}a inet6 \
+	    2001:db8:1::1/64 autoconf
+
+	atf_check -o match:"2001:db8:1::1.*tentative" \
+	    -o not-match:"2001:db8:1::1.*optimistic" \
+	    ifconfig -j ${jname} ${epair0}a inet6
+}
+
+ndp_optimistic_policy_cleanup() {
+	vnet_cleanup
+}
+
+atf_test_case "ndp_optimistic_duplicate" "cleanup"
+ndp_optimistic_duplicate_head() {
+	atf_set descr 'Duplicate detection for an optimistic SLAAC address'
+	atf_set require.user root
+	atf_set require.progs python3 scapy
+}
+
+ndp_optimistic_duplicate_body() {
+	local epair0 jname addr
+
+	vnet_init
+
+	jname="v6t-ndp_optimistic_duplicate"
+	epair0=$(vnet_mkepair)
+
+	vnet_mkjail ${jname} ${epair0}a
+	ndp_if_up ${epair0}a ${jname}
+	ndp_if_up ${epair0}b
+	atf_check ifconfig -j ${jname} ${epair0}a inet6 accept_rtadv
+
+	atf_check -o ignore sysctl net.inet6.ip6.forwarding=1
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.forwarding=0
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.use_optimistic=1
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.dad_count=5
+
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair0}b \
+	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
+	    --src $(ndp_if_lladdr ${epair0}b) \
+	    --prefix "2001:db8::" --prefixlen 64
+
+	check_ifaddr_flag ${jname} ${epair0}a "2001:db8::" optimistic
+	addr=$(get_iface_addr ${jname} ${epair0}a "2001:db8::")
+	if [ -z "${addr}" ]; then
+		atf_fail "No SLAAC address found"
+	fi
+
+	atf_check ifconfig ${epair0}b inet6 2001:db8::1/64 no_dad
+	atf_check -o ignore jexec ${jname} ping -c1 -t1 -S ${addr} 2001:db8::1
+
+	# Configure the same address on the other end without DAD.
+	atf_check ifconfig ${epair0}b inet6 ${addr}/64 no_dad
+
+	check_ifaddr_flag ${jname} ${epair0}a ${addr} duplicated
+	atf_check -s exit:1 -e ignore -o ignore \
+		jexec ${jname} ping -c1 -t1 -S ${addr} 2001:db8::1
+}
+
+ndp_optimistic_duplicate_cleanup() {
+	vnet_cleanup
+}
+
+atf_test_case "ndp_optimistic_ll_duplicate" "cleanup"
+ndp_optimistic_ll_duplicate_head() {
+	atf_set descr 'SLAAC optimistic address becomes tentative when link-local DAD fails'
+	atf_set require.user root
+	atf_set require.progs python3 scapy
+}
+
+ndp_optimistic_ll_duplicate_body() {
+	local epair0 jname addr lladdr lladdr_org
+
+	vnet_init
+
+	jname="v6t-ndp_optimistic_ll_duplicate"
+	epair0=$(vnet_mkepair)
+	vnet_mkjail ${jname} ${epair0}a
+
+	atf_check -o ignore sysctl net.inet6.ip6.forwarding=1
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.forwarding=0
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.use_stableaddr=0
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.dad_count=10
+
+	# Bring up the peer and save its link-local address.
+	ndp_if_up ${epair0}b
+	lladdr_org=$(ndp_if_lladdr ${epair0}b)
+	if [ -z "${lladdr_org}" ]; then
+		atf_fail "No link-local address on ${epair0}b"
+	fi
+
+	atf_check ifconfig -j ${jname} ${epair0}a up
+	atf_check ifconfig -j ${jname} ${epair0}a inet6 -ifdisabled
+	lladdr=$(ndp_if_lladdr ${epair0}a ${jname})
+	if [ -z "${lladdr}" ]; then
+		atf_fail "No link-local address on ${epair0}a"
+	fi
+	check_ifaddr_flag ${jname} ${epair0}a ${lladdr} tentative
+
+	atf_check ifconfig -j ${jname} ${epair0}a inet6 accept_rtadv
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.use_optimistic=1
+
+	# Use a larger count for the SLAAC address.
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.dad_count=20
+
+	# Advertise a prefix while link-local DAD is in progress.
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
+	    --sendif ${epair0}b \
+	    --dst ff02::1 \
+	    --src ${lladdr_org} \
+	    --prefix "2001:db8::" --prefixlen 64
+
+	check_ifaddr_flag ${jname} ${epair0}a "2001:db8::" optimistic
+	addr=$(get_iface_addr ${jname} ${epair0}a "2001:db8::")
+	if [ -z "${addr}" ]; then
+		atf_fail "No SLAAC address found"
+	fi
+
+	atf_check ifconfig ${epair0}b inet6 ${lladdr}/64 no_dad -auto_linklocal
+	atf_check ifconfig ${epair0}b inet6 ${lladdr_org} delete
+
+	# Wait for the local link-local DAD to detect the duplicate.
+	check_ifaddr_flag ${jname} ${epair0}a ${lladdr} duplicated 200
+	atf_check -o match:IFDISABLED \
+	    ifconfig -j ${jname} ${epair0}a
+
+	# SLAAC address must be tentative rather than remain optimistic.
+	check_ifaddr_flag ${jname} ${epair0}a ${addr} tentative
+}
+
+ndp_optimistic_ll_duplicate_cleanup() {
+	vnet_cleanup
+}
+
+atf_test_case "ndp_optimistic_ifdown" "cleanup"
+ndp_optimistic_ifdown_head() {
+	atf_set descr 'Address added while interface is down remains tentative'
+	atf_set require.user root
+}
+
+ndp_optimistic_ifdown_body() {
+	local epair0 jname addr
+
+	vnet_init
+
+	jname="v6t-ndp_optimistic_ifdown"
+	epair0=$(vnet_mkepair)
+	addr="2001:db8:1::1"
+
+	vnet_mkjail ${jname} ${epair0}a
+	ndp_if_up ${epair0}a ${jname}
+	ndp_if_up ${epair0}b
+	atf_check ifconfig ${epair0}b inet6 2001:db8:1::2/64 no_dad
+
+	atf_check -o ignore sysctl net.inet6.ip6.forwarding=1
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.forwarding=0
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.use_optimistic=1
+	atf_check -o ignore sysctl -j ${jname} net.inet6.ip6.dad_count=5
+
+	atf_check ifconfig -j ${jname} ${epair0}a down
+	atf_check ifconfig -j ${jname} ${epair0}a inet6 ${addr}/64 autoconf
+
+	atf_check -o match:"${addr}.*tentative" \
+	    -o not-match:"${addr}.*optimistic" \
+	    ifconfig -j ${jname} ${epair0}a inet6
+
+	# Bringing the interface up should start Optimistic DAD.
+	atf_check ifconfig -j ${jname} ${epair0}a up
+	check_ifaddr_flag ${jname} ${epair0}a ${addr} optimistic
+	atf_check -o ignore jexec ${jname} ping -c1 -t1 -S ${addr} 2001:db8:1::2
+}
+
+ndp_optimistic_ifdown_cleanup() {
+	vnet_cleanup
+}
+
+
 atf_init_test_cases()
 {
 	atf_add_test_case "ndp_add_gu_success"
@@ -1036,4 +1437,11 @@ atf_init_test_cases()
 	atf_add_test_case "ndp_slaac_ifid_lladdr"
 	atf_add_test_case "ndp_slaac_ifid_no_lladdr"
 	atf_add_test_case "ndp_slaac_ifid_lladdr_plen128"
+	atf_add_test_case "ndp_optimistic_slaac"
+	atf_add_test_case "ndp_optimistic_ifdisabled"
+	atf_add_test_case "ndp_optimistic_manual"
+	atf_add_test_case "ndp_optimistic_policy"
+	atf_add_test_case "ndp_optimistic_duplicate"
+	atf_add_test_case "ndp_optimistic_ll_duplicate"
+	atf_add_test_case "ndp_optimistic_ifdown"
 }
