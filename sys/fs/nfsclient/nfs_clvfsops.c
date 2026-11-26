@@ -1268,6 +1268,9 @@ nfs_mount(struct mount *mp)
 	}
 	if (vfs_getopt(mp->mnt_optnew, "syskrb5", NULL, NULL) == 0)
 		newflag |= NFSMNT_SYSKRB5;
+	if (vfs_getopt(mp->mnt_optnew, "sec",
+		(void **) &secname, NULL) == 0)
+		nfs_sec_name(secname, &args.flags);
 	if (vfs_getopt(mp->mnt_optnew, "rdma", (void **)&opt, NULL) ==
 	    0) {
 		ret = sscanf(opt, "%d", &rdma_port);
@@ -1278,6 +1281,17 @@ nfs_mount(struct mount *mp)
 		}
 		if (PMAP_HAS_DMAP == 0) {
 			vfs_mount_error(mp, "RDMA requires a DMAP");
+			error = EINVAL;
+			goto out;
+		}
+		if ((args.flags & (NFSMNT_INTEGRITY | NFSMNT_PRIVACY)) != 0) {
+			vfs_mount_error(mp, "RDMA is not supported for "
+			    "krb5i/krb5p");
+			error = EINVAL;
+			goto out;
+		}
+		if ((newflag & NFSMNT_TLS) != 0) {
+			vfs_mount_error(mp, "RDMA is not supported for TLS");
 			error = EINVAL;
 			goto out;
 		}
@@ -1294,9 +1308,6 @@ nfs_mount(struct mount *mp)
 			args.flags |= NFSMNT_READAHEAD;
 		}
 	}
-	if (vfs_getopt(mp->mnt_optnew, "sec",
-		(void **) &secname, NULL) == 0)
-		nfs_sec_name(secname, &args.flags);
 
 	if (mp->mnt_flag & MNT_UPDATE) {
 		struct nfsmount *nmp = VFSTONFS(mp);
