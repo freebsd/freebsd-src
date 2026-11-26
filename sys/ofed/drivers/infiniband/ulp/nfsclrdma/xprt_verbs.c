@@ -399,6 +399,8 @@ rpcrdma_post_recv(struct rpcrdma_ep *ep, int ind)
 
 	KASSERT(ind >= 0 && ind <= RPCRDMA_IO_NUMBUFS,
 	    ("rpcrdma_post_recv: bogus ind: %d", ind));
+	ib_dma_sync_single_for_device(ep->re_id->device,
+	    ep->re_recv[ind].sge.addr, RPCRDMA_MAX_INLINE, DMA_FROM_DEVICE);
 	init_completion(&ep->re_recv[ind].done);
 	ep->re_recv[ind].async_rc = -ETIMEDOUT;
 	mtx_lock(&ep->re_xp->mtx);
@@ -447,6 +449,8 @@ rpcrdma_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		if (wc->status != IB_WC_WR_FLUSH_ERR)
 			printf("rpcrdma_recv_done: opcode=%d status=%d "
 			    "len=%d\n", wc->opcode, wc->status, wc->byte_len);
+		if (wc->status != IB_WC_WR_FLUSH_ERR)
+			ep->re_upcall(ep->re_xp, NULL);
 		return;
 	}
 
@@ -455,8 +459,12 @@ rpcrdma_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	if (wc->byte_len > ep->re_buflen) {
 		printf("rpcrdma_recv_done: byte_len=%d too large\n",
 		    wc->byte_len);
+		ep->re_upcall(ep->re_xp, NULL);
 		return;
 	}
+
+	ib_dma_sync_single_for_cpu(ep->re_id->device, rs->sge.addr,
+	    RPCRDMA_MAX_INLINE, DMA_FROM_DEVICE);
 
 	/* fill in an mbuf chain with the data. */
 	iov.iov_base = rs->buf;
@@ -471,6 +479,7 @@ rpcrdma_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	m = m_uiotombuf(&uio, M_WAITOK, 0, 0, M_PKTHDR);
 	if (m == NULL) {
 		printf("rpcrdma_recv_done: m_uiotombuf failed\n");
+		ep->re_upcall(ep->re_xp, NULL);
 		return;
 	}
 
@@ -480,6 +489,7 @@ rpcrdma_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		RPCRDMA_DEBUG(1, "rpcrdma_recv_done: rpcrdma_post_recv ind=%d "
 		    "failed=%d\n", rs->ind, rc);
 		m_freem(m);
+		ep->re_upcall(ep->re_xp, NULL);
 		return;
 	}
 	/* Re-enable the receive buffer. */
@@ -497,8 +507,10 @@ rpcrdma_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 static int
 _rpcrdma_get_srcaddr(struct sockaddr *saddr, struct sockaddr_storage *srcaddr)
 {
+#if defined(INET) || defined(INET6)
 	struct nhop_object *nh = NULL;
 	struct epoch_tracker et;
+#endif
 #ifdef INET
 	struct sockaddr_in *sin;
 #endif
@@ -523,10 +535,10 @@ _rpcrdma_get_srcaddr(struct sockaddr *saddr, struct sockaddr_storage *srcaddr)
 			return (-1);
 		}
 		memcpy(srcaddr, nh->nh_ifa->ifa_addr, sizeof(*sin));
-		NET_EPOCH_EXIT(et);
-		CURVNET_RESTORE();
 		RPCRDMA_DEBUG(3, "_rpcrdma_get_srcaddr: NIC to be used %s\n",
 		    nh->nh_ifp->if_xname);
+		NET_EPOCH_EXIT(et);
+		CURVNET_RESTORE();
 		return (0);
 #endif
 #ifdef INET6
@@ -546,11 +558,11 @@ _rpcrdma_get_srcaddr(struct sockaddr *saddr, struct sockaddr_storage *srcaddr)
 			CURVNET_RESTORE();
 			return (-1);
 		}
-		memcpy(srcaddr, nh->nh_ifa->ifa_addr, sizeof(*sin));
-		NET_EPOCH_EXIT(et);
-		CURVNET_RESTORE();
+		memcpy(srcaddr, nh->nh_ifa->ifa_addr, sizeof(*sin6));
 		RPCRDMA_DEBUG(3, "_rpcrdma_get_srcaddr: NIC to be used %s\n",
 		    nh->nh_ifp->if_xname);
+		NET_EPOCH_EXIT(et);
+		CURVNET_RESTORE();
 		return (0);
 #endif
 	default:
@@ -1134,6 +1146,7 @@ xprt_rdma_release_send(struct rpcrdma_xprt *xp, int ind,
 		chp = (struct _rpcrdma_chunk_priv *)extern_reply_chp;
 		if (ep != NULL)
 			rpcrdma_unmap(ep, chp, stat);
+		m_freem(chp->ch.mextpg);
 		kfree(chp);
 	}
 	if (extern_request_chp != NULL) {
@@ -1163,6 +1176,10 @@ xprt_rdma_send(struct rpcrdma_xprt *xp, struct mbuf *mreq, int ind)
 		return (EPIPE);
 	}
 
+	if (mreq->m_pkthdr.len > RPCRDMA_MAX_INLINE) {
+		m_freem(mreq);
+		return (EMSGSIZE);
+	}
 
 	/*
 	 * The smallest request is an RPC_NOMSG with 1 Read chunk for the
@@ -1173,7 +1190,11 @@ xprt_rdma_send(struct rpcrdma_xprt *xp, struct mbuf *mreq, int ind)
 	    mreq->m_pkthdr.len));
 	RPCRDMA_DEBUG(1, "xprt_rdma_send: Send data len=%d ind=%d\n",
 	    mreq->m_pkthdr.len, ind);
+	ib_dma_sync_single_for_cpu(ep->re_id->device,
+	    ep->re_send[ind].sge.addr, RPCRDMA_MAX_INLINE, DMA_TO_DEVICE);
 	m_copydata(mreq, 0, mreq->m_pkthdr.len, ep->re_send[ind].buf);
+	ib_dma_sync_single_for_device(ep->re_id->device,
+	    ep->re_send[ind].sge.addr, RPCRDMA_MAX_INLINE, DMA_TO_DEVICE);
 
 	/* Fill in the ib_send_wr. */
 	ep->re_send[ind].sge.length = mreq->m_pkthdr.len;

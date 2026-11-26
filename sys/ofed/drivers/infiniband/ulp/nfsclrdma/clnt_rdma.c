@@ -935,7 +935,13 @@ got_reply:
 		    xid, rdma_xid, rdma_vers);
 		goto cannotdecode;
 	}
+	if (rdma_credit == 0) {
+		clnt_rdma_upcall(&crdma->crdma_xp, NULL);
+		goto cannotdecode;
+	}
+	mtx_lock(&crdma->crdma_lock);
 	crdma->crdma_xp.credits = rdma_credit;
+	mtx_unlock(&crdma->crdma_lock);
 	reply_max = reply_chp != NULL ?
 	    m_length(reply_chp->mextpg, NULL) : 0;
 	reply_chunks[READLIST] = chunks[READLIST];
