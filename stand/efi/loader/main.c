@@ -2049,7 +2049,7 @@ command_chain(int argc, char *argv[])
 	}
 #endif
 
-	if (fstat(fd, &st) < -1) {
+	if (fstat(fd, &st) < 0) {
 		command_errmsg = "stat failed";
 		close(fd);
 		return (CMD_ERROR);
