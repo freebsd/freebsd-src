@@ -37,6 +37,18 @@ struct rpcrdma_xprt {
 #define	RPCRDMA_MAX_SEGMENTS	16	/* Limit from RFC8267. */
 #define	RPCRDMA_MAX_INLINE	1024	/* Limit from RFC8267. */
 
+#ifndef BYTES_PER_XDR_UNIT
+#define	BYTES_PER_XDR_UNIT	4
+#endif
+#define	RPCRDMA_HEADER_LEN(r, w, c)								\
+    (4 * BYTES_PER_XDR_UNIT +							\
+     ((r) > 0 ? (r) * 6 * BYTES_PER_XDR_UNIT + BYTES_PER_XDR_UNIT :			\
+      BYTES_PER_XDR_UNIT) +								\
+     ((w) > 0 ? (w) * 4 * BYTES_PER_XDR_UNIT + 3 * BYTES_PER_XDR_UNIT :		\
+      BYTES_PER_XDR_UNIT) +							\
+     ((c) > 0 ? (c) * 4 * BYTES_PER_XDR_UNIT + 2 * BYTES_PER_XDR_UNIT :		\
+      BYTES_PER_XDR_UNIT))
+
 /*
  * Since I/O sizes are always a power of 2 and RPCRDMA_MAX_SEGMENTS is a
  * power of 2, RPCRDMA_MAX_SGE must be a power of 2 plus 1.
