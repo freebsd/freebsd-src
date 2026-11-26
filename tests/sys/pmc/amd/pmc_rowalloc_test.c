@@ -83,6 +83,7 @@ skip_unless_ready(void)
 
 	amd_test_skip_unless_zen(&cpu);
 	amd_test_skip_unless_hwpmc();
+	amd_test_skip_unless_class(PMC_CLASS_AMD);
 	if (!pmc_pmu_enabled())
 		atf_tc_skip("pmu-events not enabled");
 }

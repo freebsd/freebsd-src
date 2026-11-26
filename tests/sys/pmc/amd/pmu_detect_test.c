@@ -9,7 +9,8 @@
 /*
  * Checks that hwpmc registers the AMD core PMU on Zen CPUs: the K8 class is
  * present with 48-bit counters and at least six core rows, alongside the
- * TSC class.
+ * TSC class.  bhyve clears PerfCtrExtCore and KVM sets it only with a vPMU,
+ * so the cases are gated on that bit rather than on the class.
  */
 
 #include <sys/param.h>
@@ -40,6 +41,7 @@ ATF_TC_BODY(pmu_detect_k8_class_present, tc)
 	struct amd_test_cpu cpu;
 
 	amd_test_skip_unless_zen(&cpu);
+	amd_test_skip_unless_perfctr_extcore();
 	amd_test_skip_unless_hwpmc();
 
 	ATF_REQUIRE_MSG(pmc_cpuinfo(&cpuinfo) == 0,
@@ -63,6 +65,7 @@ ATF_TC_BODY(pmu_detect_counter_width, tc)
 	struct amd_test_cpu cpu;
 
 	amd_test_skip_unless_zen(&cpu);
+	amd_test_skip_unless_perfctr_extcore();
 	amd_test_skip_unless_hwpmc();
 
 	ATF_REQUIRE_MSG(pmc_cpuinfo(&cpuinfo) == 0,
@@ -112,6 +115,7 @@ ATF_TC_BODY(pmu_detect_tsc_class_coexists, tc)
 	struct amd_test_cpu cpu;
 
 	amd_test_skip_unless_zen(&cpu);
+	amd_test_skip_unless_perfctr_extcore();
 	amd_test_skip_unless_hwpmc();
 
 	ATF_REQUIRE_MSG(pmc_cpuinfo(&cpuinfo) == 0,

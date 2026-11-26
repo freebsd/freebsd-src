@@ -243,6 +243,23 @@ amd_test_find_classinfo(const struct pmc_cpuinfo *cpuinfo, enum pmc_class cl)
 	return (NULL);
 }
 
+/*
+ * hwpmc_amd registers its classes only after amd_hwcheck() passes, so a
+ * missing class means there are no usable counters (a guest without a PMU,
+ * or counters held by firmware).
+ */
+static inline void
+amd_test_skip_unless_class(enum pmc_class cl)
+{
+	const struct pmc_cpuinfo *cpuinfo;
+
+	ATF_REQUIRE_MSG(pmc_cpuinfo(&cpuinfo) == 0,
+	    "pmc_cpuinfo() failed: %s", strerror(errno));
+	if (amd_test_find_classinfo(cpuinfo, cl) == NULL)
+		atf_tc_skip("hwpmc did not register %s",
+		    pmc_name_of_class(cl));
+}
+
 static inline size_t
 amd_test_count_pmc_rows_with_prefix(int cpu, const char *prefix)
 {

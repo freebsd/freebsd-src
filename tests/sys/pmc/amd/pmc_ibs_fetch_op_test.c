@@ -263,6 +263,7 @@ setup(void)
 	    (CPUID_IBSID_FETCHSAM | CPUID_IBSID_OPSAM))
 		atf_tc_skip("CPU lacks IBS Fetch or Op sampling");
 	amd_test_skip_unless_hwpmc();
+	amd_test_skip_unless_class(PMC_CLASS_IBS);
 
 	ATF_REQUIRE(cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
 	    sizeof(mask), &mask) == 0);
