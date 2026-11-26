@@ -2586,6 +2586,7 @@ geneve_encap4(struct geneve_softc *sc, const union sockaddr_union *funsa,
 		 */
 		memset(&route, 0, sizeof(route));
 		ro = &route;
+		ro->ro_flags = RT_NH_NOREF;
 		sin = (struct sockaddr_in *)&ro->ro_dst;
 		sin->sin_family = AF_INET;
 		sin->sin_len = sizeof(*sin);
@@ -2721,6 +2722,7 @@ geneve_encap6(struct geneve_softc *sc, const union sockaddr_union *funsa,
 		 */
 		memset(&route, 0, sizeof(route));
 		ro = &route;
+		ro->ro_flags = RT_NH_NOREF;
 		sin6 = (struct sockaddr_in6 *)&ro->ro_dst;
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_len = sizeof(*sin6);
