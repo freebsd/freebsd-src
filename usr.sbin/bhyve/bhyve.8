@@ -853,6 +853,24 @@ Version of the TPM device according to the TCG specification.
 Defaults to
 .Cm 2.0 ,
 which is the only version currently supported.
+.It Cm ctrl_path= Ns Ar path
+Path of the UNIX domain socket that
+.Cm swtpm
+was given as its control channel, via
+.Cm --ctrl Cm type=unixio,path= Ns Ar path .
+Only meaningful for the
+.Cm swtpm
+backend.
+.Pp
+This is required for
+.Nm
+to tell
+.Cm swtpm
+to reinitialise the TPM as the virtual machine starts, which resets the
+platform configuration registers just as a cold boot of a physical machine
+would.
+It is required for guests using measured boot such as Windows with BitLocker
+and Secure Boot enabled.
 .El
 .Pp
 When using a TPM with UEFI firmware, the boot ROM should be configured

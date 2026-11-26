@@ -685,7 +685,7 @@ node rather than under the LPC TPM device's node.
 Only one TPM device is supported.
 The following nodes are available under
 .Va tpm :
-.Bl -column "tpm.version" "Format" "Default"
+.Bl -column "tpm.ctrl_path" "Format" "Default"
 .It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
 .It Va tpm.path Ta string Ta Ta
 Path to the TPM backend.
@@ -696,6 +696,12 @@ this is either the host TPM device, typically
 or any UNIX domain socket on which a
 .Cm swtpm
 process is listening.
+.It Va tpm.ctrl_path Ta string Ta Ta
+Path to the
+.Cm swtpm
+control socket.
+When set, the TPM is reset each time the guest starts, so a reboot clears PCRs.
+This is required for guests using measured boot.
 .It Va tpm.type Ta string Ta Ta
 Type of the TPM device passed to the guest.
 This can be either
