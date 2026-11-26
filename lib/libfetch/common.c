@@ -458,9 +458,9 @@ fetch_socks5_init(conn_t *conn, const char *host, int port, int verbose)
 	memcpy(ptr, host, strlen(host));
 	ptr = ptr + strlen(host);
 
-	port = htons(port);
-	*ptr++ = port & 0x00ff;
-	*ptr++ = (port & 0xff00) >> 8;
+	/* port in network byte order, independent of the host's */
+	*ptr++ = (port >> 8) & 0xff;
+	*ptr++ = port & 0xff;
 
 	if (fetch_write(conn, buf, ptr - buf) != ptr - buf) {
 		ret = SOCKS5_ERR_REQUEST;
@@ -554,7 +554,8 @@ fetch_socks5_getenv(char **host, int *port)
 			return (0);
 		}
 	} else {
-		*host = strndup(socks5env, ext - socks5env);
+		*host = ext == NULL ? strdup(socks5env) :
+		    strndup(socks5env, ext - socks5env);
 	}
 
 	if (*host == NULL)
