@@ -40,7 +40,7 @@ multi_read_body()
 	ifconfig ${epair}a inet 192.0.2.1/24 up
 
 	vnet_mkjail alcatraz ${epair}b
-	jexec alcatraz ifconfig ${epair}b inet 192.0.2.2/24 up
+	ifconfig -j alcatraz ${epair}b inet 192.0.2.2/24 up
 
 	atf_check -s exit:0 -o ignore \
 	    ping -c 1 192.0.2.2
@@ -69,14 +69,17 @@ inject_body()
 {
 	vnet_init
 
-	if sysctl -q kern.features.rss >/dev/null; then
-		atf_skip "This test is flaky with RSS"
-	fi
-
 	epair=$(vnet_mkepair)
 	ifconfig ${epair}a inet 192.0.2.1/24 up
 	vnet_mkjail alcatraz ${epair}b
-	jexec alcatraz ifconfig ${epair}b inet 192.0.2.2/24 up
+	ifconfig -j alcatraz ${epair}b inet 192.0.2.2/24 up
+	# Static ARP entries keep ARP out of the captures.  With RSS the
+	# epair queues ARP frames apart from the IP flow and may deliver
+	# them out of order with it.
+	arp -s 192.0.2.2 $(ifconfig -j alcatraz ${epair}b ether | \
+	    awk '/ether/{print $2}')
+	arp -j alcatraz -s 192.0.2.1 $(ifconfig ${epair}a ether | \
+	    awk '/ether/{print $2}')
 
 	in=$(pwd)/$(mktemp in.pcap.XXXXXXXXXX)
 	in2=$(pwd)/$(mktemp in2.pcap.XXXXXXXXXX)
@@ -85,7 +88,7 @@ inject_body()
 	# write dump on jail side, with "in" direction
 	jexec alcatraz $(atf_get_srcdir)/pcap-test \
 	    capture epair0b $in 3 in > out & pid=$!
-	while ! jexec alcatraz netstat -B | grep -q epair0b.*pcap-test; do
+	while ! netstat -j alcatraz -B | grep -q epair0b.*pcap-test; do
 		sleep 0.01;
 	done
 	atf_check -s exit:0 -o ignore ping -c 3 -i 0.1 192.0.2.2
@@ -95,7 +98,7 @@ inject_body()
 	# inject dump on host side, recording on both sides
 	jexec alcatraz $(atf_get_srcdir)/pcap-test \
 	    capture epair0b $in2 3 in > jout & jpid=$!
-	while ! jexec alcatraz netstat -B | grep -q epair0b.*pcap-test; do
+	while ! netstat -j alcatraz -B | grep -q epair0b.*pcap-test; do
 		sleep 0.01;
 	done
 	$(atf_get_srcdir)/pcap-test \
