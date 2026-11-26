@@ -60,6 +60,7 @@ add_pair(const char *name, const char *nvlist, const char *key,
 
 	data = NULL;
 	rv = EINVAL;
+	errno = 0;
 	if (strcmp(type, "DATA_TYPE_STRING") == 0) {
 		data = __DECONST(void *, value);
 		size = strlen(data) + 1;
@@ -145,7 +146,7 @@ add_pair(const char *name, const char *nvlist, const char *key,
 				v = 1;
 			else if (strcasecmp(value, "NO") == 0)
 				v = 0;
-			if (strcasecmp(value, "true") == 0)
+			else if (strcasecmp(value, "true") == 0)
 				v = 1;
 			else if (strcasecmp(value, "false") == 0)
 				v = 0;
@@ -166,13 +167,12 @@ done:
 static int
 delete_pair(const char *name, const char *nvlist, const char *key)
 {
-	void *nv;
+	void *nv = NULL;
 	int rv;
 
 	rv = lzbe_nvlist_get(name, nvlist, &nv);
-	if (rv == 0) {
+	if (rv == 0)
 		rv = lzbe_remove_pair(nv, key);
-	}
 	if (rv == 0)
 		rv = lzbe_nvlist_set(name, nvlist, nv);
 
@@ -297,7 +297,8 @@ main(int argc, char * const *argv)
 	}
 
 	if (print) {
-		rv = lzbe_bootenv_print(name, nvlist, stdout);
+		if (lzbe_bootenv_print(name, nvlist, stdout) != 0)
+			rv = 1;
 	}
 
 	exit(rv != 0);
