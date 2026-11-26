@@ -538,7 +538,7 @@ function config.processFile(name, silent)
 		return silent
 	end
 
-	if name:match(".lua$") then
+	if name:match("%.lua$") then
 		local cfg_env = setmetatable({}, {
 			indices = {},
 			__index = function(env, key)

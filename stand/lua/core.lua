@@ -77,7 +77,7 @@ function try_include(module)
 		-- to treat this like it would require() and specify just the
 		-- base filename, or they know what they're doing as they've
 		-- specified an absolute path and we shouldn't impede.
-		if module:match(".lua$") == nil then
+		if module:match("%.lua$") == nil then
 			module = module .. ".lua"
 		end
 	end
