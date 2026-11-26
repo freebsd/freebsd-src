@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 16, 2025
+.Dd November 26, 2026
 .Dt ARP 8
 .Os
 .Sh NAME
@@ -34,31 +34,38 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl -libxo Ar options
+.Op Fl j Ar jail
 .Op Fl n
 .Op Fl i Ar interface
 .Ar hostname
 .Nm
 .Op Fl -libxo Ar options
+.Op Fl j Ar jail
 .Op Fl n
 .Op Fl i Ar interface
 .Fl a
 .Nm
+.Op Fl j Ar jail
 .Fl d Ar hostname
 .Nm
+.Op Fl j Ar jail
 .Fl d
 .Op Fl i Ar interface
 .Fl a
 .Nm
+.Op Fl j Ar jail
 .Fl s Ar hostname ether_addr
 .Op Cm temp
 .Op Cm blackhole No \&| Cm reject
 .Op Cm pub
 .Nm
+.Op Fl j Ar jail
 .Fl S Ar hostname ether_addr
 .Op Cm temp
 .Op Cm blackhole No \&| Cm reject
 .Op Cm pub
 .Nm
+.Op Fl j Ar jail
 .Fl f Ar filename
 .Sh DESCRIPTION
 The
@@ -107,6 +114,20 @@ entries on
 .Ar interface .
 Applicable only to the following operations:
 display one, display all, delete all.
+.It Fl j Ar jail
+Perform the operation inside the jail with the given name or JID.
+This is meant for
+.Va vnet
+jails, which have their own network stack and
+.Tn ARP
+table; see
+.Xr jail 8 .
+.Pp
+Host names are resolved inside the jail, using its name service
+configuration and network stack.
+Use numeric addresses and the
+.Fl n
+flag if the jail cannot resolve names.
 .It Fl n
 Show network addresses as numbers (normally
 .Nm
@@ -179,6 +200,13 @@ Leading whitespace and empty lines are ignored.
 A
 .Ql #
 character will mark the rest of the line as a comment.
+.Pp
+With
+.Fl j ,
+the file is opened before attaching to the jail, so
+.Ar filename
+is looked up outside the jail.
+It must be a regular file or a pipe.
 .El
 .Sh SEE ALSO
 .Xr inet 3 ,
@@ -186,6 +214,7 @@ character will mark the rest of the line as a comment.
 .Xr arp 4 ,
 .Xr xo_options 7 ,
 .Xr ifconfig 8 ,
+.Xr jail 8 ,
 .Xr ndp 8
 .Sh HISTORY
 The

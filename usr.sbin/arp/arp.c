@@ -40,8 +40,10 @@
 #include <sys/file.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/ioctl.h>
+#include <sys/jail.h>
 #include <sys/time.h>
 
 #include <net/if.h>
@@ -66,6 +68,9 @@
 #include <strings.h>
 #include <unistd.h>
 #include <ifaddrs.h>
+#ifdef JAIL
+#include <jail.h>
+#endif
 #include <libxo/xo.h>
 #include "arp.h"
 
@@ -78,7 +83,7 @@ static int delete(char *host);
 static void usage(void) __dead2;
 static int set(int argc, char **argv);
 static int get(char *host);
-static int file(char *name);
+static int file(FILE *fp);
 static struct rt_msghdr *rtmsg(int cmd,
     struct sockaddr_in *dst, struct sockaddr_dl *sdl);
 static int set_rtsock(struct sockaddr_in *dst, struct sockaddr_dl *sdl_m,
@@ -104,12 +109,18 @@ main(int argc, char *argv[])
 {
 	int ch, func = 0;
 	int rtn = 0;
+	FILE *fp = NULL;
+#ifdef JAIL
+	char *jail_name = NULL;
+	struct stat sb;
+	int jid;
+#endif
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
 		exit(1);
 
-	while ((ch = getopt(argc, argv, "andfsSi:")) != -1)
+	while ((ch = getopt(argc, argv, "andfsSi:j:")) != -1)
 		switch(ch) {
 		case 'a':
 			opts.aflag = true;
@@ -132,12 +143,48 @@ main(int argc, char *argv[])
 		case 'i':
 			opts.rifname = optarg;
 			break;
+		case 'j':
+#ifdef JAIL
+			jail_name = optarg;
+#else
+			xo_errx(1, "Jail support is not compiled in");
+#endif
+			break;
 		case '?':
 		default:
 			usage();
 		}
 	argc -= optind;
 	argv += optind;
+
+	/* The file is named relative to the caller, not to the jail. */
+	if (func == F_FILESET) {
+		if (argc != 1)
+			usage();
+		if ((fp = fopen(argv[0], "r")) == NULL)
+			xo_err(1, "cannot open %s", argv[0]);
+	}
+
+#ifdef JAIL
+	if (jail_name != NULL) {
+		/*
+		 * Jailed root can trace us once we are attached and use fp,
+		 * so do not carry a directory or device into the jail.
+		 */
+		if (fp != NULL) {
+			if (fstat(fileno(fp), &sb) != 0)
+				xo_err(1, "%s", argv[0]);
+			if (!S_ISREG(sb.st_mode) && !S_ISFIFO(sb.st_mode))
+				xo_errx(1, "%s: not a regular file or pipe",
+				    argv[0]);
+		}
+		jid = jail_getid(jail_name);
+		if (jid == -1)
+			xo_errx(1, "%s", jail_errmsg);
+		if (jail_attach(jid) != 0)
+			xo_err(1, "cannot attach to jail %s", jail_name);
+	}
+#endif
 
 	if (!func)
 		func = F_GET;
@@ -197,9 +244,7 @@ main(int argc, char *argv[])
 		}
 		break;
 	case F_FILESET:
-		if (argc != 1)
-			usage();
-		rtn = file(argv[0]);
+		rtn = file(fp);
 		break;
 	}
 
@@ -213,14 +258,11 @@ main(int argc, char *argv[])
  * Process a file to set standard arp entries
  */
 static int
-file(char *name)
+file(FILE *fp)
 {
-	FILE *fp;
 	int i, retval;
 	char line[100], arg[5][50], *args[5], *p;
 
-	if ((fp = fopen(name, "r")) == NULL)
-		xo_err(1, "cannot open %s", name);
 	args[0] = &arg[0][0];
 	args[1] = &arg[1][0];
 	args[2] = &arg[2][0];
@@ -726,14 +768,16 @@ nuke_entries(uint32_t ifindex, struct in_addr addr)
 static void
 usage(void)
 {
-	xo_error("%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-	    "usage: arp [-n] [-i interface] hostname",
-	    "       arp [-n] [-i interface] -a",
-	    "       arp -d hostname [pub]",
-	    "       arp -d [-i interface] -a",
-	    "       arp -s hostname ether_addr [temp] [reject | blackhole] [pub [only]]",
-	    "       arp -S hostname ether_addr [temp] [reject | blackhole] [pub [only]]",
-	    "       arp -f filename");
+	xo_error("%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+	    "usage: arp [-j jail] [-n] [-i interface] hostname",
+	    "       arp [-j jail] [-n] [-i interface] -a",
+	    "       arp [-j jail] -d hostname [pub]",
+	    "       arp [-j jail] -d [-i interface] -a",
+	    "       arp [-j jail] -s hostname ether_addr [temp] [reject | blackhole]",
+	    "           [pub [only]]",
+	    "       arp [-j jail] -S hostname ether_addr [temp] [reject | blackhole]",
+	    "           [pub [only]]",
+	    "       arp [-j jail] -f filename");
 	exit(1);
 }
 

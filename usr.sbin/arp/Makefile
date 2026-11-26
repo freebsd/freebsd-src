@@ -14,6 +14,11 @@ CFLAGS+=-DWITHOUT_NETLINK
 
 LIBADD=	xo
 
+.if ${MK_JAIL} != "no"
+CFLAGS+=-DJAIL
+LIBADD+=	jail
+.endif
+
 WARNS?=	3
 
 .include <bsd.prog.mk>
