@@ -1491,6 +1491,7 @@ wpa_driver_bsd_add_scan_entry(struct wpa_scan_results *res,
 	 * the reported noise floor. see ieee80211_node.h for details.
 	 */
 	result->level = sr->isr_rssi / 2 + sr->isr_noise;
+	result->flags |= WPA_SCAN_LEVEL_DBM;
 #else
 	result->level = sr->isr_rssi;
 #endif
