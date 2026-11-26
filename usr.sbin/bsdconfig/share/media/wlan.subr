@@ -1,6 +1,6 @@
 if [ ! "$_MEDIA_WLAN_SUBR" ]; then _MEDIA_WLAN_SUBR=1
 #
-# Copyright (c) 2013-2016 Devin Teske
+# Copyright (c) 2013-2026 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -125,6 +125,41 @@ WPA_NETWORK_LIST_PROPERTIES="
 	key_mgmt
 	pairwise
 	proto
+" # END-QUOTE
+
+#
+# The following properties are numbers and as such should not be quoted when
+# written to wpa_supplicant.conf(5). Everything else (sans Lists) is quoted.
+#
+WPA_NETWORK_INT_PROPERTIES="
+	eap_workaround
+	eapol_flags
+	engine
+	frequency
+	mixed_cell
+	mode
+	pcsc
+	priority
+	scan_ssid
+	wep_tx_keyidx
+	wpa_ptk_rekey
+" # END-QUOTE
+
+#
+# The following properties are sensitive and as such should never be echoed
+# back to the user in cleartext (e.g., in a menu, prompt, or other display).
+#
+WPA_NETWORK_SECRET_PROPERTIES="
+	eappsk
+	password
+	pin
+	private_key2_passwd
+	private_key_passwd
+	psk
+	wep_key0
+	wep_key1
+	wep_key2
+	wep_key3
 " # END-QUOTE
 
 #
@@ -290,6 +325,177 @@ f_wpa_supplicant_parse()
 		set_value(struct, prop, value)
 	}
 	END { if (count_var) print count_var "=" count }' "$file" )"
+}
+
+# f_wpa_network_block WPA_NETWORK $var_to_set
+#
+# Serialize a wireless network configuration (defined as a WPA_NETWORK struct;
+# see struct.subr for additional details) into the text of a network={ ... }
+# block suitable for wpa_supplicant.conf(5), stored in $var_to_set. Properties
+# that are NULL or unset are omitted.
+#
+# Properties listed in $WPA_NETWORK_LIST_PROPERTIES or
+# $WPA_NETWORK_INT_PROPERTIES (see the GLOBALS section above) are written
+# without quotes. The `wep_keyN' properties are written verbatim because
+# quoting, if/when present, distinguishes an ASCII key from a raw hexadecimal
+# key. A `psk' of exactly 64 hexadecimal digits is written without quotes,
+# distinguishing a raw pre-shared key from a passphrase. Everything else is
+# quoted.
+#
+# NB: An `ssid' containing a backslash is taken to be printf(3)-encoded (the
+# format produced by wpa_cli(8) `scan_results'; e.g., `\xc3\xa9' or `\e') and
+# is written using the P"..." syntax of wpa_supplicant.conf(5) so the decoded
+# byte sequence -- not the escape sequence itself -- is matched on-air.
+#
+f_wpa_network_block()
+{
+	local __struct="$1" __var_to_set="$2" debug=
+	local __member __val __line __block="network={"
+	local __unquoted="$WPA_NETWORK_LIST_PROPERTIES"
+	__unquoted="$__unquoted$WPA_NETWORK_INT_PROPERTIES"
+
+	f_struct "$__struct" || return $FAILURE
+	for __member in $_struct_typedef_WPA_NETWORK; do
+		debug= $__struct get $__member __val && [ "$__val" ] ||
+			continue
+		case "$__unquoted" in
+		*"	$__member$NL"*) # List/Number; write unquoted
+			__block="$__block$NL	$__member=$__val"
+			continue
+		esac
+		case "$__member" in
+		ssid) # Quoted unless printf(3)-encoded by wpa_cli(8)
+			case "$__val" in
+			*\\*) __line="ssid=P\"$__val\"" ;;
+			*) __line="ssid=\"$__val\""
+			esac ;;
+		psk) # Passphrase is quoted; raw pre-shared key is not
+			case "$__val" in
+			*[![:xdigit:]]*) __line="psk=\"$__val\"" ;;
+			*)
+				if [ ${#__val} -eq 64 ]; then
+					__line="psk=$__val"
+				else
+					__line="psk=\"$__val\""
+				fi
+			esac ;;
+		wep_key[0-9]*) # Verbatim; quoting denotes an ASCII key
+			__line="$__member=$__val" ;;
+		*)
+			__line="$__member=\"$__val\""
+		esac
+		__block="$__block$NL	$__line"
+	done
+	__val= __line= # sensitive info
+	__block="$__block$NL}"
+	setvar "$__var_to_set" "$__block"
+}
+
+# f_wpa_supplicant_network_write $file WPA_NETWORK
+#
+# Append a wireless network configuration (defined as a WPA_NETWORK struct;
+# see struct.subr for additional details) to wpa_supplicant.conf(5) $file. If
+# $file is NULL, the rc.conf(5) `wpa_supplicant_conf_file' setting is used.
+# If $file does not exist, it is first created via f_wpa_supplicant_init().
+#
+f_wpa_supplicant_network_write()
+{
+	local conf_file="$1" struct="$2" block
+
+	[ "$conf_file" ] ||
+		conf_file=$( f_sysrc_get wpa_supplicant_conf_file )
+	[ -e "$conf_file" ] ||
+		f_wpa_supplicant_init "$conf_file" || return $FAILURE
+	f_wpa_network_block "$struct" block || return $FAILURE
+	printf '%s\n\n' "$block" >> "$conf_file"
+}
+
+# f_wpa_supplicant_network_replace $file $n [WPA_NETWORK]
+#
+# Replace the $n-th network={ ... } block in wpa_supplicant.conf(5) $file with
+# the contents of a wireless network configuration (defined as a WPA_NETWORK
+# struct; see struct.subr for additional details). Network blocks are numbered
+# from 1 in the order they appear, counting only blocks containing at least
+# one property -- the same order f_wpa_supplicant_parse() assigns to its
+# `{struct_prefix}N' structs. If $file is NULL, the rc.conf(5)
+# `wpa_supplicant_conf_file' setting is used.
+#
+# If the WPA_NETWORK struct argument is missing or NULL, the $n-th network
+# block is instead removed. If $n exceeds the number of network blocks in
+# $file, the replacement is appended.
+#
+# All other contents of $file (default overrides, blobs, custom definitions,
+# and comments) are preserved.
+#
+f_wpa_supplicant_network_replace()
+{
+	local funcname=f_wpa_supplicant_network_replace
+	local conf_file="$1" n="$2" struct="$3"
+	local block= tmpfile
+
+	[ "$conf_file" ] ||
+		conf_file=$( f_sysrc_get wpa_supplicant_conf_file )
+	if [ ! -e "$conf_file" ]; then
+		f_dprintf "%s: No such file or directory" "$conf_file"
+		return $FAILURE
+	fi
+	f_isinteger "$n" || return $FAILURE
+	if [ "$struct" ]; then
+		f_wpa_network_block "$struct" block || return $FAILURE
+	fi
+
+	# Create a temporary file
+	f_eval_catch -k tmpfile $funcname mktemp 'mktemp -t "%s"' "$pgm" ||
+		return $FAILURE
+
+	# Make it unreadable by anyone but ourselves
+	f_eval_catch $funcname chmod \
+		'chmod 0600 "%s"' "$tmpfile" || return $FAILURE
+
+	# Make it owned by root/wheel
+	f_eval_catch $funcname chown \
+		'chown 0:0 "%s"' "$tmpfile" || return $FAILURE
+
+	#
+	# Splice the replacement block into a copy of $file. The block text
+	# rides in on the environment -- unlike `-v', ENVIRON[] does not
+	# mangle backslash sequences in property values.
+	#
+	if ! WPA_NETWORK_BLOCK="$block" WPA_NETWORK_INDEX="$n" awk '
+	BEGIN {
+		block = ENVIRON["WPA_NETWORK_BLOCK"]
+		target = ENVIRON["WPA_NETWORK_INDEX"] + 0
+		count = 0
+	}
+	function emit()
+	{
+		if (block != "") print block
+	}
+	$1 ~ /^network={/ { inblock = 1; buf = $0; nprops = 0; next }
+	inblock {
+		buf = buf "\n" $0
+		if ($1 ~ /^}/) {
+			inblock = 0
+			if (nprops > 0 && ++count == target)
+				emit()
+			else
+				print buf
+			next
+		}
+		if ($0 ~ /^[[:space:]]*[[:alnum:]_]+=/) nprops++
+		next
+	}
+	{ print }
+	END {
+		if (inblock) print buf
+		if (count < target) emit()
+	}' "$conf_file" > "$tmpfile"; then
+		f_eval_catch -d $funcname rm 'rm -f "%s"' "$tmpfile"
+		return $FAILURE
+	fi
+
+	# Move it into place
+	f_eval_catch $funcname mv 'mv "%s" "%s"' "$tmpfile" "$conf_file"
 }
 
 # f_wpa_scan_results_parse [struct_prefix [count_var]]
@@ -528,6 +734,297 @@ f_wpa_scan_find_matches()
 		done
 		s=$(( $s + 1 ))
 	done
+}
+
+# f_wpa_psk_valid $psk
+#
+# Returns success if $psk is a valid WPA passphrase (8 to 63 characters) or
+# raw pre-shared key (exactly 64 hexadecimal digits), otherwise failure.
+#
+f_wpa_psk_valid()
+{
+	local psk="$1"
+
+	case "$psk" in
+	*[![:xdigit:]]*) : passphrase ;;
+	*) [ ${#psk} -eq 64 ] && return $SUCCESS
+	esac
+	[ ${#psk} -ge 8 -a ${#psk} -le 63 ]
+}
+
+# f_wpa_wep_key_valid $key
+#
+# Returns success if $key is a valid WEP key; either ASCII (5 or 13
+# characters) or raw hexadecimal (10 or 26 digits), otherwise failure.
+#
+f_wpa_wep_key_valid()
+{
+	local key="$1"
+
+	case ${#key} in
+	5|13) return $SUCCESS ;; # ASCII key (quoted by caller)
+	10|26) # Raw key must be hexadecimal
+		case "$key" in
+		*[![:xdigit:]]*) : invalid ;;
+		*) return $SUCCESS
+		esac
+	esac
+	return $FAILURE
+}
+
+# f_wpa_scan_flags_type $flags [$var_to_set]
+#
+# Determine the security type of a scanned wireless network from the `flags'
+# column of wpa_cli(8) `scan_results' (e.g., `[WPA2-PSK-CCMP][ESS]'). The
+# type produced is one of psk, sae, eap, wep, or open -- suitable for passing
+# to f_dialog_wireless_join(). If $var_to_set is missing or NULL, the type is
+# produced on standard output (which is less preferred due to performance;
+# e.g., if called in a loop).
+#
+f_wpa_scan_flags_type()
+{
+	local __flags="$1" __var_to_set="$2" __type
+
+	case "$__flags" in
+	*PSK*) __type=psk ;;
+	*SAE*) __type=sae ;;
+	*EAP*) __type=eap ;;
+	*WEP*) __type=wep ;;
+	*) __type=open
+	esac
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$__type"
+	else
+		echo "$__type"
+	fi
+}
+
+# f_dialog_wpa_password $var_to_set $prompt
+#
+# Prompt the user for sensitive input (e.g., a passphrase or key) with a
+# dialog(1) password box; input is obscured as it is typed.
+#
+# If the user presses ENTER, the exit status is zero (success), otherwise if
+# the user presses ESC the exit status is 255, or if the user chose Cancel,
+# the exit status is instead 1.
+#
+f_dialog_wpa_password()
+{
+	local __var_to_set="$1" __prompt="$2"
+	local __hline="$hline_alnum_punc_tab_enter"
+
+	local __height __width
+	f_dialog_inputbox_size __height __width \
+		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$__prompt" "" "$__hline"
+
+	local __password
+	__password=$( $DIALOG \
+		--title "$DIALOG_TITLE"         \
+		--backtitle "$DIALOG_BACKTITLE" \
+		--hline "$__hline"              \
+		--ok-label "$msg_ok"            \
+		--cancel-label "$msg_cancel"    \
+		--insecure                      \
+		--passwordbox "$__prompt"       \
+		$__height $__width              \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	) || return
+	debug= f_dialog_line_sanitize __password
+	setvar "$__var_to_set" "$__password"
+	__password= # sensitive info
+}
+
+# f_dialog_wpa_property_input WPA_NETWORK $property
+#
+# Prompt the user for a new value of $property in a wireless network
+# configuration (defined as a WPA_NETWORK struct; see struct.subr for
+# additional details). Properties listed in $WPA_NETWORK_SECRET_PROPERTIES
+# (see the GLOBALS section above) are edited with an obscured password box,
+# everything else with an inputbox seeded with the current value. An empty
+# input unsets the property. New `psk' and `wep_keyN' values are validated
+# before being stored. Returns success unless the user cancelled the dialog.
+#
+f_dialog_wpa_property_input()
+{
+	local struct="$1" property="$2" debug=
+	local prompt value
+
+	f_sprintf prompt "$msg_enter_new_value_for" "$property"
+	case "$WPA_NETWORK_SECRET_PROPERTIES" in
+	*"	$property$NL"*)
+		while :; do
+			f_dialog_wpa_password value "$prompt" ||
+				return $FAILURE
+			[ "$value" ] || break
+			case "$property" in
+			psk)
+				f_wpa_psk_valid "$value" && break
+				f_show_msg "$msg_invalid_wpa_passphrase" ;;
+			wep_key[0-9]*)
+				if f_wpa_wep_key_valid "$value"; then
+					case ${#value} in
+					5|13) value="\"$value\""
+					esac
+					break
+				fi
+				f_show_msg "$msg_invalid_wep_key" ;;
+			*) break
+			esac
+		done ;;
+	*)
+		debug= $struct get $property value
+		f_str2printable "$value" value
+		f_dialog_input value "$prompt" "$value" \
+			"$hline_alnum_punc_tab_enter" || return $FAILURE
+	esac
+
+	if [ "$value" ]; then
+		$struct set $property "$value"
+	else
+		$struct unset $property
+	fi
+	value= # sensitive info
+}
+
+# f_dialog_wireless_join $ssid $type [$hidden]
+#
+# Prompt the user for the credentials required to join wireless network $ssid
+# and save the resulting configuration to wpa_supplicant.conf(5), reloading
+# wpa_supplicant(8) via wpa_cli(8) so the change both takes effect immediately
+# and survives a reboot. $type indicates the security in use by the network
+# and should be one of:
+#
+# 	psk	WPA/WPA2/WPA3 Personal (passphrase or pre-shared key)
+# 	sae	WPA3 Personal (SAE only)
+# 	eap	WPA Enterprise (802.1X)
+# 	wep	WEP (obsolete)
+# 	open	No encryption
+#
+# If $hidden is present and non-NULL, `scan_ssid=1' is added to the saved
+# configuration so wpa_supplicant(8) probes for the (potentially cloaked)
+# SSID.
+#
+# Returns success if a configuration was saved, otherwise failure (e.g., the
+# user cancelled one of the prompts).
+#
+f_dialog_wireless_join()
+{
+	local funcname=f_dialog_wireless_join
+	local ssid="$1" type="$2" hidden="$3"
+	local prompt input show_ssid
+
+	f_str2printable "$ssid" show_ssid
+	f_struct_free wjoin_network
+	f_struct_new WPA_NETWORK wjoin_network || return $FAILURE
+	wjoin_network set ssid "$ssid"
+	wjoin_network set priority 5
+	[ "$hidden" ] && wjoin_network set scan_ssid 1
+
+	case "$type" in
+	psk|sae)
+		f_sprintf prompt "$msg_enter_wpa_passphrase_for" "$show_ssid"
+		while :; do
+			f_dialog_wpa_password input "$prompt" ||
+				return $FAILURE
+			f_wpa_psk_valid "$input" && break
+			f_show_msg "$msg_invalid_wpa_passphrase"
+		done
+		wjoin_network set psk "$input"
+		[ "$type" = "sae" ] && wjoin_network set key_mgmt "SAE"
+		;;
+	eap)
+		f_sprintf prompt "$msg_enter_eap_identity_for" "$show_ssid"
+		f_dialog_input input "$prompt" "" \
+			"$hline_alnum_punc_tab_enter" || return $FAILURE
+		wjoin_network set identity "$input"
+		wjoin_network set key_mgmt "WPA-EAP"
+		f_sprintf prompt "$msg_enter_eap_password_for" "$show_ssid"
+		f_dialog_wpa_password input "$prompt" || return $FAILURE
+		wjoin_network set password "$input"
+		;;
+	wep)
+		f_sprintf prompt "$msg_enter_wep_key_for" "$show_ssid"
+		while :; do
+			f_dialog_wpa_password input "$prompt" ||
+				return $FAILURE
+			f_wpa_wep_key_valid "$input" && break
+			f_show_msg "$msg_invalid_wep_key"
+		done
+		case ${#input} in
+		5|13) wjoin_network set wep_key0 "\"$input\"" ;;
+		*) wjoin_network set wep_key0 "$input"
+		esac
+		wjoin_network set key_mgmt "NONE"
+		wjoin_network set wep_tx_keyidx 0
+		;;
+	*) # open
+		wjoin_network set key_mgmt "NONE"
+	esac
+	input= # sensitive info
+
+	local retval
+	f_wpa_supplicant_network_write "" wjoin_network
+	retval=$?
+	f_struct_free wjoin_network
+	[ $retval -eq $SUCCESS ] || return $FAILURE
+	f_eval_catch -d $funcname wpa_cli 'wpa_cli reconfigure'
+	f_show_msg "$msg_wireless_network_saved" "$show_ssid"
+	return $SUCCESS
+}
+
+# f_dialog_wireless_connect
+#
+# Prompt the user for the SSID and security type of a wireless network that
+# is unlisted (e.g., out of range or cloaked/hidden) and join it via
+# f_dialog_wireless_join(). Returns success if a configuration was saved,
+# otherwise failure.
+#
+f_dialog_wireless_connect()
+{
+	local title="$DIALOG_TITLE"
+	local btitle="$DIALOG_BACKTITLE"
+	local prompt="$msg_select_encryption_type"
+	local hline="$hline_arrows_tab_enter"
+	local ssid
+
+	f_dialog_input ssid "$msg_enter_ssid" "" \
+		"$hline_alnum_punc_tab_enter" || return $FAILURE
+	[ "$ssid" ] || return $FAILURE
+
+	local menu_list="
+		'1 $msg_wpa_personal'   ''
+		'2 $msg_wpa_enterprise' ''
+		'3 $msg_wep'            ''
+		'4 $msg_none'           ''
+	" # END-QUOTE
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+		\"\$title\" \"\$btitle\" \"\$prompt\" \"\$hline\" $menu_list
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$title\"             \
+		--backtitle \"\$btitle\"        \
+		--hline \"\$hline\"             \
+		--ok-label \"\$msg_ok\"         \
+		--cancel-label \"\$msg_cancel\" \
+		--menu \"\$prompt\"             \
+		$height $width $rows            \
+		$menu_list                      \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	) || return $FAILURE
+	f_dialog_data_sanitize menu_choice
+
+	local type
+	case "$menu_choice" in
+	1*) type=psk ;;
+	2*) type=eap ;;
+	3*) type=wep ;;
+	*) type=open
+	esac
+
+	f_dialog_wireless_join "$ssid" "$type" 1
 }
 
 # f_dialog_menu_wlandev_edit $wlandev [$defaultitem]
@@ -779,25 +1276,39 @@ f_dialog_scan_wireless()
 
 # f_dialog_wireless_edit $ssid
 #
-# Display a menu to allow the user to either create a new entry for the
-# wpa_supplicant.conf(5) file, or to edit values for an existing entry.
+# Display a menu to allow the user to edit the values of a wireless network
+# configured in wpa_supplicant.conf(5). Selecting `Save/Exit' commits the
+# changes to disk and reloads wpa_supplicant(8) via wpa_cli(8) while Cancel
+# discards them; `Forget Network' removes the configuration entirely.
 #
 # If more than one wireless network is found to match $ssid, a sub-menu is
 # presented, allowing the user to select the desired network.
 #
+# NB: $ssid should be in printable form (see f_str2printable() in
+# strings.subr) as-displayed in the menus produced by
+# f_menu_wireless_configs().
+#
+# Returns success if one or more configurations were changed, otherwise
+# failure (e.g., the user cancelled without saving).
+#
 f_dialog_wireless_edit()
 {
+	local funcname=f_dialog_wireless_edit
 	local title="$DIALOG_TITLE"
 	local btitle="$DIALOG_BACKTITLE"
 	local prompt1="$msg_select_the_configuration_you_would_like"
 	local prompt2 # Calculated below
 	local hline="$hline_alnum_arrows_punc_tab_enter"
-	local ssid="$1" bssid="$2"
+	local ssid="$1" bssid="$2" changed=
 
 	f_sprintf prompt2 "$msg_wireless_network_configuration_for" "$ssid"
 
+	local conf_file
+	conf_file=$( f_sysrc_get wpa_supplicant_conf_file )
+
 	#
 	# Find one or more configurations that match the SSID selection
+	# NB: Menus display SSIDs in printable form, so compare likewise
 	#
 	local height1 width1 rows1 menu_list1=
 	local n=0 nmatches=0 tag wssid wbssid help matches=
@@ -805,6 +1316,7 @@ f_dialog_wireless_edit()
 		n=$(( $n + 1 ))
 
 		debug= f_struct WIRELESS_$n get ssid wssid
+		f_str2printable "$wssid" wssid
 		[ "$ssid" = "$wssid" ] || continue
 		debug= f_struct WIRELESS_$n get bssid wbssid
 		[ "${bssid:-$wbssid}" = "$wbssid" ] || continue
@@ -814,7 +1326,11 @@ f_dialog_wireless_edit()
 		f_substr -v tag "$DIALOG_MENU_TAGS" $nmatches 1
 
 		f_shell_escape "$wssid" wssid
+		f_str2printable "$wbssid" wbssid
+		f_shell_escape "$wbssid" wbssid
 		f_wireless_describe WIRELESS_$n help
+		f_str2printable "$help" help
+		f_shell_escape "$help" help
 		menu_list1="$menu_list1
 			'$tag $wssid' '$wbssid' '$help'
 		" # END-QUOTE
@@ -861,17 +1377,26 @@ f_dialog_wireless_edit()
 
 		#
 		# Operate within another loop to allow editing multiple values
+		# NB: Edits are made to a scratch struct and committed to
+		# wpa_supplicant.conf(5) only if/when `Save/Exit' is chosen
 		#
-		local menu_list2 height2 width2 rows2 member
+		local menu_list2 height2 width2 rows2 member value
+		local menu_list3 height3 width3 rows3 defaultitem2=
+		f_struct_free wedit_network
+		f_struct_copy "$struct" wedit_network || return $FAILURE
 		while :; do
 			menu_list2="
 				'> $msg_save_exit'
 					'$msg_return_to_previous_menu'
+				'> $msg_add_property'   '...'
+				'> $msg_forget_network' '...'
 			" # END-QUOTE
 			n=0
 			for member in $_struct_typedef_WPA_NETWORK; do
 				[ "$member" = "ssid" ] && continue
-				debug= $struct get $member value || continue
+				debug= wedit_network get $member value ||
+					continue
+				[ "$value" ] || continue
 				n=$(( $n + 1 ))
 				[ $n -le ${#DIALOG_MENU_TAGS} ] || break
 				f_substr -v tag "$DIALOG_MENU_TAGS" $n 1
@@ -879,10 +1404,11 @@ f_dialog_wireless_edit()
 					f_snprintf value 29 "%s" "$value"
 					value="$value..."
 				fi
-				case "$member" in
-				password|pin|private_key_passwd|psk|wep_key*)
-					f_replaceall "$value" "?" "*" value ;;
+				case "$WPA_NETWORK_SECRET_PROPERTIES" in
+				*"	$member$NL"*)
+					f_replaceall "$value" "?" "*" value
 				esac
+				f_str2printable "$value" value
 				f_shell_escape "$value" value
 				menu_list2="$menu_list2
 					'$tag $member' '$value'
@@ -906,19 +1432,72 @@ f_dialog_wireless_edit()
 			f_dialog_data_sanitize menu_choice
 			defaultitem2="$menu_choice"
 
-			# XXXDT Unfinished
+			case "$menu_choice" in
+			"> $msg_save_exit") # Commit changes and reload
+				f_wpa_supplicant_network_replace "$conf_file" \
+					"${struct#WIRELESS_}" wedit_network ||
+					continue
+				f_eval_catch -d $funcname wpa_cli \
+					'wpa_cli reconfigure'
+				f_show_msg "$msg_wireless_network_saved" \
+				           "$ssid"
+				changed=1
+				break
+				;;
+			"> $msg_add_property") # Menu of unset properties
+				menu_list3=
+				for member in $_struct_typedef_WPA_NETWORK
+				do
+					[ "$member" = "ssid" ] && continue
+					value=
+					debug= wedit_network get $member value
+					[ "$value" ] && continue
+					menu_list3="$menu_list3 '$member' ''"
+				done
+				[ "$menu_list3" ] || continue
+				eval f_dialog_menu_size height3 width3 \
+					rows3 \"\$title\" \"\$btitle\" \
+					\"\$msg_select_property_to_add\" \
+					\"\$hline\" $menu_list3
+				menu_choice=$( eval $DIALOG \
+					--title \"\$title\"             \
+					--backtitle \"\$btitle\"        \
+					--hline \"\$hline\"             \
+					--ok-label \"\$msg_select\"     \
+					--cancel-label \"\$msg_cancel\" \
+					--menu \
+					   \"\$msg_select_property_to_add\" \
+					$height3 $width3 $rows3         \
+					$menu_list3                     \
+					2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+				) || continue
+				f_dialog_data_sanitize menu_choice
+				f_dialog_wpa_property_input \
+					wedit_network "$menu_choice"
+				;;
+			"> $msg_forget_network") # Remove config and reload
+				f_noyes "$msg_forget_network_confirm" \
+				        "$ssid" || continue
+				f_wpa_supplicant_network_replace "$conf_file" \
+					"${struct#WIRELESS_}" || continue
+				f_eval_catch -d $funcname wpa_cli \
+					'wpa_cli reconfigure'
+				changed=1
+				break
+				;;
+			*) # Edit the value of the selected property
+				member="${menu_choice#* }"
+				f_dialog_wpa_property_input \
+					wedit_network "$member"
+			esac
 		done
+		f_struct_free wedit_network
+		[ "$changed" ] && break # to success
 		[ $nmatches -eq 1 ] && break
 	done
 
-	#
-	# XXXDT Unfinished
-	# This is where we display a menu that edits the entry
-	# And then we modify the wpa_supplicant.conf(5) config file
-	# XXXDT Unfinished
-	#
-
-	return $FAILURE # XXXDT Simulating DIALOG_CANCEL to mean ``no changes''
+	# Success only if we committed changes to wpa_supplicant.conf(5)
+	[ "$changed" ]
 }
 
 # f_wireless_describe WPA_NETWORK [$var_to_set]
@@ -1077,6 +1656,7 @@ f_menu_wireless_configs()
 	while [ $n -lt $nunique ]; do
 		n=$(( $n + 1 ))
 		menuitem_$n get ssid ssid
+		f_str2printable "$ssid" ssid
 		f_shell_escape "$ssid" ssid
 
 		menuitem_$n get nconfigs nconfigs
@@ -1086,6 +1666,8 @@ f_menu_wireless_configs()
 		[ $nfound -gt 0 ] && desc="$desc $nfound $msg_found"
 
 		menuitem_$n get help help
+		f_str2printable "$help" help
+		f_shell_escape "$help" help
 		echo "'[X] $ssid' '$desc' '$help'"
 	done | sort -bf | awk 'BEGIN { prefix = "" }
 	{
@@ -1186,6 +1768,7 @@ f_menu_wpa_scan_results()
 	while [ $n -lt $nunique ]; do
 		n=$(( $n + 1 ))
 		menuitem_$n get ssid ssid
+		f_str2printable "$ssid" ssid
 		f_shell_escape "$ssid" ssid
 
 		desc=
@@ -1196,6 +1779,8 @@ f_menu_wpa_scan_results()
 		fi
 
 		menuitem_$n get help help
+		f_str2printable "$help" help
+		f_shell_escape "$help" help
 		echo "'[ ] $ssid' '$desc' '$help'"
 	done | sort -bf | awk 'BEGIN { prefix = "" }
 	{
@@ -1233,7 +1818,7 @@ f_dialog_menu_wireless_edit()
 	# Operate in a loop so we can edit wpa_supplicant.conf(5) and rescan
 	# for new wireless networks from here.
 	#
-	local do_parse=1 remake_menu=1 item
+	local do_parse=1 remake_menu=1 item ssid
 	while :; do
 		#
 		# If this is the first time here, parse wpa_supplicant.conf(5),
@@ -1369,22 +1954,39 @@ f_dialog_menu_wireless_edit()
 			fi
 			remake_menu=1 ;;
 		"> $msg_manually_connect")
-			f_dialog_wireless_edit && remake_menu=1 ;;
+			f_dialog_wireless_connect || continue
+			do_parse=1 remake_menu=1 ;;
 		?"[X] "*)
 			ssid="${menu_choice#??X? }"
 			f_dialog_wireless_edit "$ssid" || continue
 			do_parse=1 remake_menu=1 ;;
-		"[ ] "*)
-			:
-			: XXXDT Unfinished
-			:
-			;;
+		?"[ ] "*)
+			ssid="${menu_choice#?? ? }"
+
+			#
+			# Find the corresponding scan result so we can join
+			# using the SSID as-reported by wpa_cli(8) -- the menu
+			# displays SSIDs in printable form, so compare likewise
+			#
+			local sn=1 sfound= sflags stype sshow
+			while [ $sn -le $NWSCAN_RESULTS ]; do
+				debug= f_struct WSCANS_$sn get ssid sshow
+				f_str2printable "$sshow" sshow
+				if [ "$ssid" = "$sshow" ]; then
+					sfound=WSCANS_$sn
+					break
+				fi
+				sn=$(( $sn + 1 ))
+			done
+			[ "$sfound" ] || continue
+
+			debug= f_struct $sfound get ssid ssid
+			debug= f_struct $sfound get flags sflags
+			f_wpa_scan_flags_type "$sflags" stype
+			f_dialog_wireless_join "$ssid" "$stype" || continue
+			do_parse=1 remake_menu=1 ;;
 		esac
 	done
-
-	#
-	# XXXDT Unfinished
-	#
 }
 
 ############################################################ MAIN

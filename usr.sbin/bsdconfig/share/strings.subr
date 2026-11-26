@@ -316,6 +316,25 @@ f_str2varname()
 	f_replaceall "$__string" "[!$VALID_VARNAME_CHARS]" "_" "$__var_to_set"
 }
 
+# f_str2printable $string [$var_to_set]
+#
+# Convert a string into text that is safe to display on a terminal by
+# converting control characters (inclusive of embedded escape sequences)
+# into the question-mark [?]. If $var_to_set is either missing or NULL, the
+# printable text is produced on standard out for capturing in a sub-shell
+# (which is less recommended due to performance degradation).
+#
+# Use this on any untrusted data (e.g., an SSID gleaned from the airwaves)
+# before rendering it in a menu, prompt, or other TUI element. Otherwise,
+# said data could perturb the display or (worse) rewrite portions of the
+# screen to trick the user into acting on falsified information.
+#
+f_str2printable()
+{
+	local __string="$1" __var_to_set="$2"
+	f_replaceall "$__string" "[[:cntrl:]]" "?" "$__var_to_set"
+}
+
 # f_shell_escape $string [$var_to_set]
 #
 # Escape $string for shell eval statement(s) by replacing all single-quotes
