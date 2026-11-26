@@ -103,12 +103,18 @@ command_chain(int argc, char *argv[])
 	if (argv[1][len-1] != ':') {
 		if (fstat(fd, &st) == -1) {
 			command_errmsg = "stat failed";
+#ifdef LOADER_VERIEXEC_VECTX
+			free(vctx);
+#endif
 			close(fd);
 			return (CMD_ERROR);
 		}
 		size = st.st_size;
 	} else if (strncmp(argv[1], "disk", 4) != 0) {
 		command_errmsg = "can only use disk device";
+#ifdef LOADER_VERIEXEC_VECTX
+		free(vctx);
+#endif
 		close(fd);
 		return (CMD_ERROR);
 	}
@@ -116,22 +122,29 @@ command_chain(int argc, char *argv[])
 	i386_getdev((void **)(&rootdev), argv[1], NULL);
 	if (rootdev == NULL) {
 		command_errmsg = "can't determine root device";
+#ifdef LOADER_VERIEXEC_VECTX
+		free(vctx);
+#endif
 		close(fd);
 		return (CMD_ERROR);
 	}
 
 	if (archsw.arch_readin(VECTX_HANDLE(fd), mem, size) != size) {
 		command_errmsg = "failed to read disk";
+#ifdef LOADER_VERIEXEC_VECTX
+		free(vctx);
+#endif
 		close(fd);
 		return (CMD_ERROR);
 	}
-	close(fd);
 #ifdef LOADER_VERIEXEC_VECTX
 	verror = vectx_close(vctx, __func__);
 	if (verror) {
+		close(fd);
 		return (CMD_ERROR);
 	}
 #endif
+	close(fd);
 	if (argv[1][len-1] == ':' &&
 	    *((uint16_t *)PTOV(mem + DOSMAGICOFFSET)) != DOSMAGIC) {
 		command_errmsg = "wrong magic";
