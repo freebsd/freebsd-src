@@ -1288,7 +1288,7 @@ dump_collate(void)
 		}
 		if (!undef) {
 			large[i].val = htote(cc->wc);
-			large_count = i++;
+			large_count = ++i;
 		}
 	}
 
