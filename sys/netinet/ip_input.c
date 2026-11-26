@@ -964,17 +964,23 @@ ip_forward(struct mbuf *m, int srcrt)
 	sin->sin_len = sizeof(*sin);
 	sin->sin_addr = ip->ip_dst;
 	flowid = m->m_pkthdr.flowid;
-	ro.ro_nh = fib4_lookup(M_GETFIB(m), ip->ip_dst, 0, NHR_REF, flowid);
+	/*
+	 * The nexthop is not referenced: nexthops are destroyed through
+	 * NET_EPOCH_CALL(), so this one stays valid until we return, and
+	 * the route does not outlive this function.  With RT_NH_NOREF
+	 * ip_output() does not reference or release a nexthop of this
+	 * route either.
+	 */
+	ro.ro_flags = RT_NH_NOREF;
+	ro.ro_nh = fib4_lookup(M_GETFIB(m), ip->ip_dst, 0, NHR_NONE, flowid);
 	if (ro.ro_nh != NULL) {
 		if (ro.ro_nh->nh_flags & (NHF_BLACKHOLE | NHF_BROADCAST)) {
 			IPSTAT_INC(ips_cantforward);
 			m_freem(m);
-			NH_FREE(ro.ro_nh);
 			return;
 		}
 		if (ro.ro_nh->nh_flags & NHF_REJECT) {
 			IPSTAT_INC(ips_cantforward);
-			NH_FREE(ro.ro_nh);
 			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
 			return;
 		}
@@ -1021,7 +1027,6 @@ ip_forward(struct mbuf *m, int srcrt)
 	if (IPSEC_ENABLED(ipv4)) {
 		if ((error = IPSEC_FORWARD(ipv4, m)) != 0) {
 			/* mbuf consumed by IPsec */
-			RO_NHFREE(&ro);
 			m_freem(mcopy);
 			if (error != EINPROGRESS)
 				IPSTAT_INC(ips_cantforward);
@@ -1069,7 +1074,6 @@ ip_forward(struct mbuf *m, int srcrt)
 
 	if (error == EMSGSIZE && ro.ro_nh)
 		mtu = ro.ro_nh->nh_mtu;
-	RO_NHFREE(&ro);
 
 	if (error)
 		IPSTAT_INC(ips_cantforward);
