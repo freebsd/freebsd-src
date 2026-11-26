@@ -118,6 +118,30 @@ pipe_cleanup()
 	firewall_cleanup $1
 }
 
+pipe_show_head()
+{
+	atf_set descr 'List pipes and schedulers'
+	atf_set require.user root
+}
+
+pipe_show_body()
+{
+	fw=$1
+	firewall_init $fw
+	dummynet_init $fw
+
+	vnet_mkjail alcatraz
+
+	jexec alcatraz dnctl pipe 1 config bw 1Mbit/s
+	atf_check -s exit:0 -o match:'^00001:' jexec alcatraz dnctl pipe show
+	atf_check -s exit:0 -o match:'^00001:' jexec alcatraz dnctl sched show
+}
+
+pipe_show_cleanup()
+{
+	firewall_cleanup $1
+}
+
 pipe_v6_head()
 {
 	atf_set descr 'Basic IPv6 pipe test'
@@ -615,6 +639,9 @@ setup_tests		\
 		ipfw	\
 		pf	\
 	pipe		\
+		ipfw	\
+		pf	\
+	pipe_show	\
 		ipfw	\
 		pf	\
 	pipe_v6		\

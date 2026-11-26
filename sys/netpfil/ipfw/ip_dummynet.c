@@ -958,7 +958,7 @@ copy_obj(char **start, char *end, void *_o, const char *msg, int i)
 	struct dn_id o;
 	union {
 		struct dn_link l;
-		struct dn_schk s;
+		struct dn_sch s;
 	} dn;
 	int have = end - *start;
 
@@ -982,10 +982,12 @@ copy_obj(char **start, char *end, void *_o, const char *msg, int i)
 		dn.l.delay = dn.l.delay * 1000 / hz;
 		memcpy(*start, &dn.l, sizeof(dn.l));
 	} else if (o.type == DN_SCH) {
-		/* Set dn.s.sch.oid.id to the number of instances */
+		struct dn_schk *s = __containerof(_o, struct dn_schk, sch);
+
+		/* Set dn.s.oid.id to the number of instances */
 		memcpy(&dn.s, _o, sizeof(dn.s));
-		dn.s.sch.oid.id = (dn.s.sch.flags & DN_HAVE_MASK) ?
-		    dn_ht_entries(dn.s.siht) : (dn.s.siht ? 1 : 0);
+		dn.s.oid.id = (dn.s.flags & DN_HAVE_MASK) ?
+		    dn_ht_entries(s->siht) : (s->siht ? 1 : 0);
 		memcpy(*start, &dn.s, sizeof(dn.s));
 	} else
 		memcpy(*start, _o, o.len);
