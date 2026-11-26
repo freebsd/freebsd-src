@@ -2125,7 +2125,6 @@ in6_if_up(struct ifnet *ifp)
 			 * We may be able to skip the random delay in this
 			 * case, but we impose delays just in case.
 			 */
-			in6_ifa_need_dad(ia);
 			nd6_dad_start(ifa,
 			    arc4random() % (MAX_RTR_SOLICITATION_DELAY * hz));
 		}
