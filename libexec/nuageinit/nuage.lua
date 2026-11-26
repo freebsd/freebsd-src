@@ -179,8 +179,8 @@ local function sethostname(hostname)
 	if not root then
 		root = ""
 	end
+	-- Set hostname in /etc/rc.conf.d/hostname
 	local hostnamepath = root .. "/etc/rc.conf.d/hostname"
-
 	mkdir_p(dirname(hostnamepath))
 	local f, err = io.open(hostnamepath, "w")
 	if not f then
@@ -188,6 +188,34 @@ local function sethostname(hostname)
 		return
 	end
 	f:write("hostname=" .. shell_escape(hostname) .. "\n")
+	f:close()
+	-- Remove hostname from /etc/rc.conf
+	local rc_conf_path = root .. "/etc/rc.conf"
+	f, err = io.open(rc_conf_path, "r")
+	if not f then
+		return
+	end
+	local cleaned = false
+	local lines = {}
+	for line in f:lines() do
+		if line:gmatch("^hostname=") then
+			cleaned = true
+		else
+			table.insert(lines, line)
+		end
+	end
+	f:close()
+	if not cleaned then
+		return
+	end
+	f = io.open(rc_conf_path, "w")
+	if not f then
+		warnmsg("failed to open " .. rc_conf_path .. " to write")
+		return
+	end
+	for _, line in ipairs(lines) do
+		f:write(line .. "\n")
+	end
 	f:close()
 end
 
