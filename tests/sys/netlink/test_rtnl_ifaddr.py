@@ -401,9 +401,10 @@ class TestRtNlIfaddrOpsBroadcast(RtnlIfaOps):
         "flags_str",
         [
             "autoconf",
-            "deprecated",
+            "permanent",
+            "permanent,deprecated",
             "autoconf,deprecated",
-            "prefer_source",
+            "permanent,prefer_source",
         ],
     )
     def test_add_6_flags(self, flags_str):
@@ -416,6 +417,7 @@ class TestRtNlIfaddrOpsBroadcast(RtnlIfaOps):
                 "nl": IfaFlags.IFA_F_DEPRECATED,
                 "f": IfafFlags6.IN6_IFF_DEPRECATED,
             },
+            "permanent": {"nl": IfaFlags.IFA_F_PERMANENT, "f": 0},
             "prefer_source": {"nl": 0, "f": IfafFlags6.IN6_IFF_PREFER_SOURCE},
         }
         nl_flags = 0
