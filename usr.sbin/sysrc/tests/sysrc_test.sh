@@ -427,6 +427,43 @@ F_flag_body()
 	    -f ${sysrc2_conf} -F test_enable test_list
 }
 
+atf_test_case F_flag_assign
+F_flag_assign_head()
+{
+	atf_set "descr" "Under -F, compare values and display the file"
+}
+F_flag_assign_body()
+{
+	local msg
+
+	echo 'p="x"' > "${SYSRC_CONF}"
+
+	# Value matches. Show the file and do not rewrite it
+	atf_check -o inline:"p: ${SYSRC_CONF} (unchanged)\n" \
+	    sysrc -F -f "${SYSRC_CONF}" p=x
+	atf_check -o inline:'p="x"\n' cat "${SYSRC_CONF}"
+
+	# -c compares the value, not the path
+	atf_check sysrc -F -c -f "${SYSRC_CONF}" p=x
+	msg="sysrc: ${SYSRC_CONF}: p: already set to \`x'"
+	atf_check -e inline:"$msg\n" \
+	    sysrc -F -v -c -f "${SYSRC_CONF}" p=x
+	msg="sysrc: ${SYSRC_CONF}: p: would change from \`x' to \`y'"
+	atf_check -s exit:1 -e inline:"$msg\n" \
+	    sysrc -F -v -c -f "${SYSRC_CONF}" p=y
+
+	# A value equal to the path is a real assignment
+	msg="p: ${SYSRC_CONF} -> ${SYSRC_CONF}"
+	atf_check -o inline:"$msg\n" \
+	    sysrc -F -f "${SYSRC_CONF}" "p=${SYSRC_CONF}"
+	atf_check -o inline:"p=\"${SYSRC_CONF}\"\n" cat "${SYSRC_CONF}"
+
+	# Now the stored value is the path, so this is unchanged
+	atf_check -o inline:"p: ${SYSRC_CONF} (unchanged)\n" \
+	    sysrc -F -f "${SYSRC_CONF}" "p=${SYSRC_CONF}"
+	atf_check -o inline:"p=\"${SYSRC_CONF}\"\n" cat "${SYSRC_CONF}"
+}
+
 atf_test_case r_flag
 r_flag_head()
 {
@@ -615,5 +652,6 @@ atf_init_test_cases()
 	atf_add_test_case d_flag
 	atf_add_test_case f_flag
 	atf_add_test_case F_flag
+	atf_add_test_case F_flag_assign
 	atf_add_test_case r_flag
 }

@@ -16,7 +16,7 @@ pgm="${0##*/}" # Program basename
 #
 # Version information
 #
-SYSRC_VERSION="9.3.1 Nov-25,2026"
+SYSRC_VERSION="9.3.2 Nov-26,2026"
 
 #
 # Options
@@ -810,11 +810,12 @@ while [ $# -gt 0 ]; do
 		fi
 
 		#
-		# Determine both `before' value and appropriate `new' value
+		# Determine both `before' values and appropriate `new' value
 		#
+		before=$( f_sysrc_get_raw "$NAME" )
+		before_file=$( f_sysrc_find "$NAME" )
 		case "$mode" in
 		LISTAPPEND)
-			before=$( f_sysrc_get_raw "$NAME" )
 			add="${1#*=}"
 			delim="${add%"${add#?}"}" # first character
 			oldIFS="$IFS"
@@ -835,10 +836,8 @@ while [ $# -gt 0 ]; do
 			set +f # glob
 			new="${new#"$delim"}" IFS="$oldIFS"
 			unset add delim oldIFS a skip b
-			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
 			;;
 		LISTREMOVE)
-			before=$( f_sysrc_get_raw "$NAME" )
 			remove="${1#*=}"
 			delim="${remove%"${remove#?}"}" # first character
 			oldIFS="$IFS"
@@ -859,22 +858,14 @@ while [ $# -gt 0 ]; do
 			set +f # glob
 			new="${new#"$delim"}" IFS="$oldIFS"
 			unset remove delim oldIFS b add r
-			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
 			;;
 		STRAPPEND)
-			before=$( f_sysrc_get_raw "$NAME" )
 			add="${1#*=}"
 			new="$add"
 			[ "$before" ] && new="$before $add"
 			unset add
-			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
 			;;
 		*) # ASSIGN
-			if [ "$SHOW_FILE" ]; then
-				before=$( f_sysrc_find "$NAME" )
-			else
-				before=$( f_sysrc_get_raw "$NAME" )
-			fi
 			new="${1#*=}"
 		esac
 
@@ -891,16 +882,14 @@ while [ $# -gt 0 ]; do
 				status=$FAILURE
 				if [ "$VERBOSE" ]; then
 					warn "%s: %s: would change %s" \
-						"$( f_sysrc_find "$NAME" )" \
-						"$NAME" \
+						"$before_file" "$NAME" \
 						"from \`$before' to \`$new'"
 				elif [ ! "$QUIET" ]; then
 					warn "%s: value differs" "$NAME"
 				fi
 			elif [ "$VERBOSE" ]; then
 				warn "%s: %s: already set to \`%s'" \
-					"$( f_sysrc_find "$NAME" )" \
-					"$NAME" "$before"
+					"$before_file" "$NAME" "$before"
 			fi
 			shift 1
 			continue
@@ -909,6 +898,7 @@ while [ $# -gt 0 ]; do
 		# Empty append or remove changes nothing
 		case "$mode:${1#*=}" in
 		LISTAPPEND:|LISTREMOVE:|STRAPPEND:)
+			[ "$SHOW_FILE" ] && before="$before_file"
 			if [ "$QUIET" ]; then
 				: nothing
 			elif [ "$SHOW_EQUALS" ]; then
@@ -925,9 +915,10 @@ while [ $# -gt 0 ]; do
 
 		# An unset name is not already NULL
 		if [ "$before" = "$new" ] &&
-		   file=$( f_sysrc_find "$NAME" ) &&
-		   [ "$file" != "$RC_DEFAULTS" ]
+		   [ "$before_file" ] &&
+		   [ "$before_file" != "$RC_DEFAULTS" ]
 		then
+			[ "$SHOW_FILE" ] && before="$before_file"
 			if [ "$QUIET" ]; then
 				: nothing
 			elif [ "$SHOW_EQUALS" ]; then
@@ -954,6 +945,7 @@ while [ $# -gt 0 ]; do
 			if f_sysrc_set "$NAME" "$new"; then
 				if [ ! "$QUIET" ]; then
 					if [ "$SHOW_FILE" ]; then
+						before="$before_file"
 						after=$( f_sysrc_find "$NAME" )
 					else
 						after=$(
