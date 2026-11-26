@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2007 Doug Rabson
  * All rights reserved.
+ * Copyright (c) 2026 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Klara, Inc. under sponsorship
+ * from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -881,6 +885,22 @@ zfs_nvstore_unsethook(struct env_var *ev)
 	return (rv);
 }
 
+/*
+ * Whether something else in the loader owns the named variable, i.e., gave it
+ * hooks of its own.  We leave those alone, since we'd otherwise have to either
+ * bypass their hooks or risk leaving them half-changed if we can't store them.
+ */
+static bool
+zfs_nvstore_foreign(const char *name)
+{
+	struct env_var *ev;
+
+	if ((ev = env_getenv(name)) == NULL ||
+	    ev->ev_sethook == zfs_nvstore_sethook)
+		return (false);
+	return (ev->ev_sethook != NULL || ev->ev_unsethook != NULL);
+}
+
 static int
 zfs_nvstore_getter(void *vdev, const char *name, void **data)
 {
@@ -927,6 +947,9 @@ zfs_nvstore_setter(void *vdev, int type, const char *name,
 
 	if (dev->dd.d_dev->dv_type != DEVT_ZFS)
 		return (ENOTSUP);
+
+	if (zfs_nvstore_foreign(name))
+		return (EPERM);
 
 	if ((spa = spa_find_by_dev(dev)) == NULL)
 		return (ENXIO);
@@ -1243,6 +1266,9 @@ zfs_nvstore_unset_impl(void *vdev, const char *name, bool unset_env)
 	if (dev->dd.d_dev->dv_type != DEVT_ZFS)
 		return (ENOTSUP);
 
+	if (zfs_nvstore_foreign(name))
+		return (EPERM);
+
 	if ((spa = spa_find_by_dev(dev)) == NULL)
 		return (ENXIO);
 
@@ -1392,6 +1418,27 @@ zfs_nvstore_setenv(void *vdev __unused, void *ptr)
 	return (rv);
 }
 
+/*
+ * Import a variable from the nvstore when we attach it.  As when setting one,
+ * we leave alone any variable that something else in the loader owns.
+ */
+static int
+zfs_nvstore_import(void *vdev, void *ptr)
+{
+	nvp_header_t *nvh = ptr;
+	char *name;
+	bool skip;
+
+	if ((name = nvstring_get((nv_string_t *)(nvh + 1))) == NULL)
+		return (ENOMEM);
+	skip = zfs_nvstore_foreign(name);
+	free(name);
+
+	if (skip)
+		return (0);
+	return (zfs_nvstore_setenv(vdev, ptr));
+}
+
 static int
 zfs_nvstore_iterate(void *vdev, int (*cb)(void *, void *))
 {
@@ -1463,7 +1510,7 @@ zfs_attach_nvstore(void *vdev)
 	if (rv != 0)
 		free(dev);
 	else
-		rv = zfs_nvstore_iterate(dev, zfs_nvstore_setenv);
+		rv = zfs_nvstore_iterate(dev, zfs_nvstore_import);
 	return (rv);
 }
 
