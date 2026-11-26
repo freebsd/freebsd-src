@@ -26,7 +26,7 @@
 .\"
 .\"	OpenBSD: tsearch.3,v 1.2 1998/06/21 22:13:49 millert Exp
 .\"
-.Dd November 17, 2026
+.Dd November 23, 2026
 .Dt TSEARCH 3
 .Os
 .Sh NAME
@@ -107,7 +107,12 @@ and
 .Fn tsearch .
 If the node to be deleted is the root of the binary search tree,
 .Fa rootp
-will be adjusted.
+will be adjusted,
+and, since it has no parent,
+.Fn tdelete
+returns an unspecified
+.Pf non- Dv NULL
+pointer which must not be dereferenced.
 .Pp
 The
 .Fn tdestroy
