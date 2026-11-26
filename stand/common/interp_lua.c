@@ -188,7 +188,7 @@ interp_run(const char *line)
 			status = lua_pcall(luap, argc, 1, 0);
 			ret = lua_tointeger(luap, 1);
 			lua_pop(luap, 1);
-			if (status != 0 || ret != 0) {
+			if (status != 0) {
 				/*
 				 * Lua cli_execute will pass the function back
 				 * through loader.command, which is a proxy to
@@ -198,6 +198,15 @@ interp_run(const char *line)
 				 * directly if our lua_pcall was not successful.
 				 */
 				status = interp_builtin_cmd(argc, argv);
+			} else {
+				/*
+				 * cli_execute() is responsible for sending any
+				 * command that it doesn't want to handle back
+				 * through the C bits via loader.perform(), so
+				 * as long as the lua_pcall succceeded we will
+				 * trust the result.
+				 */
+				status = ret;
 			}
 			if (status != 0) {
 				if (command_errmsg != NULL)
