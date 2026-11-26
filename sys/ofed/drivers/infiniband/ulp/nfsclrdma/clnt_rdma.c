@@ -353,6 +353,25 @@ _rpc_trim_mextpg(struct mbuf *mextpg, uint32_t newlen)
 }
 
 /*
+ * A local failure may retire an endpoint without a CM disconnect event.
+ * Wake its other callers so they can retry on the replacement connection.
+ * NFSv4 reply waits otherwise have a nearly indefinite timeout.
+ */
+static void
+clnt_rdma_fail_locked(struct crdma_data *crdma, int error)
+{
+	struct ct_request *cr;
+
+	mtx_assert(&crdma->crdma_lock, MA_OWNED);
+	xprt_rdma_mark_disconnected(&crdma->crdma_xp);
+	TAILQ_FOREACH(cr, &crdma->crdma_pending, cr_link) {
+		cr->cr_error = error;
+		wakeup(cr);
+	}
+	wakeup(&crdma->crdma_readcnt);
+}
+
+/*
  * Some M_PROTOnn flags are used in "args" for RDMA chunks.
  * M_PROTO11 - Indicates that the RPC gets reduced.
  *             (Read/Write/Symlink for NFS.)
@@ -1128,7 +1147,7 @@ out:
 		m_freem(cr->cr_mrep);
 
 	if (stat == RPC_CANTSEND || stat == RPC_CANTRECV) {
-		xprt_rdma_mark_disconnected(&crdma->crdma_xp);
+		clnt_rdma_fail_locked(crdma, ECONNRESET);
 		args->m_flags |= M_PROTO4;
 		printf("set M_PROTO4: xid=0x%x rlch=%d wlch=%d rpch=%d\n", xid,
 		    chunks[READLIST], chunks[WRITELIST], chunks[WRITECHUNK]);
@@ -1606,10 +1625,7 @@ clnt_rdma_upcall(struct rpcrdma_xprt *xp, struct mbuf *m)
 		RPCRDMA_DEBUG(1, "clnt_rdma_upcall: Wakeup all RPC_CANTRECV\n");
 		crdma->crdma_error.re_status = RPC_CANTRECV;
 		crdma->crdma_error.re_errno = error;
-		TAILQ_FOREACH(cr, &crdma->crdma_pending, cr_link) {
-			cr->cr_error = error;
-			wakeup(cr);
-		}
+		clnt_rdma_fail_locked(crdma, error);
 	}
 
 	crdma->crdma_upcallrefs--;

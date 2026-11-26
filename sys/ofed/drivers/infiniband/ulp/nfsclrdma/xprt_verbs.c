@@ -1494,5 +1494,6 @@ xprt_rdma_mark_disconnected(struct rpcrdma_xprt *xp)
 	if (ep == NULL)
 		return;
 	ep->re_connect_status = -ECONNABORTED;
+	wakeup(&ep->re_busy);
 }
 
