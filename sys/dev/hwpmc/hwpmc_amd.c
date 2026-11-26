@@ -596,6 +596,16 @@ amd_can_assign_pmc(int ri, struct pmc *pm, const struct pmc_op_pmcallocate *a)
 	if (amd_pmcdesc[ri].pm_subclass != a->pm_md.pm_amd.pm_amd_sub_class)
 		return (EINVAL);
 
+	/*
+	 * The L3, DF and UMC counters are shared by several CPUs, so a
+	 * process-mode PMC would be loaded on more than one of them, and
+	 * amd_intr() does not handle their overflow.
+	 */
+	if (amd_pmcdesc[ri].pm_subclass != PMC_AMD_SUB_CLASS_CORE &&
+	    a->pm_mode != PMC_MODE_SC)
+		return (EXTERROR(EINVAL,
+		    "AMD L3, DF and UMC counters support only system counting"));
+
 	if (((caps & PMC_CAP_PRECISE) != 0) &&
 	    ((pd->pd_caps & PMC_CAP_PRECISE) == 0))
 		return (EINVAL);

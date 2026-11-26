@@ -14,6 +14,7 @@
 #include <atf-c.h>
 
 #include <errno.h>
+#include <stdbool.h>
 #include <pmc.h>
 #include <stdlib.h>
 #include <string.h>
@@ -277,11 +278,107 @@ ATF_TC_BODY(thread_rows_refuse_system_pmc, tc)
 	amd_test_release_pmc(sys);
 }
 
+/*
+ * Skip unless hwpmc has L3 rows on cpu0, and return an L3 event of this CPU.
+ */
+static const char *
+l3_event(void)
+{
+	static const char *const events[] = {
+		"l3_lookup_state.all_coherent_accesses_to_l3",	/* Zen 4+ */
+		"l3_request_g1.caching_l3_cache_accesses",	/* Zen 1-3 */
+	};
+	struct pmc_pmcinfo *pmcinfo;
+	bool found;
+	size_t i;
+	int npmc;
+
+	ATF_REQUIRE_MSG(pmc_pmcinfo(0, &pmcinfo) == 0,
+	    "pmc_pmcinfo(0) failed: %s", strerror(errno));
+	npmc = pmc_npmc(0);
+	ATF_REQUIRE(npmc > 0);
+	found = false;
+	for (i = 0; i < (size_t)npmc; i++)
+		if (strncmp(pmcinfo->pm_pmcs[i].pm_name, "AMD-L3-", 7) == 0)
+			found = true;
+	free(pmcinfo);
+	if (!found)
+		atf_tc_skip("hwpmc has no AMD L3 counters");
+
+	for (i = 0; i < nitems(events); i++)
+		if (pmc_pmu_idx_get_by_event(NULL, events[i]) >= 0)
+			return (events[i]);
+	atf_tc_skip("no known L3 event in this CPU's pmu-events table");
+}
+
+ATF_TC(l3_process_mode_refused);
+ATF_TC_HEAD(l3_process_mode_refused, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "L3 counters are shared by a CCX, so process-mode and sampling "
+	    "PMCs on them are refused with EINVAL (PR 296001)");
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+ATF_TC_BODY(l3_process_mode_refused, tc)
+{
+	static const enum pmc_mode modes[] = {
+		PMC_MODE_TC, PMC_MODE_TS, PMC_MODE_SS
+	};
+	const char *ev;
+	pmc_id_t id;
+	size_t i;
+	int rv;
+
+	skip_unless_ready();
+	ev = l3_event();
+
+	for (i = 0; i < nitems(modes); i++) {
+		id = PMC_ID_INVALID;
+		rv = pmc_allocate(ev, modes[i], 0,
+		    PMC_IS_SYSTEM_MODE(modes[i]) ? 0 : PMC_CPU_ANY, &id,
+		    PMC_IS_SAMPLING_MODE(modes[i]) ? 100000 : 0);
+		if (rv == 0)
+			amd_test_release_pmc(id);
+		ATF_CHECK_MSG(rv != 0 && errno == EINVAL,
+		    "%s %s allocation: rv %d, %s", pmc_name_of_mode(modes[i]),
+		    ev, rv, rv == 0 ? "accepted" : strerror(errno));
+	}
+}
+
+ATF_TC(l3_system_mode_allowed);
+ATF_TC_HEAD(l3_system_mode_allowed, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "A system-mode counting PMC on an L3 counter can be allocated, "
+	    "started and read");
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+ATF_TC_BODY(l3_system_mode_allowed, tc)
+{
+	const char *ev;
+	pmc_value_t v;
+	pmc_id_t id;
+
+	skip_unless_ready();
+	ev = l3_event();
+
+	ATF_REQUIRE_MSG(pmc_allocate(ev, PMC_MODE_SC, 0, 0, &id, 0) == 0,
+	    "pmc_allocate(%s, SC) failed: %s", ev, strerror(errno));
+	ATF_REQUIRE_MSG(pmc_start(id) == 0, "pmc_start failed: %s",
+	    strerror(errno));
+	ATF_REQUIRE_MSG(pmc_read(id, &v) == 0, "pmc_read failed: %s",
+	    strerror(errno));
+	ATF_REQUIRE(pmc_stop(id) == 0);
+	amd_test_release_pmc(id);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, alloc_reserves_distinct_rows);
 	ATF_TP_ADD_TC(tp, failed_alloc_leaves_no_trace);
 	ATF_TP_ADD_TC(tp, thread_rows_refuse_system_pmc);
+	ATF_TP_ADD_TC(tp, l3_process_mode_refused);
+	ATF_TP_ADD_TC(tp, l3_system_mode_allowed);
 
 	return (atf_no_error());
 }
