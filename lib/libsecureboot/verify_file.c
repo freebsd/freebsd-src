@@ -581,7 +581,13 @@ verify_file(int fd, const char *filename, off_t off, int severity,
 		else if (rc == VE_FINGERPRINT_NONE && severity < accept_no_fp)
 			rc = VE_UNVERIFIED_OK;
 
-		add_verify_status(&st, rc);
+		/*
+		 * VE_UNVERIFIED_OK only reflects the severity of this request,
+		 * so we can't remember it: a later request for the same file
+		 * may need it to be verified.
+		 */
+		if (rc != VE_UNVERIFIED_OK)
+			add_verify_status(&st, rc);
 
 		/* recheck debug/verbose level next time we are called */
 		if (rc == VE_UNVERIFIED_OK) {
