@@ -129,7 +129,6 @@ command_chain(int argc, char *argv[])
 #ifdef LOADER_VERIEXEC_VECTX
 	verror = vectx_close(vctx, __func__);
 	if (verror) {
-		free(vctx);
 		return (CMD_ERROR);
 	}
 #endif

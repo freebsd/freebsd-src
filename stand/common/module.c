@@ -757,7 +757,6 @@ file_loadraw(const char *fname, const char *type, int insert)
 	if (verror) {
 		free(name);
 		close(fd);
-		free(vctx);
 		TSEXIT();
 		return(NULL);
 	}
