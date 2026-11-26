@@ -68,6 +68,31 @@ set_variable_body()
 	    cat "${SYSRC_CONF}"
 }
 
+atf_test_case pin_default cleanup
+pin_default_head()
+{
+	atf_set "descr" "Pin a defaults-only value into the target file"
+}
+pin_default_body()
+{
+	RC_DEFAULTS="${PWD}/rc_defaults.conf"
+	echo 'test_enable="NO"' > "${RC_DEFAULTS}"
+	export RC_DEFAULTS
+
+	# Record the default in the target. Do not report it unchanged
+	atf_check -o inline:"test_enable: NO -> NO\n" \
+	    sysrc -f "${SYSRC_CONF}" test_enable=NO
+	atf_check -o inline:'test_enable="NO"\n' cat "${SYSRC_CONF}"
+	# Stored outside the defaults file
+	atf_check -o inline:"test_enable: NO (unchanged)\n" \
+	    sysrc -f "${SYSRC_CONF}" test_enable=NO
+	atf_check -o inline:'test_enable="NO"\n' cat "${SYSRC_CONF}"
+}
+pin_default_cleanup()
+{
+	unset RC_DEFAULTS
+}
+
 atf_test_case remove_variable_x_flag
 remove_variable_x_flag_head()
 {
@@ -575,6 +600,7 @@ atf_init_test_cases()
 {
 	atf_add_test_case check_variable
 	atf_add_test_case set_variable
+	atf_add_test_case pin_default
 	atf_add_test_case set_variable_newline
 	atf_add_test_case set_variable_backslash
 	atf_add_test_case remove_variable_x_flag

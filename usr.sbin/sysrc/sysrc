@@ -16,7 +16,7 @@ pgm="${0##*/}" # Program basename
 #
 # Version information
 #
-SYSRC_VERSION="9.3 Nov-18,2026"
+SYSRC_VERSION="9.3.1 Nov-25,2026"
 
 #
 # Options
@@ -925,7 +925,8 @@ while [ $# -gt 0 ]; do
 
 		# An unset name is not already NULL
 		if [ "$before" = "$new" ] &&
-		   IGNORED=$( f_sysrc_get "$NAME?" )
+		   file=$( f_sysrc_find "$NAME" ) &&
+		   [ "$file" != "$RC_DEFAULTS" ]
 		then
 			if [ "$QUIET" ]; then
 				: nothing
