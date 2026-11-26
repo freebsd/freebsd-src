@@ -72,6 +72,7 @@ struct route {
 #define	RT_MAY_LOOP		(1 << RT_MAY_LOOP_BIT)		/* 0x0008 */
 #define	RT_HAS_HEADER		(1 << RT_HAS_HEADER_BIT)	/* 0x0010 */
 
+#define	RT_NH_NOREF		0x0002		/* Do not reference ro_nh */
 #define	RT_REJECT		0x0020		/* Destination is reject */
 #define	RT_BLACKHOLE		0x0040		/* Destination is blackhole */
 #define	RT_HAS_GW		0x0080		/* Destination has GW  */
@@ -370,9 +371,19 @@ struct rt_addrinfo {
 
 #ifdef _KERNEL
 
+/*
+ * RT_NH_NOREF is set by the owner of a route, before the route is first
+ * used, and is never cleared.  The nexthop of such a route is not
+ * referenced: it is looked up without NHR_REF and is dropped without being
+ * released.  This is for a route on the stack that is only used in one
+ * network epoch section, never for a route that is cached, such as the
+ * route of a PCB.  ip_output() and ip6_output() honor the flag when they
+ * store a nexthop.
+ */
 #define	RO_NHFREE(_ro) do {					\
-	if ((_ro)->ro_nh) {					\
-		NH_FREE((_ro)->ro_nh);				\
+	if ((_ro)->ro_nh != NULL) {				\
+		if (((_ro)->ro_flags & RT_NH_NOREF) == 0)	\
+			NH_FREE((_ro)->ro_nh);			\
 		(_ro)->ro_nh = NULL;				\
 	}							\
 } while (0)
@@ -382,10 +393,7 @@ struct rt_addrinfo {
 			LLE_FREE((ro)->ro_lle);				\
 			(ro)->ro_lle = NULL;				\
 		}							\
-		if ((ro)->ro_nh != NULL) {				\
-			NH_FREE((ro)->ro_nh);				\
-			(ro)->ro_nh = NULL;				\
-		}							\
+		RO_NHFREE(ro);						\
 	} while (0)
 
 #define RO_GET_FAMILY(ro, dst)	((ro) != NULL &&		\

@@ -660,7 +660,9 @@ cache_route(uint32_t fibnum, const struct sockaddr_in6 *dst, struct route_in6 *r
 			paddr = &unscoped_addr;
 		} else
 			paddr = &dst->sin6_addr;
-		ro->ro_nh = fib6_lookup(fibnum, paddr, scopeid, NHR_REF, flowid);
+		ro->ro_nh = fib6_lookup(fibnum, paddr, scopeid,
+		    (ro->ro_flags & RT_NH_NOREF) != 0 ? NHR_NONE : NHR_REF,
+		    flowid);
 	}
 	return (ro->ro_nh);
 }

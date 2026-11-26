@@ -90,6 +90,7 @@
 #include <netipsec/ipsec_support.h>
 
 #include <machine/in_cksum.h>
+#include <machine/stack.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -338,6 +339,9 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 
 	M_ASSERTPKTHDR(m);
 	NET_EPOCH_ASSERT();
+	/* A route with RT_NH_NOREF must be on the stack, see route.h. */
+	MPASS(ro == NULL || (ro->ro_flags & RT_NH_NOREF) == 0 ||
+	    kstack_contains(curthread, (vm_offset_t)ro, sizeof(*ro)));
 
 	if (inp != NULL) {
 		INP_LOCK_ASSERT(inp);
@@ -476,6 +480,7 @@ again:
 			uint32_t flowid;
 			flowid = m->m_pkthdr.flowid;
 			ro->ro_nh = fib4_lookup(fibnum, dst->sin_addr, 0,
+			    (ro->ro_flags & RT_NH_NOREF) != 0 ? NHR_NONE :
 			    NHR_REF, flowid);
 
 			if (ro->ro_nh == NULL || (!NH_IS_VALID(ro->ro_nh))) {

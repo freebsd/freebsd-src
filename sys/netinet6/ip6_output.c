@@ -83,6 +83,7 @@
 #include <sys/ucred.h>
 
 #include <machine/in_cksum.h>
+#include <machine/stack.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -429,6 +430,9 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	uint32_t optvalid;
 
 	NET_EPOCH_ASSERT();
+	/* A route with RT_NH_NOREF must be on the stack, see route.h. */
+	MPASS(ro == NULL || (ro->ro_flags & RT_NH_NOREF) == 0 ||
+	    kstack_contains(curthread, (vm_offset_t)ro, sizeof(*ro)));
 
 	if (inp != NULL) {
 		INP_LOCK_ASSERT(inp);
