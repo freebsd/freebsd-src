@@ -765,7 +765,7 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 		if (V_ip6_hdrnestlimit && (++nest > V_ip6_hdrnestlimit)) {
 			IP6STAT_INC(ip6s_toomanyhdr);
 			error = EINVAL;
-			goto bad;
+			goto bad_unlocked;
 		}
 
 		/*
@@ -776,7 +776,7 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 			IP6STAT_INC(ip6s_tooshort);
 			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_truncated);
 			error = EINVAL;
-			goto bad;
+			goto bad_unlocked;
 		}
 		/*
 		 * Enforce IPsec policy checking if we are seeing last header.
@@ -785,7 +785,7 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 		 */
 		if (ipsec6_lasthdr(nxt) && ipsec6_in_reject(m, NULL)) {
 			error = EINVAL;
-			goto bad;
+			goto bad_unlocked;
 		}
 		/*
 		 * AH, ESP and IPComp are not in ip6_protox[]; as in
@@ -804,8 +804,9 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	key_freesav(&sav);
 	return (error);
 bad:
-	NET_EPOCH_EXIT(et);
 	ipsec_sahtree_runlock(sahtree_tracker);
+bad_unlocked:
+	NET_EPOCH_EXIT(et);
 	key_freesav(&sav);
 	if (m)
 		m_freem(m);
