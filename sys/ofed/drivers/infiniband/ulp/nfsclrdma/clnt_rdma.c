@@ -413,6 +413,7 @@ clnt_rdma_call(
 	struct timeval timeout;
 	uint32_t xid, rdma_xid, rdma_vers, rdma_credit, rdma_body, rpos;
 	uint32_t tlen, tlen2, length, handle, reduce_pos, rpchdr_len;
+	uint32_t reply_max;
 	uint64_t offset;
 	struct mbuf *m1, *m2, *mreq, *results, *mr, *mreduce, *mreduce_prev;
 	struct ct_request *cr;
@@ -935,6 +936,8 @@ got_reply:
 		goto cannotdecode;
 	}
 	crdma->crdma_xp.credits = rdma_credit;
+	reply_max = reply_chp != NULL ?
+	    m_length(reply_chp->mextpg, NULL) : 0;
 	reply_chunks[READLIST] = chunks[READLIST];
 	reply_chunks[WRITELIST] = chunks[WRITELIST];
 	reply_chunks[WRITECHUNK] = chunks[WRITECHUNK];
@@ -990,6 +993,10 @@ got_reply:
 						    "bogus\n");
 						goto cannotdecode;
 					}
+					if (i == WRITECHUNK &&
+					    rdma_body == RDMA_NOMSG &&
+					    length > reply_max - tlen)
+						goto cannotdecode;
 					tlen += length;
 					RPCRDMA_DEBUG(4, "clnt_rdma_call: Got "
 					    "segment handle=0x%x length=%d "
@@ -1103,6 +1110,7 @@ got_reply:
 					xprt_rdma_unmap_chunk(&crdma->crdma_xp,
 					    request_chp);
 					request_chp = NULL;
+					chunks[READLIST] = 0;
 					rpc_free_rdma_reduction(mr);
 					mr = NULL;
 				}
