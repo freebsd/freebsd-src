@@ -4930,6 +4930,11 @@ ofed/drivers/infiniband/ulp/ipoib/ipoib_verbs.c	optional ipoib		\
 #ofed/drivers/infiniband/ulp/ipoib/ipoib_vlan.c	optional ipoib		\
 #	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
 
+ofed/drivers/infiniband/ulp/nfsclrdma/clnt_rdma.c	optional nfscl ofed		\
+	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/nfsclrdma/"
+ofed/drivers/infiniband/ulp/nfsclrdma/xprt_verbs.c	optional nfscl ofed		\
+	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/nfsclrdma/"
+
 ofed/drivers/infiniband/ulp/sdp/sdp_bcopy.c	optional sdp inet	\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
 ofed/drivers/infiniband/ulp/sdp/sdp_main.c	optional sdp inet 	\
