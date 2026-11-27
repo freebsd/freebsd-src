@@ -47,29 +47,15 @@
 
 #include <dev/sound/midi/midi.h>
 #include <dev/sound/midi/mpu401.h>
-#include "mpufoi_if.h"
 
 #include <dev/sound/pci/emuxkireg.h>
 #include <dev/sound/pci/emu10kx.h>
 
-struct emu_midi_softc {
-	struct mtx	mtx;
-	device_t	dev;
-	struct mpu401	*mpu;
-	mpu401_intr_t	*mpu_intr;
-	struct emu_sc_info *card;
-	int		port;			/* I/O port or I/O ptr reg */
-	int		is_emu10k1;
-	int		fflags;			/* File flags */
-	int		ihandle;		/* interrupt manager handle */
-};
-
-static uint32_t	emu_midi_card_intr(void *p, uint32_t arg);
 
 static unsigned char
-emu_mread(struct mpu401 *arg __unused, void *cookie, int reg)
+emu_mread(void *devinfo, int reg)
 {
-	struct emu_midi_softc *sc = cookie;
+	struct emu_midiinfo *sc = devinfo;
 	unsigned int d;
 
 	d = 0;
@@ -82,9 +68,9 @@ emu_mread(struct mpu401 *arg __unused, void *cookie, int reg)
 }
 
 static void
-emu_mwrite(struct mpu401 *arg __unused, void *cookie, int reg, unsigned char b)
+emu_mwrite(void *devinfo, int reg, uint8_t b)
 {
-	struct emu_midi_softc *sc = cookie;
+	struct emu_midiinfo *sc = devinfo;
 
 	if (sc->is_emu10k1)
 		emu_wr(sc->card, 0x18 + reg, b, 1);
@@ -92,153 +78,81 @@ emu_mwrite(struct mpu401 *arg __unused, void *cookie, int reg, unsigned char b)
 		emu_wrptr(sc->card, 0, sc->port + reg, b);
 }
 
-static int
-emu_muninit(struct mpu401 *arg __unused, void *cookie)
-{
-	struct emu_midi_softc *sc = cookie;
-
-	mtx_lock(&sc->mtx);
-	sc->mpu_intr = NULL;
-	mtx_unlock(&sc->mtx);
-
-	return (0);
-}
-
-static kobj_method_t emu_mpu_methods[] = {
-	KOBJMETHOD(mpufoi_read, emu_mread),
-	KOBJMETHOD(mpufoi_write, emu_mwrite),
-	KOBJMETHOD(mpufoi_uninit, emu_muninit),
-	KOBJMETHOD_END
+const struct mpu401_ops emu_mpu_ops = {
+	emu_mread,
+	emu_mwrite,
 };
-static DEFINE_CLASS(emu_mpu, emu_mpu_methods, 0);
 
-static uint32_t
+uint32_t
 emu_midi_card_intr(void *p, uint32_t intr_status)
 {
-	struct emu_midi_softc *sc = (struct emu_midi_softc *)p;
-	if (sc->mpu_intr)
-		(sc->mpu_intr) (sc->mpu);
-	if (sc->mpu_intr == NULL) {
-		/* We should read MIDI event to unlock card after
-		 * interrupt. XXX - check, why this happens.  */
-		if (bootverbose)
-			device_printf(sc->dev, "midi interrupt %08x without interrupt handler, force mread!\n", intr_status);
-		(void)emu_mread((void *)(NULL), sc, 0);
+	struct emu_midiinfo *sc = p;
+
+	if (sc->dev != NULL)
+		mpu401_intr(device_get_softc(sc->dev));
+	else {
+		/*
+		 * We should read MIDI event to unlock card after
+		 * interrupt. XXX - check, why this happens.
+		 */
+		(void)emu_mread(sc, 0);
 	}
+
 	return (intr_status); /* Acknowledge everything */
 }
 
-static void
-emu_midi_intr(void *p)
+#if 0
+/*
+ * Set up one MIDI port: enable its interrupt on the card and attach a midi
+ * child for it.
+ */
+void
+emu_midi_attach(device_t dev, struct emu_midiinfo *mi, device_t *devp)
 {
-	(void)emu_midi_card_intr(p, 0);
-}
-
-static int
-emu_midi_probe(device_t dev)
-{
-	struct emu_midi_softc *scp;
-	uintptr_t is_emu10k1;
-
-	scp = device_get_softc(dev);
-	bzero(scp, sizeof(*scp));
-	BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_ISEMU10K1, &is_emu10k1);
-	scp->is_emu10k1 = is_emu10k1 ? 1 : 0;
-
-	device_set_desc(dev, "EMU10Kx MIDI Interface");
-	return (0);
-}
-
-static int
-emu_midi_attach(device_t dev)
-{
-	struct emu_midi_softc * scp;
-	struct emu_midiinfo *midiinfo;
 	uint32_t inte_val, ipr_val;
 
-	scp = device_get_softc(dev);
-
-	scp->dev = dev;
-	midiinfo = (struct emu_midiinfo *)device_get_ivars(dev);
-	scp->port = midiinfo->port;
-	scp->card = midiinfo->card;
-
-	mtx_init(&scp->mtx, device_get_nameunit(dev), "midi softc", MTX_DEF);
-
-	if (scp->is_emu10k1) {
+	if (mi->is_emu10k1) {
 		/* SB Live! - only one MIDI device here */
-		inte_val = 0;
-		/* inte_val |= EMU_INTE_MIDITXENABLE;*/
-		inte_val |= EMU_INTE_MIDIRXENABLE;
-		ipr_val = EMU_IPR_MIDITRANSBUFE;
-		ipr_val |= EMU_IPR_MIDIRECVBUFE;
+		inte_val = EMU_INTE_MIDIRXENABLE;
+		ipr_val = EMU_IPR_MIDITRANSBUFE | EMU_IPR_MIDIRECVBUFE;
+	} else if (mi->port == EMU_A_MUDATA1) {
+		/* EXTERNAL MIDI (AudigyDrive) */
+		inte_val = EMU_INTE_MIDIRXENABLE;
+		ipr_val = EMU_IPR_MIDITRANSBUFE | EMU_IPR_MIDIRECVBUFE;
 	} else {
-		if (scp->port == EMU_A_MUDATA1) {
-			/* EXTERNAL MIDI (AudigyDrive) */
-			inte_val = 0;
-			/* inte_val |= A_EMU_INTE_MIDITXENABLE1;*/
-			inte_val |= EMU_INTE_MIDIRXENABLE;
-			ipr_val = EMU_IPR_MIDITRANSBUFE;
-			ipr_val |= EMU_IPR_MIDIRECVBUFE;
-		} else {
-			/* MIDI hw config port 2 */
-			inte_val = 0;
-			/* inte_val |= A_EMU_INTE_MIDITXENABLE2;*/
-			inte_val |= EMU_INTE_A_MIDIRXENABLE2;
-			ipr_val = EMU_IPR_A_MIDITRANSBUFE2;
-			ipr_val |= EMU_IPR_A_MIDIRECBUFE2;
-		}
+		/* MIDI hw config port 2 */
+		inte_val = EMU_INTE_A_MIDIRXENABLE2;
+		ipr_val = EMU_IPR_A_MIDITRANSBUFE2 | EMU_IPR_A_MIDIRECBUFE2;
 	}
 
-	scp->ihandle = emu_intr_register(scp->card, inte_val, ipr_val, &emu_midi_card_intr, scp);
-	/* Init the interface. */
-	scp->mpu = mpu401_init(&emu_mpu_class, scp, emu_midi_intr, &scp->mpu_intr);
-	if (scp->mpu == NULL) {
-		emu_intr_unregister(scp->card, scp->ihandle);
-		mtx_destroy(&scp->mtx);
-		return (ENOMEM);
-	}
+	mi->ivars.ops = &emu_mpu_ops;
+	mi->ivars.devinfo = mi;
+	mi->ivars.desc = "EMU10Kx MIDI Interface";
+
+	*devp = device_add_child(dev, "midi", DEVICE_UNIT_ANY);
+	if (*devp == NULL)
+		return;
+	device_set_ivars(*devp, &mi->ivars);
+	mi->dev = *devp;
+	mi->ihandle = emu_intr_register(mi->card, inte_val, ipr_val,
+	    &emu_midi_card_intr, mi);
+
 	/*
-	 * XXX I don't know how to check for Live!Drive / AudigyDrive
-	 * presence. Let's hope that IR enabling code will not harm if
-	 * it is not present.
+	 * XXX I don not know how to check for Live!Drive / AudigyDrive
+	 * presence.  Let us hope that IR enabling code will not harm if it is
+	 * not present.
 	 */
-	if (scp->is_emu10k1)
-		emu_enable_ir(scp->card);
-	else {
-		if (scp->port == EMU_A_MUDATA1)
-			emu_enable_ir(scp->card);
-	}
-
-	return (0);
+	if (mi->is_emu10k1 || mi->port == EMU_A_MUDATA1)
+		emu_enable_ir(mi->card);
 }
 
-static int
-emu_midi_detach(device_t dev)
+void
+emu_midi_detach(struct emu_midiinfo *mi)
 {
-	struct emu_midi_softc *scp;
-
-	scp = device_get_softc(dev);
-	mpu401_uninit(scp->mpu);
-	emu_intr_unregister(scp->card, scp->ihandle);
-	mtx_destroy(&scp->mtx);
-	return (0);
+	if (mi == NULL)
+		return;
+	emu_intr_unregister(mi->card, mi->ihandle);
+	mi->dev = NULL;
+	free(mi, M_DEVBUF);
 }
-
-static device_method_t emu_midi_methods[] = {
-	DEVMETHOD(device_probe, emu_midi_probe),
-	DEVMETHOD(device_attach, emu_midi_attach),
-	DEVMETHOD(device_detach, emu_midi_detach),
-
-	DEVMETHOD_END
-};
-
-static driver_t emu_midi_driver = {
-	"midi",
-	emu_midi_methods,
-	sizeof(struct emu_midi_softc),
-};
-DRIVER_MODULE(snd_emu10kx_midi, emu10kx, emu_midi_driver, 0, 0);
-MODULE_DEPEND(snd_emu10kx_midi, snd_emu10kx, SND_EMU10KX_MINVER, SND_EMU10KX_PREFVER, SND_EMU10KX_MAXVER);
-MODULE_DEPEND(snd_emu10kx_midi, sound, 1, 1, 1);
-MODULE_VERSION(snd_emu10kx_midi, SND_EMU10KX_PREFVER);
+#endif

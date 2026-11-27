@@ -41,7 +41,6 @@
 #include <sys/queue.h>
 
 #include <dev/sound/midi/mpu401.h>
-#include "mpufoi_if.h"
 
 /* -------------------------------------------------------------------- */
 
@@ -228,8 +227,8 @@ struct sc_info {
 	struct emu_voice voice[64];
 	struct sc_pchinfo pch[EMU_MAX_CHANS];
 	struct sc_rchinfo rch[3];
-	struct mpu401   *mpu;
-	mpu401_intr_t           *mpu_intr;
+	struct mpu401_ivars mpu_ivars;
+	device_t        midi_dev;
 	int mputx;
 };
 
@@ -1151,7 +1150,7 @@ static kobj_method_t emurchan_methods[] = {
 CHANNEL_DECLARE(emurchan);
 
 static unsigned char
-emu_mread(struct mpu401 *arg, void *sc, int reg)
+emu_mread(void *sc, int reg)
 {
 	unsigned int d;
 
@@ -1160,41 +1159,16 @@ emu_mread(struct mpu401 *arg, void *sc, int reg)
 }
 
 static void
-emu_mwrite(struct mpu401 *arg, void *sc, int reg, unsigned char b)
+emu_mwrite(void *sc, int reg, uint8_t b)
 {
 
 	emu_wr((struct sc_info *)sc, 0x18 + reg, b, 1);
 }
 
-static int
-emu_muninit(struct mpu401 *arg, void *cookie)
-{
-	struct sc_info *sc = cookie;
-
-	mtx_lock(&sc->lock);
-	sc->mpu_intr = NULL;
-	mtx_unlock(&sc->lock);
-
-	return 0;
-}
-
-static kobj_method_t emu_mpu_methods[] = {
-	KOBJMETHOD(mpufoi_read,		emu_mread),
-	KOBJMETHOD(mpufoi_write,	emu_mwrite),
-	KOBJMETHOD(mpufoi_uninit,	emu_muninit),
-	KOBJMETHOD_END
+static const struct mpu401_ops emu_mpu_ops = {
+	emu_mread,
+	emu_mwrite,
 };
-
-static DEFINE_CLASS(emu_mpu, emu_mpu_methods, 0);
-
-static void
-emu_intr2(void *p)
-{
-	struct sc_info *sc = (struct sc_info *)p;
-
-	if (sc->mpu_intr)
-	    (sc->mpu_intr)(sc->mpu);
-}
 
 static void
 emu_midiattach(struct sc_info *sc)
@@ -1205,7 +1179,12 @@ emu_midiattach(struct sc_info *sc)
 	i |= EMU_INTE_MIDIRXENABLE;
 	emu_wr(sc, EMU_INTE, i, 4);
 
-	sc->mpu = mpu401_init(&emu_mpu_class, sc, emu_intr2, &sc->mpu_intr);
+	sc->mpu_ivars.ops = &emu_mpu_ops;
+	sc->mpu_ivars.devinfo = sc;
+	sc->midi_dev = device_add_child(sc->dev, "midi", DEVICE_UNIT_ANY);
+	if (sc->midi_dev != NULL)
+		device_set_ivars(sc->midi_dev, &sc->mpu_ivars);
+	bus_attach_children(sc->dev);
 }
 /* -------------------------------------------------------------------- */
 /* The interrupt handler */
@@ -1250,8 +1229,8 @@ emu_intr(void *data)
 		}
 
 		if (stat & EMU_IPR_MIDIRECVBUFE) {
-			if (sc->mpu_intr) {
-				(sc->mpu_intr)(sc->mpu);
+			if (sc->midi_dev != NULL) {
+				mpu401_intr(device_get_softc(sc->midi_dev));
 				ack |= EMU_IPR_MIDIRECVBUFE | EMU_IPR_MIDITRANSBUFE;
 			}
 		}
@@ -2028,8 +2007,6 @@ emu_uninit(struct sc_info *sc)
 	emu_free(sc, sc->mem.ptb_pages, sc->mem.ptb_map);
 	emu_free(sc, sc->mem.silent_page, sc->mem.silent_map);
 
-	if(sc->mpu)
-	    mpu401_uninit(sc->mpu);
 	return 0;
 }
 
@@ -2159,11 +2136,15 @@ emu_pci_detach(device_t dev)
 	int r;
 	struct sc_info *sc;
 
+	r = bus_generic_detach(dev);
+	if (r)
+		return r;
+	sc = pcm_getdevinfo(dev);
+	sc->midi_dev = NULL;
 	r = pcm_unregister(dev);
 	if (r)
 		return r;
 
-	sc = pcm_getdevinfo(dev);
 	/* shutdown chip */
 	emu_uninit(sc);
 

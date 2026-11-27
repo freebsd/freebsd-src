@@ -33,20 +33,27 @@
 #ifndef MPU401_H
 #define MPU401_H
 
-#define MPU_DATAPORT   0
-#define MPU_CMDPORT    1
-#define MPU_STATPORT   1
-#define MPU_RESET      0xff
-#define MPU_UART       0x3f
-#define MPU_OUTPUTBUSY 0x40
-#define MPU_INPUTBUSY  0x80
+#include <sys/types.h>
 
-struct mpu401;
+#define MPU_DATAPORT	0
+#define MPU_CMDPORT	1
+#define MPU_STATPORT	1
+#define MPU_RESET	0xff
+#define MPU_UART	0x3f
+#define MPU_OUTPUTBUSY	0x40
+#define MPU_INPUTBUSY	0x80
 
-typedef int mpu401_intr_t(struct mpu401 *_obj);
+struct mpu401_ops {
+	uint8_t	(*read)(void *devinfo, int reg);
+	void	(*write)(void *devinfo, int reg, uint8_t val);
+};
 
-struct mpu401 *mpu401_init(kobj_class_t _cls, void *cookie,
-    driver_intr_t *_softintr, mpu401_intr_t ** _cb);
-int mpu401_uninit(struct mpu401 *_obj);
+struct mpu401_ivars {
+	const struct mpu401_ops *ops;
+	void		*devinfo;
+	const char	*desc;	/* Optional, for device_set_desc(). */
+};
 
-#endif
+void	mpu401_intr(void *arg);
+
+#endif /* MPU401_H */

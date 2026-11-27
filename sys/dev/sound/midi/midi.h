@@ -34,20 +34,39 @@
 #define MIDI_H
 
 #include <sys/types.h>
-#include <sys/malloc.h>
-
-MALLOC_DECLARE(M_MIDI);
+#include <sys/bus.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 #define M_RX		0x01
 #define M_TX		0x02
 #define M_TXPEND	0x04
 
-struct snd_midi;
+struct midi_port;
 
-struct snd_midi *midi_init(kobj_class_t _mpu_cls, void *_cookie,
-    size_t _inqsize, size_t _outqsize);
-int	midi_uninit(struct snd_midi *_m);
-size_t	midi_out(struct snd_midi *_m, uint8_t *_buf, size_t _size);
-size_t	midi_in(struct snd_midi *_m, uint8_t *_buf, size_t _size);
+typedef void midi_callback_t(void *devinfo, int chan, int flags);
 
-#endif
+/*
+ * Providers must embed this as the first member of their softc, since midi(4)
+ * fetches it with device_get_softc().
+ */
+struct midi_softc {
+	device_t	dev;
+	struct mtx	*lock;
+	midi_callback_t	*cb;
+	void		*devinfo;
+	int		nchan;
+	bool		dying;
+	struct midi_port *ports;
+};
+
+int	midi_register(device_t dev, struct mtx *lock, midi_callback_t *cb,
+	    void *devinfo, int nchan, size_t inqsize, size_t outqsize);
+int	midi_unregister(device_t dev);
+void	midi_alias(device_t dev, const char *name);
+
+/* Must be called with the lock held. */
+size_t	midi_in(device_t dev, int chan, const uint8_t *buf, size_t size);
+size_t	midi_out(device_t dev, int chan, uint8_t *buf, size_t size);
+
+#endif /* MIDI_H */
