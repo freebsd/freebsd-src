@@ -3337,6 +3337,12 @@ vmxctx_setreg(struct vmxctx *vmxctx, int reg, uint64_t val)
 	register_t *regp;
 
 	if ((regp = vmxctx_regptr(vmxctx, reg)) != NULL) {
+		/*
+		 * DR6 is loaded into the host's register before guest entry,
+		 * where setting any of bits 63:32 raises #GP.
+		 */
+		if (reg == VM_REG_GUEST_DR6 && (val >> 32) != 0)
+			return (EINVAL);
 		*regp = val;
 		return (0);
 	} else
@@ -4166,6 +4172,7 @@ vmx_vcpu_snapshot(void *vcpui, struct vm_snapshot_meta *meta)
 	struct vmx *vmx;
 	struct vmx_vcpu *vcpu;
 	struct vmxctx *vmxctx;
+	uint64_t dr6;
 	uint64_t guest_msrs[GUEST_MSR_NUM];
 	int err, run, hostcpu;
 
@@ -4271,7 +4278,10 @@ vmx_vcpu_snapshot(void *vcpui, struct vm_snapshot_meta *meta)
 	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_dr1, meta, err, done);
 	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_dr2, meta, err, done);
 	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_dr3, meta, err, done);
-	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_dr6, meta, err, done);
+	dr6 = vmxctx->guest_dr6;
+	SNAPSHOT_VAR_OR_LEAVE(dr6, meta, err, done);
+	if (meta->op == VM_SNAPSHOT_RESTORE)
+		err = vmxctx_setreg(vmxctx, VM_REG_GUEST_DR6, dr6);
 
 done:
 	return (err);
