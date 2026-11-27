@@ -610,6 +610,65 @@ forward_cleanup()
     syslogd_cleanup
 }
 
+atf_test_case "forward_dup_addr" "cleanup"
+forward_dup_addr_head()
+{
+    atf_set descr "syslogd forwards once per <local, remote> address pair"
+    atf_set require.user root
+    atf_set "require.progs" syslogd
+}
+forward_dup_addr_body()
+{
+    local epair
+
+    syslogd_check_req epair
+
+    atf_check -o save:epair ifconfig epair create
+    epair=$(cat epair)
+    epair=${epair%%a}
+
+    syslogd_mkjail syslogd_server vnet
+    atf_check ifconfig ${epair}a vnet syslogd_server
+    atf_check jexec syslogd_server ifconfig ${epair}a inet 169.254.0.1/16
+
+    syslogd_mkjail syslogd_client vnet
+    atf_check ifconfig ${epair}b vnet syslogd_client
+    atf_check jexec syslogd_client ifconfig ${epair}b inet 169.254.0.3/16
+
+    cat <<__EOF__ > ./client_config
+user.debug @169.254.0.1
+__EOF__
+
+    cat <<__EOF__ > ./server_config
+user.debug ${SYSLOGD_LOGFILE}
+__EOF__
+
+    # Without -c -c, the server would log a second copy of the message
+    # only as a repeat, which the count below cannot see.
+    syslogd_start -j syslogd_server -f ${PWD}/server_config -b 169.254.0.1 \
+        -c -c
+
+    # Two listening sockets bound to one address give the forwarding rule
+    # the same <local, remote> address pair twice.  With -A, syslogd sends
+    # to every forwarding socket it has.
+    syslogd_start -j syslogd_client -f ${PWD}/client_config \
+        -b 169.254.0.3 -b 169.254.0.3 \
+        -p ${PWD}/client -P ${SYSLOGD_PIDFILE}.2 -A
+
+    syslogd_log_jail syslogd_client \
+        -p user.debug -t test1 -h ${PWD}/client "hello, world"
+    syslogd_check_log "test1: hello, world"
+
+    # The client must still be running, and must have sent one copy.
+    atf_check pkill -0 -F ${SYSLOGD_PIDFILE}.2
+    sleep 0.5
+    atf_check -o inline:"1\n" grep -c "test1: hello, world" ${SYSLOGD_LOGFILE}
+}
+forward_dup_addr_cleanup()
+{
+    syslogd_cleanup
+}
+
 atf_test_case "forward_reload" "cleanup"
 forward_reload_head()
 {
@@ -696,5 +755,6 @@ atf_init_test_cases()
     atf_add_test_case "allowed_peer_forwarding"
     atf_add_test_case "allowed_peer_wildcard"
     atf_add_test_case "forward"
+    atf_add_test_case "forward_dup_addr"
     atf_add_test_case "forward_reload"
 }

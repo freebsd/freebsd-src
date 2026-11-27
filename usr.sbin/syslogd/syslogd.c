@@ -3116,6 +3116,28 @@ make_forw_socket(const nvlist_t *nvl, struct addrinfo *ai, struct addrinfo *lai)
 	return (s);
 }
 
+/*
+ * Record the <laddr, raddr> pair for slot "n" of the filed's forwarding array.
+ * Returns false if an earlier slot already holds the same pair.
+ */
+static bool
+set_forw_addr(struct filed *f, size_t n, const struct addrinfo *ai,
+    const struct addrinfo *lai)
+{
+	struct forw_addr *fa;
+
+	fa = &f->f_addrs[n];
+	memset(fa, 0, sizeof(*fa));
+	memcpy(&fa->raddr, ai->ai_addr, ai->ai_addrlen);
+	if (lai != NULL)
+		memcpy(&fa->laddr, lai->ai_addr, lai->ai_addrlen);
+	for (size_t i = 0; i < n; i++) {
+		if (memcmp(&f->f_addrs[i], fa, sizeof(*fa)) == 0)
+			return (false);
+	}
+	return (true);
+}
+
 static void
 make_forw_socket_array(const nvlist_t *nvl, struct filed *f,
     struct addrinfo *res)
@@ -3125,7 +3147,7 @@ make_forw_socket_array(const nvlist_t *nvl, struct filed *f,
 
 	f->f_num_addr_fds = 0;
 
-	/* How many sockets do we need? */
+	/* How many sockets do we need at most? */
 	for (ai = res; ai != NULL; ai = ai->ai_next) {
 		struct socklist *boundsock;
 		int count;
@@ -3150,6 +3172,11 @@ make_forw_socket_array(const nvlist_t *nvl, struct filed *f,
 	 * belonging to the destination address, create one socket
 	 * connected to the destination and bound to the address of the
 	 * listening socket.
+	 *
+	 * The resolver may return an address more than once, and several
+	 * listening sockets may be bound to one address.  A second socket for
+	 * the same <laddr, raddr> pair could not be connected and would only
+	 * send a second copy of each message, so each pair gets one socket.
 	 */
 	i = 0;
 	for (ai = res; ai != NULL; ai = ai->ai_next) {
@@ -3158,25 +3185,19 @@ make_forw_socket_array(const nvlist_t *nvl, struct filed *f,
 
 		count = 0;
 		STAILQ_FOREACH(boundsock, &shead, next) {
-			if (boundsock->sl_ai.ai_family ==
-			    ai->ai_family) {
-				memcpy(&f->f_addrs[i].raddr, ai->ai_addr,
-				    ai->ai_addrlen);
-				memcpy(&f->f_addrs[i].laddr,
-				    boundsock->sl_ai.ai_addr,
-				    boundsock->sl_ai.ai_addrlen);
-				f->f_addr_fds[i++] = make_forw_socket(nvl, ai,
-				    &boundsock->sl_ai);
-				count++;
-			}
+			if (boundsock->sl_ai.ai_family != ai->ai_family)
+				continue;
+			count++;
+			if (!set_forw_addr(f, i, ai, &boundsock->sl_ai))
+				continue;
+			f->f_addr_fds[i++] = make_forw_socket(nvl, ai,
+			    &boundsock->sl_ai);
 		}
-		if (count == 0) {
-			memcpy(&f->f_addrs[i].raddr, ai->ai_addr,
-			    ai->ai_addrlen);
+		if (count == 0 && set_forw_addr(f, i, ai, NULL))
 			f->f_addr_fds[i++] = make_forw_socket(nvl, ai, NULL);
-		}
 	}
-	assert(i == f->f_num_addr_fds);
+	assert(i > 0 && i <= f->f_num_addr_fds);
+	f->f_num_addr_fds = i;
 }
 
 static void
