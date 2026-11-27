@@ -6,6 +6,7 @@ MAN=	loader.conf.lua.5 \
 	config.lua.8 \
 	core.lua.8 \
 	drawer.lua.8 \
+	efi.lua.8 \
 	gfx.lua.8 \
 	hook.lua.8 \
 	loader.lua.8 \
