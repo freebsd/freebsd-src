@@ -3433,8 +3433,8 @@ vmx_getreg(void *vcpui, int reg, uint64_t *retval)
 		return (0);
 	}
 
-	if (vmxctx_getreg(&vcpu->ctx, reg, retval) == 0)
-		return (0);
+	if (vmxctx_regptr(&vcpu->ctx, reg) != NULL)
+		return (vmxctx_getreg(&vcpu->ctx, reg, retval));
 
 	return (vmcs_getreg(vcpu->vmcs, running, reg, retval));
 }
@@ -3456,8 +3456,8 @@ vmx_setreg(void *vcpui, int reg, uint64_t val)
 	if (reg == VM_REG_GUEST_INTR_SHADOW)
 		return (vmx_modify_intr_shadow(vcpu, running, val));
 
-	if (vmxctx_setreg(&vcpu->ctx, reg, val) == 0)
-		return (0);
+	if (vmxctx_regptr(&vcpu->ctx, reg) != NULL)
+		return (vmxctx_setreg(&vcpu->ctx, reg, val));
 
 	/* Do not permit user write access to VMCS fields by offset. */
 	if (reg < 0)
