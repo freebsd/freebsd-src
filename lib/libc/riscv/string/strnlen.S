@@ -20,6 +20,18 @@ ENTRY(strnlen)
 	 * a5 - uint64_t *end_unroll;
 	 */
 
+	/*
+	 * This clamp exists because a huge maxlen
+	 * makes s + maxlen and zero_idx - maxlen wrap.
+	 * This clamp is safe as no object can be larger
+	 * than PTRDIFF_MAX.
+	 */
+
+	li t0, 0x7FFFFFFFFFFFFFFF
+	bleu a1, t0, .Lstart
+	mv a1, t0
+
+.Lstart:
 	beqz a1, .Lnot_found
 
 	/* ptr = s & ~0b111 */
