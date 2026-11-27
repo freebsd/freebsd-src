@@ -43,12 +43,10 @@
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
-#include <string>
-
 #include <lutok/operations.hpp>
 #include <lutok/stack_cleaner.hpp>
 #include <lutok/state.ipp>
-
+#include <string>
 
 /// Prints the string-typed field of a table.
 ///
@@ -103,7 +101,6 @@ print_table_field(lutok::state& state, const std::string& field)
     // Stack contents: -1: table.  Same as when we started.
 }
 
-
 /// Program's entry point.
 ///
 /// \return A system exit code.
@@ -113,8 +110,8 @@ main(void)
     lutok::state state;
     state.open_base();
 
-    lutok::do_string(state, "example = {foo='hello', bar=123, baz='bye'}",
-                     0, 0, 0);
+    lutok::do_string(state, "example = {foo='hello', bar=123, baz='bye'}", 0, 0,
+                     0);
 
     state.get_global("example");
     print_table_field(state, "foo");

@@ -32,24 +32,19 @@
 #if !defined(LUTOK_OPERATIONS_HPP)
 #define LUTOK_OPERATIONS_HPP
 
+#include <lutok/state.hpp>
 #include <map>
 #include <string>
 #include <vector>
 
-#include <lutok/state.hpp>
-
 namespace lutok {
 
-
 void create_module(state&, const std::string&,
-                   const std::map< std::string, cxx_function >&);
-unsigned int do_file(state&, const std::string&, const int, const int,
-                     const int);
-unsigned int do_string(state&, const std::string&, const int, const int,
-                       const int);
-void eval(state&, const std::string&, const int);
+                   const std::map<std::string, cxx_function>&);
+unsigned int do_file(state&, const std::string&, int, int, int);
+unsigned int do_string(state&, const std::string&, int, int, int);
+void eval(state&, const std::string&, int);
 
+} // namespace lutok
 
-}  // namespace lutok
-
-#endif  // !defined(LUTOK_OPERATIONS_HPP)
+#endif // !defined(LUTOK_OPERATIONS_HPP)

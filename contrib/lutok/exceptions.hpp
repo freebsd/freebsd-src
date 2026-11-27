@@ -37,47 +37,41 @@
 
 namespace lutok {
 
-
 class state;
-
 
 /// Base exception for lua errors.
 class error : public std::runtime_error {
 public:
     explicit error(const std::string&);
-    virtual ~error(void) throw();
+    ~error(void) noexcept override;
 };
 
-
 /// Exception for errors raised by the Lua API library.
-class api_error : public error {
+class api_error final : public error {
     /// Name of the Lua C API function that caused the error.
     std::string _api_function;
 
 public:
     explicit api_error(const std::string&, const std::string&);
-    virtual ~api_error(void) throw();
+    ~api_error(void) noexcept override;
 
     static api_error from_stack(state&, const std::string&);
 
-    const std::string& api_function(void) const;
+    [[nodiscard]] const std::string& api_function(void) const;
 };
 
-
 /// File not found error.
-class file_not_found_error : public error {
+class file_not_found_error final : public error {
     /// Name of the not-found file.
     std::string _filename;
 
 public:
     explicit file_not_found_error(const std::string&);
-    virtual ~file_not_found_error(void) throw();
+    ~file_not_found_error(void) noexcept override;
 
-    const std::string& filename(void) const;
+    [[nodiscard]] const std::string& filename(void) const;
 };
 
+} // namespace lutok
 
-}  // namespace lutok
-
-
-#endif  // !defined(LUTOK_EXCEPTIONS_HPP)
+#endif // !defined(LUTOK_EXCEPTIONS_HPP)

@@ -27,14 +27,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <cassert>
-
 #include <lua.hpp>
-
 #include <lutok/c_gate.hpp>
 #include <lutok/debug.hpp>
 #include <lutok/exceptions.hpp>
-#include <lutok/state.ipp>
-
 
 /// Internal implementation for lutok::debug.
 struct lutok::debug::impl {
@@ -42,19 +38,13 @@ struct lutok::debug::impl {
     lua_Debug lua_debug;
 };
 
-
 /// Constructor for an empty debug structure.
-lutok::debug::debug(void) :
-    _pimpl(new impl())
+lutok::debug::debug(void) : _pimpl(new impl())
 {
 }
-
 
 /// Destructor.
-lutok::debug::~debug(void)
-{
-}
-
+lutok::debug::~debug(void) = default;
 
 /// Wrapper around lua_getinfo.
 ///
@@ -64,7 +54,7 @@ lutok::debug::~debug(void)
 /// \warning Terminates execution if there is not enough memory to manipulate
 /// the Lua stack.
 void
-lutok::debug::get_info(state& s, const std::string& what_)
+lutok::debug::get_info(state& s, const std::string& what_) const
 {
     lua_State* raw_state = state_c_gate(s).c_state();
 
@@ -72,19 +62,17 @@ lutok::debug::get_info(state& s, const std::string& what_)
         throw lutok::api_error::from_stack(s, "lua_getinfo");
 }
 
-
 /// Wrapper around lua_getstack.
 ///
 /// \param s The Lua state.
 /// \param level The second parameter to lua_getstack.
 void
-lutok::debug::get_stack(state& s, const int level)
+lutok::debug::get_stack(state& s, const int level) const
 {
     lua_State* raw_state = state_c_gate(s).c_state();
 
     lua_getstack(raw_state, level, &_pimpl->lua_debug);
 }
-
 
 /// Accessor for the 'event' field of lua_Debug.
 ///
@@ -95,17 +83,15 @@ lutok::debug::event(void) const
     return _pimpl->lua_debug.event;
 }
 
-
 /// Accessor for the 'name' field of lua_Debug.
 ///
 /// \return Returns the 'name' field of the internal lua_Debug structure.
 std::string
 lutok::debug::name(void) const
 {
-    assert(_pimpl->lua_debug.name != NULL);
+    assert(_pimpl->lua_debug.name != nullptr);
     return _pimpl->lua_debug.name;
 }
-
 
 /// Accessor for the 'namewhat' field of lua_Debug.
 ///
@@ -113,10 +99,9 @@ lutok::debug::name(void) const
 std::string
 lutok::debug::name_what(void) const
 {
-    assert(_pimpl->lua_debug.namewhat != NULL);
+    assert(_pimpl->lua_debug.namewhat != nullptr);
     return _pimpl->lua_debug.namewhat;
 }
-
 
 /// Accessor for the 'what' field of lua_Debug.
 ///
@@ -124,10 +109,9 @@ lutok::debug::name_what(void) const
 std::string
 lutok::debug::what(void) const
 {
-    assert(_pimpl->lua_debug.what != NULL);
+    assert(_pimpl->lua_debug.what != nullptr);
     return _pimpl->lua_debug.what;
 }
-
 
 /// Accessor for the 'source' field of lua_Debug.
 ///
@@ -135,10 +119,9 @@ lutok::debug::what(void) const
 std::string
 lutok::debug::source(void) const
 {
-    assert(_pimpl->lua_debug.source != NULL);
+    assert(_pimpl->lua_debug.source != nullptr);
     return _pimpl->lua_debug.source;
 }
-
 
 /// Accessor for the 'currentline' field of lua_Debug.
 ///
@@ -149,7 +132,6 @@ lutok::debug::current_line(void) const
     return _pimpl->lua_debug.currentline;
 }
 
-
 /// Accessor for the 'nups' field of lua_Debug.
 ///
 /// \return Returns the 'nups' field of the internal lua_Debug structure.
@@ -159,7 +141,6 @@ lutok::debug::n_ups(void) const
     return _pimpl->lua_debug.nups;
 }
 
-
 /// Accessor for the 'linedefined' field of lua_Debug.
 ///
 /// \return Returns the 'linedefined' field of the internal lua_Debug structure.
@@ -168,7 +149,6 @@ lutok::debug::line_defined(void) const
 {
     return _pimpl->lua_debug.linedefined;
 }
-
 
 /// Accessor for the 'lastlinedefined' field of lua_Debug.
 ///
@@ -180,13 +160,11 @@ lutok::debug::last_line_defined(void) const
     return _pimpl->lua_debug.lastlinedefined;
 }
 
-
 /// Accessor for the 'short_src' field of lua_Debug.
 ///
 /// \return Returns the 'short_src' field of the internal lua_Debug structure.
 std::string
 lutok::debug::short_src(void) const
 {
-    assert(_pimpl->lua_debug.short_src != NULL);
     return _pimpl->lua_debug.short_src;
 }

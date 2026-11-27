@@ -30,9 +30,7 @@
 /// Minimal example using Lua code to print a traditional hello-world message.
 
 #include <cstdlib>
-
 #include <lutok/state.ipp>
-
 
 /// Program's entry point.
 ///

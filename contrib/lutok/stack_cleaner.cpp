@@ -27,11 +27,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <cassert>
-#include <cstring>
 
 #include "stack_cleaner.hpp"
 #include "state.ipp"
-
 
 /// Internal implementation for lutok::stack_cleaner.
 struct lutok::stack_cleaner::impl {
@@ -52,7 +50,6 @@ struct lutok::stack_cleaner::impl {
     }
 };
 
-
 /// Creates a new stack cleaner.
 ///
 /// This gathers the current height of the stack so that extra elements can be
@@ -64,7 +61,6 @@ lutok::stack_cleaner::stack_cleaner(state& state_) :
 {
 }
 
-
 /// Pops any values from the stack not known at construction time.
 ///
 /// \pre The current height of the stack must be equal or greater to the height
@@ -75,9 +71,8 @@ lutok::stack_cleaner::~stack_cleaner(void)
     assert(current_depth >= _pimpl->original_depth);
     const unsigned int diff = current_depth - _pimpl->original_depth;
     if (diff > 0)
-        _pimpl->state_ref.pop(diff);
+        _pimpl->state_ref.pop(static_cast<int>(diff));
 }
-
 
 /// Forgets about any elements currently in the stack.
 ///
@@ -85,7 +80,7 @@ lutok::stack_cleaner::~stack_cleaner(void)
 /// elements that are currently in the stack will not be touched during
 /// destruction when the function is called.
 void
-lutok::stack_cleaner::forget(void)
+lutok::stack_cleaner::forget(void) const
 {
     _pimpl->original_depth = _pimpl->state_ref.get_top();
 }

@@ -30,14 +30,16 @@ MAN=		kyua-about.1 \
 		kyua.conf.5 \
 		kyuafile.5
 
-CFLAGS+=	-I${KYUA_SRCDIR} -I${.CURDIR}
-CFLAGS+=	-I${SRCTOP}/contrib/lutok/include
-CFLAGS+=	-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/private/sqlite3
-CFLAGS+=	-DHAVE_CONFIG_H
+CXXFLAGS+=	-I${KYUA_SRCDIR} -I${.CURDIR}
+CXXFLAGS+=	-I${SRCTOP}/contrib/lua/src
+CXXFLAGS+=	-I${SRCTOP}/lib/liblua
+CXXFLAGS+=	-I${SRCTOP}/contrib/lutok/include
+CXXFLAGS+=	-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/private/sqlite3
+CXXFLAGS+=	-DHAVE_CONFIG_H
 
 # We compile the kyua libraries as part of the main executable as this saves
 # compile time and we don't install them anyway.
-CFLAGS+=	-DGDB=\"/usr/local/bin/gdb\"			\
+CXXFLAGS+=	-DGDB=\"/usr/local/bin/gdb\"			\
 		-DKYUA_ARCHITECTURE=\"${MACHINE_ARCH}\"		\
 		-DKYUA_CONFDIR=\"${KYUA_CONFDIR}\"		\
 		-DKYUA_DOCDIR=\"${KYUA_DOCDIR}\"		\

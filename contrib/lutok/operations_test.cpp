@@ -26,19 +26,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "operations.hpp"
-
+#include <atf-c++.hpp>
 #include <fstream>
 
-#include <atf-c++.hpp>
-
 #include "exceptions.hpp"
+#include "operations.hpp"
 #include "state.ipp"
 #include "test_utils.hpp"
 
-
 namespace {
-
 
 /// Addition function for injection into Lua.
 ///
@@ -56,7 +52,6 @@ hook_add(lutok::state& state)
     return 1;
 }
 
-
 /// Multiplication function for injection into Lua.
 ///
 /// \pre stack(-2) The first factor.
@@ -73,15 +68,13 @@ hook_multiply(lutok::state& state)
     return 1;
 }
 
-
-}  // anonymous namespace
-
+} // anonymous namespace
 
 ATF_TEST_CASE_WITHOUT_HEAD(create_module__empty);
 ATF_TEST_CASE_BODY(create_module__empty)
 {
     lutok::state state;
-    std::map< std::string, lutok::cxx_function > members;
+    std::map<std::string, lutok::cxx_function> members;
     lutok::create_module(state, "my_math", members);
 
     state.open_base();
@@ -90,12 +83,11 @@ ATF_TEST_CASE_BODY(create_module__empty)
     state.pop(1);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(create_module__one);
 ATF_TEST_CASE_BODY(create_module__one)
 {
     lutok::state state;
-    std::map< std::string, lutok::cxx_function > members;
+    std::map<std::string, lutok::cxx_function> members;
     members["add"] = hook_add;
     lutok::create_module(state, "my_math", members);
 
@@ -104,12 +96,11 @@ ATF_TEST_CASE_BODY(create_module__one)
     state.pop(1);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(create_module__many);
 ATF_TEST_CASE_BODY(create_module__many)
 {
     lutok::state state;
-    std::map< std::string, lutok::cxx_function > members;
+    std::map<std::string, lutok::cxx_function> members;
     members["add"] = hook_add;
     members["multiply"] = hook_multiply;
     members["add2"] = hook_add;
@@ -123,7 +114,6 @@ ATF_TEST_CASE_BODY(create_module__many)
     ATF_REQUIRE_EQ(50, state.to_integer(-1));
     state.pop(3);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(do_file__some_args);
 ATF_TEST_CASE_BODY(do_file__some_args)
@@ -145,7 +135,6 @@ ATF_TEST_CASE_BODY(do_file__some_args)
     state.pop(3);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(do_file__any_results);
 ATF_TEST_CASE_BODY(do_file__any_results)
 {
@@ -162,7 +151,6 @@ ATF_TEST_CASE_BODY(do_file__any_results)
     state.pop(3);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(do_file__no_results);
 ATF_TEST_CASE_BODY(do_file__no_results)
 {
@@ -174,7 +162,6 @@ ATF_TEST_CASE_BODY(do_file__no_results)
     ATF_REQUIRE_EQ(0, lutok::do_file(state, "test.lua", 0, 0, 0));
     ATF_REQUIRE_EQ(0, state.get_top());
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(do_file__many_results);
 ATF_TEST_CASE_BODY(do_file__many_results)
@@ -191,7 +178,6 @@ ATF_TEST_CASE_BODY(do_file__many_results)
     state.pop(2);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(do_file__not_found);
 ATF_TEST_CASE_BODY(do_file__not_found)
 {
@@ -200,7 +186,6 @@ ATF_TEST_CASE_BODY(do_file__not_found)
     ATF_REQUIRE_THROW_RE(lutok::file_not_found_error, "missing.lua",
                          lutok::do_file(state, "missing.lua", 0, 0, 0));
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(do_file__error);
 ATF_TEST_CASE_BODY(do_file__error)
@@ -214,7 +199,6 @@ ATF_TEST_CASE_BODY(do_file__error)
     ATF_REQUIRE_THROW_RE(lutok::error, "Failed to load Lua file 'test.lua'",
                          lutok::do_file(state, "test.lua", 0, 0, 0));
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(do_file__error_with_errfunc);
 ATF_TEST_CASE_BODY(do_file__error_with_errfunc)
@@ -233,7 +217,6 @@ ATF_TEST_CASE_BODY(do_file__error_with_errfunc)
     state.pop(1);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(do_string__some_args);
 ATF_TEST_CASE_BODY(do_string__some_args)
 {
@@ -242,15 +225,16 @@ ATF_TEST_CASE_BODY(do_string__some_args)
     state.push_integer(3);
     state.push_integer(5);
     state.push_integer(123);
-    ATF_REQUIRE_EQ(2, lutok::do_string(
-        state, "local a1, a2 = ...\nreturn a1 * 2, a2 * 2\n", 3, -1, 0));
+    ATF_REQUIRE_EQ(
+        2,
+        lutok::do_string(state, "local a1, a2 = ...\nreturn a1 * 2, a2 * 2\n",
+                         3, -1, 0));
     ATF_REQUIRE_EQ(3, state.get_top());
     ATF_REQUIRE_EQ(456, state.to_integer(-3));
     ATF_REQUIRE_EQ(6, state.to_integer(-2));
     ATF_REQUIRE_EQ(10, state.to_integer(-1));
     state.pop(3);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(do_string__any_results);
 ATF_TEST_CASE_BODY(do_string__any_results)
@@ -264,7 +248,6 @@ ATF_TEST_CASE_BODY(do_string__any_results)
     state.pop(3);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(do_string__no_results);
 ATF_TEST_CASE_BODY(do_string__no_results)
 {
@@ -272,7 +255,6 @@ ATF_TEST_CASE_BODY(do_string__no_results)
     ATF_REQUIRE_EQ(0, lutok::do_string(state, "return 10, 20, 30", 0, 0, 0));
     ATF_REQUIRE_EQ(0, state.get_top());
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(do_string__many_results);
 ATF_TEST_CASE_BODY(do_string__many_results)
@@ -285,7 +267,6 @@ ATF_TEST_CASE_BODY(do_string__many_results)
     state.pop(2);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(do_string__error);
 ATF_TEST_CASE_BODY(do_string__error)
 {
@@ -295,7 +276,6 @@ ATF_TEST_CASE_BODY(do_string__error)
                          lutok::do_string(state, "a b c", 0, 0, 0));
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(do_string__error_with_errfunc);
 ATF_TEST_CASE_BODY(do_string__error_with_errfunc)
 {
@@ -304,12 +284,11 @@ ATF_TEST_CASE_BODY(do_string__error_with_errfunc)
     {
         stack_balance_checker checker(state);
         ATF_REQUIRE_THROW_RE(lutok::error, "This is an error!",
-                             lutok::do_string(state, "unknown_function()",
-                                              0, 0, -2));
+                             lutok::do_string(state, "unknown_function()", 0, 0,
+                                              -2));
     }
     state.pop(1);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(eval__one_result);
 ATF_TEST_CASE_BODY(eval__one_result)
@@ -320,7 +299,6 @@ ATF_TEST_CASE_BODY(eval__one_result)
     ATF_REQUIRE_EQ(13, state.to_integer(-1));
     state.pop(1);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(eval__many_results);
 ATF_TEST_CASE_BODY(eval__many_results)
@@ -334,7 +312,6 @@ ATF_TEST_CASE_BODY(eval__many_results)
     state.pop(3);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(eval__error);
 ATF_TEST_CASE_BODY(eval__error)
 {
@@ -343,7 +320,6 @@ ATF_TEST_CASE_BODY(eval__error)
     ATF_REQUIRE_THROW(lutok::error,
                       lutok::eval(state, "non_existent.method()", 1));
 }
-
 
 ATF_INIT_TEST_CASES(tcs)
 {

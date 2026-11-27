@@ -32,15 +32,14 @@
 #if !defined(LUTOK_STATE_HPP)
 #define LUTOK_STATE_HPP
 
+#include <lua.hpp>
 #include <memory>
 #include <string>
 
 namespace lutok {
 
-
 class debug;
 class state;
-
 
 /// The type of a C++ function that can be bound into Lua.
 ///
@@ -49,10 +48,8 @@ class state;
 /// as a Lua error and their type will be lost.
 typedef int (*cxx_function)(state&);
 
-
 /// Stack index constant pointing to the registry table.
 extern const int registry_index;
-
 
 /// A RAII model for the Lua state.
 ///
@@ -72,65 +69,64 @@ class state {
     struct impl;
 
     /// Pointer to the shared internal implementation.
-    std::shared_ptr< impl > _pimpl;
+    std::shared_ptr<impl> _pimpl;
 
-    void* new_userdata_voidp(const size_t);
-    void* to_userdata_voidp(const int);
+    [[nodiscard]] void* new_userdata_voidp(size_t) const;
+    [[nodiscard]] void* to_userdata_voidp(int) const;
 
     friend class state_c_gate;
     explicit state(void*);
-    void* raw_state(void);
+    [[nodiscard]] void* raw_state(void) const;
 
 public:
     state(void);
     ~state(void);
 
-    void close(void);
+    void close(void) const;
     void get_global(const std::string&);
-    void get_global_table(void);
-    bool get_metafield(const int, const std::string&);
-    bool get_metatable(const int);
-    void get_table(const int);
-    int get_top(void);
-    void insert(const int);
-    bool is_boolean(const int);
-    bool is_function(const int);
-    bool is_nil(const int);
-    bool is_number(const int);
-    bool is_string(const int);
-    bool is_table(const int);
-    bool is_userdata(const int);
+    void get_global_table(void) const;
+    [[nodiscard]] bool get_metafield(int, const std::string&) const;
+    [[nodiscard]] bool get_metatable(int) const;
+    void get_table(int);
+    [[nodiscard]] int get_top(void) const;
+    void insert(int) const;
+    [[nodiscard]] bool is_boolean(int) const;
+    [[nodiscard]] bool is_function(int) const;
+    [[nodiscard]] bool is_nil(int) const;
+    [[nodiscard]] bool is_number(int) const;
+    [[nodiscard]] bool is_string(int) const;
+    [[nodiscard]] bool is_table(int) const;
+    [[nodiscard]] bool is_userdata(int) const;
     void load_file(const std::string&);
     void load_string(const std::string&);
-    void new_table(void);
-    template< typename Type > Type* new_userdata(void);
-    bool next(const int);
-    void open_all(void);
+    void new_table(void) const;
+    template <typename Type> Type* new_userdata(void);
+    bool next(int);
+    void open_all(void) const;
     void open_base(void);
-    void open_string(void);
-    void open_table(void);
-    void pcall(const int, const int, const int);
-    void pop(const int);
-    void push_boolean(const bool);
-    void push_cxx_closure(cxx_function, const int);
-    void push_cxx_function(cxx_function);
-    void push_integer(const int);
-    void push_nil(void);
-    void push_string(const std::string&);
-    void push_value(const int);
-    void raw_get(const int);
-    void raw_set(const int);
+    void open_string(void) const;
+    void open_table(void) const;
+    void pcall(int, int, int);
+    void pop(int) const;
+    void push_boolean(bool) const;
+    void push_cxx_closure(cxx_function, int) const;
+    void push_cxx_function(cxx_function) const;
+    void push_integer(int) const;
+    void push_nil(void) const;
+    void push_string(const std::string&) const;
+    void push_value(int) const;
+    void raw_get(int) const;
+    void raw_set(int) const;
     void set_global(const std::string&);
-    void set_metatable(const int);
-    void set_table(const int);
-    bool to_boolean(const int);
-    long to_integer(const int);
-    template< typename Type > Type* to_userdata(const int);
-    std::string to_string(const int);
-    int upvalue_index(const int);
+    void set_metatable(int) const;
+    void set_table(int);
+    [[nodiscard]] bool to_boolean(int) const;
+    [[nodiscard]] lua_Integer to_integer(int) const;
+    template <typename Type> Type* to_userdata(int);
+    [[nodiscard]] std::string to_string(int) const;
+    static int upvalue_index(int);
 };
 
+} // namespace lutok
 
-}  // namespace lutok
-
-#endif  // !defined(LUTOK_STATE_HPP)
+#endif // !defined(LUTOK_STATE_HPP)

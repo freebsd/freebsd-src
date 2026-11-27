@@ -26,14 +26,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "exceptions.hpp"
-
+#include <atf-c++.hpp>
 #include <cstring>
 
-#include <atf-c++.hpp>
-
+#include "exceptions.hpp"
 #include "state.ipp"
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(error);
 ATF_TEST_CASE_BODY(error)
@@ -42,7 +39,6 @@ ATF_TEST_CASE_BODY(error)
     ATF_REQUIRE(std::strcmp("Some text", e.what()) == 0);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(api_error__explicit);
 ATF_TEST_CASE_BODY(api_error__explicit)
 {
@@ -50,7 +46,6 @@ ATF_TEST_CASE_BODY(api_error__explicit)
     ATF_REQUIRE(std::strcmp("Some text", e.what()) == 0);
     ATF_REQUIRE_EQ("some_function", e.api_function());
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(api_error__from_stack);
 ATF_TEST_CASE_BODY(api_error__from_stack)
@@ -67,7 +62,6 @@ ATF_TEST_CASE_BODY(api_error__from_stack)
     ATF_REQUIRE_EQ("the_function", e.api_function());
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(file_not_found_error);
 ATF_TEST_CASE_BODY(file_not_found_error)
 {
@@ -75,7 +69,6 @@ ATF_TEST_CASE_BODY(file_not_found_error)
     ATF_REQUIRE(std::strcmp("File 'missing-file' not found", e.what()) == 0);
     ATF_REQUIRE_EQ("missing-file", e.filename());
 }
-
 
 ATF_INIT_TEST_CASES(tcs)
 {

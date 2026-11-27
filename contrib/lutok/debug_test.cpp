@@ -26,26 +26,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "debug.hpp"
-
 #include <atf-c++.hpp>
 #include <lua.hpp>
 
+#include "debug.hpp"
 #include "state.ipp"
 #include "test_utils.hpp"
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(get_info);
 ATF_TEST_CASE_BODY(get_info)
 {
     lutok::state state;
-    ATF_REQUIRE(luaL_dostring(raw(state), "\n\nfunction hello() end\n"
+    ATF_REQUIRE(luaL_dostring(raw(state),
+                              "\n\nfunction hello() end\n"
                               "return hello") == 0);
     lutok::debug debug;
     debug.get_info(state, ">S");
     ATF_REQUIRE_EQ(3, debug.line_defined());
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(get_stack);
 ATF_TEST_CASE_BODY(get_stack)
@@ -59,7 +57,6 @@ ATF_TEST_CASE_BODY(get_stack)
     // crash... (because get_stack only is supposed to update internal values of
     // the debug structure).
 }
-
 
 ATF_INIT_TEST_CASES(tcs)
 {

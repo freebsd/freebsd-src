@@ -32,12 +32,10 @@
 #if !defined(LUTOK_STACK_CLEANER_HPP)
 #define LUTOK_STACK_CLEANER_HPP
 
+#include <lutok/state.hpp>
 #include <memory>
 
-#include <lutok/state.hpp>
-
 namespace lutok {
-
 
 /// A RAII model for values on the Lua stack.
 ///
@@ -72,7 +70,7 @@ class stack_cleaner {
     struct impl;
 
     /// Pointer to the shared internal implementation.
-    std::unique_ptr< impl > _pimpl;
+    std::unique_ptr<impl> _pimpl;
 
     /// Disallow copies.
     stack_cleaner(const stack_cleaner&) = delete;
@@ -81,13 +79,12 @@ class stack_cleaner {
     stack_cleaner& operator=(const stack_cleaner&) = delete;
 
 public:
-    stack_cleaner(state&);
+    explicit stack_cleaner(state&);
     ~stack_cleaner(void);
 
-    void forget(void);
+    void forget(void) const;
 };
 
+} // namespace lutok
 
-}  // namespace lutok
-
-#endif  // !defined(LUTOK_STACK_CLEANER_HPP)
+#endif // !defined(LUTOK_STACK_CLEANER_HPP)

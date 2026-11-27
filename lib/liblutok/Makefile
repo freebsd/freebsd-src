@@ -11,12 +11,12 @@ SRCS=	c_gate.cpp		\
 	stack_cleaner.cpp	\
 	state.cpp
 
-CFLAGS+=	-I${SRCTOP}/contrib/lutok/include \
+CXXFLAGS+=	-I${SRCTOP}/contrib/lutok/include \
 		-I${SRCTOP}/lib/liblua	\
 		-I${SRCTOP}/contrib/lua/src
 
 WARNS?=	3
-SHLIB_MAJOR=	0
+SHLIB_MAJOR=	4
 
 CXXSTD=		gnu++20
 

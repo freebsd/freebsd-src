@@ -31,12 +31,10 @@
 
 #include <cstdlib>
 #include <iostream>
-#include <string>
-
 #include <lutok/exceptions.hpp>
 #include <lutok/operations.hpp>
 #include <lutok/state.ipp>
-
+#include <string>
 
 /// Executes a Lua statement provided by the user with error checking.
 ///
@@ -55,7 +53,6 @@ run_statement(lutok::state& state, const std::string& line)
         std::cerr << "ERROR: " << error.what() << '\n';
     }
 }
-
 
 /// Program's entry point.
 ///

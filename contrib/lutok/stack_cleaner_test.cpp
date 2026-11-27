@@ -26,10 +26,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "stack_cleaner.hpp"
-
 #include <atf-c++.hpp>
 
+#include "stack_cleaner.hpp"
 
 ATF_TEST_CASE_WITHOUT_HEAD(empty);
 ATF_TEST_CASE_BODY(empty)
@@ -41,7 +40,6 @@ ATF_TEST_CASE_BODY(empty)
     }
     ATF_REQUIRE_EQ(0, state.get_top());
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(some);
 ATF_TEST_CASE_BODY(some)
@@ -56,7 +54,6 @@ ATF_TEST_CASE_BODY(some)
     }
     ATF_REQUIRE_EQ(0, state.get_top());
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(nested);
 ATF_TEST_CASE_BODY(nested)
@@ -80,7 +77,6 @@ ATF_TEST_CASE_BODY(nested)
     ATF_REQUIRE_EQ(0, state.get_top());
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(forget);
 ATF_TEST_CASE_BODY(forget)
 {
@@ -97,7 +93,6 @@ ATF_TEST_CASE_BODY(forget)
     ATF_REQUIRE_EQ(30, state.to_integer(-1));
     state.pop(2);
 }
-
 
 ATF_INIT_TEST_CASES(tcs)
 {
