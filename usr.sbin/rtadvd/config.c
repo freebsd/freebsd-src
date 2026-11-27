@@ -336,11 +336,87 @@ rm_rainfo(struct rainfo *rai)
 	return (0);
 }
 
+static bool
+reload_keeps_router(const struct rainfo *old, const struct rainfo *new)
+{
+	const char *a, *b, *end_a, *end_b;
+	size_t len;
+
+	if (old->rai_lifetime == 0 || new->rai_lifetime == 0 ||
+	    old->rai_mininterval != new->rai_mininterval ||
+	    old->rai_maxinterval != new->rai_maxinterval)
+		return (false);
+
+	/* Compare the options in the generated RAs, except for prefixes. */
+	a = old->rai_ra_data + sizeof(struct nd_router_advert);
+	b = new->rai_ra_data + sizeof(struct nd_router_advert);
+	end_a = old->rai_ra_data + old->rai_ra_datalen;
+	end_b = new->rai_ra_data + new->rai_ra_datalen;
+	for (;;) {
+		while (end_a - a >= (int)sizeof(struct nd_opt_prefix_info) &&
+		    *a == ND_OPT_PREFIX_INFORMATION)
+			a += sizeof(struct nd_opt_prefix_info);
+		while (end_b - b >= (int)sizeof(struct nd_opt_prefix_info) &&
+		    *b == ND_OPT_PREFIX_INFORMATION)
+			b += sizeof(struct nd_opt_prefix_info);
+		if (a == end_a || b == end_b)
+			return (a == end_a && b == end_b);
+		if (end_a - a < 2 || end_b - b < 2)
+			return (false);
+		len = (uint8_t)a[1] * 8;
+		if (len == 0 || len > (size_t)(end_a - a) ||
+		    len > (size_t)(end_b - b) || memcmp(a, b, len) != 0)
+			return (false);
+		a += len;
+		b += len;
+	}
+}
+
+static bool
+reload_keeps_prefixes(struct rainfo *old, struct rainfo *new)
+{
+	struct prefix *pfx, *next;
+
+	TAILQ_FOREACH(pfx, &old->rai_prefix, pfx_next) {
+		next = find_prefix(new, &pfx->pfx_prefix, pfx->pfx_prefixlen);
+		if (pfx->pfx_timer != NULL || next == NULL ||
+		    pfx->pfx_onlinkflg != next->pfx_onlinkflg ||
+		    pfx->pfx_autoconfflg != next->pfx_autoconfflg)
+			return (false);
+	}
+	return (true);
+}
+
+static void
+update_transition(struct ifinfo *ifi, struct rainfo *old,
+    const struct rainfo *new)
+{
+	struct rdnss *rdn;
+	struct dnssl *dns;
+	struct rtinfo *rti;
+
+	if (reload_keeps_router(old, new)) {
+		old->rai_lifetime = new->rai_lifetime;
+		return;
+	}
+
+	if (old->rai_lifetime != 0)
+		ifi->ifi_burstcount = MAX_FINAL_RTR_ADVERTISEMENTS;
+	old->rai_lifetime = 0;
+	TAILQ_FOREACH(rdn, &old->rai_rdnss, rd_next)
+		rdn->rd_ltime = 0;
+	TAILQ_FOREACH(dns, &old->rai_dnssl, dn_next)
+		dns->dn_ltime = 0;
+	TAILQ_FOREACH(rti, &old->rai_route, rti_next)
+		rti->rti_ltime = 0;
+}
+
 struct ifinfo *
 getconfig(struct ifinfo *ifi)
 {
 	int stat, i;
 	int error;
+	bool replace_pending;
 	char tbuf[BUFSIZ];
 	struct rainfo *rai;
 	struct rainfo *rai_old;
@@ -976,11 +1052,27 @@ getconfig_free_prf64:
 	/* construct the sending packet */
 	make_packet(rai);
 
-	/*
-	 * If an entry with the same ifindex exists, remove it first.
-	 * Before the removal, RDNSS and DNSSL options with
-	 * zero-lifetime will be sent.
-	 */
+	rai_old = ifi->ifi_rainfo;
+	/* A pending configuration can change until it has been advertised. */
+	replace_pending = ifi->ifi_state == IFI_STATE_TRANSITIVE &&
+	    (ifi->ifi_rainfo_trans != rai_old ||
+	    ifi->ifi_burstcount == MAX_INITIAL_RTR_ADVERTISEMENTS);
+	if (ifi->ifi_state == IFI_STATE_TRANSITIVE &&
+	    ifi->ifi_rainfo_trans != NULL && ifi->ifi_rainfo_trans != rai_old)
+		update_transition(ifi, ifi->ifi_rainfo_trans, rai);
+	if (ifi->ifi_state != IFI_STATE_UNCONFIGURED && rai_old != NULL &&
+	    (replace_pending || (reload_keeps_router(rai_old, rai) &&
+	    reload_keeps_prefixes(rai_old, rai)))) {
+		if (ifi->ifi_rainfo_trans == rai_old)
+			ifi->ifi_rainfo_trans = rai;
+		ifi->ifi_rainfo = rai;
+		TAILQ_CONCAT(&rai->rai_soliciter, &rai_old->rai_soliciter,
+		    sol_next);
+		rm_rainfo(rai_old);
+		TAILQ_INSERT_TAIL(&railist, rai, rai_next);
+		return (ifi);
+	}
+
 	switch (ifi->ifi_state) {
 	case IFI_STATE_UNCONFIGURED:
 		/* UNCONFIGURED -> TRANSITIVE */
@@ -1009,75 +1101,34 @@ getconfig_free_prf64:
 		    "<%s> ifname=%s marked as TRANSITIVE (initial burst).",
 		    __func__, ifi->ifi_ifname);
 		break;
+	case IFI_STATE_TRANSITIVE:
 	case IFI_STATE_CONFIGURED:
-		/* CONFIGURED -> TRANSITIVE */
-		rai_old = ifi->ifi_rainfo;
+		/* The old configuration has already been advertised. */
 		if (rai_old == NULL) {
 			syslog(LOG_ERR,
 			    "<%s> ifi_rainfo is NULL"
-			    " in IFI_STATE_CONFIGURED.", __func__);
+			    " on reload.", __func__);
 			ifi = NULL;
 			break;
-		} else {
-			struct rdnss *rdn;
-			struct dnssl *dns;
-			struct rtinfo *rti;
+		}
+		update_transition(ifi, rai_old, rai);
+		ifi->ifi_rainfo_trans = rai_old;
+		ifi->ifi_state = IFI_STATE_TRANSITIVE;
+		ifi->ifi_burstcount = MAX_FINAL_RTR_ADVERTISEMENTS;
+		ifi->ifi_burstinterval = MIN_DELAY_BETWEEN_RAS;
 
-			rai_old->rai_lifetime = 0;
-			TAILQ_FOREACH(rdn, &rai_old->rai_rdnss, rd_next)
-			    rdn->rd_ltime = 0;
-			TAILQ_FOREACH(dns, &rai_old->rai_dnssl, dn_next)
-			    dns->dn_ltime = 0;
-			TAILQ_FOREACH(rti, &rai_old->rai_route, rti_next)
-			    rti->rti_ltime = 0;
-
-			ifi->ifi_rainfo_trans = rai_old;
-			ifi->ifi_state = IFI_STATE_TRANSITIVE;
-			ifi->ifi_burstcount = MAX_FINAL_RTR_ADVERTISEMENTS;
-			ifi->ifi_burstinterval = MIN_DELAY_BETWEEN_RAS;
-
+		if (ifi->ifi_ra_timer != NULL) {
 			ra_timer_update(ifi, &ifi->ifi_ra_timer->rat_tm);
 			rtadvd_set_timer(&ifi->ifi_ra_timer->rat_tm,
 			    ifi->ifi_ra_timer);
-
-			syslog(LOG_DEBUG,
-			    "<%s> ifname=%s marked as TRANSITIVE"
-			    " (transitional burst)",
-			    __func__, ifi->ifi_ifname);
 		}
+
+		syslog(LOG_DEBUG,
+		    "<%s> ifname=%s marked as TRANSITIVE"
+		    " (transitional burst)",
+		    __func__, ifi->ifi_ifname);
 		ifi->ifi_rainfo = rai;
 		TAILQ_INSERT_TAIL(&railist, rai, rai_next);
-		break;
-	case IFI_STATE_TRANSITIVE:
-		if (ifi->ifi_rainfo != NULL) {
-			if (ifi->ifi_rainfo == ifi->ifi_rainfo_trans) {
-				/* Reinitialize initial burst */
-				rm_rainfo(ifi->ifi_rainfo);
-				ifi->ifi_rainfo = rai;
-				ifi->ifi_rainfo_trans = rai;
-				ifi->ifi_burstcount =
-				    MAX_INITIAL_RTR_ADVERTISEMENTS;
-				ifi->ifi_burstinterval =
-				    MAX_INITIAL_RTR_ADVERT_INTERVAL;
-			} else {
-				/* Replace ifi_rainfo with the new one */
-				rm_rainfo(ifi->ifi_rainfo);
-				ifi->ifi_rainfo = rai;
-			}
-			TAILQ_INSERT_TAIL(&railist, rai, rai_next);
-
-			ra_timer_update(ifi, &ifi->ifi_ra_timer->rat_tm);
-			rtadvd_set_timer(&ifi->ifi_ra_timer->rat_tm,
-			    ifi->ifi_ra_timer);
-		} else {
-			/* XXX: NOTREACHED.  Being shut down. */
-			syslog(LOG_ERR,
-			    "<%s> %s is shutting down.  Skipped.",
-			    __func__, ifi->ifi_ifname);
-			rm_rainfo(rai);
-
-			return (NULL);
-		}
 		break;
 	}
 
