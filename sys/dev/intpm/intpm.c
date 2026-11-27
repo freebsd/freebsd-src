@@ -857,6 +857,7 @@ static int
 intsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 {
 	struct intsmb_softc *sc = device_get_softc(dev);
+	uint32_t val;
 	int error, i;
 	u_char nread;
 
@@ -875,10 +876,26 @@ intsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 	intsmb_start(sc, PIIX4_SMBHSTCNT_PROT_BLOCK, 0);
 	error = intsmb_stop(sc);
 	if (error == 0) {
-		nread = bus_read_1(sc->io_res, PIIX4_SMBHSTDAT0);
+		i = 0;
+		if (sc->type == SYS_RES_MEMORY) {
+			/*
+			 * Some controllers widen MMIO byte reads to 32 bit,
+			 * so reading PIIX4_SMBHSTDAT0 also pops the first
+			 * byte from the PIIX4_SMBBLKDAT FIFO. Read the
+			 * aligned word at PIIX4_SMBHSTADD and take the
+			 * length from byte 1 and the first data byte from
+			 * byte 3.
+			 */
+			val = bus_read_4(sc->io_res, PIIX4_SMBHSTADD);
+			nread = (val >> 8) & 0xff;
+			if (nread != 0 && nread <= SMBBLOCKTRANS_MAX)
+				buf[i++] = (val >> 24) & 0xff;
+		} else
+			nread = bus_read_1(sc->io_res, PIIX4_SMBHSTDAT0);
+
 		if (nread != 0 && nread <= SMBBLOCKTRANS_MAX) {
 			*count = nread;
-			for (i = 0; i < nread; i++)
+			for (; i < nread; i++)
 				buf[i] = bus_read_1(sc->io_res, PIIX4_SMBBLKDAT);
 		} else
 			error = SMB_EBUSERR;
