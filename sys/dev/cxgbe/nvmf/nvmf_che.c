@@ -1946,11 +1946,8 @@ nvmf_che_receive(void *arg)
 	SOCKBUF_LOCK(&so->so_rcv);
 	while (!qp->rx_shutdown) {
 		/* Wait for a PDU. */
-		if (so->so_error != 0 || so->so_rerror != 0) {
-			if (so->so_error != 0)
-				error = so->so_error;
-			else
-				error = so->so_rerror;
+		if (soerror(so)) {
+			error = soerror(so);
 			SOCKBUF_UNLOCK(&so->so_rcv);
 		error:
 			nvmf_qpair_error(&qp->qp, error);
