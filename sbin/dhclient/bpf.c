@@ -344,7 +344,8 @@ send_packet_priv(struct interface_info *interface, struct imsg_hdr *hdr, int fd)
 	struct dhcp_packet raw;
 	size_t len;
 	struct in_addr from, to;
-	int result, bufp = 0;
+	size_t bufp = 0;
+	int result;
 
 	if (hdr->len < sizeof(*hdr) + sizeof(size_t))
 		error("corrupted message received");

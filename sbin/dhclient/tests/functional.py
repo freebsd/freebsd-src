@@ -7,6 +7,8 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 
+import socket
+import struct
 import subprocess
 
 import pytest
@@ -18,6 +20,17 @@ def mac_to_chaddr(mac_str):
     """Convert a MAC address string to a 16-byte BOOTP chaddr."""
     mac_bytes = bytes.fromhex(mac_str.replace(":", ""))
     return mac_bytes + b"\x00" * (16 - len(mac_bytes))
+
+
+def inet_cksum(data):
+    """Compute the Internet checksum of a byte string."""
+    data = bytes(data)
+    if len(data) % 2 != 0:
+        data += b"\x00"
+    s = sum(struct.unpack("!{}H".format(len(data) // 2), data))
+    while s > 0xffff:
+        s = (s & 0xffff) + (s >> 16)
+    return ~s & 0xffff
 
 
 class TestDhclient(VnetTestTemplate):
@@ -71,13 +84,16 @@ class TestDhclient(VnetTestTemplate):
         return ifname
 
     def _do_dora(self, ifname, first_extra_opts=None, extra_opts=None,
-                 sname=b"", file=b""):
+                 sname=b"", file=b"", first_offer_hook=None):
         """
         Run a discover-offer-request-acknowledge exchange and
         return (discover_count, result).
 
         If first_extra_opts is set, it is used in the OFFER for the first
         DHCPDISCOVER only; subsequent DISCOVERs use extra_opts.
+
+        If first_offer_hook is set, it is called with the OFFER for the
+        first DHCPDISCOVER, and the packet it returns is sent instead.
         """
         discover_count = 0
         done = False
@@ -101,6 +117,8 @@ class TestDhclient(VnetTestTemplate):
                     ifname, self._SERVER_IP, self._CLIENT_IP, client_mac,
                     xid, "offer", extra_opts=opts, sname=sname, file=file,
                 )
+                if discover_count == 1 and first_offer_hook is not None:
+                    reply = first_offer_hook(reply)
                 self.sp.sendp(reply, iface=ifname, verbose=0)
 
             elif msg_type == "request":
@@ -245,3 +263,65 @@ class TestDhclient(VnetTestTemplate):
             "Server name with quote should not appear in the lease file"
         assert "server-name" not in result["lease"], \
             "Unsafe server name should be discarded entirely"
+
+    def _offer_ip_hl_short(self, offer):
+        """Encode an OFFER with an 8-byte IP header."""
+        payload = bytes(offer[self.sp.BOOTP])
+        ulen = 8 + len(payload)
+        ip = bytearray(struct.pack("!BBHHH", 0x42, 0, 8 + ulen, 0, 0))
+        struct.pack_into("!H", ip, 4, inet_cksum(ip))
+        udp = struct.pack("!HHHH", (64 << 8) | socket.IPPROTO_UDP, 68,
+                          ulen, 0)
+        return self.sp.Raw(load=bytes(offer)[:14] + ip + udp + payload)
+
+    def _offer_udp_hdr_truncated(self, offer):
+        """
+        Build a frame which ends immediately after the UDP destination
+        port, the last field examined by dhclient's BPF filter.
+        """
+        ip = bytearray(struct.pack(
+            "!BBHHHBBH4s4s", 0x4f, 0, 60 + 4, 0, 0, 64, socket.IPPROTO_UDP,
+            0, socket.inet_aton(self._SERVER_IP),
+            socket.inet_aton("255.255.255.255"),
+        ))
+        ip += b"\x01" * 40
+        struct.pack_into("!H", ip, 10, inet_cksum(ip))
+        udp = struct.pack("!HH", 67, 68)
+        return self.sp.Raw(load=bytes(offer)[:14] + ip + udp)
+
+    def _offer_udp_len_short(self, offer, ulen, chksum):
+        """Set the UDP length and checksum fields of an OFFER."""
+        bad = offer.copy()
+        bad[self.sp.UDP].len = ulen
+        bad[self.sp.UDP].chksum = chksum
+        return bad
+
+    @pytest.mark.parametrize("kind", [
+        "ip_hl_short",
+        "udp_hdr_truncated",
+        "udp_len_short_cksum",
+        "udp_len_short_nocksum",
+    ])
+    @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
+    def test_malformed_udp_ip_hdr(self, kind):
+        """
+        Verify that dhclient discards packets with invalid IP header or
+        UDP lengths.  A bogus packet is sent in place of the first
+        DHCPOFFER.
+        """
+        ifname = self._setup_server()
+        hooks = {
+            "ip_hl_short": self._offer_ip_hl_short,
+            "udp_hdr_truncated": self._offer_udp_hdr_truncated,
+            "udp_len_short_cksum":
+                lambda offer: self._offer_udp_len_short(offer, 7, 0xffff),
+            "udp_len_short_nocksum":
+                lambda offer: self._offer_udp_len_short(offer, 0, 0),
+        }
+        discover_count, result = self._do_dora(
+            ifname, first_offer_hook=hooks[kind],
+        )
+        assert discover_count >= 2, \
+            "Expected dhclient to discard the bogus offer and retry"
+        assert "inet {}".format(self._CLIENT_IP) in result["ifconfig"]

@@ -90,7 +90,7 @@ wrapsum(u_int32_t sum)
 
 void
 assemble_hw_header(struct interface_info *interface, unsigned char *buf,
-    int *bufix)
+    size_t *bufix)
 {
 	struct ether_header eh;
 
@@ -108,8 +108,8 @@ assemble_hw_header(struct interface_info *interface, unsigned char *buf,
 }
 
 void
-assemble_udp_ip_header(unsigned char *buf, int *bufix, u_int32_t from,
-    u_int32_t to, unsigned int port, unsigned char *data, int len)
+assemble_udp_ip_header(unsigned char *buf, size_t *bufix, u_int32_t from,
+    u_int32_t to, unsigned int port, unsigned char *data, size_t len)
 {
 	struct ip ip;
 	struct udphdr udp;
@@ -148,7 +148,7 @@ assemble_udp_ip_header(unsigned char *buf, int *bufix, u_int32_t from,
 }
 
 ssize_t
-decode_hw_header(unsigned char *buf, int bufix, struct hardware *from)
+decode_hw_header(unsigned char *buf, size_t bufix, struct hardware *from)
 {
 	struct ether_header eh;
 
@@ -163,8 +163,8 @@ decode_hw_header(unsigned char *buf, int bufix, struct hardware *from)
 }
 
 ssize_t
-decode_udp_ip_header(unsigned char *buf, int bufix, struct sockaddr_in *from,
-    unsigned char *data, int buflen)
+decode_udp_ip_header(unsigned char *buf, size_t bufix, struct sockaddr_in *from,
+    unsigned char *data, size_t buflen)
 {
 	struct ip *ip;
 	struct udphdr *udp;
@@ -176,7 +176,12 @@ decode_udp_ip_header(unsigned char *buf, int bufix, struct sockaddr_in *from,
 	static int udp_packets_bad_checksum;
 	static int udp_packets_length_checked;
 	static int udp_packets_length_overflow;
-	int len = 0;
+	unsigned int len = 0;
+
+	if (ip_len < sizeof(*ip) || buflen < ip_len + sizeof(*udp)) {
+		debug("invalid ip length %u", ip_len);
+		return (-1);
+	}
 
 	ip = (struct ip *)(buf + bufix);
 	udp = (struct udphdr *)(buf + bufix + ip_len);
@@ -195,7 +200,7 @@ decode_udp_ip_header(unsigned char *buf, int bufix, struct sockaddr_in *from,
 	}
 
 	if (ntohs(ip->ip_len) != buflen)
-		debug("ip length %d disagrees with bytes received %d.",
+		debug("ip length %d disagrees with bytes received %zu.",
 		    ntohs(ip->ip_len), buflen);
 
 	memcpy(&from->sin_addr, &ip->ip_src, 4);
@@ -206,8 +211,15 @@ decode_udp_ip_header(unsigned char *buf, int bufix, struct sockaddr_in *from,
 	 * we're not supposed to do a checksum.
 	 */
 	if (!data) {
+		unsigned int ulen;
+
+		ulen = ntohs(udp->uh_ulen);
+		if ((size_t)ulen < sizeof(*udp)) {
+			debug("invalid UDP length %d.", ulen);
+			return (-1);
+		}
+		len = ulen - sizeof(*udp);
 		data = buf + bufix + ip_len + sizeof(*udp);
-		len = ntohs(udp->uh_ulen) - sizeof(*udp);
 		udp_packets_length_checked++;
 		if (len + data > buf + bufix + buflen) {
 			udp_packets_length_overflow++;

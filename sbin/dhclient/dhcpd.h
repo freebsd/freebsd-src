@@ -430,12 +430,12 @@ void bootp(struct packet *);
 void dhcp(struct packet *);
 
 /* packet.c */
-void assemble_hw_header(struct interface_info *, unsigned char *, int *);
-void assemble_udp_ip_header(unsigned char *, int *, u_int32_t, u_int32_t,
-    unsigned int, unsigned char *, int);
-ssize_t decode_hw_header(unsigned char *, int, struct hardware *);
-ssize_t decode_udp_ip_header(unsigned char *, int, struct sockaddr_in *,
-    unsigned char *, int);
+void assemble_hw_header(struct interface_info *, unsigned char *, size_t *);
+void assemble_udp_ip_header(unsigned char *, size_t *, u_int32_t, u_int32_t,
+    unsigned int, unsigned char *, size_t);
+ssize_t decode_hw_header(unsigned char *, size_t, struct hardware *);
+ssize_t decode_udp_ip_header(unsigned char *, size_t, struct sockaddr_in *,
+    unsigned char *, size_t);
 
 /* clparse.c */
 int read_client_conf(void);
