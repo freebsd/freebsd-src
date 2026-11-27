@@ -46,8 +46,6 @@
 #include "local.h"
 #include "glue.h"
 
-int	__sdidinit;
-
 #define	NDYNAMIC 10		/* add ten more whenever necessary */
 
 #define	std(flags, file) {		\
@@ -67,7 +65,7 @@ static struct glue uglue = { NULL, FOPEN_MAX - 3, usual };
 static FILE __sF[3] = {
 	std(__SRD, STDIN_FILENO),
 	std(__SWR, STDOUT_FILENO),
-	std(__SWR|__SNBF, STDERR_FILENO)
+	std(__SWR | __SNBF, STDERR_FILENO)
 };
 
 FILE *__stdinp = &__sF[0];
@@ -77,7 +75,7 @@ FILE *__stderrp = &__sF[2];
 struct glue __sglue = { &uglue, 3, __sF };
 static struct glue *lastglue = &uglue;
 
-static struct glue *	moreglue(int);
+static struct glue *moreglue(int);
 
 spinlock_t __stdio_thread_lock = _SPINLOCK_INITIALIZER;
 
@@ -91,7 +89,6 @@ static struct glue *
 moreglue(int n)
 {
 	struct glue *g;
-	static FILE empty = { ._fl_mutex = PTHREAD_MUTEX_INITIALIZER };
 	FILE *p;
 	size_t align;
 
@@ -104,7 +101,7 @@ moreglue(int n)
 	g->niobs = n;
 	g->iobs = p;
 	while (--n >= 0)
-		*p++ = empty;
+		*p++ = (FILE)FAKE_FILE;
 	return (g);
 }
 
@@ -118,8 +115,6 @@ __sfp(void)
 	int	n;
 	struct glue *g;
 
-	if (!__sdidinit)
-		__sinit();
 	/*
 	 * The list must be locked because a FILE may be updated.
 	 */
@@ -162,9 +157,8 @@ found:
  * XXX.  Force immediate allocation of internal memory.  Not used by stdio,
  * but documented historically for certain applications.  Bad applications.
  */
-__warn_references(f_prealloc, 
+__warn_references(f_prealloc,
 	"warning: this program uses f_prealloc(), which is not recommended.");
-void f_prealloc(void);
 
 void
 f_prealloc(void)
@@ -179,37 +173,11 @@ f_prealloc(void)
 	 * removed.
 	 */
 	for (g = &__sglue; (n -= g->niobs) > 0 && g->next; g = g->next)
-		/* void */;
+		;	/* nothing */
 	if ((n > 0) && ((g = moreglue(n)) != NULL)) {
 		STDIO_THREAD_LOCK();
 		SET_GLUE_PTR(lastglue->next, g);
 		lastglue = g;
 		STDIO_THREAD_UNLOCK();
 	}
-}
-
-/*
- * exit() calls _cleanup() through *__cleanup, set whenever we
- * open or buffer a file.  This chicanery is done so that programs
- * that do not use stdio need not link it all in.
- *
- * The name `_cleanup' is, alas, fairly well known outside stdio.
- */
-void
-_cleanup(void)
-{
-	/* (void) _fwalk(fclose); */
-	(void) _fwalk(__sflush);		/* `cheating' */
-}
-
-/*
- * __sinit() is called whenever stdio's internal variables must be set up.
- */
-void
-__sinit(void)
-{
-
-	/* Make sure we clean up on exit. */
-	__cleanup = _cleanup;		/* conservative */
-	__sdidinit = 1;
 }
