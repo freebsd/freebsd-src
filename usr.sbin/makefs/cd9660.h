@@ -153,9 +153,6 @@ typedef struct _cd9660node {
 	int64_t fileSectorsUsed;
 	int fileRecordSize;/*copy of a variable, int for quicker calculations*/
 
-	/* Old name, used for renaming - needs to be optimized but low priority */
-	char o_name [ISO_FILENAME_MAXLENGTH];
-
 	/***** SPACE RESERVED FOR EXTENSIONS *****/
 	/* For memory efficiency's sake - we should move this to a separate struct
 		and point to null if not needed */
