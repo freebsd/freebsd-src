@@ -392,6 +392,19 @@ af2socklen(const int af)
 	return (-1);
 }
 
+static char*
+get_arg_from_line(char *p, int n)
+{
+	while (n--) {
+		while (*p == ' ')
+			p++;
+		p = strchr(p, ' ');
+		if (p == NULL)
+			return (NULL);
+	}
+	return (p);
+}
+
 static void
 process_cmd(char *cmd, int s, int s6, FILE *fp __unused)
 {
@@ -597,8 +610,9 @@ process_cmd(char *cmd, int s, int s6, FILE *fp __unused)
 		sockunion_t	 sources[MAX_ADDRS];
 		struct addrinfo	 hints;
 		struct addrinfo	*res;
-		char		*cp;
 		int		 af1;
+		char addr_list[128], addr[64], *next_addr;
+		int addr_list_col;
 
 		n = 0;
 		fmode = (*cmd == 'i') ? MCAST_INCLUDE : MCAST_EXCLUDE;
@@ -622,20 +636,34 @@ process_cmd(char *cmd, int s, int s6, FILE *fp __unused)
 		hints.ai_flags = AI_NUMERICHOST;
 		hints.ai_family = af;
 		hints.ai_socktype = SOCK_DGRAM;
+		*addr_list = '\0';
+		next_addr = get_arg_from_line(line, 3);
+		if (next_addr != NULL)
+			strncpy(addr_list, get_arg_from_line(line, 3), sizeof(addr_list) - 1);
+
+		addr_list[sizeof(addr_list) - 1] = '\0';
+		addr_list_col = 0;
 
 		for (i = 0; i < n; i++) {
 			sockunion_t *psu = (sockunion_t *)&sources[i];
-			/*
-			 * Trim trailing whitespace, as getaddrinfo()
-			 * can't cope with it.
-			 */
-			fgets(str1, sizeof(str1), fp);
-			cp = strchr(str1, '\n');
-			if (cp != NULL)
-				*cp = '\0';
+
+			next_addr = get_arg_from_line(addr_list, addr_list_col++);
+			error = 0;
+			if (next_addr == NULL || *next_addr == '\0') {
+				if (fgets(addr_list, sizeof(addr_list), fp) == NULL) {
+					warnx("unexpected end of input");
+					break;
+				}
+				next_addr = addr_list;
+				addr_list_col = 1;
+			}
+			if (sscanf(next_addr, "%63s", addr) != 1) {
+				warnx("failed to read address from input");
+				break;
+			}
 
 			res = NULL;
-			error = getaddrinfo(str1, "0", &hints, &res);
+			error = getaddrinfo(addr, "0", &hints, &res);
 			if (error)
 				break;
 			assert(res != NULL);
