@@ -8056,8 +8056,7 @@ lkpi_convert_rx_status(struct ieee80211_hw *hw, struct lkpi_sta *lsta,
 {
 	struct ieee80211_supported_band *supband;
 	struct rate_info rxrate;
-	int i;
-	uint8_t rssi;
+	int i, rssi;
 
 	memset(&rxrate, 0, sizeof(rxrate));
 	memset(rx_stats, 0, sizeof(*rx_stats));
@@ -8076,7 +8075,8 @@ lkpi_convert_rx_status(struct ieee80211_hw *hw, struct lkpi_sta *lsta,
 	rssi -= rx_stats->c_nf;
 	if (rssip != NULL)
 		*rssip = rssi;
-	rx_stats->c_rssi = rssi * 2;
+	/* Strong signals must not wrap the signed half-dBm RSSI fields. */
+	rx_stats->c_rssi = MIN(rssi * 2, INT8_MAX);
 	rx_stats->r_flags |= IEEE80211_R_BAND;
 	rx_stats->c_band =
 	    lkpi_nl80211_band_to_net80211_band(rx_status->band);
@@ -8099,8 +8099,7 @@ lkpi_convert_rx_status(struct ieee80211_hw *hw, struct lkpi_sta *lsta,
 	}
 
 	if (rx_status->chains != 0) {
-		int cc;
-		int8_t crssi;
+		int cc, crssi;
 
 		rx_stats->c_chain = rx_status->chains;
 		rx_stats->r_flags |= IEEE80211_R_C_CHAIN;
@@ -8111,8 +8110,8 @@ lkpi_convert_rx_status(struct ieee80211_hw *hw, struct lkpi_sta *lsta,
 				continue;
 			crssi = rx_status->chain_signal[i];
 			crssi -= rx_stats->c_nf;
-			rx_stats->c_rssi_ctl[i] = crssi * 2;
-			rx_stats->c_rssi_ext[i] = crssi * 2;	/* XXX _ext ??? ATH thing? */
+			rx_stats->c_rssi_ctl[i] = MIN(crssi * 2, INT8_MAX);
+			rx_stats->c_rssi_ext[i] = rx_stats->c_rssi_ctl[i];
 			/* We currently only have the global noise floor value. */
 			rx_stats->c_nf_ctl[i] = rx_stats->c_nf;
 			rx_stats->c_nf_ext[i] = rx_stats->c_nf;
