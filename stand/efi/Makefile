@@ -12,6 +12,10 @@ SUBDIR.${MK_LOADER_IA32}+=	liblua32efi
 SUBDIR.${MK_LOADER_IA32}+=	ficl32efi
 .endif
 
+SUBDIR.yes+=	libacpi
+SUBDIR.${MK_LOADER_IA32}+=	libacpi32
+SUBDIR.yes+= ../liblua
+
 SUBDIR.yes+=	.WAIT
 
 SUBDIR.yes+=	boot1 gptboot
