@@ -27,14 +27,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <cassert>
-
 #include <lua.hpp>
 
 #include "exceptions.hpp"
 #include "operations.hpp"
 #include "stack_cleaner.hpp"
 #include "state.hpp"
-
 
 /// Creates a module: i.e. a table with a set of methods in it.
 ///
@@ -43,19 +41,17 @@
 /// \param members The list of member functions to add to the module.
 void
 lutok::create_module(state& s, const std::string& name,
-                     const std::map< std::string, cxx_function >& members)
+                     const std::map<std::string, cxx_function>& members)
 {
     stack_cleaner cleaner(s);
     s.new_table();
-    for (std::map< std::string, cxx_function >::const_iterator
-         iter = members.begin(); iter != members.end(); iter++) {
-        s.push_string((*iter).first);
-        s.push_cxx_function((*iter).second);
+    for (const auto& member : members) {
+        s.push_string(member.first);
+        s.push_cxx_function(member.second);
         s.set_table(-3);
     }
     s.set_global(name);
 }
-
 
 /// Loads and processes a Lua file.
 ///
@@ -86,16 +82,15 @@ lutok::do_file(state& s, const std::string& file, const int nargs,
         s.pcall(nargs, nresults == -1 ? LUA_MULTRET : nresults,
                 errfunc == 0 ? 0 : errfunc - 1);
     } catch (const lutok::api_error& e) {
-        throw lutok::error("Failed to load Lua file '" + file + "': " +
-                           e.what());
+        throw lutok::error("Failed to load Lua file '" + file +
+                           "': " + e.what());
     }
 
     const int actual_results = s.get_top() - height;
     assert(nresults == -1 || actual_results == nresults);
     assert(actual_results >= 0);
-    return static_cast< unsigned int >(actual_results);
+    return static_cast<unsigned int>(actual_results);
 }
-
 
 /// Processes a Lua script.
 ///
@@ -126,16 +121,15 @@ lutok::do_string(state& s, const std::string& str, const int nargs,
         s.pcall(nargs, nresults == -1 ? LUA_MULTRET : nresults,
                 errfunc == 0 ? 0 : errfunc - 1);
     } catch (const lutok::api_error& e) {
-        throw lutok::error("Failed to process Lua string '" + str + "': " +
-                           e.what());
+        throw lutok::error("Failed to process Lua string '" + str +
+                           "': " + e.what());
     }
 
     const int actual_results = s.get_top() - height;
     assert(nresults == -1 || actual_results == nresults);
     assert(actual_results >= 0);
-    return static_cast< unsigned int >(actual_results);
+    return static_cast<unsigned int>(actual_results);
 }
-
 
 /// Convenience function to evaluate a Lua expression.
 ///

@@ -32,14 +32,12 @@
 #if !defined(LUTOK_DEBUG_HPP)
 #define LUTOK_DEBUG_HPP
 
-#include <string>
 #include <memory>
+#include <string>
 
 namespace lutok {
 
-
 class state;
-
 
 /// A model for the Lua debug state.
 ///
@@ -55,28 +53,27 @@ class debug {
     struct impl;
 
     /// Pointer to the shared internal implementation.
-    std::shared_ptr< impl > _pimpl;
+    std::shared_ptr<impl> _pimpl;
 
 public:
     debug(void);
     ~debug(void);
 
-    void get_info(state&, const std::string&);
-    void get_stack(state&, const int);
+    void get_info(state&, const std::string&) const;
+    void get_stack(state&, int) const;
 
-    int event(void) const;
-    std::string name(void) const;
-    std::string name_what(void) const;
-    std::string what(void) const;
-    std::string source(void) const;
-    int current_line(void) const;
-    int n_ups(void) const;
-    int line_defined(void) const;
-    int last_line_defined(void) const;
-    std::string short_src(void) const;
+    [[nodiscard]] int event(void) const;
+    [[nodiscard]] std::string name(void) const;
+    [[nodiscard]] std::string name_what(void) const;
+    [[nodiscard]] std::string what(void) const;
+    [[nodiscard]] std::string source(void) const;
+    [[nodiscard]] int current_line(void) const;
+    [[nodiscard]] int n_ups(void) const;
+    [[nodiscard]] int line_defined(void) const;
+    [[nodiscard]] int last_line_defined(void) const;
+    [[nodiscard]] std::string short_src(void) const;
 };
 
+} // namespace lutok
 
-}  // namespace lutok
-
-#endif  // !defined(LUTOK_DEBUG_HPP)
+#endif // !defined(LUTOK_DEBUG_HPP)

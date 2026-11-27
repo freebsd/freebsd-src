@@ -1,9 +1,9 @@
 #! /bin/sh
 # depcomp - compile a program generating dependencies as side-effects
 
-scriptversion=2024-06-19.01; # UTC
+scriptversion=2026-05-29.23; # UTC
 
-# Copyright (C) 1999-2024 Free Software Foundation, Inc.
+# Copyright (C) 1999-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -383,11 +383,11 @@ pgcc)
   # problems in parallel builds.  Use a locking strategy to avoid stomping on
   # the same $tmpdepfile.
   lockdir=$base.d-lock
-  trap "
-    echo '$0: caught signal, cleaning up...' >&2
-    rmdir '$lockdir'
-    exit 1
-  " 1 2 13 15
+  cleanup () {
+    echo "$0: caught signal, cleaning up..." >&2
+    rmdir "$lockdir"
+  }
+  trap "cleanup; exit 1" 1 2 13 15
   numtries=100
   i=$numtries
   while test $i -gt 0; do
@@ -784,9 +784,9 @@ exit 0
 # Local Variables:
 # mode: shell-script
 # sh-indentation: 2
-# eval: (add-hook 'before-save-hook 'time-stamp)
+# eval: (add-hook 'before-save-hook 'time-stamp nil t)
 # time-stamp-start: "scriptversion="
-# time-stamp-format: "%:y-%02m-%02d.%02H"
+# time-stamp-format: "%Y-%02m-%02d.%02H"
 # time-stamp-time-zone: "UTC0"
 # time-stamp-end: "; # UTC"
 # End:

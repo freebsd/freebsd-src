@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['cxx_5ffunction_0',['cxx_function',['../a00029.html#a8c623ca426c30c5fab4df2cb21635f17',1,'lutok']]]
+  ['cxx_5ffunction_0',['cxx_function',['../a00044.html#acbf18d1d357cd484f6b87ea0d87f4709',1,'lutok']]]
 ];

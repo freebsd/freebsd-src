@@ -26,20 +26,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "state.ipp"
-
+#include <atf-c++.hpp>
 #include <cstring>
 #include <fstream>
 #include <iostream>
-#include <stdexcept>
-
-#include <atf-c++.hpp>
 #include <lua.hpp>
+#include <stdexcept>
 
 #include "c_gate.hpp"
 #include "exceptions.hpp"
+#include "state.ipp"
 #include "test_utils.hpp"
-
 
 // A note about the lutok::state tests.
 //
@@ -55,9 +52,7 @@
 // are performed by means of direct calls to the Lua C API.  This is to ensure
 // that the wrapped methods are really talking to Lua.
 
-
 namespace {
-
 
 /// Checks if a symbol is available.
 ///
@@ -76,7 +71,6 @@ is_available(lutok::state& state, const char* symbol)
     return ok;
 }
 
-
 /// Checks that no modules are present or that only one has been loaded.
 ///
 /// \post The test case terminates if there is any module present when expected
@@ -87,15 +81,15 @@ is_available(lutok::state& state, const char* symbol)
 static void
 check_modules(lutok::state& state, const std::string& expected)
 {
-    std::cout << "Checking loaded modules" <<
-        (expected.empty() ? "" : (" (" + expected + " expected)")) << "\n";
+    std::cout << "Checking loaded modules"
+              << (expected.empty() ? "" : (" (" + expected + " expected)"))
+              << "\n";
     ATF_REQUIRE(!((expected == "base") ^ (is_available(state, "assert"))));
     ATF_REQUIRE(!((expected == "string") ^
                   (is_available(state, "string.byte"))));
     ATF_REQUIRE(!((expected == "table") ^
                   (is_available(state, "table.concat"))));
 }
-
 
 /// A C closure that returns its two integral upvalues.
 ///
@@ -109,13 +103,12 @@ static int
 c_get_upvalues(lua_State* raw_state)
 {
     lutok::state state = lutok::state_c_gate::connect(raw_state);
-    const int i1 = lua_tointeger(raw_state, state.upvalue_index(1));
-    const int i2 = lua_tointeger(raw_state, state.upvalue_index(2));
+    const int i1 = lua_tointeger(raw_state, lutok::state::upvalue_index(1));
+    const int i2 = lua_tointeger(raw_state, lutok::state::upvalue_index(2));
     lua_pushinteger(raw_state, i1);
     lua_pushinteger(raw_state, i2);
     return 2;
 }
-
 
 /// A custom C++ multiply function with one of its factors on its closure.
 ///
@@ -133,7 +126,6 @@ cxx_multiply_closure(lutok::state& state)
     lua_pushinteger(raw(state), f1 * f2);
     return 1;
 }
-
 
 /// A custom C++ integral division function for Lua.
 ///
@@ -164,7 +156,6 @@ cxx_divide(lutok::state& state)
     return 2;
 }
 
-
 /// A Lua function that raises a very long error message.
 ///
 /// \pre stack(-1) contains the length of the message to construct.
@@ -182,9 +173,7 @@ raise_long_error(lutok::state& state)
     throw std::runtime_error(std::string(length, 'A').c_str());
 }
 
-
-}  // anonymous namespace
-
+} // anonymous namespace
 
 ATF_TEST_CASE_WITHOUT_HEAD(close);
 ATF_TEST_CASE_BODY(close)
@@ -194,7 +183,6 @@ ATF_TEST_CASE_BODY(close)
     // The destructor for state will run now.  If it does a second close, we may
     // crash, so let's see if we don't.
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(get_global__ok);
 ATF_TEST_CASE_BODY(get_global__ok)
@@ -206,7 +194,6 @@ ATF_TEST_CASE_BODY(get_global__ok)
     lua_pop(raw(state), 1);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(get_global__undefined);
 ATF_TEST_CASE_BODY(get_global__undefined)
 {
@@ -215,7 +202,6 @@ ATF_TEST_CASE_BODY(get_global__undefined)
     ATF_REQUIRE(lua_isnil(raw(state), -1));
     lua_pop(raw(state), 1);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(get_global_table);
 ATF_TEST_CASE_BODY(get_global_table)
@@ -230,13 +216,13 @@ ATF_TEST_CASE_BODY(get_global_table)
     lua_pop(raw(state), 2);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(get_metafield__ok);
 ATF_TEST_CASE_BODY(get_metafield__ok)
 {
     lutok::state state;
     luaL_openlibs(raw(state));
-    ATF_REQUIRE(luaL_dostring(raw(state), "meta = { foo = 567 }; "
+    ATF_REQUIRE(luaL_dostring(raw(state),
+                              "meta = { foo = 567 }; "
                               "t = {}; setmetatable(t, meta)") == 0);
     lua_getglobal(raw(state), "t");
     ATF_REQUIRE(state.get_metafield(-1, "foo"));
@@ -245,26 +231,26 @@ ATF_TEST_CASE_BODY(get_metafield__ok)
     lua_pop(raw(state), 2);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(get_metafield__undefined);
 ATF_TEST_CASE_BODY(get_metafield__undefined)
 {
     lutok::state state;
     luaL_openlibs(raw(state));
-    ATF_REQUIRE(luaL_dostring(raw(state), "meta = { foo = 567 }; "
+    ATF_REQUIRE(luaL_dostring(raw(state),
+                              "meta = { foo = 567 }; "
                               "t = {}; setmetatable(t, meta)") == 0);
     lua_getglobal(raw(state), "t");
     ATF_REQUIRE(!state.get_metafield(-1, "bar"));
     lua_pop(raw(state), 1);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(get_metatable__ok);
 ATF_TEST_CASE_BODY(get_metatable__ok)
 {
     lutok::state state;
     luaL_openlibs(raw(state));
-    ATF_REQUIRE(luaL_dostring(raw(state), "meta = { foo = 567 }; "
+    ATF_REQUIRE(luaL_dostring(raw(state),
+                              "meta = { foo = 567 }; "
                               "t = {}; setmetatable(t, meta)") == 0);
     lua_getglobal(raw(state), "t");
     lua_pushinteger(raw(state), 5555);
@@ -277,7 +263,6 @@ ATF_TEST_CASE_BODY(get_metatable__ok)
     lua_pop(raw(state), 4);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(get_metatable__undefined);
 ATF_TEST_CASE_BODY(get_metatable__undefined)
 {
@@ -287,7 +272,6 @@ ATF_TEST_CASE_BODY(get_metatable__undefined)
     ATF_REQUIRE(!state.get_metatable(-1));
     lua_pop(raw(state), 1);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(get_table__ok);
 ATF_TEST_CASE_BODY(get_table__ok)
@@ -302,7 +286,6 @@ ATF_TEST_CASE_BODY(get_table__ok)
     lua_pop(raw(state), 2);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(get_table__nil);
 ATF_TEST_CASE_BODY(get_table__nil)
 {
@@ -314,20 +297,18 @@ ATF_TEST_CASE_BODY(get_table__nil)
     lua_pop(raw(state), 2);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(get_table__unknown_index);
 ATF_TEST_CASE_BODY(get_table__unknown_index)
 {
     lutok::state state;
-    ATF_REQUIRE(luaL_dostring(raw(state),
-                              "the_table = { foo = 1, bar = 2 }") == 0);
+    ATF_REQUIRE(luaL_dostring(raw(state), "the_table = { foo = 1, bar = 2 }") ==
+                0);
     lua_getglobal(raw(state), "the_table");
     lua_pushstring(raw(state), "baz");
     state.get_table(-2);
     ATF_REQUIRE(lua_isnil(raw(state), -1));
     lua_pop(raw(state), 2);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(get_top);
 ATF_TEST_CASE_BODY(get_top)
@@ -340,7 +321,6 @@ ATF_TEST_CASE_BODY(get_top)
     ATF_REQUIRE_EQ(2, state.get_top());
     lua_pop(raw(state), 2);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(insert);
 ATF_TEST_CASE_BODY(insert)
@@ -358,14 +338,12 @@ ATF_TEST_CASE_BODY(insert)
     lua_pop(raw(state), 4);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(is_boolean__empty);
 ATF_TEST_CASE_BODY(is_boolean__empty)
 {
     lutok::state state;
     ATF_REQUIRE(!state.is_boolean(-1));
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(is_boolean__ok);
 ATF_TEST_CASE_BODY(is_boolean__ok)
@@ -379,14 +357,12 @@ ATF_TEST_CASE_BODY(is_boolean__ok)
     lua_pop(raw(state), 2);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(is_function__empty);
 ATF_TEST_CASE_BODY(is_function__empty)
 {
     lutok::state state;
     ATF_REQUIRE(!state.is_function(-1));
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(is_function__ok);
 ATF_TEST_CASE_BODY(is_function__ok)
@@ -402,14 +378,12 @@ ATF_TEST_CASE_BODY(is_function__ok)
     lua_pop(raw(state), 2);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(is_nil__empty);
 ATF_TEST_CASE_BODY(is_nil__empty)
 {
     lutok::state state;
     ATF_REQUIRE(state.is_nil(-1));
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(is_nil__ok);
 ATF_TEST_CASE_BODY(is_nil__ok)
@@ -423,14 +397,12 @@ ATF_TEST_CASE_BODY(is_nil__ok)
     lua_pop(raw(state), 2);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(is_number__empty);
 ATF_TEST_CASE_BODY(is_number__empty)
 {
     lutok::state state;
     ATF_REQUIRE(!state.is_number(-1));
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(is_number__ok);
 ATF_TEST_CASE_BODY(is_number__ok)
@@ -444,14 +416,12 @@ ATF_TEST_CASE_BODY(is_number__ok)
     lua_pop(raw(state), 2);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(is_string__empty);
 ATF_TEST_CASE_BODY(is_string__empty)
 {
     lutok::state state;
     ATF_REQUIRE(!state.is_string(-1));
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(is_string__ok);
 ATF_TEST_CASE_BODY(is_string__ok)
@@ -469,14 +439,12 @@ ATF_TEST_CASE_BODY(is_string__ok)
     lua_pop(raw(state), 3);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(is_table__empty);
 ATF_TEST_CASE_BODY(is_table__empty)
 {
     lutok::state state;
     ATF_REQUIRE(!state.is_table(-1));
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(is_table__ok);
 ATF_TEST_CASE_BODY(is_table__ok)
@@ -492,14 +460,12 @@ ATF_TEST_CASE_BODY(is_table__ok)
     lua_pop(raw(state), 2);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(is_userdata__empty);
 ATF_TEST_CASE_BODY(is_userdata__empty)
 {
     lutok::state state;
     ATF_REQUIRE(!state.is_userdata(-1));
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(is_userdata__ok);
 ATF_TEST_CASE_BODY(is_userdata__ok)
@@ -513,7 +479,6 @@ ATF_TEST_CASE_BODY(is_userdata__ok)
     ATF_REQUIRE(!state.is_userdata(-2));
     lua_pop(raw(state), 2);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(load_file__ok);
 ATF_TEST_CASE_BODY(load_file__ok)
@@ -530,7 +495,6 @@ ATF_TEST_CASE_BODY(load_file__ok)
     lua_pop(raw(state), 1);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(load_file__api_error);
 ATF_TEST_CASE_BODY(load_file__api_error)
 {
@@ -542,7 +506,6 @@ ATF_TEST_CASE_BODY(load_file__api_error)
     REQUIRE_API_ERROR("luaL_loadfile", state.load_file("test.lua"));
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(load_file__file_not_found_error);
 ATF_TEST_CASE_BODY(load_file__file_not_found_error)
 {
@@ -550,7 +513,6 @@ ATF_TEST_CASE_BODY(load_file__file_not_found_error)
     ATF_REQUIRE_THROW_RE(lutok::file_not_found_error, "missing.lua",
                          state.load_file("missing.lua"));
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(load_string__ok);
 ATF_TEST_CASE_BODY(load_string__ok)
@@ -562,14 +524,12 @@ ATF_TEST_CASE_BODY(load_string__ok)
     lua_pop(raw(state), 1);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(load_string__fail);
 ATF_TEST_CASE_BODY(load_string__fail)
 {
     lutok::state state;
     REQUIRE_API_ERROR("luaL_loadstring", state.load_string("-"));
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(new_table);
 ATF_TEST_CASE_BODY(new_table)
@@ -581,18 +541,16 @@ ATF_TEST_CASE_BODY(new_table)
     lua_pop(raw(state), 1);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(new_userdata);
 ATF_TEST_CASE_BODY(new_userdata)
 {
     lutok::state state;
-    int* pointer = state.new_userdata< int >();
+    int* pointer = state.new_userdata<int>();
     *pointer = 1234;
     ATF_REQUIRE_EQ(1, lua_gettop(raw(state)));
     ATF_REQUIRE(lua_isuserdata(raw(state), -1));
     lua_pop(raw(state), 1);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(next__empty);
 ATF_TEST_CASE_BODY(next__empty)
@@ -606,7 +564,6 @@ ATF_TEST_CASE_BODY(next__empty)
     ATF_REQUIRE(!state.next(-3));
     lua_pop(raw(state), 2);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(next__many);
 ATF_TEST_CASE_BODY(next__many)
@@ -637,7 +594,6 @@ ATF_TEST_CASE_BODY(next__many)
     lua_pop(raw(state), 1);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(open_base);
 ATF_TEST_CASE_BODY(open_base)
 {
@@ -646,7 +602,6 @@ ATF_TEST_CASE_BODY(open_base)
     state.open_base();
     check_modules(state, "base");
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(open_all);
 ATF_TEST_CASE_BODY(open_all)
@@ -662,7 +617,6 @@ ATF_TEST_CASE_BODY(open_all)
     ATF_REQUIRE(is_available(state, "table.concat"));
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(open_string);
 ATF_TEST_CASE_BODY(open_string)
 {
@@ -672,7 +626,6 @@ ATF_TEST_CASE_BODY(open_string)
     check_modules(state, "string");
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(open_table);
 ATF_TEST_CASE_BODY(open_table)
 {
@@ -681,7 +634,6 @@ ATF_TEST_CASE_BODY(open_table)
     state.open_table();
     check_modules(state, "table");
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(pcall__ok);
 ATF_TEST_CASE_BODY(pcall__ok)
@@ -699,7 +651,6 @@ ATF_TEST_CASE_BODY(pcall__ok)
     lua_pop(raw(state), 2);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(pcall__fail);
 ATF_TEST_CASE_BODY(pcall__fail)
 {
@@ -707,7 +658,6 @@ ATF_TEST_CASE_BODY(pcall__fail)
     lua_pushnil(raw(state));
     REQUIRE_API_ERROR("lua_pcall", state.pcall(0, 0, 0));
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(pop__one);
 ATF_TEST_CASE_BODY(pop__one)
@@ -722,7 +672,6 @@ ATF_TEST_CASE_BODY(pop__one)
     lua_pop(raw(state), 2);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(pop__many);
 ATF_TEST_CASE_BODY(pop__many)
 {
@@ -735,7 +684,6 @@ ATF_TEST_CASE_BODY(pop__many)
     ATF_REQUIRE_EQ(10, lua_tointeger(raw(state), -1));
     lua_pop(raw(state), 1);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(push_boolean);
 ATF_TEST_CASE_BODY(push_boolean)
@@ -751,7 +699,6 @@ ATF_TEST_CASE_BODY(push_boolean)
     lua_pop(raw(state), 2);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(push_cxx_closure);
 ATF_TEST_CASE_BODY(push_cxx_closure)
 {
@@ -760,12 +707,11 @@ ATF_TEST_CASE_BODY(push_cxx_closure)
     state.push_cxx_closure(cxx_multiply_closure, 1);
     lua_setglobal(raw(state), "cxx_multiply_closure");
 
-    ATF_REQUIRE(luaL_dostring(raw(state),
-                              "return cxx_multiply_closure(10)") == 0);
+    ATF_REQUIRE(luaL_dostring(raw(state), "return cxx_multiply_closure(10)") ==
+                0);
     ATF_REQUIRE_EQ(150, lua_tointeger(raw(state), -1));
     lua_pop(raw(state), 1);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(push_cxx_function__ok);
 ATF_TEST_CASE_BODY(push_cxx_function__ok)
@@ -780,7 +726,6 @@ ATF_TEST_CASE_BODY(push_cxx_function__ok)
     lua_pop(raw(state), 2);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(push_cxx_function__fail_exception);
 ATF_TEST_CASE_BODY(push_cxx_function__fail_exception)
 {
@@ -793,7 +738,6 @@ ATF_TEST_CASE_BODY(push_cxx_function__fail_exception)
     lua_pop(raw(state), 1);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(push_cxx_function__fail_anything);
 ATF_TEST_CASE_BODY(push_cxx_function__fail_anything)
 {
@@ -805,7 +749,6 @@ ATF_TEST_CASE_BODY(push_cxx_function__fail_anything)
     ATF_REQUIRE_MATCH("Unhandled exception", lua_tostring(raw(state), -1));
     lua_pop(raw(state), 1);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(push_cxx_function__fail_overflow);
 ATF_TEST_CASE_BODY(push_cxx_function__fail_overflow)
@@ -823,7 +766,6 @@ ATF_TEST_CASE_BODY(push_cxx_function__fail_overflow)
     lua_pop(raw(state), 1);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(push_integer);
 ATF_TEST_CASE_BODY(push_integer)
 {
@@ -838,7 +780,6 @@ ATF_TEST_CASE_BODY(push_integer)
     lua_pop(raw(state), 2);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(push_nil);
 ATF_TEST_CASE_BODY(push_nil)
 {
@@ -852,7 +793,6 @@ ATF_TEST_CASE_BODY(push_nil)
     ATF_REQUIRE(lua_isnil(raw(state), -2));
     lua_pop(raw(state), 2);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(push_string);
 ATF_TEST_CASE_BODY(push_string)
@@ -873,7 +813,6 @@ ATF_TEST_CASE_BODY(push_string)
     lua_pop(raw(state), 2);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(push_value);
 ATF_TEST_CASE_BODY(push_value)
 {
@@ -889,15 +828,15 @@ ATF_TEST_CASE_BODY(push_value)
     lua_pop(raw(state), 3);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(raw_get);
 ATF_TEST_CASE_BODY(raw_get)
 {
     lutok::state state;
 
     luaL_openlibs(raw(state));
-    ATF_REQUIRE(luaL_dostring(
-        raw(state), "t = {foo=123} ; setmetatable(t, {__index=1})") == 0);
+    ATF_REQUIRE(luaL_dostring(raw(state),
+                              "t = {foo=123} ; setmetatable(t, {__index=1})") ==
+                0);
     lua_getglobal(raw(state), "t");
     lua_pushinteger(raw(state), 9876);
     lua_pushstring(raw(state), "foo");
@@ -908,15 +847,14 @@ ATF_TEST_CASE_BODY(raw_get)
     lua_pop(raw(state), 3);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(raw_set);
 ATF_TEST_CASE_BODY(raw_set)
 {
     lutok::state state;
 
     luaL_openlibs(raw(state));
-    ATF_REQUIRE(luaL_dostring(
-        raw(state), "t = {} ; setmetatable(t, {__newindex=1})") == 0);
+    ATF_REQUIRE(luaL_dostring(raw(state),
+                              "t = {} ; setmetatable(t, {__newindex=1})") == 0);
     lua_getglobal(raw(state), "t");
     lua_pushinteger(raw(state), 876);
     lua_pushstring(raw(state), "foo");
@@ -929,7 +867,6 @@ ATF_TEST_CASE_BODY(raw_set)
     lua_pop(raw(state), 3);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(registry_index);
 ATF_TEST_CASE_BODY(registry_index)
 {
@@ -939,13 +876,12 @@ ATF_TEST_CASE_BODY(registry_index)
     lua_pushstring(raw(state), "custom value");
     lua_settable(raw(state), -3);
     lua_pop(raw(state), 1);
-    ATF_REQUIRE(luaL_dostring(raw(state),
-                              "return custom_variable == nil") == 0);
+    ATF_REQUIRE(luaL_dostring(raw(state), "return custom_variable == nil") ==
+                0);
     ATF_REQUIRE(lua_isboolean(raw(state), -1));
     ATF_REQUIRE(lua_toboolean(raw(state), -1));
     lua_pop(raw(state), 1);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(set_global);
 ATF_TEST_CASE_BODY(set_global)
@@ -959,17 +895,15 @@ ATF_TEST_CASE_BODY(set_global)
     lua_pop(raw(state), 1);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(set_metatable);
 ATF_TEST_CASE_BODY(set_metatable)
 {
     lutok::state state;
-    ATF_REQUIRE(luaL_dostring(
-        raw(state),
-        "mt = {}\n"
-        "mt.__add = function(a, b) return a[1] + b end\n"
-        "numbers = {}\n"
-        "numbers[1] = 5\n") == 0);
+    ATF_REQUIRE(luaL_dostring(raw(state),
+                              "mt = {}\n"
+                              "mt.__add = function(a, b) return a[1] + b end\n"
+                              "numbers = {}\n"
+                              "numbers[1] = 5\n") == 0);
 
     lua_getglobal(raw(state), "numbers");
     lua_pushinteger(raw(state), 1234);
@@ -982,7 +916,6 @@ ATF_TEST_CASE_BODY(set_metatable)
     ATF_REQUIRE_EQ(7, lua_tointeger(raw(state), -1));
     lua_pop(raw(state), 1);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(set_table__ok);
 ATF_TEST_CASE_BODY(set_table__ok)
@@ -1011,7 +944,6 @@ ATF_TEST_CASE_BODY(set_table__ok)
     lua_pop(raw(state), 1);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(set_table__nil);
 ATF_TEST_CASE_BODY(set_table__nil)
 {
@@ -1022,7 +954,6 @@ ATF_TEST_CASE_BODY(set_table__nil)
     REQUIRE_API_ERROR("lua_settable", state.set_table(-3));
     lua_pop(raw(state), 3);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(to_boolean);
 ATF_TEST_CASE_BODY(to_boolean)
@@ -1035,7 +966,6 @@ ATF_TEST_CASE_BODY(to_boolean)
     lua_pop(raw(state), 2);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(to_integer);
 ATF_TEST_CASE_BODY(to_integer)
 {
@@ -1045,7 +975,6 @@ ATF_TEST_CASE_BODY(to_integer)
     ATF_REQUIRE_EQ(12, state.to_integer(-2));
     lua_pop(raw(state), 2);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(to_string);
 ATF_TEST_CASE_BODY(to_string)
@@ -1058,23 +987,21 @@ ATF_TEST_CASE_BODY(to_string)
     lua_pop(raw(state), 2);
 }
 
-
 ATF_TEST_CASE_WITHOUT_HEAD(to_userdata);
 ATF_TEST_CASE_BODY(to_userdata)
 {
     lutok::state state;
     {
-        int* pointer = static_cast< int* >(
-            lua_newuserdata(raw(state), sizeof(int)));
+        int* pointer = static_cast<int*>(lua_newuserdata(raw(state),
+                                                         sizeof(int)));
         *pointer = 987;
     }
 
     lua_pushinteger(raw(state), 3);
-    int* pointer = state.to_userdata< int >(-2);
+    int* pointer = state.to_userdata<int>(-2);
     ATF_REQUIRE_EQ(987, *pointer);
     lua_pop(raw(state), 2);
 }
-
 
 ATF_TEST_CASE_WITHOUT_HEAD(upvalue_index);
 ATF_TEST_CASE_BODY(upvalue_index)
@@ -1085,13 +1012,11 @@ ATF_TEST_CASE_BODY(upvalue_index)
     lua_pushcclosure(raw(state), c_get_upvalues, 2);
     lua_setglobal(raw(state), "c_get_upvalues");
 
-    ATF_REQUIRE(luaL_dostring(raw(state),
-                              "return c_get_upvalues()") == 0);
+    ATF_REQUIRE(luaL_dostring(raw(state), "return c_get_upvalues()") == 0);
     ATF_REQUIRE_EQ(25, lua_tointeger(raw(state), -2));
     ATF_REQUIRE_EQ(30, lua_tointeger(raw(state), -1));
     lua_pop(raw(state), 2);
 }
-
 
 ATF_INIT_TEST_CASES(tcs)
 {

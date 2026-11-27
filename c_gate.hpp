@@ -36,9 +36,7 @@
 
 namespace lutok {
 
-
 class state;
-
 
 /// Gateway to the raw C state of Lua.
 ///
@@ -57,15 +55,14 @@ class state_c_gate {
     state& _state;
 
 public:
-    state_c_gate(state&);
+    explicit state_c_gate(state&);
     ~state_c_gate(void);
 
     static state connect(lua_State*);
 
-    lua_State* c_state(void);
+    [[nodiscard]] lua_State* c_state(void) const;
 };
 
+} // namespace lutok
 
-}  // namespace lutok
-
-#endif  // !defined(LUTOK_C_GATE_HPP)
+#endif // !defined(LUTOK_C_GATE_HPP)

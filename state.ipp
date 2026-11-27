@@ -33,7 +33,6 @@
 
 namespace lutok {
 
-
 /// Wrapper around lua_newuserdata.
 ///
 /// This allocates an object as big as the size of the provided Type.
@@ -41,27 +40,25 @@ namespace lutok {
 /// \return The pointer to the allocated userdata object.
 ///
 /// \warning Terminates execution if there is not enough memory.
-template< typename Type >
+template <typename Type>
 Type*
 state::new_userdata(void)
 {
-    return static_cast< Type* >(new_userdata_voidp(sizeof(Type)));
+    return static_cast<Type*>(new_userdata_voidp(sizeof(Type)));
 }
-
 
 /// Wrapper around lua_touserdata.
 ///
 /// \param index The second parameter to lua_touserdata.
 ///
 /// \return The return value of lua_touserdata.
-template< typename Type >
+template <typename Type>
 Type*
 state::to_userdata(const int index)
 {
-    return static_cast< Type* >(to_userdata_voidp(index));
+    return static_cast<Type*>(to_userdata_voidp(index));
 }
 
+} // namespace lutok
 
-}  // namespace lutok
-
-#endif  // !defined(LUTOK_STATE_IPP)
+#endif // !defined(LUTOK_STATE_IPP)

@@ -29,26 +29,20 @@
 #include "c_gate.hpp"
 #include "state.ipp"
 
-
 /// Creates a new gateway to an existing C++ Lua state.
 ///
 /// \param state_ The state to connect to.  This object must remain alive while
 ///     the newly-constructed state_c_gate is alive.
-lutok::state_c_gate::state_c_gate(state& state_) :
-    _state(state_)
+lutok::state_c_gate::state_c_gate(state& state_) : _state(state_)
 {
 }
-
 
 /// Destructor.
 ///
 /// Destroying this object has no implications on the life cycle of the Lua
 /// state.  Only the corresponding state object controls when the Lua state is
 /// closed.
-lutok::state_c_gate::~state_c_gate(void)
-{
-}
-
+lutok::state_c_gate::~state_c_gate(void) = default;
 
 /// Creates a C++ state for a C Lua state.
 ///
@@ -62,15 +56,14 @@ lutok::state_c_gate::~state_c_gate(void)
 lutok::state
 lutok::state_c_gate::connect(lua_State* raw_state)
 {
-    return state(static_cast< void* >(raw_state));
+    return state(raw_state);
 }
-
 
 /// Returns the C native Lua state.
 ///
 /// \return A native lua_State object holding the Lua C API state.
 lua_State*
-lutok::state_c_gate::c_state(void)
+lutok::state_c_gate::c_state(void) const
 {
-    return static_cast< lua_State* >(_state.raw_state());
+    return static_cast<lua_State*>(_state.raw_state());
 }

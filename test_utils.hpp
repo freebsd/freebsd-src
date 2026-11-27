@@ -34,9 +34,9 @@
 /// dependency chain in the build rules.
 
 #if !defined(LUTOK_TEST_UTILS_HPP)
-#   define LUTOK_TEST_UTILS_HPP
+#define LUTOK_TEST_UTILS_HPP
 #else
-#   error "test_utils.hpp can only be included once"
+#error "test_utils.hpp can only be included once"
 #endif
 
 #include <atf-c++.hpp>
@@ -45,9 +45,7 @@
 #include "exceptions.hpp"
 #include "state.hpp"
 
-
 namespace {
-
 
 /// Checks that a given expression raises a particular lutok::api_error.
 ///
@@ -58,16 +56,15 @@ namespace {
 /// \param exp_api_function The name of the Lua C API function that causes the
 ///     error.
 /// \param statement The statement to execute.
-#define REQUIRE_API_ERROR(exp_api_function, statement) \
-    do { \
-        try { \
-            statement; \
-            ATF_FAIL("api_error not raised by " #statement); \
-        } catch (const lutok::api_error& api_error) { \
+#define REQUIRE_API_ERROR(exp_api_function, statement)                  \
+    do {                                                                \
+        try {                                                           \
+            statement;                                                  \
+            ATF_FAIL("api_error not raised by " #statement);            \
+        } catch (const lutok::api_error& api_error) {                   \
             ATF_REQUIRE_EQ(exp_api_function, api_error.api_function()); \
-        } \
+        }                                                               \
     } while (0)
-
 
 /// Gets the pointer to the internal lua_State of a state object.
 ///
@@ -81,7 +78,6 @@ raw(lutok::state& state)
 {
     return lutok::state_c_gate(state).c_state();
 }
-
 
 /// Ensures that the Lua stack maintains its original height upon exit.
 ///
@@ -107,8 +103,8 @@ public:
     ///     validate upon exit that the item is still there.  This is an attempt
     ///     to ensure that already-existing items are not removed from the stack
     ///     by the code under test.
-    stack_balance_checker(lutok::state& state_,
-                          const bool with_sentinel_ = true) :
+    explicit stack_balance_checker(lutok::state& state_,
+                                   const bool with_sentinel_ = true) :
         _state(state_),
         _with_sentinel(with_sentinel_),
         _old_count(_state.get_top())
@@ -131,11 +127,10 @@ public:
 
         unsigned int new_count = _state.get_top();
         if (_old_count != new_count)
-            //ATF_FAIL(F("Stack not balanced: before %d, after %d") %
-            //         _old_count % new_count);
+            // ATF_FAIL(F("Stack not balanced: before %d, after %d") %
+            //          _old_count % new_count);
             ATF_FAIL("Stack not balanced");
     }
 };
 
-
-}  // anonymous namespace
+} // anonymous namespace

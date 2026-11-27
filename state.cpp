@@ -32,14 +32,13 @@ extern "C" {
 
 #include <cassert>
 #include <cstring>
+#include <memory>
 
 #include "c_gate.hpp"
 #include "exceptions.hpp"
 #include "state.ipp"
 
-
 namespace {
-
 
 /// Wrapper around lua_getglobal to run in a protected environment.
 ///
@@ -49,13 +48,12 @@ namespace {
 /// \param state The Lua C API state.
 ///
 /// \return The number of return values pushed onto the stack.
-static int
+int
 protected_getglobal(lua_State* state)
 {
     lua_getglobal(state, lua_tostring(state, -1));
     return 1;
 }
-
 
 /// Wrapper around lua_gettable to run in a protected environment.
 ///
@@ -66,13 +64,12 @@ protected_getglobal(lua_State* state)
 /// \param state The Lua C API state.
 ///
 /// \return The number of return values pushed onto the stack.
-static int
+int
 protected_gettable(lua_State* state)
 {
     lua_gettable(state, -2);
     return 1;
 }
-
 
 /// Wrapper around lua_next to run in a protected environment.
 ///
@@ -83,14 +80,13 @@ protected_gettable(lua_State* state)
 /// \param state The Lua C API state.
 ///
 /// \return The number of return values pushed onto the stack.
-static int
+int
 protected_next(lua_State* state)
 {
     const int more = lua_next(state, -2) != 0;
     lua_pushboolean(state, more);
     return more ? 3 : 1;
 }
-
 
 /// Wrapper around lua_setglobal to run in a protected environment.
 ///
@@ -100,13 +96,12 @@ protected_next(lua_State* state)
 /// \param state The Lua C API state.
 ///
 /// \return The number of return values pushed onto the stack.
-static int
+int
 protected_setglobal(lua_State* state)
 {
     lua_setglobal(state, lua_tostring(state, -2));
     return 0;
 }
-
 
 /// Wrapper around lua_settable to run in a protected environment.
 ///
@@ -117,13 +112,12 @@ protected_setglobal(lua_State* state)
 /// \param state The Lua C API state.
 ///
 /// \return The number of return values pushed onto the stack.
-static int
+int
 protected_settable(lua_State* state)
 {
     lua_settable(state, -3);
     return 0;
 }
-
 
 /// Calls a C++ Lua function from a C calling environment.
 ///
@@ -135,9 +129,9 @@ protected_settable(lua_State* state)
 ///
 /// \return The number of return values pushed onto the Lua stack by the
 /// function.
-static int
-call_cxx_function_from_c(lutok::cxx_function function,
-                         lua_State* raw_state) throw()
+int
+call_cxx_function_from_c(const lutok::cxx_function function,
+                         lua_State* raw_state) noexcept
 {
     char error_buf[1024];
 
@@ -158,7 +152,6 @@ call_cxx_function_from_c(lutok::cxx_function function,
     return luaL_error(raw_state, "%s", error_buf);
 }
 
-
 /// Lua glue to call a C++ closure.
 ///
 /// This Lua binding is actually a closure that we have constructed from the
@@ -170,7 +163,7 @@ call_cxx_function_from_c(lutok::cxx_function function,
 /// \param raw_state The Lua C API state.
 ///
 /// \return The number of return values of the called closure.
-static int
+int
 cxx_closure_trampoline(lua_State* raw_state)
 {
     lutok::state state = lutok::state_c_gate::connect(raw_state);
@@ -183,11 +176,10 @@ cxx_closure_trampoline(lua_State* raw_state)
         nupvalues = debug.nups;
     }
 
-    lutok::cxx_function* function = state.to_userdata< lutok::cxx_function >(
-        state.upvalue_index(nupvalues));
+    auto* function = state.to_userdata<lutok::cxx_function>(
+        lutok::state::upvalue_index(nupvalues));
     return call_cxx_function_from_c(*function, raw_state);
 }
-
 
 /// Lua glue to call a C++ function.
 ///
@@ -199,21 +191,18 @@ cxx_closure_trampoline(lua_State* raw_state)
 /// \param raw_state The Lua C API state.
 ///
 /// \return The number of return values of the called function.
-static int
+int
 cxx_function_trampoline(lua_State* raw_state)
 {
     lutok::state state = lutok::state_c_gate::connect(raw_state);
-    lutok::cxx_function* function = state.to_userdata< lutok::cxx_function >(
-        state.upvalue_index(1));
+    auto* function =
+        state.to_userdata<lutok::cxx_function>(lutok::state::upvalue_index(1));
     return call_cxx_function_from_c(*function, raw_state);
 }
 
-
-}  // anonymous namespace
-
+} // anonymous namespace
 
 const int lutok::registry_index = LUA_REGISTRYINDEX;
-
 
 /// Internal implementation for lutok::state.
 struct lutok::state::impl {
@@ -227,13 +216,10 @@ struct lutok::state::impl {
     ///
     /// \param lua_ The Lua internal state.
     /// \param owned_ Whether we own the state or not.
-    impl(lua_State* lua_, bool owned_) :
-        lua_state(lua_),
-        owned(owned_)
+    impl(lua_State* lua_, const bool owned_) : lua_state(lua_), owned(owned_)
     {
     }
 };
-
 
 /// Initializes the Lua state.
 ///
@@ -242,11 +228,10 @@ struct lutok::state::impl {
 lutok::state::state(void)
 {
     lua_State* lua = luaL_newstate();
-    if (lua == NULL)
+    if (!lua)
         throw lutok::error("lua open failed");
-    _pimpl.reset(new impl(lua, true));
+    _pimpl = std::make_shared<impl>(lua, true);
 }
-
 
 /// Initializes the Lua state from an existing raw state.
 ///
@@ -255,10 +240,9 @@ lutok::state::state(void)
 ///
 /// \param raw_state_ The raw Lua state to wrap.
 lutok::state::state(void* raw_state_) :
-    _pimpl(new impl(reinterpret_cast< lua_State* >(raw_state_), false))
+    _pimpl(new impl(reinterpret_cast<lua_State*>(raw_state_), false))
 {
 }
-
 
 /// Destructor for the Lua state.
 ///
@@ -267,10 +251,9 @@ lutok::state::state(void* raw_state_) :
 /// code.
 lutok::state::~state(void)
 {
-    if (_pimpl->owned && _pimpl->lua_state != NULL)
+    if (_pimpl->owned && _pimpl->lua_state != nullptr)
         close();
 }
-
 
 /// Terminates this Lua session.
 ///
@@ -281,14 +264,13 @@ lutok::state::~state(void)
 /// \pre The Lua stack is empty.  This is not truly necessary but ensures that
 ///     our code is consistent and clears the stack explicitly.
 void
-lutok::state::close(void)
+lutok::state::close(void) const
 {
-    assert(_pimpl->lua_state != NULL);
+    assert(_pimpl->lua_state != nullptr);
     assert(lua_gettop(_pimpl->lua_state) == 0);
     lua_close(_pimpl->lua_state);
-    _pimpl->lua_state = NULL;
+    _pimpl->lua_state = nullptr;
 }
-
 
 /// Wrapper around lua_getglobal.
 ///
@@ -307,7 +289,6 @@ lutok::state::get_global(const std::string& name)
         throw lutok::api_error::from_stack(*this, "lua_getglobal");
 }
 
-
 /// Pushes a reference to the global table onto the stack.
 ///
 /// This is a wrapper around the incompatible differences between Lua 5.1 and
@@ -315,7 +296,7 @@ lutok::state::get_global(const std::string& name)
 ///
 /// \post state(-1) Contains the reference to the globals table.
 void
-lutok::state::get_global_table(void)
+lutok::state::get_global_table(void) const
 {
 #if LUA_VERSION_NUM >= 502
     lua_pushvalue(_pimpl->lua_state, registry_index);
@@ -327,7 +308,6 @@ lutok::state::get_global_table(void)
 #endif
 }
 
-
 /// Wrapper around luaL_getmetafield.
 ///
 /// \param index The second parameter to luaL_getmetafield.
@@ -338,11 +318,10 @@ lutok::state::get_global_table(void)
 /// \warning Terminates execution if there is not enough memory to manipulate
 /// the Lua stack.
 bool
-lutok::state::get_metafield(const int index, const std::string& name)
+lutok::state::get_metafield(const int index, const std::string& name) const
 {
     return luaL_getmetafield(_pimpl->lua_state, index, name.c_str()) != 0;
 }
-
 
 /// Wrapper around lua_getmetatable.
 ///
@@ -350,11 +329,10 @@ lutok::state::get_metafield(const int index, const std::string& name)
 ///
 /// \return The return value of lua_getmetatable.
 bool
-lutok::state::get_metatable(const int index)
+lutok::state::get_metatable(const int index) const
 {
     return lua_getmetatable(_pimpl->lua_state, index) != 0;
 }
-
 
 /// Wrapper around lua_gettable.
 ///
@@ -376,26 +354,23 @@ lutok::state::get_table(const int index)
     lua_remove(_pimpl->lua_state, -2);
 }
 
-
 /// Wrapper around lua_gettop.
 ///
 /// \return The return value of lua_gettop.
 int
-lutok::state::get_top(void)
+lutok::state::get_top(void) const
 {
     return lua_gettop(_pimpl->lua_state);
 }
-
 
 /// Wrapper around lua_insert.
 ///
 /// \param index The second parameter to lua_insert.
 void
-lutok::state::insert(const int index)
+lutok::state::insert(const int index) const
 {
     lua_insert(_pimpl->lua_state, index);
 }
-
 
 /// Wrapper around lua_isboolean.
 ///
@@ -403,11 +378,10 @@ lutok::state::insert(const int index)
 ///
 /// \return The return value of lua_isboolean.
 bool
-lutok::state::is_boolean(const int index)
+lutok::state::is_boolean(const int index) const
 {
     return lua_isboolean(_pimpl->lua_state, index);
 }
-
 
 /// Wrapper around lua_isfunction.
 ///
@@ -415,11 +389,10 @@ lutok::state::is_boolean(const int index)
 ///
 /// \return The return value of lua_isfunction.
 bool
-lutok::state::is_function(const int index)
+lutok::state::is_function(const int index) const
 {
     return lua_isfunction(_pimpl->lua_state, index);
 }
-
 
 /// Wrapper around lua_isnil.
 ///
@@ -427,11 +400,10 @@ lutok::state::is_function(const int index)
 ///
 /// \return The return value of lua_isnil.
 bool
-lutok::state::is_nil(const int index)
+lutok::state::is_nil(const int index) const
 {
     return lua_isnil(_pimpl->lua_state, index);
 }
-
 
 /// Wrapper around lua_isnumber.
 ///
@@ -439,11 +411,10 @@ lutok::state::is_nil(const int index)
 ///
 /// \return The return value of lua_isnumber.
 bool
-lutok::state::is_number(const int index)
+lutok::state::is_number(const int index) const
 {
     return lua_isnumber(_pimpl->lua_state, index);
 }
-
 
 /// Wrapper around lua_isstring.
 ///
@@ -451,11 +422,10 @@ lutok::state::is_number(const int index)
 ///
 /// \return The return value of lua_isstring.
 bool
-lutok::state::is_string(const int index)
+lutok::state::is_string(const int index) const
 {
     return lua_isstring(_pimpl->lua_state, index);
 }
-
 
 /// Wrapper around lua_istable.
 ///
@@ -463,11 +433,10 @@ lutok::state::is_string(const int index)
 ///
 /// \return The return value of lua_istable.
 bool
-lutok::state::is_table(const int index)
+lutok::state::is_table(const int index) const
 {
     return lua_istable(_pimpl->lua_state, index);
 }
-
 
 /// Wrapper around lua_isuserdata.
 ///
@@ -475,11 +444,10 @@ lutok::state::is_table(const int index)
 ///
 /// \return The return value of lua_isuserdata.
 bool
-lutok::state::is_userdata(const int index)
+lutok::state::is_userdata(const int index) const
 {
     return lua_isuserdata(_pimpl->lua_state, index);
 }
-
 
 /// Wrapper around luaL_loadfile.
 ///
@@ -498,7 +466,6 @@ lutok::state::load_file(const std::string& file)
         throw lutok::api_error::from_stack(*this, "luaL_loadfile");
 }
 
-
 /// Wrapper around luaL_loadstring.
 ///
 /// \param str The second parameter to luaL_loadstring.
@@ -513,16 +480,14 @@ lutok::state::load_string(const std::string& str)
         throw lutok::api_error::from_stack(*this, "luaL_loadstring");
 }
 
-
 /// Wrapper around lua_newtable.
 ///
 /// \warning Terminates execution if there is not enough memory.
 void
-lutok::state::new_table(void)
+lutok::state::new_table(void) const
 {
     lua_newtable(_pimpl->lua_state);
 }
-
 
 /// Wrapper around lua_newuserdata.
 ///
@@ -535,11 +500,10 @@ lutok::state::new_table(void)
 ///
 /// \warning Terminates execution if there is not enough memory.
 void*
-lutok::state::new_userdata_voidp(const size_t size)
+lutok::state::new_userdata_voidp(const size_t size) const
 {
     return lua_newuserdata(_pimpl->lua_state, size);
 }
-
 
 /// Wrapper around lua_next.
 ///
@@ -567,18 +531,16 @@ lutok::state::next(const int index)
     return more;
 }
 
-
 /// Wrapper around luaL_openlibs.
 ///
 /// \throw api_error If luaL_openlibs fails.
 ///
 /// \warning Terminates execution if there is not enough memory.
 void
-lutok::state::open_all(void)
+lutok::state::open_all(void) const
 {
     luaL_openlibs(_pimpl->lua_state);
 }
-
 
 /// Wrapper around luaopen_base.
 ///
@@ -593,14 +555,13 @@ lutok::state::open_base(void)
         throw lutok::api_error::from_stack(*this, "luaopen_base");
 }
 
-
 /// Wrapper around luaopen_string.
 ///
 /// \throw api_error If luaopen_string fails.
 ///
 /// \warning Terminates execution if there is not enough memory.
 void
-lutok::state::open_string(void)
+lutok::state::open_string(void) const
 {
 #if LUA_VERSION_NUM >= 502
     luaL_requiref(_pimpl->lua_state, LUA_STRLIBNAME, luaopen_string, 1);
@@ -612,14 +573,13 @@ lutok::state::open_string(void)
 #endif
 }
 
-
 /// Wrapper around luaopen_table.
 ///
 /// \throw api_error If luaopen_table fails.
 ///
 /// \warning Terminates execution if there is not enough memory.
 void
-lutok::state::open_table(void)
+lutok::state::open_table(void) const
 {
 #if LUA_VERSION_NUM >= 502
     luaL_requiref(_pimpl->lua_state, LUA_TABLIBNAME, luaopen_table, 1);
@@ -630,7 +590,6 @@ lutok::state::open_table(void)
         throw lutok::api_error::from_stack(*this, "luaopen_table");
 #endif
 }
-
 
 /// Wrapper around lua_pcall.
 ///
@@ -646,28 +605,25 @@ lutok::state::pcall(const int nargs, const int nresults, const int errfunc)
         throw lutok::api_error::from_stack(*this, "lua_pcall");
 }
 
-
 /// Wrapper around lua_pop.
 ///
 /// \param count The second parameter to lua_pop.
 void
-lutok::state::pop(const int count)
+lutok::state::pop(const int count) const
 {
     assert(count <= lua_gettop(_pimpl->lua_state));
     lua_pop(_pimpl->lua_state, count);
     assert(lua_gettop(_pimpl->lua_state) >= 0);
 }
 
-
 /// Wrapper around lua_pushboolean.
 ///
 /// \param value The second parameter to lua_pushboolean.
 void
-lutok::state::push_boolean(const bool value)
+lutok::state::push_boolean(const bool value) const
 {
     lua_pushboolean(_pimpl->lua_state, value ? 1 : 0);
 }
-
 
 /// Wrapper around lua_pushcclosure.
 ///
@@ -677,14 +633,14 @@ lutok::state::push_boolean(const bool value)
 /// \param function The C++ function to be pushed as a closure.
 /// \param nvalues The number of upvalues that the function receives.
 void
-lutok::state::push_cxx_closure(cxx_function function, const int nvalues)
+lutok::state::push_cxx_closure(const cxx_function function,
+                               const int nvalues) const
 {
-    cxx_function *data = static_cast< cxx_function* >(
+    auto* data = static_cast<cxx_function*>(
         lua_newuserdata(_pimpl->lua_state, sizeof(cxx_function)));
     *data = function;
     lua_pushcclosure(_pimpl->lua_state, cxx_closure_trampoline, nvalues + 1);
 }
-
 
 /// Wrapper around lua_pushcfunction.
 ///
@@ -693,32 +649,29 @@ lutok::state::push_cxx_closure(cxx_function function, const int nvalues)
 ///
 /// \param function The C++ function to be pushed.
 void
-lutok::state::push_cxx_function(cxx_function function)
+lutok::state::push_cxx_function(const cxx_function function) const
 {
-    cxx_function *data = static_cast< cxx_function* >(
+    auto* data = static_cast<cxx_function*>(
         lua_newuserdata(_pimpl->lua_state, sizeof(cxx_function)));
     *data = function;
     lua_pushcclosure(_pimpl->lua_state, cxx_function_trampoline, 1);
 }
 
-
 /// Wrapper around lua_pushinteger.
 ///
 /// \param value The second parameter to lua_pushinteger.
 void
-lutok::state::push_integer(const int value)
+lutok::state::push_integer(const int value) const
 {
     lua_pushinteger(_pimpl->lua_state, value);
 }
 
-
 /// Wrapper around lua_pushnil.
 void
-lutok::state::push_nil(void)
+lutok::state::push_nil(void) const
 {
     lua_pushnil(_pimpl->lua_state);
 }
-
 
 /// Wrapper around lua_pushstring.
 ///
@@ -726,31 +679,28 @@ lutok::state::push_nil(void)
 ///
 /// \warning Terminates execution if there is not enough memory.
 void
-lutok::state::push_string(const std::string& str)
+lutok::state::push_string(const std::string& str) const
 {
     lua_pushstring(_pimpl->lua_state, str.c_str());
 }
-
 
 /// Wrapper around lua_pushvalue.
 ///
 /// \param index The second parameter to lua_pushvalue.
 void
-lutok::state::push_value(const int index)
+lutok::state::push_value(const int index) const
 {
     lua_pushvalue(_pimpl->lua_state, index);
 }
-
 
 /// Wrapper around lua_rawget.
 ///
 /// \param index The second parameter to lua_rawget.
 void
-lutok::state::raw_get(const int index)
+lutok::state::raw_get(const int index) const
 {
     lua_rawget(_pimpl->lua_state, index);
 }
-
 
 /// Wrapper around lua_rawset.
 ///
@@ -759,11 +709,10 @@ lutok::state::raw_get(const int index)
 /// \warning Terminates execution if there is not enough memory to manipulate
 /// the Lua stack.
 void
-lutok::state::raw_set(const int index)
+lutok::state::raw_set(const int index) const
 {
     lua_rawset(_pimpl->lua_state, index);
 }
-
 
 /// Wrapper around lua_setglobal.
 ///
@@ -784,16 +733,14 @@ lutok::state::set_global(const std::string& name)
     lua_pop(_pimpl->lua_state, 1);
 }
 
-
 /// Wrapper around lua_setmetatable.
 ///
 /// \param index The second parameter to lua_setmetatable.
 void
-lutok::state::set_metatable(const int index)
+lutok::state::set_metatable(const int index) const
 {
     lua_setmetatable(_pimpl->lua_state, index);
 }
-
 
 /// Wrapper around lua_settable.
 ///
@@ -815,32 +762,29 @@ lutok::state::set_table(const int index)
     lua_pop(_pimpl->lua_state, 2);
 }
 
-
 /// Wrapper around lua_toboolean.
 ///
 /// \param index The second parameter to lua_toboolean.
 ///
 /// \return The return value of lua_toboolean.
 bool
-lutok::state::to_boolean(const int index)
+lutok::state::to_boolean(const int index) const
 {
     assert(is_boolean(index));
     return lua_toboolean(_pimpl->lua_state, index);
 }
-
 
 /// Wrapper around lua_tointeger.
 ///
 /// \param index The second parameter to lua_tointeger.
 ///
 /// \return The return value of lua_tointeger.
-long
-lutok::state::to_integer(const int index)
+lua_Integer
+lutok::state::to_integer(const int index) const
 {
     assert(is_number(index));
     return lua_tointeger(_pimpl->lua_state, index);
 }
-
 
 /// Wrapper around lua_touserdata.
 ///
@@ -853,12 +797,10 @@ lutok::state::to_integer(const int index)
 ///
 /// \warning Terminates execution if there is not enough memory.
 void*
-lutok::state::to_userdata_voidp(const int index)
+lutok::state::to_userdata_voidp(const int index) const
 {
     return lua_touserdata(_pimpl->lua_state, index);
 }
-
-
 
 /// Wrapper around lua_tostring.
 ///
@@ -868,16 +810,15 @@ lutok::state::to_userdata_voidp(const int index)
 ///
 /// \warning Terminates execution if there is not enough memory.
 std::string
-lutok::state::to_string(const int index)
+lutok::state::to_string(const int index) const
 {
     assert(is_string(index));
-    const char *raw_string = lua_tostring(_pimpl->lua_state, index);
+    const char* raw_string = lua_tostring(_pimpl->lua_state, index);
     // Note that the creation of a string object below (explicit for clarity)
     // implies that the raw string is duplicated and, henceforth, the string is
     // safe even if the corresponding element is popped from the Lua stack.
-    return std::string(raw_string);
+    return { raw_string };
 }
-
 
 /// Wrapper around lua_upvalueindex.
 ///
@@ -890,7 +831,6 @@ lutok::state::upvalue_index(const int index)
     return lua_upvalueindex(index);
 }
 
-
 /// Gets the internal lua_State object.
 ///
 /// \return The raw Lua state.  This is returned as a void pointer to prevent
@@ -898,7 +838,7 @@ lutok::state::upvalue_index(const int index)
 /// to call this method is by using the c_gate module, and c_gate takes care of
 /// casting this object to the appropriate type.
 void*
-lutok::state::raw_state(void)
+lutok::state::raw_state(void) const
 {
     return _pimpl->lua_state;
 }

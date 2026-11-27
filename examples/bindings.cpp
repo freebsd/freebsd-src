@@ -36,15 +36,13 @@
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
+#include <lutok/exceptions.hpp>
+#include <lutok/operations.hpp>
+#include <lutok/state.ipp>
 #include <map>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-
-#include <lutok/exceptions.hpp>
-#include <lutok/operations.hpp>
-#include <lutok/state.ipp>
-
 
 /// Calculates the factorial of a given number.
 ///
@@ -61,7 +59,6 @@ factorial(const int i)
     else
         return i * factorial(i - 1);
 }
-
 
 /// A custom factorial function for Lua.
 ///
@@ -87,7 +84,6 @@ lua_factorial(lutok::state& state)
     return 1;
 }
 
-
 /// Program's entry point.
 ///
 /// \param argc Length of argv.  Must be 2.
@@ -112,7 +108,7 @@ main(int argc, char** argv)
     // to functions.  Instead of creating a module by using our create_module()
     // helper function, we could have used push_cxx_function on the state to
     // define the function ourselves.
-    std::map< std::string, lutok::cxx_function > module;
+    std::map<std::string, lutok::cxx_function> module;
     module["factorial"] = lua_factorial;
     lutok::create_module(state, "native", module);
 

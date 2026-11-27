@@ -26,7 +26,35 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+CODE_COVERAGE_DIRS =
+
+#
+# Supporting logic to run our custom testsuite.
+#
+
+TESTS_ENVIRONMENT = PKG_CONFIG_PATH=$(prefix)/lib/pkgconfig
+
+if HAVE_ASAN
+# NB: the trailing comma is intentional. I hate automake not allowing `:=` use on subsequent lines.
+if HAVE_LSAN
+LSAN_OPTIONS = detect_leaks=1,
+else
+LSAN_OPTIONS =
+endif
+# Some of the testcases trigger false positives as they pass
+# `SIZE_MAX - 1`, etc, to malloc(3).
+ASAN_OPTIONS = ${LSAN_OPTIONS}allocator_may_return_null=1
+TESTS_ENVIRONMENT+= ASAN_OPTIONS=${ASAN_OPTIONS}
+endif
+if HAVE_UBSAN
+TESTS_ENVIRONMENT+= UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1
+endif
+
 ACLOCAL_AMFLAGS = -I m4
+
+AM_CFLAGS=	$(pc_cflags)
+AM_CXXFLAGS=	$(pc_cxxflags)
+AM_LDFLAGS=	$(pc_ldflags)
 
 doc_DATA = AUTHORS COPYING NEWS README.md
 noinst_DATA = INSTALL.md README.md
@@ -69,7 +97,7 @@ liblutok_la_SOURCES += state.hpp
 liblutok_la_SOURCES += state.ipp
 liblutok_la_SOURCES += test_utils.hpp
 liblutok_la_CPPFLAGS = $(LUTOK_CFLAGS)
-liblutok_la_LDFLAGS = -version-info 3:0:0
+liblutok_la_LDFLAGS = -version-info 4:0:0
 liblutok_la_LIBADD = $(LUA_LIBS)
 
 pkgconfig_DATA = lutok.pc
@@ -80,6 +108,8 @@ lutok.pc: $(srcdir)/lutok.pc.in Makefile
 	    -e 's#__LIBDIR__#$(libdir)#g' \
 	    -e 's#__LUA_CFLAGS__#$(LUA_CFLAGS)#g' \
 	    -e 's#__LUA_LIBS__#$(LUA_LIBS)#g' \
+	    -e 's#__PC_CXXFLAGS__#$(pc_cxxflags)#g' \
+	    -e 's#__PC_LDFLAGS__#$(pc_ldflags)#g' \
 	    -e 's#__VERSION__#$(PACKAGE_VERSION)#g' \
 	    <$(srcdir)/lutok.pc.in >lutok.pc.tmp; \
 	mv lutok.pc.tmp lutok.pc
@@ -143,17 +173,54 @@ state_test_SOURCES = state_test.cpp test_utils.hpp
 state_test_CXXFLAGS = $(LUTOK_CFLAGS) $(ATF_CXX_CFLAGS)
 state_test_LDADD = $(LUTOK_LIBS) $(ATF_CXX_LIBS)
 
-if HAVE_KYUA
 check-local: check-kyua
 PHONY_TARGETS += check-kyua
 check-kyua:
 	$(TESTS_ENVIRONMENT) kyua test \
 	    --kyuafile='$(top_srcdir)/Kyuafile' --build-root='$(top_builddir)'
 
+INSTALLCHECK_TARGETS =
+
+testsdir = $(exec_prefix)/tests/$(PACKAGE)
+
 installcheck-local: installcheck-kyua
 PHONY_TARGETS += installcheck-kyua
+if HAVE_KYUA
+
+INSTALLCHECK_TARGETS += installcheck-kyua
+
 installcheck-kyua:
-	cd $(testsdir) && $(TESTS_ENVIRONMENT) kyua test
+	set +e; cd $(testsdir) && $(TESTS_ENVIRONMENT) \
+	    $(KYUA) --config='$(KYUA_TEST_CONFIG_FILE)' test; \
+	ret=$$?; \
+	echo $$ret; \
+	if [ -n "$$JUNIT_OUTPUT" ]; then \
+	    cd $(testsdir) && $(TESTS_ENVIRONMENT) \
+		    $(KYUA) --config='$(KYUA_TEST_CONFIG_FILE)' \
+		    report-junit --output="$$JUNIT_OUTPUT"; \
+	    sed -i '.orig' 's/encoding="iso-8859-1"/encoding="utf-8"/' "$$JUNIT_OUTPUT"; \
+	    rm -f "$$JUNIT_OUTPUT.orig"; \
+	fi; \
+	cd $(testsdir) && $(TESTS_ENVIRONMENT) \
+		$(KYUA) --config='$(KYUA_TEST_CONFIG_FILE)' report --verbose; \
+	exit $$ret
+
+if CODE_COVERAGE
+CODE_COVERAGE_EXCLUDES = '/usr/include/*' '/usr/local/include/*'
+CODE_COVERAGE_OUTPUT_DIR ?= code_coverage
+EXTRA_GENHTML_ARGS ?=
+INSTALLCHECK_TARGETS+=	installcheck-kyua-lcov
+
+installcheck-kyua-lcov: installcheck-kyua
+	mkdir -p $(CODE_COVERAGE_OUTPUT_DIR)/html
+	$(LCOV) --capture --directory $(srcdir) \
+	    --output-file $(CODE_COVERAGE_OUTPUT_DIR)/lcov.info
+	$(LCOV) --remove $(CODE_COVERAGE_OUTPUT_DIR)/lcov.info \
+	    $(CODE_COVERAGE_EXCLUDES) \
+	    --output-file $(CODE_COVERAGE_OUTPUT_DIR)/lcov-filtered.info
+	$(GENHTML) -o $(CODE_COVERAGE_OUTPUT_DIR)/html $(EXTRA_GENHTML_ARGS) \
+	    $(CODE_COVERAGE_OUTPUT_DIR)/lcov-filtered.info
+endif
 endif
 else
 DIST_HOOKS += dist-no-atf
@@ -163,6 +230,16 @@ dist-no-atf:
 	@false
 endif
 
+if CODE_COVERAGE
+PHONY_TARGETS += mostlyclean-code-coverage
+mostlyclean-local: mostlyclean-code-coverage
+mostlyclean-code-coverage:
+	-for dir in $(CODE_COVERAGE_DIRS); do \
+	    find $$dir \( -name \*.gcda -or -name \*.gcno \) -delete -print; \
+	done
+endif
+
+installcheck-local: $(INSTALLCHECK_TARGETS)
 if WITH_DOXYGEN
 # This should probably be html-local, but it seems better to generate the
 # documentation in all cases to get warnings about missing documentation every
@@ -218,4 +295,6 @@ clean-all:
 
 dist-hook: $(DIST_HOOKS)
 
-.PHONY: ${PHONY_TARGETS}
+.PHONY: $(PHONY_TARGETS)
+
+# vim: syntax=make:noexpandtab:shiftwidth=8:softtabstop=8
