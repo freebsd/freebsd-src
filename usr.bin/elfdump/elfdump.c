@@ -274,6 +274,7 @@ e_machines(u_int mach)
 	case EM_X86_64:	return "EM_X86_64";
 	case EM_AARCH64:return "EM_AARCH64";
 	case EM_RISCV:	return "EM_RISCV";
+	case EM_LOONGARCH:return "EM_LOONGARCH";
 	}
 	snprintf(machdesc, sizeof(machdesc),
 	    "(unknown machine) -- type 0x%x", mach);
