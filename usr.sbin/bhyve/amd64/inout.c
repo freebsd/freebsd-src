@@ -227,10 +227,8 @@ emulate_inout(struct vmctx *ctx, struct vcpu *vcpu, struct vm_exit *vmexit)
 		val = eax & vie_size2mask(bytes);
 		retval = handler(ctx, in, port, bytes, &val, arg);
 		if (retval == 0 && in) {
-			eax &= ~vie_size2mask(bytes);
-			eax |= val & vie_size2mask(bytes);
-			error = vm_set_register(vcpu, VM_REG_GUEST_RAX,
-			    eax);
+			error = vie_update_register(vcpu, VM_REG_GUEST_RAX,
+			    val, bytes);
 			if (error != 0)
 				vm_check_destroyed(vcpu);
 			assert(error == 0);

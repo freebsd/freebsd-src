@@ -134,10 +134,8 @@ emulate_inout_port(struct vcpu *vcpu, struct vm_exit *vmexit, bool *retu)
 	}
 
 	if (vmexit->u.inout.in) {
-		vmexit->u.inout.eax &= ~mask;
-		vmexit->u.inout.eax |= val & mask;
-		error = vm_set_register(vcpu, VM_REG_GUEST_RAX,
-		    vmexit->u.inout.eax);
+		error = vie_update_register(vcpu, VM_REG_GUEST_RAX,
+		    val, vmexit->u.inout.bytes);
 		KASSERT(error == 0, ("emulate_ioport: error %d setting guest "
 		    "rax register", error));
 	}
