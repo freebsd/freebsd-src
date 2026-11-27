@@ -248,21 +248,33 @@ static void
 cleanup(void)
 {
 	char fnbuf[PATH_MAX];
-	long i;
+	char *base, *p;
+	long i, j;
 
 	if (!doclean)
 		return;
 
 	/*
-	 * NOTE: One cannot portably assume to be able to call snprintf()
-	 * from inside a signal handler. It does, however, appear to be safe
-	 * to do on FreeBSD. The solution to this problem is worse than the
-	 * problem itself.
+	 * POSIX 2024 adds strcpy and strlen to the async-signal-safe list.
+	 * We use them for the prefix, but manually format the integer suffix
+	 * since snprintf is still unsafe.
 	 */
+	strcpy(fnbuf, prefix);
+	base = fnbuf + strlen(fnbuf);
 
 	for (i = 0; i < nfiles; i++) {
-		snprintf(fnbuf, sizeof(fnbuf), "%s%0*ld", prefix,
-		    (int)sufflen, i);
+		long val = i;
+
+		/* Point to the end of the filename and null-terminate. */
+		p = base + sufflen;
+		*p = '\0';
+
+		/* Fill the suffix digits backwards. */
+		for (j = 0; j < sufflen; j++) {
+			*--p = (val % 10) + '0';
+			val /= 10;
+		}
+
 		unlink(fnbuf);
 	}
 }
