@@ -105,14 +105,14 @@ ipc_thread(void *param)
 			continue;
 		}
 
-		cmdname = nvlist_get_string(nvl, "cmd");
-		if (cmdname == NULL) {
+		if (!nvlist_exists_string(nvl, "cmd")) {
 			nvlist_add_string(nvl, "error", "missing command name");
 			nvlist_send(fd, nvl);
 			nvlist_destroy(nvl);
 			close(fd);
 			continue;
 		}
+		cmdname = nvlist_get_string(nvl, "cmd");
 		reply = handle_message(ctx->vmctx, nvl);
 		if (reply == NULL) {
 			reply = nvlist_create(0);
