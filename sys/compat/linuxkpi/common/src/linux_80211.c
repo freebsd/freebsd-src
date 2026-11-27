@@ -6543,6 +6543,12 @@ lkpi_ic_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap
 /*
  * (*ic_addba_stop)() is called from ampdu_tx_stop(), ht_recv_action_ba_delba(),
  * and ieee80211_ampdu_stop() and calls the default ieee80211_addba_stop().
+ *
+ * Note: ampdu_tx_stop() is also called from ieee80211_ht_node_cleanup() via
+ * net80211 node_free() which lkpi_ic_node_free() calls after the lsta was
+ * already freed and ni->ni_drv_data cleared.  In that case (and if the sta
+ * is no longer known to the driver) we must not call into the driver but
+ * still have to call the net80211 default to stop timers and clear state.
  */
 static void
 lkpi_ic_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
@@ -6565,6 +6571,11 @@ lkpi_ic_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	lvif = VAP_TO_LVIF(vap);
 	vif = LVIF_TO_VIF(lvif);
 	lsta = ni->ni_drv_data;
+	if (lsta == NULL) {
+		/* Node is being freed; sta already removed from driver. */
+		TRACEOK("ni %p tid %u lsta is NULL", ni, tap->txa_tid);
+		goto n80211;
+	}
 	sta = LSTA_TO_STA(lsta);
 
 	if (!lsta->added_to_drv) {
