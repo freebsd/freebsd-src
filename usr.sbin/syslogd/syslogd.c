@@ -1424,6 +1424,8 @@ skip_message(const char *name, const char *spec, int checkcase)
 	const char *s;
 	char prev, next;
 	int exclude = 0;
+	size_t namelen;
+	char *(*find)(const char *, const char *);
 	/* Behaviour on explicit match */
 
 	if (spec == NULL || *spec == '\0')
@@ -1438,15 +1440,17 @@ skip_message(const char *name, const char *spec, int checkcase)
 	default:
 		break;
 	}
-	if (checkcase)
-		s = strstr (spec, name);
-	else
-		s = strcasestr (spec, name);
+	find = checkcase ? strstr : strcasestr;
+	namelen = strlen(name);
+	for (s = find(spec, name); s != NULL; s = find(s + 1, name)) {
+		prev = (s == spec) ? ',' : *(s - 1);
+		next = *(s + namelen);
 
-	if (s != NULL) {
-		prev = (s == spec ? ',' : *(s - 1));
-		next = *(s + strlen (name));
-
+		/*
+		 * Only a whole comma-delimited element is a match; on a
+		 * substring hit keep scanning so a later element can
+		 * still match.
+		 */
 		if (prev == ',' && (next == '\0' || next == ','))
 			/* Explicit match: skip iff the spec is an
 			   exclusive one. */
