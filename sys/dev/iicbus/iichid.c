@@ -1086,7 +1086,7 @@ iichid_probe(device_t dev)
 	if (acpi_disabled("iichid"))
 		return (ENXIO);
 
-	sc->addr = iicbus_get_addr(dev) << 1;
+	sc->addr = iicbus_get_addr(dev);
 	if (sc->addr == 0)
 		return (ENXIO);
 
@@ -1104,7 +1104,7 @@ iichid_probe(device_t dev)
 	} else
 		config_reg = (uint16_t)reg;
 
-	DPRINTF(sc, "  IICbus addr       : 0x%02X\n", sc->addr >> 1);
+	DPRINTF(sc, "  IICbus addr       : 0x%02X\n", sc->addr);
 	DPRINTF(sc, "  HID descriptor reg: 0x%02X\n", config_reg);
 
 	error = iichid_cmd_get_hid_desc(sc, config_reg, &sc->desc);
