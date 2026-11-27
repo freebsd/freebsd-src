@@ -120,6 +120,7 @@ struct dpaa2_rc_softc {
 	device_t		 dev;
 	int			 unit;
 	uint32_t		 cont_id;
+	struct cdev		*cdev;	/* /dev/dpaa2rcN control device */
 };
 
 /**
@@ -181,7 +182,7 @@ int dpaa2_mc_detach(device_t dev);
 
 struct rman *dpaa2_mc_rman(device_t mcdev, int type, u_int flags);
 struct resource * dpaa2_mc_alloc_resource(device_t mcdev, device_t child,
-    int type, int rid, rman_res_t start, rman_res_t end, rman_res_t count,
+    int type, int *rid, rman_res_t start, rman_res_t end, rman_res_t count,
     u_int flags);
 int dpaa2_mc_adjust_resource(device_t mcdev, device_t child,
     struct resource *r, rman_res_t start, rman_res_t end);
