@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20261127:
+	acpi_iicbus(4) now stores slave I2C address in 8-bit format to match
+	iicbus(4) and ofw_iicbus(4). __FreeBSD_version was bumped to 1600032
+	for this.
+
 20261113:
 	pwd_mkdb(8) now validates login names using the same character rules
 	that pw(8) applies, so names containing shell metacharacters or other
