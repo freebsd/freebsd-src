@@ -2114,7 +2114,6 @@ proc_getauxv(struct thread *td, struct proc *p, struct sbuf *sb)
 	if (error != 0)
 		return (error);
 	error = get_proc_vector(td, p, vm, &auxv, &vsize, PROC_AUX);
-	proc_vmspace_unref(td, p, PRVM_BLOCK_EXEC | PRVM_CHECK_DEBUG, vm);
 	if (error == 0) {
 #ifdef COMPAT_FREEBSD32
 		if (SV_PROC_FLAG(p, SV_ILP32) != 0)
@@ -2126,6 +2125,7 @@ proc_getauxv(struct thread *td, struct proc *p, struct sbuf *sb)
 			error = ENOMEM;
 		free(auxv, M_TEMP);
 	}
+	proc_vmspace_unref(td, p, PRVM_BLOCK_EXEC | PRVM_CHECK_DEBUG, vm);
 	return (error);
 }
 
