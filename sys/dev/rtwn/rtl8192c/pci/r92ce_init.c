@@ -318,3 +318,13 @@ r92ce_post_init(struct rtwn_softc *sc)
 #endif
 		sc->sc_ratectl = RTWN_RATECTL_NONE;
 }
+
+int
+r92ce_set_qmap(struct rtwn_softc *sc)
+{
+	struct rtwn_pci_softc *pc = RTWN_PCI_SOFTC(sc);
+
+	KASSERT(pc->pc_qmap != 0, ("%s: qmap is not set!\n", __func__));
+
+	return (rtwn_write_2(sc, R92C_TRXDMA_CTRL, pc->pc_qmap));
+}

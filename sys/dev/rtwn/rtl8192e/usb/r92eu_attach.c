@@ -167,6 +167,7 @@ r92eu_attach(struct rtwn_usb_softc *uc)
 	sc->sc_init_rf			= r92e_init_rf;
 	sc->sc_init_antsel		= rtwn_nop_softc;
 	sc->sc_post_init		= r92eu_post_init;
+	sc->sc_set_qmap			= r92cu_set_qmap;
 	sc->sc_init_bcnq1_boundary	= rtwn_nop_int_softc;
 	sc->sc_set_tx_power		= r92e_set_tx_power;
 

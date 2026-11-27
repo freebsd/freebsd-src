@@ -1511,7 +1511,6 @@ rtwn_dma_init(struct rtwn_softc *sc)
 	if (res != 0)		\
 		return (EIO);	\
 } while(0)
-	uint16_t reg;
 	uint8_t tx_boundary;
 	int error;
 
@@ -1555,9 +1554,9 @@ rtwn_dma_init(struct rtwn_softc *sc)
 
 	/* Set queue to USB pipe mapping. */
 	/* Note: PCIe devices are using some magic number here. */
-	reg = rtwn_get_qmap(sc);
-	RTWN_CHK(rtwn_setbits_2(sc, R92C_TRXDMA_CTRL,
-	    R92C_TRXDMA_CTRL_QMAP_M, reg));
+	error = rtwn_set_qmap(sc);
+	if (error != 0)
+		return (error);
 
 	/* Configure Tx/Rx DMA (PCIe). */
 	rtwn_set_desc_addr(sc);

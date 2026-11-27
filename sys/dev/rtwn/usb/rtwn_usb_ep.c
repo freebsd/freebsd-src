@@ -250,18 +250,3 @@ rtwn_usb_setup_endpoints(struct rtwn_usb_softc *uc, const uint8_t iface_index)
 
 	return (0);
 }
-
-uint16_t
-rtwn_usb_get_qmap(struct rtwn_softc *sc)
-{
-	struct rtwn_usb_softc *uc = RTWN_USB_SOFTC(sc);
-
-	switch (uc->ntx) {
-	case 1:
-		return (R92C_TRXDMA_CTRL_QMAP_HQ);
-	case 2:
-		return (R92C_TRXDMA_CTRL_QMAP_HQ_NQ);
-	default:
-		return (R92C_TRXDMA_CTRL_QMAP_3EP);
-	}
-}

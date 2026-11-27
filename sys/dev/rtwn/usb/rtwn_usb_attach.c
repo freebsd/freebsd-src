@@ -348,7 +348,6 @@ rtwn_usb_attach_methods(struct rtwn_softc *sc)
 	sc->sc_reset_lists	= rtwn_usb_reset_lists;
 	sc->sc_abort_xfers	= rtwn_usb_abort_xfers;
 	sc->sc_fw_write_block	= rtwn_usb_fw_write_block;
-	sc->sc_get_qmap		= rtwn_usb_get_qmap;
 	sc->sc_set_desc_addr	= rtwn_nop_softc;
 	sc->sc_drop_incorrect_tx = rtwn_usb_drop_incorrect_tx;
 	sc->sc_beacon_update_begin = rtwn_nop_softc_vap;

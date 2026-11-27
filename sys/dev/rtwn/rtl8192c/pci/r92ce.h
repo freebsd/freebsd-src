@@ -52,6 +52,7 @@ int	r92ce_power_on(struct rtwn_softc *);
 void	r92ce_power_off(struct rtwn_softc *);
 void	r92ce_init_ampdu(struct rtwn_softc *);
 void	r92ce_post_init(struct rtwn_softc *);
+int	r92ce_set_qmap(struct rtwn_softc *);
 
 /* r92ce_led.c */
 void	r92ce_set_led(struct rtwn_softc *, int, int);

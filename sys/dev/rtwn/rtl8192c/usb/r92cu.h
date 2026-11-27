@@ -39,6 +39,7 @@ void	r92cu_init_intr(struct rtwn_softc *);
 void	r92cu_init_tx_agg(struct rtwn_softc *);
 void	r92cu_init_rx_agg(struct rtwn_softc *);
 void	r92cu_post_init(struct rtwn_softc *);
+int	r92cu_set_qmap(struct rtwn_softc *);
 
 /* r92cu_led.c */
 void	r92cu_set_led(struct rtwn_softc *, int, int);

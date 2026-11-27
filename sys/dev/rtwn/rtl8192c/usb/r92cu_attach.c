@@ -216,6 +216,7 @@ r92cu_attach(struct rtwn_usb_softc *uc)
 	sc->sc_init_rf			= r92c_init_rf;
 	sc->sc_init_antsel		= r92c_init_antsel;
 	sc->sc_post_init		= r92cu_post_init;
+	sc->sc_set_qmap			= r92cu_set_qmap;
 	sc->sc_init_bcnq1_boundary	= rtwn_nop_int_softc;
 	sc->sc_set_tx_power		= r92c_set_tx_power;
 

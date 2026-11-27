@@ -382,3 +382,21 @@ r92cu_post_init(struct rtwn_softc *sc)
 #endif
 		sc->sc_ratectl = RTWN_RATECTL_NONE;
 }
+
+int
+r92cu_set_qmap(struct rtwn_softc *sc)
+{
+	struct rtwn_usb_softc *uc = RTWN_USB_SOFTC(sc);
+
+	switch (uc->ntx) {
+	case 1:
+		return (rtwn_write_2(sc, R92C_TRXDMA_CTRL,
+		    R92C_TRXDMA_CTRL_QMAP_HQ));
+	case 2:
+		return (rtwn_write_2(sc, R92C_TRXDMA_CTRL,
+		    R92C_TRXDMA_CTRL_QMAP_HQ_NQ));
+	default:
+		return (rtwn_write_2(sc, R92C_TRXDMA_CTRL,
+		    R92C_TRXDMA_CTRL_QMAP_3EP));
+	}
+}

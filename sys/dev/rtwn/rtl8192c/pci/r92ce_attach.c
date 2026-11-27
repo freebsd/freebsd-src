@@ -224,6 +224,7 @@ r92ce_attach(struct rtwn_pci_softc *pc)
 	sc->sc_init_rf			= r92c_init_rf;
 	sc->sc_init_antsel		= rtwn_nop_softc;
 	sc->sc_post_init		= r92ce_post_init;
+	sc->sc_set_qmap			= r92ce_set_qmap;
 	sc->sc_init_bcnq1_boundary	= rtwn_nop_int_softc;
 	sc->sc_set_tx_power		= r92c_set_tx_power;
 
