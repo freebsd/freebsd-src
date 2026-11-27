@@ -158,6 +158,7 @@ addgroup(const char *grpname)
 	/* Try it as a group name, then a group id. */
 	if ((grp = getgrnam(grpname)) == NULL)
 		if ((lgid = strtol(grpname, &ep, 10)) <= 0 || *ep != '\0' ||
+		    lgid >= GID_MAX ||
 		    (grp = getgrgid((gid_t)lgid)) == NULL ) {
 			warnx("%s: bad group name", grpname);
 			return;

@@ -343,7 +343,7 @@ read_userconfig(char const * file)
 			case _UC_MINUID:
 				if ((q = unquote(q)) != NULL) {
 					config.min_uid = strtounum(q, 0,
-					    UID_MAX, &errstr);
+					    UID_MAX - 1, &errstr);
 					if (errstr)
 						warnx("Invalid min_uid: '%s';"
 						    " ignoring", q);
@@ -352,7 +352,7 @@ read_userconfig(char const * file)
 			case _UC_MAXUID:
 				if ((q = unquote(q)) != NULL) {
 					config.max_uid = strtounum(q, 0,
-					    UID_MAX, &errstr);
+					    UID_MAX - 1, &errstr);
 					if (errstr)
 						warnx("Invalid max_uid: '%s';"
 						    " ignoring", q);
@@ -361,7 +361,7 @@ read_userconfig(char const * file)
 			case _UC_MINGID:
 				if ((q = unquote(q)) != NULL) {
 					config.min_gid = strtounum(q, 0,
-					    GID_MAX, &errstr);
+					    GID_MAX - 1, &errstr);
 					if (errstr)
 						warnx("Invalid min_gid: '%s';"
 						    " ignoring", q);
@@ -370,7 +370,7 @@ read_userconfig(char const * file)
 			case _UC_MAXGID:
 				if ((q = unquote(q)) != NULL) {
 					config.max_gid = strtounum(q, 0,
-					    GID_MAX, &errstr);
+					    GID_MAX - 1, &errstr);
 					if (errstr)
 						warnx("Invalid max_gid: '%s';"
 						    " ignoring", q);
