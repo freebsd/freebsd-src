@@ -58,7 +58,7 @@ intelgpio_gpio_to_pad(struct intelgpio_softc *sc, uint32_t pin,
 					local_pad = (pg->first_pad + offset) -
 					    com->groups[0].first_pad;
 					*pad_off = sc->sc_padbar[i] +
-					    (local_pad * INTELGPIO_PAD_SIZE);
+					    (local_pad * sc->sc_padsize);
 				}
 				if (pgp != NULL)
 					*pgp = pg;
@@ -347,7 +347,7 @@ int
 intelgpio_attach(device_t dev, const struct intelgpio_platform *plat)
 {
 	struct intelgpio_softc *sc;
-	bool have_res;
+	uint32_t revid;
 	int i;
 
 	sc = device_get_softc(dev);
@@ -358,9 +358,13 @@ intelgpio_attach(device_t dev, const struct intelgpio_platform *plat)
 	    ("too many communities: %d > %d", plat->ncommunities,
 		INTELGPIO_MAX_COMMUNITIES));
 
+	if (plat->ncommunities <= 0) {
+		device_printf(dev, "no communities configured\n");
+		return (ENXIO);
+	}
+
 	INTELGPIO_LOCK_INIT(sc);
 
-	have_res = false;
 	for (i = 0; i < plat->ncommunities; i++) {
 		sc->sc_mem_res[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 		    &i, RF_ACTIVE);
@@ -369,18 +373,17 @@ intelgpio_attach(device_t dev, const struct intelgpio_platform *plat)
 			    "failed to allocate memory resource "
 			    "for community %d\n",
 			    i);
-			continue;
+			intelgpio_detach(dev);
+			return (ENXIO);
 		}
 		sc->sc_padbar[i] = bus_read_4(sc->sc_mem_res[i],
 		    INTELGPIO_PADBAR_REG);
-		have_res = true;
 	}
 
-	if (!have_res) {
-		device_printf(dev, "no memory resources found\n");
-		INTELGPIO_LOCK_DESTROY(sc);
-		return (ENXIO);
-	}
+	revid = (bus_read_4(sc->sc_mem_res[0], INTELGPIO_REVID_REG) &
+	    INTELGPIO_REVID_MASK) >> INTELGPIO_REVID_SHIFT;
+	sc->sc_padsize = revid >= INTELGPIO_MIN_REVID_FOR_PADCFG_4DW ?
+	    INTELGPIO_PAD_SIZE_4DW : INTELGPIO_PAD_SIZE_2DW;
 
 	sc->sc_busdev = gpiobus_add_bus(dev);
 	if (sc->sc_busdev == NULL) {
