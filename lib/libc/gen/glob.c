@@ -886,6 +886,11 @@ globextend(const Char *path, glob_t *pglob, struct glob_limit *limit,
 		return (GLOB_NOSPACE);
 	}
 
+	if (pglob->gl_offs > SIZE_MAX - 2 ||
+	    pglob->gl_pathc > SIZE_MAX - 2 - pglob->gl_offs) {
+		errno = ENOMEM;
+		return (GLOB_NOSPACE);
+	}
 	newn = 2 + pglob->gl_pathc + pglob->gl_offs;
 	/* reallocarray(NULL, newn, size) is equivalent to malloc(newn*size). */
 	pathv = reallocarray(pglob->gl_pathv, newn, sizeof(*pathv));
@@ -905,7 +910,12 @@ globextend(const Char *path, glob_t *pglob, struct glob_limit *limit,
 	else {
 		for (p = path; *p++ != EOS;)
 			continue;
-		len = MB_CUR_MAX * (size_t)(p - path); /* XXX overallocation */
+		if ((size_t)(p - path) > SIZE_MAX / (size_t)MB_CUR_MAX) {
+			errno = ENOMEM;
+			return (GLOB_NOSPACE);
+		}
+		/* XXX overallocation */
+		len = (size_t)MB_CUR_MAX * (size_t)(p - path);
 		if ((copy = malloc(len)) != NULL) {
 			if (g_Ctoc(path, copy, len)) {
 				free(copy);
