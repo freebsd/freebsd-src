@@ -290,8 +290,8 @@ int
 vm_mmap_memseg(struct vmctx *ctx, vm_paddr_t gpa, int segid, vm_ooffset_t off,
     size_t len, int prot)
 {
-	struct vm_memmap memmap;
-	int error, flags;
+	struct vm_memmap cur, memmap;
+	int error;
 
 	memmap.gpa = gpa;
 	memmap.segid = segid;
@@ -306,11 +306,15 @@ vm_mmap_memseg(struct vmctx *ctx, vm_paddr_t gpa, int segid, vm_ooffset_t off,
 	/*
 	 * If this mapping already exists then don't create it again. This
 	 * is the common case for SYSMEM mappings created by bhyveload(8).
+	 * Any other mapping starting at the same address is an error.
 	 */
-	error = vm_mmap_getnext(ctx, &gpa, &segid, &off, &len, &prot, &flags);
-	if (error == 0 && gpa == memmap.gpa) {
-		if (segid != memmap.segid || off != memmap.segoff ||
-		    prot != memmap.prot || flags != memmap.flags) {
+	cur.gpa = gpa;
+	error = vm_mmap_getnext(ctx, &cur.gpa, &cur.segid, &cur.segoff,
+	    &cur.len, &cur.prot, &cur.flags);
+	if (error == 0 && cur.gpa == memmap.gpa) {
+		if (cur.segid != memmap.segid || cur.segoff != memmap.segoff ||
+		    cur.len != memmap.len || cur.prot != memmap.prot ||
+		    cur.flags != memmap.flags) {
 			errno = EEXIST;
 			return (-1);
 		} else {

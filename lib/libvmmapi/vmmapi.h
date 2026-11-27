@@ -104,7 +104,9 @@ void	*vm_create_devmem(struct vmctx *ctx, int segid, const char *name,
 
 /*
  * Map the memory segment identified by 'segid' into the guest address space
- * at [gpa,gpa+len) with protection 'prot'.
+ * at [gpa,gpa+len) with protection 'prot'.  If an identical mapping already
+ * exists at 'gpa', return 0 without creating another.  If a different mapping
+ * starts at 'gpa', fail with EEXIST.
  */
 int	vm_mmap_memseg(struct vmctx *ctx, vm_paddr_t gpa, int segid,
 	    vm_ooffset_t segoff, size_t len, int prot);
