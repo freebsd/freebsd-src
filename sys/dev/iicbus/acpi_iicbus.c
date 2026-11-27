@@ -519,7 +519,13 @@ acpi_iicbus_enumerate_child(ACPI_HANDLE handle, UINT32 level,
 		return (AE_OK);
 	}
 
-	iicbus_set_addr(child, sb.SlaveAddress);
+	/*
+	 * ACPI reports the 7-bit slave address; iicbus(4) stores and passes
+	 * around the 8-bit form, as ofw_iicbus(4) does when it shifts a
+	 * device-tree "reg" value.  The AML space handler above already
+	 * shifts for the same reason.
+	 */
+	iicbus_set_addr(child, sb.SlaveAddress << 1);
 	acpi_set_handle(child, handle);
 	(void)acpi_iicbus_parse_resources(handle, child);
 
