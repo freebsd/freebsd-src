@@ -551,6 +551,7 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, uint64_t off)
 	shdr = NULL;
 	ret = 0;
 	firstaddr = lastaddr = 0;
+	ssym = esym = 0;
 	ehdr = ef->ehdr;
 #ifdef __powerpc__
 	if (ef->kernel) {
@@ -827,6 +828,8 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, uint64_t off)
 		}
 		/* Reset offsets relative to ssym */
 		lastaddr += shdr[i].sh_size;
+		kern_bzero(lastaddr,
+		    roundup(lastaddr, sizeof(size)) - lastaddr);
 		lastaddr = roundup(lastaddr, sizeof(size));
 		if (i == symtabindex)
 			symtabindex = -1;
@@ -939,6 +942,9 @@ nosyms:
 			archsw.arch_file_measure(fp, phdr[i].p_vaddr + off,
 			    phdr[i].p_memsz);
 		}
+		/* The kernel also uses these symbols for runtime linking. */
+		if (ssym != 0)
+			archsw.arch_file_measure(fp, ssym, esym - ssym);
 	}
 
 out:

@@ -1,0 +1,296 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2026 Kevin Bowling <kbowling@FreeBSD.org>
+ */
+
+#include <atf-c.h>
+#include <sha256.h>
+
+#include "tpm.c"
+
+#undef malloc
+#undef calloc
+
+struct recorded_event {
+	UINT32 pcr;
+	unsigned char digest[SHA256_DIGEST_LENGTH];
+};
+
+struct test_image {
+	unsigned char segment[64];
+	unsigned char gap[64];
+	unsigned char symbols[32];
+};
+
+static struct preloaded_file file;
+static char filename[] = "/boot/kernel/kernel";
+static char filetype[] = "elf kernel";
+static struct env_var variable = { "testconfig", "value", 0, NULL };
+struct env_var *test_environment = &variable;
+EFI_BOOT_SERVICES *BS;
+
+static EFI_TCG2_PROTOCOL protocol2;
+static struct test_image image = {
+	.segment = "loadable segment",
+	.symbols = "symbol and string tables",
+};
+static const vm_offset_t load_base = 0x100000;
+static unsigned char pcrs[FREEBSD_LOADER_FILE_PCR + 1][SHA256_DIGEST_LENGTH];
+static struct recorded_event events[64];
+static size_t nevents, allocations, fail_allocation;
+
+void *
+test_malloc(size_t len)
+{
+
+	return (++allocations == fail_allocation ? NULL : malloc(len));
+}
+
+void *
+test_calloc(size_t n, size_t len)
+{
+
+	return (++allocations == fail_allocation ? NULL : calloc(n, len));
+}
+
+struct preloaded_file *
+file_findfile(const char *name __unused, const char *type __unused)
+{
+
+	return (&file);
+}
+
+struct file_metadata *
+file_findmetadata(struct preloaded_file *fp, int type)
+{
+	struct file_metadata *md;
+
+	for (md = fp->f_metadata; md != NULL; md = md->md_next) {
+		if (md->md_type == type)
+			return (md);
+	}
+	return (NULL);
+}
+
+void *
+efi_translate(vm_offset_t addr)
+{
+
+	ATF_REQUIRE(addr >= file.f_addr);
+	ATF_REQUIRE(addr - file.f_addr < sizeof(image));
+	return ((unsigned char *)&image + (addr - file.f_addr));
+}
+
+static void
+extend(UINT32 pcr, const unsigned char *digest)
+{
+	SHA256_CTX ctx;
+
+	ATF_REQUIRE(pcr == FREEBSD_LOADER_CONFIG_PCR ||
+	    pcr == FREEBSD_LOADER_FILE_PCR);
+	SHA256_Init(&ctx);
+	SHA256_Update(&ctx, pcrs[pcr], SHA256_DIGEST_LENGTH);
+	SHA256_Update(&ctx, digest, SHA256_DIGEST_LENGTH);
+	SHA256_Final(pcrs[pcr], &ctx);
+}
+
+static EFI_STATUS EFIAPI
+measure2(EFI_TCG2_PROTOCOL *this __unused, UINT64 flags __unused,
+    EFI_PHYSICAL_ADDRESS addr, UINT64 len, EFI_TCG2_EVENT *event)
+{
+	SHA256_CTX ctx;
+	struct recorded_event *record;
+
+	ATF_REQUIRE(nevents < nitems(events));
+	record = &events[nevents++];
+	record->pcr = event->Header.PCRIndex;
+	SHA256_Init(&ctx);
+	SHA256_Update(&ctx, (void *)(uintptr_t)addr, len);
+	SHA256_Final(record->digest, &ctx);
+	extend(record->pcr, record->digest);
+	return (EFI_SUCCESS);
+}
+
+static void
+reset(void)
+{
+	struct file_metadata *md, *next;
+
+	for (md = file.f_metadata; md != NULL; md = next) {
+		next = md->md_next;
+		free(md);
+	}
+	bzero(&file, sizeof(file));
+	bzero(pcrs, sizeof(pcrs));
+	bzero(events, sizeof(events));
+	nevents = allocations = fail_allocation = 0;
+	file.f_name = filename;
+	file.f_type = filetype;
+	file.f_addr = load_base;
+	protocol2.HashLogExtendEvent = measure2;
+	tcg2 = &protocol2;
+	tpm_protocol = EFI_TPM_2;
+}
+
+static void
+add_metadata(int type, const void *data, size_t len)
+{
+	struct file_metadata *md;
+
+	md = malloc(sizeof(*md) + len);
+	ATF_REQUIRE(md != NULL);
+	md->md_type = type;
+	md->md_size = len;
+	bcopy(data, md->md_data, len);
+	md->md_next = file.f_metadata;
+	file.f_metadata = md;
+}
+
+static void
+elf_metadata(bool is64, bool relocatable, vm_offset_t base)
+{
+	const Elf32_Addr link_addr = 0x200000;
+	const vm_offset_t ssym = base + offsetof(struct test_image, symbols);
+	Elf64_Ehdr eh64 = { .e_ident = { ELFMAG0, ELFMAG1, ELFMAG2,
+	    ELFMAG3, ELFCLASS64 }, .e_entry = link_addr, .e_shnum = 1 };
+	Elf32_Ehdr eh32 = { .e_ident = { ELFMAG0, ELFMAG1, ELFMAG2,
+	    ELFMAG3, ELFCLASS32 }, .e_entry = link_addr, .e_shnum = 1 };
+	Elf64_Shdr sh64 = { .sh_type = SHT_PROGBITS, .sh_flags = SHF_ALLOC,
+	    .sh_size = sizeof(image.segment) };
+	Elf32_Shdr sh32 = { .sh_type = SHT_PROGBITS, .sh_flags = SHF_ALLOC,
+	    .sh_size = sizeof(image.segment) };
+	const struct {
+		int type;
+		Elf64_Addr value;
+	} metadata[] = {
+		{ MODINFOMD_SSYM, ssym },
+		{ MODINFOMD_ESYM, ssym + sizeof(image.symbols) },
+		{ MODINFOMD_DYNAMIC, link_addr + 0x10 },
+		{ MODINFOMD_CTORS_ADDR, link_addr + 0x20 },
+		{ MODINFOMD_CTORS_SIZE, is64 ? sizeof(Elf64_Addr) :
+		    sizeof(Elf32_Addr) },	/* One constructor. */
+	};
+	Elf32_Addr value32;
+	size_t i;
+
+	reset();
+	file.f_addr = base;
+	eh64.e_type = eh32.e_type = relocatable ? ET_REL : ET_EXEC;
+	sh64.sh_addr = sh32.sh_addr = relocatable ? base : link_addr;
+	if (is64) {
+		add_metadata(MODINFOMD_ELFHDR, &eh64, sizeof(eh64));
+		add_metadata(MODINFOMD_SHDR, &sh64, sizeof(sh64));
+	} else {
+		add_metadata(MODINFOMD_ELFHDR, &eh32, sizeof(eh32));
+		add_metadata(MODINFOMD_SHDR, &sh32, sizeof(sh32));
+	}
+	for (i = 0; i < nitems(metadata); i++) {
+		if (is64) {
+			add_metadata(metadata[i].type, &metadata[i].value,
+			    sizeof(metadata[i].value));
+		} else {
+			value32 = metadata[i].value;
+			add_metadata(metadata[i].type, &value32,
+			    sizeof(value32));
+		}
+	}
+}
+
+static void
+metadata_digest(unsigned char *digest)
+{
+
+	nevents = 0;
+	efi_tpm_measure_file_metadata(&file);
+	ATF_REQUIRE_EQ(nevents, 1);
+	ATF_REQUIRE_EQ(events[0].pcr, FREEBSD_LOADER_FILE_PCR);
+	bcopy(events[0].digest, digest, SHA256_DIGEST_LENGTH);
+}
+
+static void
+check_metadata_changes(bool is64)
+{
+	struct file_metadata *md;
+	unsigned char before[SHA256_DIGEST_LENGTH], after[SHA256_DIGEST_LENGTH];
+	size_t i;
+
+	elf_metadata(is64, false, load_base);
+	metadata_digest(before);
+	/* EI_CLASS selects the layout. Mutate each of the other bytes. */
+	for (md = file.f_metadata; md != NULL; md = md->md_next) {
+		for (i = 0; i < md->md_size; i++) {
+			if (md->md_type == MODINFOMD_ELFHDR && i == EI_CLASS)
+				continue;
+			md->md_data[i] ^= 1;
+			metadata_digest(after);
+			ATF_REQUIRE_MSG(memcmp(before, after,
+			    sizeof(before)) != 0,
+			    "metadata %#x byte %zu was not measured",
+			    md->md_type, i);
+			md->md_data[i] ^= 1;
+		}
+	}
+	reset();
+}
+
+static void
+check_placement(bool is64)
+{
+	unsigned char before[SHA256_DIGEST_LENGTH], after[SHA256_DIGEST_LENGTH];
+	struct file_metadata *md, *next, *head;
+	unsigned char original[sizeof(Elf64_Shdr)];
+
+	elf_metadata(is64, true, load_base);
+	md = file_findmetadata(&file, MODINFOMD_SHDR);
+	bcopy(md->md_data, original, md->md_size);
+	metadata_digest(before);
+	ATF_REQUIRE_EQ(memcmp(md->md_data, original, md->md_size), 0);
+	elf_metadata(is64, true, 0x300000);
+	metadata_digest(after);
+	ATF_REQUIRE_EQ(memcmp(before, after, sizeof(before)), 0);
+	/* The loader's metadata list order must not affect the measurement. */
+	head = NULL;
+	for (md = file.f_metadata; md != NULL; md = next) {
+		next = md->md_next;
+		md->md_next = head;
+		head = md;
+	}
+	file.f_metadata = head;
+	metadata_digest(after);
+	ATF_REQUIRE_EQ(memcmp(before, after, sizeof(before)), 0);
+	reset();
+}
+
+ATF_TC_WITHOUT_HEAD(metadata64);
+ATF_TC_BODY(metadata64, tc)
+{
+	check_metadata_changes(true);
+}
+
+ATF_TC_WITHOUT_HEAD(metadata32);
+ATF_TC_BODY(metadata32, tc)
+{
+	check_metadata_changes(false);
+}
+
+ATF_TC_WITHOUT_HEAD(placement64);
+ATF_TC_BODY(placement64, tc)
+{
+	check_placement(true);
+}
+
+ATF_TC_WITHOUT_HEAD(placement32);
+ATF_TC_BODY(placement32, tc)
+{
+	check_placement(false);
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+	ATF_TP_ADD_TC(tp, metadata64);
+	ATF_TP_ADD_TC(tp, metadata32);
+	ATF_TP_ADD_TC(tp, placement64);
+	ATF_TP_ADD_TC(tp, placement32);
+	return (atf_no_error());
+}
