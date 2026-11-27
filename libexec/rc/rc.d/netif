@@ -199,6 +199,7 @@ netif_common()
 	done
 
 	_dadwait=
+	_dadifn=
 	_fail=
 	_ok=
 	for ifn in ${_cooked_list# }; do
@@ -214,8 +215,10 @@ netif_common()
 		esac
 		if ${_func} ${ifn} $2; then
 			_ok="${_ok} ${ifn}"
-			if ipv6if ${ifn} && [ "${ifn}" != "lo0" ]; then
+			if ipv6if ${ifn} && [ "${ifn}" != "lo0" ] &&
+				! network6_gettentative ${ifn}; then
 				_dadwait=1
+				_dadifn="${_dadifn} ${ifn}"
 			fi
 		else
 			_fail="${_fail} ${ifn}"
@@ -224,9 +227,8 @@ netif_common()
 
 	# inet6 address configuration needs sleep for DAD.
 	case ${_func}:${_dadwait} in
-	ifn_start:1|ifn_vnetup:1|ifn_vnetdown:1)
-		sleep `${SYSCTL_N} net.inet6.ip6.dad_count`
-		sleep 1
+	ifn_start:1)
+		network6_waitdad "${_dadifn}"
 	;;
 	esac
 

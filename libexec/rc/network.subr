@@ -1788,3 +1788,49 @@ network6_getladdr()
 		return
 	done
 }
+
+# network6_gettentative if
+#	Check if there are any tentative IPv6 addresses on $if.
+#	Returns the number of tentative addresses found.
+network6_gettentative()
+{
+	local _if proto addr rest count
+	_if=$1
+
+	count=0
+	while read proto addr rest; do
+		case "${proto}/${addr}/${rest}" in
+		inet6/*/*tentative*)
+			count=$((count + 1))
+		;;
+		esac
+	done <<EOI
+`${IFCONFIG_CMD} $_if inet6 2>/dev/null`
+EOI
+
+	return ${count}
+}
+
+# network6_gettentative if
+#	Wait for "tentative" addresses to clear on $_ifnlist.
+#	Returns with timeout or when all tentative flags are gone.
+network6_waitdad()
+{
+	local _ifnlist _if count iter
+	_ifnlist="$1"
+
+	count=1
+	iter=0
+	# We should never need more than 2 iterations unless someone
+	# adds more addresses while we sleep.
+	while [ ${count} -gt 0 ] && [ ${iter} -lt 2 ]; do
+		sleep `${SYSCTL_N} net.inet6.ip6.dad_count`
+		count=0
+		for _if in ${_ifnlist}; do
+			if ! network6_gettentative ${_if} ; then
+				count=1
+			fi
+		done
+		iter=$((iter + 1))
+	done
+}
