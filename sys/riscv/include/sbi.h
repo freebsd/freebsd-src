@@ -112,6 +112,12 @@
 #define	 SBI_SRST_REASON_NONE		0
 #define	 SBI_SRST_REASON_SYSTEM_FAILURE	1
 
+/* Debug Console (DBCN) Extension */
+#define	SBI_EXT_ID_DBCN			0x4442434E
+#define	SBI_DBCN_CONSOLE_WRITE		0
+#define	SBI_DBCN_CONSOLE_READ		1
+#define	SBI_DBCN_CONSOLE_WRITE_BYTE	2
+
 /* Legacy Extensions */
 #define	SBI_SET_TIMER			0
 #define	SBI_CONSOLE_PUTCHAR		1
@@ -222,23 +228,34 @@ int sbi_hsm_hart_status(u_long hart);
  */
 void sbi_system_reset(u_long reset_type, u_long reset_reason);
 
-/* Legacy extension functions. */
-static __inline void
-sbi_console_putchar(int ch)
+void sbi_console_putchar(int ch);
+int sbi_console_getchar(void);
+size_t sbi_console_write(const char *buf, size_t len);
+
+/* Debug Console extension functions. */
+static __inline struct sbi_ret
+sbi_debug_console_write(u_long num_bytes, u_long base_addr_lo,
+    u_long base_addr_hi)
 {
 
-	(void)SBI_CALL1(SBI_CONSOLE_PUTCHAR, 0, ch);
+	return (SBI_CALL3(SBI_EXT_ID_DBCN, SBI_DBCN_CONSOLE_WRITE,
+	    num_bytes, base_addr_lo, base_addr_hi));
 }
 
-static __inline int
-sbi_console_getchar(void)
+static __inline struct sbi_ret
+sbi_debug_console_read(u_long num_bytes, u_long base_addr_lo,
+    u_long base_addr_hi)
 {
 
-	/*
-	 * XXX: The "error" is returned here because legacy SBI functions
-	 * continue to return their value in a0.
-	 */
-	return (SBI_CALL0(SBI_CONSOLE_GETCHAR, 0).error);
+	return (SBI_CALL3(SBI_EXT_ID_DBCN, SBI_DBCN_CONSOLE_READ,
+	    num_bytes, base_addr_lo, base_addr_hi));
+}
+
+static __inline struct sbi_ret
+sbi_debug_console_write_byte(uint8_t byte)
+{
+
+	return (SBI_CALL1(SBI_EXT_ID_DBCN, SBI_DBCN_CONSOLE_WRITE_BYTE, byte));
 }
 
 void sbi_print_version(void);

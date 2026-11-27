@@ -35,6 +35,9 @@
 #include <sys/module.h>
 #include <sys/reboot.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <machine/md_var.h>
 #include <machine/sbi.h>
 
@@ -60,6 +63,7 @@ static bool has_time_extension = false;
 static bool has_ipi_extension = false;
 static bool has_rfnc_extension = false;
 static bool has_srst_extension = false;
+static bool has_dbcn_extension = false;
 
 static struct sbi_ret
 sbi_get_spec_version(void)
@@ -320,6 +324,12 @@ sbi_init(void)
 		has_rfnc_extension = true;
 	if (sbi_probe_extension(SBI_EXT_ID_SRST) != 0)
 		has_srst_extension = true;
+	if (sbi_probe_extension(SBI_EXT_ID_DBCN) != 0) {
+		has_dbcn_extension = true;
+		if (bootverbose)
+			printf("SBI: DBCN extension detected; "
+			    "using DBCN for console\n");
+	}
 
 	/*
 	 * Probe for legacy extensions. We still rely on many of them to be
@@ -327,9 +337,11 @@ sbi_init(void)
 	 */
 	KASSERT(has_time_extension || sbi_probe_extension(SBI_SET_TIMER) != 0,
 	    ("SBI doesn't implement sbi_set_timer()"));
-	KASSERT(sbi_probe_extension(SBI_CONSOLE_PUTCHAR) != 0,
+	KASSERT(has_dbcn_extension ||
+	    sbi_probe_extension(SBI_CONSOLE_PUTCHAR) != 0,
 	    ("SBI doesn't implement sbi_console_putchar()"));
-	KASSERT(sbi_probe_extension(SBI_CONSOLE_GETCHAR) != 0,
+	KASSERT(has_dbcn_extension ||
+	    sbi_probe_extension(SBI_CONSOLE_GETCHAR) != 0,
 	    ("SBI doesn't implement sbi_console_getchar()"));
 	KASSERT(has_ipi_extension || sbi_probe_extension(SBI_SEND_IPI) != 0,
 	    ("SBI doesn't implement sbi_send_ipi()"));
@@ -344,6 +356,64 @@ sbi_init(void)
 	    ("SBI doesn't implement sbi_remote_sfence_vma_asid()"));
 	KASSERT(has_srst_extension || sbi_probe_extension(SBI_SHUTDOWN) != 0,
 	    ("SBI doesn't implement a shutdown or reset extension"));
+}
+
+void
+sbi_console_putchar(int ch)
+{
+
+	if (has_dbcn_extension) {
+		(void)sbi_debug_console_write_byte((uint8_t)ch);
+	} else {
+		(void)SBI_CALL1(SBI_CONSOLE_PUTCHAR, 0, ch);
+	}
+}
+
+int
+sbi_console_getchar(void)
+{
+	struct sbi_ret ret;
+	uint8_t ch;
+
+	if (has_dbcn_extension) {
+		ret = sbi_debug_console_read(1, vtophys(&ch), 0);
+		if (ret.error == SBI_SUCCESS && ret.value > 0)
+			return (ch);
+		return (-1);
+	}
+
+	/*
+	 * XXX: The "error" is returned here because legacy SBI functions
+	 * continue to return their value in a0.
+	 */
+	return (SBI_CALL0(SBI_CONSOLE_GETCHAR, 0).error);
+}
+
+size_t
+sbi_console_write(const char *buf, size_t len)
+{
+	struct sbi_ret sret;
+	size_t written, chunk;
+	vm_paddr_t pa;
+
+	if (has_dbcn_extension) {
+		written = 0;
+		while (written < len) {
+			pa = vtophys(buf + written);
+			chunk = MIN(len - written,
+			    PAGE_SIZE - (pa & PAGE_MASK));
+			sret = sbi_debug_console_write(chunk, pa, 0);
+			if (sret.error != SBI_SUCCESS || sret.value == 0)
+				break;
+			written += sret.value;
+		}
+		return (written);
+	}
+
+	for (written = 0; written < len; written++)
+		sbi_console_putchar(buf[written]);
+
+	return (written);
 }
 
 static void
