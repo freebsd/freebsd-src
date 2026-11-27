@@ -163,6 +163,7 @@ struct ib_uverbs_file {
 	struct list_head umaps;
 
 	struct xarray		idr;
+	u32			idr_next;
 };
 
 struct ib_uverbs_event {

@@ -295,13 +295,29 @@ static struct ib_uobject *alloc_uobj(struct uverbs_attr_bundle *attrs,
 
 static int idr_add_uobj(struct ib_uobject *uobj)
 {
-       /*
-        * We start with allocating an idr pointing to NULL. This represents an
-        * object which isn't initialized yet. We'll replace it later on with
-        * the real object once we commit.
-        */
-	return xa_alloc(&uobj->ufile->idr, &uobj->id, NULL, xa_limit_32b,
-			GFP_KERNEL);
+	struct ib_uverbs_file *ufile = uobj->ufile;
+	u32 id, start;
+	int ret;
+
+	xa_lock(&ufile->idr);
+	start = ufile->idr_next;
+	id = start;
+	do {
+		ret = __xa_insert(&ufile->idr, id, NULL, GFP_KERNEL);
+		if (ret != -EEXIST)
+			break;
+		id++;
+	} while (id != start);
+
+	if (!ret) {
+		uobj->id = id;
+		ufile->idr_next = id + 1;
+	} else if (ret == -EEXIST) {
+		ret = -ENOMEM;
+	}
+	xa_unlock(&ufile->idr);
+
+	return ret;
 }
 
 /* Returns the ib_uobject or an error. The caller should check for IS_ERR. */
