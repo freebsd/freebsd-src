@@ -84,6 +84,8 @@ static struct hidquirk_entry hidquirks[HID_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(QTRONIX, 980N, 0x110, 0x110, HQ_SPUR_BUT_UP),
 	USB_QUIRK(ALCOR2, KBD_HUB, 0x001, 0x001, HQ_SPUR_BUT_UP),
 	USB_QUIRK(LOGITECH, G510S, 0x0000, 0xFFFF, HQ_KBD_BOOTPROTO),
+	/* T2 USB keyboard LED reports can block the input consumer. */
+	USB_QUIRK(APPLE, WELLSPRINGT2_J152F, 0x0000, 0xffff, HQ_KBD_NO_LEDS),
 	/* Devices which should be ignored by usbhid */
 	USB_QUIRK(APC, UPS, 0x0000, 0xffff, HQ_HID_IGNORE),
 	USB_QUIRK(BELKIN, F6H375USB, 0x0000, 0xffff, HQ_HID_IGNORE),
