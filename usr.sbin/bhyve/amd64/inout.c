@@ -197,6 +197,15 @@ emulate_inout(struct vmctx *ctx, struct vcpu *vcpu, struct vm_exit *vmexit)
 			iterations--;
 		}
 
+		/*
+		 * Preserve the original registers if an error, a guest fault
+		 * or an injected exception prevented all progress.  Exception
+		 * injection has already restarted the instruction.
+		 */
+		if (count != 0 &&
+		    count == (vis->count & vie_size2mask(addrsize)))
+			return (retval);
+
 		/* Update index register */
 		error = vie_update_register(vcpu, idxreg, index, addrsize);
 		if (error != 0)
