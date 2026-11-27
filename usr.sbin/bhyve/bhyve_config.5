@@ -280,6 +280,10 @@ This allows idle guest CPUs to yield the host CPU.
 Force a VM exit when a guest CPU executes the
 .Dv PAUSE
 instruction.
+.It Va x86.gvtd_disable Ta bool Ta false Ta
+Do not use GVT-d for Intel GPU passthrough.
+This is required for Intel ARC and integrated GPUs beginning from
+11'th generation as they do not support GVT-d.
 .It Va domains.N.size Ta string Ta Ta
 Guest physical memory size assigned to NUMA domain
 .Em N .

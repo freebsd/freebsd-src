@@ -214,6 +214,9 @@ gvt_d_probe(struct pci_devinst *const pi)
 	uint16_t vendor;
 	uint8_t class;
 
+	if (get_config_bool_default("x86.gvtd_disable", false))
+		return (ENXIO);
+
 	sc = pi->pi_arg;
 
 	vendor = pci_host_read_config(passthru_get_sel(sc), PCIR_VENDOR, 0x02);

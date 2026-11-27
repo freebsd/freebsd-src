@@ -159,6 +159,7 @@ bhyve_init_config(void)
 	set_config_value("memory.size", "256M");
 	set_config_bool("x86.strictmsr", true);
 	set_config_bool("x86.verbosemsr", false);
+	set_config_bool("x86.gvtd_disable", false);
 	set_config_value("lpc.fwcfg", "bhyve");
 	set_config_value("rundir", BHYVE_RUN_DIR);
 }
