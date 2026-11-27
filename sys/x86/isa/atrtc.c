@@ -480,8 +480,10 @@ atrtc_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
 	    IO_RTC, IO_RTC + 1, 2, RF_ACTIVE);
-	if (sc->port_res == NULL)
-		device_printf(dev, "Warning: Couldn't map I/O.\n");
+	if (sc->port_res == NULL) {
+		device_printf(dev, "Couldn't map I/O.\n");
+		return (ENXIO);
+	}
 	atrtc_start();
 	clock_register(dev, 1000000);
 	bzero(&sc->et, sizeof(struct eventtimer));
