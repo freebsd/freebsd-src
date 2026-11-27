@@ -68,14 +68,28 @@
 
 #include "miibus_if.h"
 
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ure, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB ure");
+
 #ifdef USB_DEBUG
 static int ure_debug = 0;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, ure, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "USB ure");
 SYSCTL_INT(_hw_usb_ure, OID_AUTO, debug, CTLFLAG_RWTUN, &ure_debug, 0,
     "Debug level");
 #endif
+
+/*
+ * TX batching.  Each bulk-OUT transfer carries as many frames as fit in
+ * tx_bufsz.  On a 2.5G link the bytes in flight (tx_xfers * tx_bufsz),
+ * not the CPU, cap TX throughput: with the defaults the link idles while
+ * each completion is handled.  Read at attach.
+ */
+static int ure_tx_bufsz = URE_TX_BUFSZ;
+SYSCTL_INT(_hw_usb_ure, OID_AUTO, tx_bufsz, CTLFLAG_RDTUN, &ure_tx_bufsz, 0,
+    "Bytes per TX transfer (16384-65536)");
+static int ure_tx_xfers = 4;
+SYSCTL_INT(_hw_usb_ure, OID_AUTO, tx_xfers, CTLFLAG_RDTUN, &ure_tx_xfers, 0,
+    "TX transfers per interface (1-8)");
 
 #ifdef USB_DEBUG_VAR
 #ifdef USB_DEBUG
@@ -619,19 +633,33 @@ ure_attach(device_t dev)
 		goto detach;
 	}
 
-	for (i = 0; i < URE_MAX_TX; i++) {
+	sc->sc_txbufsz = ure_tx_bufsz;
+	if (sc->sc_txbufsz < URE_TX_BUFSZ)
+		sc->sc_txbufsz = URE_TX_BUFSZ;
+	if (sc->sc_txbufsz > URE_TX_BUFSZ_MAX)
+		sc->sc_txbufsz = URE_TX_BUFSZ_MAX;
+	sc->sc_ntx = ure_tx_xfers;
+	if (sc->sc_ntx < 1)
+		sc->sc_ntx = 1;
+	if (sc->sc_ntx > URE_MAX_TX)
+		sc->sc_ntx = URE_MAX_TX;
+	if (sc->sc_txbufsz != URE_TX_BUFSZ || sc->sc_ntx != 4)
+		device_printf(dev, "TX: %d transfers x %d bytes\n",
+		    sc->sc_ntx, sc->sc_txbufsz);
+
+	for (i = 0; i < sc->sc_ntx; i++) {
 		ure_config_tx[i] = (struct usb_config) {
 			.type = UE_BULK,
 			.endpoint = UE_ADDR_ANY,
 			.direction = UE_DIR_OUT,
-			.bufsize = URE_TX_BUFSZ,
+			.bufsize = sc->sc_txbufsz,
 			.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
 			.callback = ure_bulk_write_callback,
 			.timeout = 10000,	/* 10 seconds */
 		};
 	}
 	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_tx_xfer,
-	    ure_config_tx, URE_MAX_TX, sc, &sc->sc_mtx);
+	    ure_config_tx, sc->sc_ntx, sc, &sc->sc_mtx);
 	if (error != 0) {
 		usbd_transfer_unsetup(sc->sc_rx_xfer, URE_MAX_RX);
 		device_printf(dev, "allocating USB TX transfers failed\n");
@@ -848,7 +876,7 @@ tr_setup:
 		caps = if_getcapenable(ifp);
 
 		pos = 0;
-		rem = URE_TX_BUFSZ;
+		rem = sc->sc_txbufsz;
 		while (rem > sizeof(txpkt)) {
 			m = if_dequeue(ifp);
 			if (m == NULL)
