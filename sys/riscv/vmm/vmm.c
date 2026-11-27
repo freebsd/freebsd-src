@@ -540,6 +540,7 @@ vm_handle_wfi(struct vcpu *vcpu, struct vm_exit *vme, bool *retu)
 	struct vm *vm;
 
 	vm = vcpu->vm;
+	vtimer_wfi_enter(vcpu->cookie);
 	vcpu_lock(vcpu);
 	while (1) {
 		if (vm->suspend)
@@ -566,6 +567,7 @@ vm_handle_wfi(struct vcpu *vcpu, struct vm_exit *vme, bool *retu)
 		vcpu_require_state_locked(vcpu, VCPU_FROZEN);
 	}
 	vcpu_unlock(vcpu);
+	vtimer_wfi_exit(vcpu->cookie);
 
 	*retu = false;
 

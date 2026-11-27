@@ -65,6 +65,7 @@ struct hypcsr {
 	uint64_t vsatp;
 	uint64_t scounteren;
 	uint64_t senvcfg;
+	uint64_t vstimecmp;
 };
 
 enum vmm_fence_type {

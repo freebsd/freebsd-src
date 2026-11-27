@@ -35,10 +35,13 @@
  */
 
 #include <sys/param.h>
+#include <sys/sysctl.h>
 
 #include <assert.h>
+#include <err.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include <libfdt.h>
@@ -110,6 +113,46 @@ add_cpu(void *fdt, int cpuid, const char *isa, uint32_t *intc_phandle)
 	fdt_end_node(fdt);
 }
 
+static uint32_t
+get_timebase_freq(void)
+{
+	char tc_name[32];
+	char sysctl_name[64];
+	const char *cfg_val;
+	uint64_t freq;
+	size_t len;
+
+	/* 1. Explicit user override via bhyve config: -o cpus.timebase_frequency=<val> */
+	cfg_val = get_config_value("cpus.timebase_frequency");
+	if (cfg_val != NULL) {
+		freq = strtoull(cfg_val, NULL, 0);
+		if (freq > 0)
+			return ((uint32_t)freq);
+	}
+
+	/* 2. Dynamically determine active timecounter from kern.timecounter.hardware */
+	len = sizeof(tc_name);
+	if (sysctlbyname("kern.timecounter.hardware", tc_name, &len,
+	    NULL, 0) == 0 && len > 0) {
+		snprintf(sysctl_name, sizeof(sysctl_name),
+		    "kern.timecounter.tc.%s.frequency", tc_name);
+		len = sizeof(freq);
+		if (sysctlbyname(sysctl_name, &freq, &len, NULL, 0) == 0 &&
+		    freq > 0)
+			return ((uint32_t)freq);
+	}
+
+	/* 3. Fallback check for standard "RISC-V Timecounter" node */
+	len = sizeof(freq);
+	if (sysctlbyname("kern.timecounter.tc.RISC-V Timecounter.frequency",
+	    &freq, &len, NULL, 0) == 0 && freq > 0)
+		return ((uint32_t)freq);
+
+	/* 4. Default fallback to 10MHz with a warning */
+	warnx("Unable to determine host timebase frequency; defaulting to 10MHz");
+	return (10000000);
+}
+
 static void
 add_cpus(void *fdt, int ncpu, const char *isa)
 {
@@ -119,8 +162,7 @@ add_cpus(void *fdt, int ncpu, const char *isa)
 	/* XXX: Needed given the root #address-cells? */
 	fdt_property_u32(fdt, "#address-cells", 1);
 	fdt_property_u32(fdt, "#size-cells", 0);
-	/* TODO: take timebase from kernel? */
-	fdt_property_u32(fdt, "timebase-frequency", 1000000);
+	fdt_property_u32(fdt, "timebase-frequency", get_timebase_freq());
 
 	intc_phandles = malloc(sizeof(uint32_t) * ncpu);
 	for (cpuid = 0; cpuid < ncpu; cpuid++)
