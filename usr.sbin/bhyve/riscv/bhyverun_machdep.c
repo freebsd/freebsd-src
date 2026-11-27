@@ -74,6 +74,7 @@ config_schema_merge_options_machdep(struct config_schema *schema)
 
 #define	FDT_SIZE	(64 * 1024)
 #define	FDT_DTB_ALIGN	8
+#define	MB		(1024 * 1024UL)
 
 /* Start of lowmem + 64K */
 #define	UART_MMIO_BASE	0x10000
@@ -361,7 +362,7 @@ bhyve_init_platform(struct vmctx *ctx, struct vcpu *bsp)
 	snprintf(isa, sizeof(isa), "%s%s", "rv64imafdc",
 	    retval == 1 ? "_sstc" : "");
 
-	fdt_gpa = vm_get_highmem_base(ctx) + roundup2(len, FDT_DTB_ALIGN);
+	fdt_gpa = vm_get_highmem_base(ctx) + roundup2(len + 2 * MB, 2 * MB);
 	error = fdt_init(ctx, guest_ncpus, fdt_gpa, FDT_SIZE, isa);
 	if (error != 0)
 		return (error);
