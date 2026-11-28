@@ -1,0 +1,5 @@
+SBOM_DESC=	Library for reading and writing streaming archives
+SBOM_VERSION=	3.8.9
+SBOM_COPYRIGHT=	Copyright (c) 2003-2018 Tim Kientzle
+SBOM_URL=	https://libarchive.org
+SBOM_SOURCE=	https://github.com/libarchive/libarchive

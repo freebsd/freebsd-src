@@ -1,0 +1,4 @@
+SBOM_DESC=	DTrace dynamic tracing framework
+SBOM_VERSION=	304057
+SBOM_COPYRIGHT=	Copyright 2007 Sun Microsystems, Inc.
+SBOM_URL=	https://dtrace.org

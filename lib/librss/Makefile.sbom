@@ -1,0 +1,2 @@
+SBOM_DESC=	Receive-side scaling library
+SBOM_COPYRIGHT=	Copyright (c) 2016 Adrian Chadd <adrian@FreeBSD.org>

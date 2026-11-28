@@ -1,0 +1,2 @@
+SBOM_DESC=	Tool for managing trusted and untrusted TLS certificates
+SBOM_COPYRIGHT=	Copyright (c) 2023-2025 Dag-Erling Smørgrav <des@FreeBSD.org>

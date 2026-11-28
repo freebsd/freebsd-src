@@ -1,0 +1,2 @@
+.include "../../lib/libssh/Makefile.sbom"
+SBOM_NAME=	${SBOMBASE}openssh

@@ -1,0 +1,6 @@
+SBOM_DESC=	A block-sorting data compressor
+SBOM_VERSION=	1.0.8
+SBOM_LICENSE=	bzip2-1.0.6
+SBOM_COPYRIGHT=	Copyright (C) 1996-2019 Julian R Seward
+SBOM_URL=	https://sourceware.org/bzip2/
+SBOM_SOURCE=	https://sourceware.org/git/?p=bzip2.git

@@ -1,0 +1,6 @@
+SBOM_DESC=	DragonFly Mail Agent
+SBOM_VERSION=	2022-01-27
+SBOM_LICENSE=	BSD-3-Clause AND BSD-2-Clause
+SBOM_COPYRIGHT=	Copyright (c) 2008-2014, Simon Schubert <2@0x2c.org>
+SBOM_URL=	https://www.dragonflybsd.org/handbook/mta/
+SBOM_SOURCE=	https://github.com/corecode/dma

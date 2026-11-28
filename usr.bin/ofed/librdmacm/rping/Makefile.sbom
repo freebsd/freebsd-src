@@ -1,0 +1,2 @@
+SBOM_NAME=	${SBOMBASE}${PACKAGE}
+SBOM_DESC=	Remote Direct Memory Access (RDMA) and InfiniBand utilities

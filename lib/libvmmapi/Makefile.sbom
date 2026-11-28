@@ -1,0 +1,2 @@
+SBOM_DESC=	Front-end library for the vmm(4) virtualization driver
+SBOM_COPYRIGHT=	Copyright (c) 2011 NetApp, Inc.

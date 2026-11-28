@@ -1,0 +1,4 @@
+SBOM_VERSION=	1.14
+SBOM_DESC=	rpoll(3) interface for event-driven I/O
+SBOM_COPYRIGHT=	Copyright (c)1996-2006 by Hartmut Brandt
+SBOM_URL=	https://people.freebsd.org/~harti/libbegemot/

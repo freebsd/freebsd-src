@@ -1,0 +1,4 @@
+SBOM_VERSION=	20160420
+SBOM_DESC=	NetBSD stack backtrace library
+SBOM_COPYRIGHT=	Copyright (c) 2012 The NetBSD Foundation, Inc.
+SBOM_URL=	https://cvsweb.netbsd.org/bsdweb.cgi/src/lib/libexecinfo/

@@ -1,0 +1,6 @@
+SBOM_NAME=	${SBOMBASE}${PACKAGE}
+SBOM_DESC=	Unit testing framework
+SBOM_VERSION=	1.17.0
+SBOM_LICENSE=	BSD-3-Clause
+SBOM_URL=	https://google.github.io/googletest/
+SBOM_SOURCE=	https://github.com/google/googletest/releases/tag/v${SBOM_VERSION}

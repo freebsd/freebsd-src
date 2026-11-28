@@ -1,0 +1,2 @@
+SBOM_DESC=	FreeBSD libgeom
+SBOM_COPYRIGHT=	Copyright (c) 2003 Poul-Henning Kamp

@@ -1,0 +1,5 @@
+SBOM_DESC=	SMART monitoring
+SBOM_VERSION=	1.0.3
+SBOM_LICENSE=	ISC
+SBOM_COPYRIGHT=	Copyright (c) 2016-2026 Chuck Tuffli <chuck@tuffli.net>
+SBOM_SOURCE=	https://github.com/ctuffli/smart

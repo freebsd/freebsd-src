@@ -1,0 +1,6 @@
+SBOM_DESC=	sendmail Mail Filter API library
+SBOM_VERSION=	8.18.1
+SBOM_COPYRIGHT=	Copyright (c) 1999-2003 Proofpoint, Inc. and its suppliers
+SBOM_LICENSE=	Sendmail
+SBOM_URL=	https://ftp.sendmail.org
+SBOM_SOURCE=	${SBOM_URL}/sendmail.${SBOM_VERSION}.tar.gz

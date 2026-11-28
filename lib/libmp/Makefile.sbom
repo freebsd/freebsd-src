@@ -1,0 +1,2 @@
+SBOM_DESC=	traditional BSD multiple precision integer arithmetic library
+SBOM_COPYRIGHT=	Copyright (c) 2001 Dima Dorfman

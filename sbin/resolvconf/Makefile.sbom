@@ -1,0 +1,6 @@
+SBOM_NAME=	${SBOMBASE}openresolv
+SBOM_DESC=	A framework for managing multiple DNS configurations
+SBOM_VERSION=	3.17.4
+SBOM_COPYRIGHT=	Copyright (c) 2007-2020 Roy Marples <roy@marples.name>
+SBOM_URL=	https://roy.marples.name/projects/openresolv
+SBOM_SOURCE=	https://github.com/NetworkConfiguration/openresolv
