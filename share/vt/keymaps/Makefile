@@ -57,6 +57,8 @@ FILES=	INDEX.keymaps \
 	latinamerican.acc.kbd \
 	latinamerican.kbd \
 	lt.kbd \
+	lv.kbd \
+	lv.acc.kbd \
 	nl.kbd \
 	no.dvorak.kbd \
 	no.kbd \
