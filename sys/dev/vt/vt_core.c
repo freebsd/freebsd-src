@@ -974,11 +974,17 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 		case FKEY | F(51): /* Page up. */
 			terminal_input_special(vw->vw_terminal, TKEY_PAGE_UP);
 			break;
+		case FKEY | F(52): /* Numpad minus. */
+			terminal_input_char(vw->vw_terminal, '-');
+			break;
 		case FKEY | F(53): /* Arrow left. */
 			terminal_input_special(vw->vw_terminal, TKEY_LEFT);
 			break;
 		case FKEY | F(55): /* Arrow right. */
 			terminal_input_special(vw->vw_terminal, TKEY_RIGHT);
+			break;
+		case FKEY | F(56): /* Numpad plus. */
+			terminal_input_char(vw->vw_terminal, '+');
 			break;
 		case FKEY | F(57): /* End key. */
 			terminal_input_special(vw->vw_terminal, TKEY_END);
