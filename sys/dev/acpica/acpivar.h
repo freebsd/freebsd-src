@@ -634,5 +634,11 @@ device_t	acpi_iort_get_iwb_dev(int iwb_id);
 int	acpi_iort_lookup_pci_id(device_t bus, device_t child, uintptr_t *devid);
 int	acpi_iort_alloc_msi(device_t bus, device_t child, int *count);
 #endif
+
+int acpi_get_pld_info(struct sbuf *sb, uint8_t *pldbuf, size_t len);
+size_t acpi_add_pld_sysctl(ACPI_HANDLE ah, struct sysctl_ctx_list *ctx,
+			   struct sysctl_oid_list *tree, uint8_t *port_pld);
+ACPI_STATUS acpi_find_child_by_adr(ACPI_HANDLE pah, ACPI_HANDLE *cah, ACPI_INTEGER adr);
+
 #endif /* _KERNEL */
 #endif /* !_ACPIVAR_H_ */
