@@ -154,6 +154,8 @@ ACPI_MODULE_NAME("IBM")
 #define IBM_EVENT_MUTE			0x17
 #define IBM_EVENT_ACCESS_IBM_BUTTON	0x18
 #define IBM_EVENT_MICMUTE		0x1b
+/* Extended HKEY event 0x1311: Lenovo's programmable star key. */
+#define IBM_EVENT_FAVORITES		0x311
 
 /* Device-specific register flags */
 #define IBM_FLAG_PRIVACYGUARD_DEVICE_PRESENT	0x10000
@@ -505,6 +507,7 @@ acpi_ibm_attach(device_t dev)
 	evdev_support_key(sc->evdev, KEY_BRIGHTNESSUP);
 	evdev_support_key(sc->evdev, KEY_BRIGHTNESSDOWN);
 	evdev_support_key(sc->evdev, KEY_MICMUTE);
+	evdev_support_key(sc->evdev, KEY_BOOKMARKS);
 
 	if (evdev_register(sc->evdev) != 0)
 		return (ENXIO);
@@ -1528,13 +1531,30 @@ acpi_ibm_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 		arg = event & 0xfff;
 		switch (type) {
 		case 1:
-			if (!(sc->events_availmask & (1 << (arg - 1)))) {
+			/* Extended events are not legacy mask indices. */
+			if (arg > 32) {
+#ifdef EVDEV_SUPPORT
+				if (arg == IBM_EVENT_FAVORITES) {
+					evdev_push_key(sc->evdev,
+					    KEY_BOOKMARKS, 1);
+					evdev_sync(sc->evdev);
+					evdev_push_key(sc->evdev,
+					    KEY_BOOKMARKS, 0);
+					evdev_sync(sc->evdev);
+				}
+#endif
+				/* Preserve the full argument for devd. */
+				acpi_UserNotify("IBM", h, arg);
+				break;
+			}
+			if (arg == 0 ||
+			    !(sc->events_availmask & (1u << (arg - 1)))) {
 				device_printf(dev, "Unknown key %d\n", arg);
 				break;
 			}
 
 			/* Execute event handler */
-			if (sc->handler_events & (1 << (arg - 1)))
+			if (sc->handler_events & (1u << (arg - 1)))
 				acpi_ibm_eventhandler(sc, (arg & 0xff));
 #ifdef EVDEV_SUPPORT
 			else {
