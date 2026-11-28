@@ -752,7 +752,7 @@ int
 tac_add_server(struct tac_handle *h, const char *host, int port,
     const char *secret, int timeout, int flags)
 {
-	const char *const *avs = { NULL };
+	const char *const avs[] = { NULL };
 
 	return tac_add_server_av(h, host, port, secret, timeout, flags, avs);
 }
