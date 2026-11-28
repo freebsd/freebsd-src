@@ -1,0 +1,12 @@
+# Assume mK (-m 0.001 -K)
+
+lo_duty = 532;   # nanoseconds, 1%
+
+steps {
+    #          mK               nanoseconds
+    0 { temp = 298150.0; duty =   532; } #  1%
+    1 { temp = 303160.0; duty = 10649; } # 20%
+    2 { temp = 308150.0; duty = 25026; } # 47%
+    3 { temp = 313150.0; duty = 41533; } # 78%
+    4 { temp = 318150.0; duty = 52183; } # 98%
+}

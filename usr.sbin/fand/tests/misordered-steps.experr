@@ -1,0 +1,2 @@
+fand: cprofile: Invalid temp property from step 1; must be greater than 35.00
+fand: Invalid cprofile: /usr/tests/usr.sbin/fand/misordered-steps.cprofile

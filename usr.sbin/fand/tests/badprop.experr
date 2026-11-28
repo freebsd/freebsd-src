@@ -1,0 +1,2 @@
+fand: cprofile: Unknown property: badprop
+fand: Invalid cprofile: /usr/tests/usr.sbin/fand/badprop.cprofile

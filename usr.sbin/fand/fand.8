@@ -1,0 +1,263 @@
+.\" Copyright (c) 2026 Stéphane Rochoy <sheda@FreeBSD.org>
+.\" Copyright (c) 2022 Corey Hinshaw <corey@electrickite.org>
+.\" SPDX-License-Identifier: BSD-2-Clause
+.Dd November 26, 2026
+.Dt FAND 8
+.Os
+.Sh NAME
+.Nm fand
+.Nd daemon to control PWM (Pulse Width Modulation) cooling fans
+.Sh SYNOPSIS
+.\" Manual configuration
+.Nm
+.Op Fl D Ar duty
+.Op Fl o Ar temperature
+.Op Fl p Ar period
+.Op Fl P Ar period
+.Op Fl t Ar temperature
+.Op Fl T Ar temperature
+.Fl d Ar duty
+.Ar tempsensor
+.Ar pwmdevice
+.\" Use a cooling profile
+.Nm
+.Fl c Ar cprofile
+.Ar tempsensor
+.Ar pwmdevice
+.\" Display a cooling profile
+.Nm
+.Fl c Ar cprofile
+.Fl l
+.\" Display sensor and PWM device status
+.Nm
+.Fl s
+.Ar tempsensor
+.Ar pwmdevice
+.\" Other
+.Nm
+.Fl h
+.Sh DESCRIPTION
+The
+.Nm
+daemon can be used to control the cooling fan connected to
+.Ar pwmdevice
+based on the temperature retrived from
+.Ar tempsensor .
+.Ar tempsensor
+must be the name of the sysctl variable used to read the system temperature.
+When
+.Xr capsicum 4
+is used, the sysctl variable must have the
+.Pa CTLFLAG_CAPRD
+flag.
+.Ar pwmdevice
+should be the name of the
+.Xr pwmc 4
+device that controls the target fan.
+If an unqualified name is provided,
+.Pa /dev/pwm
+is automatically prepended.
+There's two ways to configure the behavior of the
+.Nm
+daemon:
+.Bl -bullet -compact
+.It
+manually using the
+.Fl d ,
+.Fl D ,
+.Fl o ,
+.Fl p ,
+.Fl P
+.Fl t ,
+and
+.Fl T
+options
+.It
+or using a cooling profile with the
+.Fl c
+option.
+.El
+The cooling profile way is described in more details in
+.Xr fand.cprofile 5 .
+When configured manually, the low and high temperature thresholds are configured
+using the
+.Fl t
+and
+.Fl T
+options, and their respective PWM parameters are configured using the
+.Fl d ,
+.Fl p ,
+.Fl D
+and
+.Fl P
+options.
+The PWM can be disabled when temperature go under an off temperature threshold
+using the
+.Fl o
+option.
+When called with the
+.Fl s
+option,
+.Nm
+will print the current status of the temperature sensor and the PWM state and
+exit.
+This can be useful when determining the required temperature multiplier and
+other options.
+When called with both the
+.Fl c
+and
+.Fl l
+options,
+.Nm
+will print the corresponding cooling profile.
+The options are as follows:
+.Bl -tag -width "-t temperature"
+.It Fl c Ar cprofile
+The path to the cooling profile to use.
+Defaults to none.
+Conflicts with the
+.Fl d ,
+.Fl D ,
+.Fl t ,
+.Fl T ,
+.Fl o ,
+.Fl p ,
+.Fl P ,
+.Fl t
+and
+.Fl T
+options.
+See
+.Xr fand.cprofile 5
+for details.
+.It Fl d Ar duty
+The duty cycle (in nanoseconds or percentage) of the PWM channel for the
+default (low) temperature threshold.
+Duty is the portion of the
+.Ar period
+during which the signal is asserted.
+Conflicts with the
+.Fl c
+option.
+.It Fl D Ar duty
+The duty cycle (in nanoseconds or percentage) of the PWM channel for the
+high temperature threshold.
+Duty is the portion of the
+.Ar period
+during which the signal is asserted.
+Conflicts with the
+.Fl c
+option.
+.It Fl f
+Run
+.Nm
+in the foreground.
+Also enables more verbose output.
+.It Fl i Ar seconds
+The temperature polling interval, in seconds (Default: 60)
+.It Fl I
+Invert PWM signal polarity
+.It Fl K
+Converts the temperature sensor reading from Kelvin.
+Conflicts with the
+.Fl c
+option.
+.It Fl l
+Show cooling profile, then exit.
+Must be used in conjunction with the
+.Fl c
+option.
+.It Fl m Ar multiplier
+Multiplier applied to reading from temperature sensor.
+Default to 1.0.
+.It Fl o Ar temperature
+Temperature to deactivate fan, in degrees Celsius.
+Defaults to 50 °C.
+Conflicts with the
+.Fl c
+option.
+.It Fl p Ar period
+The period in nanoseconds of the PWM channel for the default (low) temperature
+threshold.
+Defaults to 0.
+Conflicts with the
+.Fl c
+option.
+.It Fl P Ar period
+The period in nanoseconds of the PWM channel for the high temperature threshold
+Defaults to 0.
+Conflicts with the
+.Fl c
+option.
+.It Fl r Ar path
+The PID file path.
+Default to
+.Pa /var/run/fand.pid .
+.It Fl s
+Show current temperature and PWM status, then exit.
+.It Fl t Ar temperature
+Default (low) temperature to enable the fan, in degrees Celsius.
+Defaults to 50 °C.
+Conflicts with the
+.Fl c
+option.
+.It Fl T Ar temperature
+High temperature threshold, in degrees Celsius.
+Defaults to none.
+Conflicts with the
+.Fl c
+option.
+.El
+When exiting or receiving a signal,
+.Nm
+will attempt to disable the PWM.
+.Ss Signals
+The following signals will trigger PWM deactivation on exit:
+.Bl -bullet -compact
+.It
+.Dv SIGTERM
+.It
+.Dv SIGINT
+.El
+.Ss PWM Deactivation
+Disabling the PWM may have a different effect than just enabling it
+with duty set to zero, i.e., stopping the fan.
+The behavior depends on the driver behind the
+.Xr pwmc 4
+controller.
+For example, it can choose to enable an hardware cooling configuration instead
+of just disabling the fan.
+.Sh EXAMPLES
+Using the "hw.temp.CPU" sensor and the pwmc1.0 controller, run the fan at half
+duty cycle when the temperature reaches 45 °C and run at full when the
+temperature rises above 60 °C.
+Disable the fan if the temperature falls below 35 °C.
+When reading from the sensor, assume value is in tenth Kelvin.
+.Bd -literal
+fand -t 45 -p 50000 -d "50%" -T 60 -o 35 -K -m 0.1 hw.temp.CPU pwmc1.0
+.Ed
+.Sh SEE ALSO
+.Xr pwmc 4 ,
+.Xr fand.cprofile 5 ,
+.Xr rc.conf 5 ,
+.Xr pwm 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+daemon appeared in
+.Fx
+16.0.
+Before that is was available from the ports as
+.Pa sysutils/fand .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+daemon and this manual page were originally written by
+.An Corey Hinshaw Aq Mt corey@electrickite.org .
+.An Stéphane Rochoy Aq Mt sheda@FreeBSD.org
+modified it to support cooling profiles,
+.Xr capsicum 4
+and
+.Xr veriexec 4 .

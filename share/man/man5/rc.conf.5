@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 30, 2026
+.Dd November 26, 2026
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -335,6 +335,131 @@ Use
 instead.
 A whitespace-separated list of kernel modules to be ignored by
 .Xr devmatch 8 .
+.It Va fand_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+enable the system fan control facility with the
+.Xr fand 8
+daemon.
+.It Va fand_list
+.Pq Vt str
+A whitespace-separated list of fand configuration names.
+See the
+.Va fand_ Ns Ao Ar name Ac Ns _*
+variables.
+.It Va fand_ Ns Ao Ar name Ac Ns _device
+.Pq Vt str
+The
+.Xr pwmc 4
+fan controller device.
+E.g.,
+.Pa pwmc1.0 .
+This devices are found in
+.Pa /dev/pwm/ .
+.It Va fand_ Ns Ao Ar name Ac Ns _flags
+.Pq Vt str
+Additional command options to pass to
+.Xr fand 8 .
+Unset by default.
+.It Va fand_ Ns Ao Ar name Ac Ns _hi_duty
+.Pq Vt str
+High duty cycle as a duration in nanoseconds or as a percentage.
+Unset by default.
+Conflicts with
+.Va fand_ Ns Ao Ar name Ac Ns _cprofile .
+.It Va fand_ Ns Ao Ar name Ac Ns _hi_period
+.Pq Vt int
+The period in nanoseconds of the high duty cycle.
+Unset by default.
+Conflicts with
+.Va fand_ Ns Ao Ar name Ac Ns _cprofile .
+.It Va fand_ Ns Ao Ar name Ac Ns _hi_temp
+.Pq Vt int
+Temperature at which the fan is enabled with the high duty cycle.
+Unset by default.
+Conflicts with
+.Va fand_ Ns Ao Ar name Ac Ns _cprofile .
+.It Va fand_ Ns Ao Ar name Ac Ns _invpol
+.Pq Vt bool
+Set to
+.Dq Li YES
+to invert PWM polarity.
+Defaults to
+.Dq Li NO .
+.It Va fand_ Ns Ao Ar name Ac Ns _kelvin
+.Pq Vt bool
+Set to
+.Dq Li YES
+if the temperature are in Kelvin.
+Otherwise temperatures are in degrees Celsius.
+Defaults to
+.Dq Li NO .
+.It Va fand_ Ns Ao Ar name Ac Ns _lo_duty
+.Pq Vt str
+Low duty cycle as a duration in nanoseconds or as a percentage.
+Defaults to 0.
+Conflicts with
+.Va fand_ Ns Ao Ar name Ac Ns _cprofile .
+.It Va fand_ Ns Ao Ar name Ac Ns _lo_period
+.Pq Vt int
+The period in nanoseconds of the low duty cycle.
+Defaults to 0.
+Conflicts with
+.Va fand_ Ns Ao Ar name Ac Ns _cprofile .
+.It Va fand_ Ns Ao Ar name Ac Ns _lo_temp
+.Pq Vt int
+Temperature at which the fan is enabled with the low duty cycle.
+Defaults to 50.
+Conflicts with
+.Va fand_ Ns Ao Ar name Ac Ns _cprofile .
+.It Va fand_ Ns Ao Ar name Ac Ns _multiplier
+.Pq Vt float
+A multiplier to apply to the reported temperatures.
+Defaults to 1.0.
+.It Va fand_ Ns Ao Ar name Ac Ns _off_temp
+.Pq Vt int
+Temperature at which the fan is disabled.
+Defaults to 35.
+Conflicts with
+.Va fand_ Ns Ao Ar name Ac Ns _cprofile .
+.It Va fand_ Ns Ao Ar name Ac Ns _pollint
+.Pq Vt int
+Temperature polling interval in seconds.
+Defaults to 60.
+.It Va fand_ Ns Ao Ar name Ac Ns _cprofile
+.Pq Vt str
+Path to cooling profile.
+Unset by default.
+Conflicts with:
+.Bl -bullet -compact
+.It
+.Va fand_ Ns Ao Ar name Ac Ns _hi_duty
+.It
+.Va fand_ Ns Ao Ar name Ac Ns _hi_period
+.It
+.Va fand_ Ns Ao Ar name Ac Ns _hi_temp
+.It
+.Va fand_ Ns Ao Ar name Ac Ns _lo_duty
+.It
+.Va fand_ Ns Ao Ar name Ac Ns _lo_period
+.It
+.Va fand_ Ns Ao Ar name Ac Ns _lo_temp
+.It
+and
+.Va fand_ Ns Ao Ar name Ac Ns _off_temp .
+.El
+.It Va fand_ Ns Ao Ar name Ac Ns _sensor
+.Pq Vt str
+.Xr sysctl 8
+variable used to read temperature.
+E.g.,
+.Pa hw.temp.CPU .
+When
+.Xr capsicum 4
+is used, must have the
+.Pa CTLFLAG_CARPRD
+flag.
 .It Va kld_list
 .Pq Vt str
 A whitespace-separated list of kernel modules to load right after
@@ -5065,7 +5190,6 @@ This option is only available when
 .Xr vmm 4
 is enabled in the kernel.
 .El
-
 All non-network options can be combined with all other options.
 From the SysV options only one option can be specified.
 .Pp
@@ -5076,7 +5200,6 @@ Raising the priority of a process is not permitted inside a jail, and
 .Xr nice 1
 starts the service at the priority of its login class instead of
 failing.
-
 If the
 .Ao Ar name Ac Ns Va _svcj
 variable is set to
@@ -5084,7 +5207,6 @@ variable is set to
 this particular service is started in a
 service jail named
 .Va svcj- Ns Ar name .
-
 The
 .Va svcj_all_enable
 variable allows to enable service jails for all services of the

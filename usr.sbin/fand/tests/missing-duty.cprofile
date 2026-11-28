@@ -1,0 +1,10 @@
+lo_duty = 532;   # nanoseconds, 1%
+
+steps {
+    #          °C           nanoseconds
+    0 { temp = 25.0;               } #  1%
+    1 { temp = 30.0; duty = 10649; } # 20%
+    2 { temp = 35.0; duty = 25026; } # 47%
+    3 { temp = 40.0; duty = 41533; } # 78%
+    4 { temp = 45.0; duty = 52183; } # 98%
+}
