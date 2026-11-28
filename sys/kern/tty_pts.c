@@ -261,8 +261,12 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 	struct pts_softc *psc = tty_softc(tp);
 	int error = 0, sig;
 
+	/*
+	 * Controlling terminal and foreground process group management
+	 * is only meaningful on the slave side.
+	 */
 	if (cmd == TIOCNOTTY || cmd == TIOCSCTTY || cmd == TIOCSPGRP)
-		return (ttydev_ioctl_proctree(tp, cmd, data, td));
+		return (ENOTTY);
 
 	switch (cmd) {
 	case FIODTYPE:
