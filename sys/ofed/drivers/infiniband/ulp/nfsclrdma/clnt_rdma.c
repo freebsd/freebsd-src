@@ -936,8 +936,12 @@ got_reply:
 		goto cannotdecode;
 	}
 	if (rdma_credit == 0) {
-		clnt_rdma_upcall(&crdma->crdma_xp, NULL);
-		goto cannotdecode;
+		/*
+		 * I do not think this should ever happen, but Linux just
+		 * sets the credit to 1 for this case, so we'll do the
+		 * same.
+		 */
+		rdma_credit = 1;
 	}
 	mtx_lock(&crdma->crdma_lock);
 	crdma->crdma_xp.credits = rdma_credit;
