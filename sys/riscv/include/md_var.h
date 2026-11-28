@@ -40,6 +40,7 @@ extern register_t mvendorid;
 extern register_t marchid;
 extern register_t mimpid;
 extern u_int mmu_caps;
+extern uint32_t boot_hart;
 
 /* Supervisor-mode extension support */
 extern bool has_hyp;

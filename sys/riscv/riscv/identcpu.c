@@ -66,6 +66,11 @@ const char machine[] = "riscv";
 SYSCTL_CONST_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD | CTLFLAG_CAPRD,
     machine, "Machine class");
 
+static char cpu_model[64];
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD | CTLFLAG_CAPRD,
+    cpu_model, sizeof(cpu_model),
+    "Machine model");
+
 /* Hardware implementation info. These values may be empty. */
 register_t mvendorid;	/* The CPU's JEDEC vendor ID */
 register_t marchid;	/* The architecture ID */
@@ -498,6 +503,39 @@ identify_cpu_features_fdt(u_int cpu, struct cpu_desc *desc)
 		    __func__, cpu, hart);
 	}
 }
+
+/*
+ * Name the boot CPU by the first compatible string of its node, which Linux
+ * reports as the microarchitecture. If found, populate cpu_model[].
+ */
+static bool
+identify_cpu_model_fdt(void)
+{
+	char compat[64];
+	phandle_t node;
+	pcell_t reg;
+
+	node = OF_finddevice("/cpus");
+	if (node == -1)
+		return (false);
+
+	for (node = OF_child(node); node > 0; node = OF_peer(node)) {
+		if (!ofw_bus_node_is_compatible(node, "riscv"))
+			continue;
+		if (OF_getencprop(node, "reg", &reg, sizeof(reg)) <= 0 ||
+		    reg != boot_hart)
+			continue;
+
+		if (OF_getprop(node, "compatible", compat, sizeof(compat)) <= 0)
+			return (false);
+		compat[sizeof(compat) - 1] = '\0';
+		if (strcmp(compat, "riscv") == 0)
+			return (false);
+		strlcpy(cpu_model, compat, sizeof(cpu_model));
+		return (true);
+	}
+	return (false);
+}
 #endif
 
 static void
@@ -551,9 +589,10 @@ update_global_capabilities(u_int cpu, struct cpu_desc *desc)
 }
 
 static void
-identify_cpu_ids(struct cpu_desc *desc)
+identify_cpu_ids(u_int cpu, struct cpu_desc *desc)
 {
 	const struct marchid_entry *table = NULL;
+	bool found = false;
 	int i;
 
 	desc->cpu_mvendor_name = "Unknown";
@@ -573,20 +612,32 @@ identify_cpu_ids(struct cpu_desc *desc)
 
 	if (marchid == MARCHID_UNIMPL) {
 		desc->cpu_march_name = "Unspecified";
-		return;
+		goto model;
 	}
 
 	if (MARCHID_IS_OPENSOURCE(marchid)) {
 		table = global_marchids;
 	} else if (table == NULL)
-		return;
+		goto model;
 
 	for (i = 0; table[i].march_name != NULL; i++) {
 		if (marchid == table[i].march_id) {
 			desc->cpu_march_name = table[i].march_name;
+			found = true;
 			break;
 		}
 	}
+
+model:
+	/* hw.model describes the boot CPU, as on other architectures. */
+	if (cpu != 0)
+		return;
+#ifdef FDT
+	if (!found && identify_cpu_model_fdt())
+		return;
+#endif
+	snprintf(cpu_model, sizeof(cpu_model), "%s %s",
+	    desc->cpu_mvendor_name, desc->cpu_march_name);
 }
 
 static void
@@ -627,7 +678,7 @@ identify_cpu(u_int cpu)
 {
 	struct cpu_desc *desc = &cpu_desc[cpu];
 
-	identify_cpu_ids(desc);
+	identify_cpu_ids(cpu, desc);
 	identify_cpu_features(cpu, desc);
 
 	update_global_capabilities(cpu, desc);
