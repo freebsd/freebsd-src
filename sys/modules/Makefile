@@ -407,6 +407,7 @@ SUBDIR=	\
 	tarfs \
 	tcp \
 	${_tglhgpio} \
+	${_tgllpgpio} \
 	${_thunderbolt} \
 	${_ti} \
 	tmpfs \
@@ -860,6 +861,7 @@ _s3=		s3
 _sdhci_acpi=	sdhci_acpi
 _superio=	superio
 _tglhgpio=	tglhgpio
+_tgllpgpio=	tgllpgpio
 _vesa=		vesa
 _viawd=		viawd
 _vmd=		vmd
