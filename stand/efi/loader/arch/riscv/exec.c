@@ -32,6 +32,7 @@
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/elf.h>
+#include <machine/riscvreg.h>
 
 #include <stand.h>
 
@@ -99,6 +100,12 @@ __elfN(exec)(struct preloaded_file *fp)
 	}
 
 	entry = efi_translate(e->e_entry);
+
+	/*
+	 * The kernel expects to be entered with translation off.  UEFI
+	 * identity maps memory, so we keep running after the switch.
+	 */
+	csr_write(satp, 0);
 
 	(*entry)((void *)modulep);
 	panic("exec returned");
