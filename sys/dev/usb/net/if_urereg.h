@@ -568,10 +568,11 @@ struct ure_txpkt {
 /* Lower 12 bits are the VLAN tag */
 } __packed;
 
-#define	URE_MAX_TX	4
+#define	URE_MAX_TX	8	/* hw.usb.ure.tx_xfers ceiling */
 #define	URE_MAX_RX	4
 
-#define	URE_TX_BUFSZ		16384
+#define	URE_TX_BUFSZ		16384	/* default bytes per TX transfer */
+#define	URE_TX_BUFSZ_MAX	(64 * 1024)	/* hw.usb.ure.tx_bufsz ceiling */
 #define	URE_8152_RX_BUFSZ	(16 * 1024)
 #define	URE_8153_RX_BUFSZ	(32 * 1024)
 #define	URE_8156_RX_BUFSZ	(48 * 1024)
@@ -585,6 +586,8 @@ struct ure_softc {
 	struct usb_xfer		*sc_tx_xfer[URE_MAX_TX];
 
 	int			sc_rxbufsz;
+	int			sc_txbufsz;	/* bytes per TX transfer */
+	int			sc_ntx;		/* TX transfers set up */
 	int			sc_rxstarted;
 
 	int			sc_phyno;

@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 30, 2026
+.Dd November 26, 2026
 .Dt URE 4
 .Os
 .Sh NAME
@@ -116,6 +116,22 @@ driver supports the following USB Ethernet controllers:
 .It Realtek RTL8156/RTL8156B/RTL8156BG Ta 10, 100, 1000, and 2500
 .It Realtek RTL8153/RTL8153B Ta 10, 100, and 1000
 .It Realtek RTL8152 Ta 10 and 100
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+They are read when each device attaches.
+.Bl -tag -width "hw.usb.ure.tx_bufsz"
+.It Va hw.usb.ure.tx_bufsz
+Size in bytes of each bulk transmit transfer, which carries as many
+frames as fit.
+Larger transfers raise transmit throughput on 2.5 Gbps links.
+Range 16384 to 65536; the default is 16384.
+.It Va hw.usb.ure.tx_xfers
+Number of transmit transfers per interface.
+Range 1 to 8; the default is 4.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
