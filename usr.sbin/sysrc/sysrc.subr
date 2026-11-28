@@ -856,13 +856,14 @@ f_sysrc_service_configs()
 	esac
 
 	__local_startup=$( f_sysrc_get local_startup )
-	set -f # noglob
+	# local_startup globs expand the way rc(8) walks them
+	set +f # glob
 	for __dir in /etc/rc.d $__local_startup; do
 		__spath="$__dir/$__sname"
 		[ -f "$__spath" -a -x "$__spath" ] || __spath= continue
 		break
 	done
-	[ "$__noglob" ] || set +f # glob
+	[ "$__noglob" ] && set -f # noglob
 	[ "$__spath" ] || return $FAILURE
 
 	__stype=$( file -b "$__spath" 2> /dev/null )
@@ -889,21 +890,20 @@ f_sysrc_service_configs()
 	esac
 
 	local __name __test_path __configs=
-	set -f # noglob
+	# local_startup globs expand the way rc(8) walks them
+	set +f # glob
 	for __name in $__names; do
 		for __dir in /etc/rc.d $__local_startup; do
 			__test_path="${__dir%/rc.d}/rc.conf.d/$__name"
 			[ -d "$__test_path" ] ||
 				__configs="$__configs $__test_path" continue
-			set +f # glob
 			for __test_path in "$__test_path"/*; do
 				[ -f "$__test_path" ] || continue
 				__configs="$__configs $__test_path"
 			done
-			set -f # noglob
 		done
 	done
-	[ "$__noglob" ] || set +f # glob
+	[ "$__noglob" ] && set -f # noglob
 	__configs="${__configs# }"
 
 	if [ "$__var_to_set" ]; then

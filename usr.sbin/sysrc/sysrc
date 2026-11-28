@@ -16,7 +16,7 @@ pgm="${0##*/}" # Program basename
 #
 # Version information
 #
-SYSRC_VERSION="9.3.3 Nov-26,2026"
+SYSRC_VERSION="9.3.4 Nov-27,2026"
 
 #
 # Options

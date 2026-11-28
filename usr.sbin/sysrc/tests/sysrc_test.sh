@@ -506,6 +506,55 @@ rc_conf_files_glob_cleanup()
 	unset RC_DEFAULTS
 }
 
+atf_test_case local_startup_glob cleanup
+local_startup_glob_head()
+{
+	atf_set "descr" "local_startup globs expand for -s and -L"
+}
+local_startup_glob_body()
+{
+	local rcd conf extra
+
+	mkdir -p opt/foo/rc.d opt/foo/rc.conf.d/sg_svc2
+	rcd="${PWD}/opt/foo/rc.d/sg_svc"
+	conf="${PWD}/opt/foo/rc.conf.d/sg_svc"
+	extra="${PWD}/opt/foo/rc.conf.d/sg_svc2/extra"
+	printf '%s\n' '#!/bin/sh' '# PROVIDE: sg_svc' \
+	    'load_rc_config sg_svc' > "$rcd"
+	chmod 755 "$rcd"
+	printf '%s\n' '#!/bin/sh' '# PROVIDE: sg_svc2' \
+	    'load_rc_config sg_svc2' > opt/foo/rc.d/sg_svc2
+	chmod 755 opt/foo/rc.d/sg_svc2
+	printf '%s\n' 'sg_svc_enable="YES"' > "$conf"
+	printf '%s\n' 'sg_svc2_enable="YES"' > "$extra"
+
+	RC_DEFAULTS="${PWD}/rc_defaults.conf"
+	cat > "${RC_DEFAULTS}" << EOF
+source_rc_confs() {
+	local i
+	for i in \${rc_conf_files}; do
+		[ -r "\$i" ] && . "\$i"
+	done
+}
+rc_conf_files=/dev/null
+local_startup="${PWD}/opt/*/rc.d"
+EOF
+	export RC_DEFAULTS
+
+	atf_check -o inline:'sg_svc_enable: YES\n' \
+	    sysrc -s sg_svc sg_svc_enable
+	atf_check -o inline:"/etc/rc.conf.d/sg_svc\n${conf}\n" \
+	    sysrc -L sg_svc
+	atf_check -o inline:'sg_svc2_enable: YES\n' \
+	    sysrc -s sg_svc2 sg_svc2_enable
+	atf_check -o inline:"/etc/rc.conf.d/sg_svc2\n${extra}\n" \
+	    sysrc -L sg_svc2
+}
+local_startup_glob_cleanup()
+{
+	unset RC_DEFAULTS
+}
+
 atf_test_case r_flag
 r_flag_head()
 {
@@ -696,5 +745,6 @@ atf_init_test_cases()
 	atf_add_test_case F_flag
 	atf_add_test_case F_flag_assign
 	atf_add_test_case rc_conf_files_glob
+	atf_add_test_case local_startup_glob
 	atf_add_test_case r_flag
 }
